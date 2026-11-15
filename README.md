@@ -27,7 +27,7 @@ think of it as a room-wide effect. You can't easily target one band.
 
 ## Hardware
 
-Any ESP32-S3 board works, e.g. an ESP32-S3-DevKitC-1 or a Seeed XIAO ESP32-S3.
+Tested config targets the **ESP32-S3-DevKitC-1 N16R8**. Any ESP32-S3 board works, e.g. a Seeed XIAO ESP32-S3.
 You need a USB **data** cable. The board needs no other parts or wiring: it
 just needs USB power somewhere central in the house.
 
@@ -115,3 +115,10 @@ reduces broadcast airtime.
 
 The protocol information comes from the community reverse-engineering effort
 documented at [emcot.world](https://emcot.world/Disney_MagicBand%2B_Bluetooth_Codes).
+
+### DevKitC-1 notes
+
+The board has two USB-C ports. Either one can flash it:
+- **USB** is the S3's native USB.
+- **UART** goes through a USB-serial chip and is the most reliable for the
+  first flash.
