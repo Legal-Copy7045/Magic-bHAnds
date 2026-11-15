@@ -27,7 +27,7 @@ think of it as a room-wide effect. You can't easily target one band.
 
 ## Hardware
 
-Tested config targets the **ESP32-S3-DevKitC-1 N16R8**. Any ESP32-S3 board works, e.g. a Seeed XIAO ESP32-S3.
+The example config targets an **ESP32-S3-DevKitC-1 N16R8** style board, such as the Lonely Binary ESP32-S3 N16R8 IPEX. Any ESP32-S3 board works, e.g. a Seeed XIAO ESP32-S3.
 You need a USB **data** cable. The board needs no other parts or wiring: it
 just needs USB power somewhere central in the house.
 
@@ -116,7 +116,12 @@ reduces broadcast airtime.
 The protocol information comes from the community reverse-engineering effort
 documented at [emcot.world](https://emcot.world/Disney_MagicBand%2B_Bluetooth_Codes).
 
-### DevKitC-1 notes
+### DevKitC-1 / Lonely Binary notes
+
+**IPEX boards: fit the antenna before powering on.** The WROOM-1U module has no
+built-in antenna, so without the external one Wi-Fi and Bluetooth range is
+almost nil. Press the small IPEX connector straight down until it clicks.
+You don't need the pin headers for this project.
 
 The board has two USB-C ports. Either one can flash it:
 - **USB** is the S3's native USB.
