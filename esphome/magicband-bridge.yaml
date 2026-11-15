@@ -14,7 +14,8 @@ esphome:
   friendly_name: ${friendly_name}
 
 esp32:
-  # ESP32-S3-DevKitC-1 N16R8 (16 MB flash, 8 MB PSRAM; PSRAM isn't needed).
+  # ESP32-S3-DevKitC-1 N16R8 layout, e.g. Lonely Binary ESP32-S3 N16R8 IPEX
+  # (WROOM-1U module: 16 MB flash, 8 MB PSRAM; PSRAM isn't needed).
   # For a Seeed XIAO ESP32-S3 use `board: seeed_xiao_esp32s3`, `flash_size: 8MB`.
   board: esp32-s3-devkitc-1
   variant: esp32s3
