@@ -1,0 +1,18 @@
+# Example automations. Replace the entity IDs with your own.
+
+- alias: "MagicBand: flash on doorbell"
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.front_doorbell   # <- your doorbell
+      to: "on"
+  actions:
+    - action: script.magicband_doorbell
+
+- alias: "MagicBand: washing machine finished"
+  triggers:
+    - trigger: state
+      entity_id: sensor.washing_machine_status  # <- your appliance
+      to: "finished"
+  actions:
+    - action: script.magicband_effect
+      data: {effect: dual_color, color1: cyan, color2: white, vibration: 2}

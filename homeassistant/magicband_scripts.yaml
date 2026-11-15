@@ -1,0 +1,109 @@
+# Home Assistant scripts for the MagicBand+ bridge.
+#
+# Paste into scripts.yaml (or a package). Assumes the ESPHome device is named
+# `magicband-bridge`, so its actions are `esphome.magicband_bridge_*`.
+# Check Developer Tools -> Actions for the exact names on your system.
+
+magicband_effect:
+  alias: "MagicBand: effect"
+  icon: mdi:watch-variant
+  mode: queued
+  fields:
+    effect:
+      name: Effect
+      required: true
+      default: color
+      selector:
+        select:
+          options: [color, dual_color, five_color, crossfade, circle]
+    color1:
+      name: Colour 1
+      default: blue
+      selector: &colors
+        select:
+          options:
+            - red
+            - red_orange
+            - orange
+            - yellow
+            - off_yellow
+            - lime
+            - lime_green
+            - green
+            - cyan
+            - blue
+            - midnight_blue
+            - purple
+            - bright_purple
+            - lavender
+            - pink
+            - white
+            - random
+    color2:
+      name: Colour 2 (dual / crossfade)
+      default: pink
+      selector: *colors
+    colors:
+      name: Colours (five_color, comma separated)
+      default: "red, orange, yellow, green, blue"
+      selector:
+        text:
+    vibration:
+      name: Vibration (0 = off)
+      default: 0
+      selector:
+        number: {min: 0, max: 15, step: 1, mode: slider}
+  sequence:
+    - choose:
+        - conditions: "{{ effect == 'color' }}"
+          sequence:
+            - action: esphome.magicband_bridge_color
+              data: {color: "{{ color1 }}", vibration: "{{ vibration | int }}"}
+        - conditions: "{{ effect == 'dual_color' }}"
+          sequence:
+            - action: esphome.magicband_bridge_dual_color
+              data: {color1: "{{ color1 }}", color2: "{{ color2 }}", vibration: "{{ vibration | int }}"}
+        - conditions: "{{ effect == 'five_color' }}"
+          sequence:
+            - action: esphome.magicband_bridge_five_color
+              data: {colors: "{{ colors }}", vibration: "{{ vibration | int }}"}
+        - conditions: "{{ effect == 'crossfade' }}"
+          sequence:
+            - action: esphome.magicband_bridge_crossfade
+              data: {color1: "{{ color1 }}", color2: "{{ color2 }}", vibration: "{{ vibration | int }}"}
+        - conditions: "{{ effect == 'circle' }}"
+          sequence:
+            - action: esphome.magicband_bridge_circle
+              data: {vibration: "{{ vibration | int }}"}
+
+# Named presets: easy to call from automations and dashboards.
+magicband_doorbell:
+  alias: "MagicBand: doorbell"
+  icon: mdi:doorbell
+  sequence:
+    - action: script.magicband_effect
+      data: {effect: color, color1: yellow, vibration: 5}
+
+magicband_dinner_ready:
+  alias: "MagicBand: dinner's ready"
+  icon: mdi:silverware-fork-knife
+  sequence:
+    - action: script.magicband_effect
+      data: {effect: five_color, colors: "red, orange, yellow, green, blue", vibration: 3}
+
+magicband_raw:
+  alias: "MagicBand: raw hex (experiments)"
+  icon: mdi:code-braces
+  fields:
+    hex:
+      name: Hex payload
+      example: "E9 05 00 2E 0E E5 B3"
+      required: true
+      selector: {text: {}}
+    duration_ms:
+      name: Duration (ms, 0 = default)
+      default: 0
+      selector: {number: {min: 0, max: 30000, step: 100}}
+  sequence:
+    - action: esphome.magicband_bridge_raw
+      data: {hex: "{{ hex }}", duration_ms: "{{ duration_ms | int }}"}

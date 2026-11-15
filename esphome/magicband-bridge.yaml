@@ -1,0 +1,148 @@
+# MagicBand+ bridge: ESP32-S3 that broadcasts MagicBand+ BLE commands,
+# controlled from Home Assistant.
+#
+# Copy this file and the `components/` folder into your ESPHome config
+# directory (in HA: /config/esphome/), add your Wi-Fi to secrets.yaml, then
+# install from the ESPHome dashboard.
+
+substitutions:
+  name: magicband-bridge
+  friendly_name: MagicBand Bridge
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+
+esp32:
+  # Generic ESP32-S3 dev board. For a Seeed XIAO ESP32-S3 use:
+  #   board: seeed_xiao_esp32s3
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  framework:
+    type: esp-idf
+
+external_components:
+  # Local copy (this repo's components/ folder next to this file).
+  - source:
+      type: local
+      path: components
+    components: [magicband]
+  # Or straight from GitHub instead of a local copy:
+  # - source:
+  #     type: git
+  #     url: https://github.com/Legal-Copy7045/Magic-bHAnds
+  #     ref: main
+  #     path: esphome/components
+  #   components: [magicband]
+  #   refresh: 1d
+
+logger:
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+  # Each action appears in Home Assistant as `esphome.magicband_bridge_<action>`.
+  actions:
+    # Whole band one colour, optional vibration (0-15).
+    - action: color
+      variables:
+        color: string      # e.g. red, blue, pink, lime_green, random, or 0-31
+        vibration: int     # 0 = none, higher = stronger/longer pattern
+      then:
+        - lambda: |-
+            id(band).send_single_color(
+                magicband::MagicBand::color_from_string(color), vibration);
+
+    - action: dual_color
+      variables:
+        color1: string
+        color2: string
+        vibration: int
+      then:
+        - lambda: |-
+            id(band).send_dual_color(
+                magicband::MagicBand::color_from_string(color1),
+                magicband::MagicBand::color_from_string(color2), vibration);
+
+    # Five colours around the band: "red, orange, yellow, green, blue"
+    - action: five_color
+      variables:
+        colors: string
+        vibration: int
+      then:
+        - lambda: id(band).send_five_color(colors, vibration);
+
+    - action: crossfade
+      variables:
+        color1: string
+        color2: string
+        vibration: int
+      then:
+        - lambda: |-
+            id(band).send_crossfade(
+                magicband::MagicBand::color_from_string(color1),
+                magicband::MagicBand::color_from_string(color2), vibration);
+
+    - action: circle
+      variables:
+        vibration: int
+      then:
+        - lambda: id(band).send_circle(vibration);
+
+    - action: ping
+      then:
+        - lambda: id(band).send_ping();
+
+    # Experimentation: any payload as hex (leading "83 01" optional), and a
+    # custom broadcast duration in ms (0 = default).
+    - action: raw
+      variables:
+        hex: string
+        duration_ms: int
+      then:
+        - lambda: id(band).send_hex(hex, duration_ms);
+
+    - action: stop
+      then:
+        - lambda: id(band).stop();
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "${friendly_name} Fallback"
+    password: !secret fallback_ap_password
+
+captive_portal:
+
+esp32_ble:
+  id: ble
+
+magicband:
+  id: band
+  duration: 2s        # how long each command is broadcast
+  tx_power: 9dBm      # -12dBm .. 9dBm
+
+# Handy test buttons on the device page / HA dashboard.
+button:
+  - platform: template
+    name: "Test red buzz"
+    icon: mdi:watch-vibrate
+    on_press:
+      - lambda: id(band).send_single_color(magicband::RED, 3);
+  - platform: template
+    name: "Test rainbow"
+    icon: mdi:looks
+    on_press:
+      - lambda: id(band).send_five_color("red, orange, yellow, green, blue", 0);
+  - platform: template
+    name: "Test ping"
+    icon: mdi:access-point
+    on_press:
+      - lambda: id(band).send_ping();
+  - platform: restart
+    name: "Restart"
