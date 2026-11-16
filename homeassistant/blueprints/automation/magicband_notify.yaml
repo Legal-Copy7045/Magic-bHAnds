@@ -220,15 +220,17 @@ variables:
     mb{{ c | to_json }}
 
 actions:
-  - if: "{{ targets | count == 0 }}"
+  - alias: "Check a MagicBand bridge was found"
+    if: "{{ targets | count == 0 }}"
     then:
       - action: system_log.write
         data:
           level: warning
           logger: blueprints.magicband_notify
           message: "No MagicBand bridges found. Is a bridge added through ESPHome?"
-      - stop: No bridges
-  - repeat:
+      - stop: "No MagicBand bridges found"
+  - alias: "Send the effect to the bridges"
+    repeat:
       count: "{{ repeat_count | int }}"
       sequence:
         - action: text.set_value
