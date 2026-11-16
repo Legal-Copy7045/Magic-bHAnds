@@ -11,6 +11,9 @@ Manages **people** and their **bands** for your MagicBand readers:
   instantly, and keep working if Home Assistant is offline.
 - Fires a `magicband_tap` event and keeps a "last tap" sensor per person for
   automations.
+- Adds a **Send MagicBand effect** action (`magicband.send`) that lights up or
+  buzzes bands through every bridge, or the ones you pick.
+- Installs the **MagicBand+ notification** blueprint and keeps it up to date.
 
 Example: Nana isn't a Home Assistant user, so she's just "Nana" with one band.
 Jackie is linked to `person.jackie` and has two bands, "blue" and "plus".
@@ -56,7 +59,53 @@ their bands but unassigns them, so they're denied.
 | `sensor.magicband_<name>_last_tap` | One per person: when they last tapped any of their bands, plus their band list |
 | `sensor.magicband_unknown_bands` | How many bands don't belong to anyone yet, with the most recent in its attributes |
 
-## Automations
+## Sending effects from automations
+
+Use **`magicband.send`**. It finds every MagicBand bridge itself (any ESPHome
+device with a MagicBand light and a Command entity), so you don't need any
+scripts or templates.
+
+```yaml
+action: magicband.send
+data:
+  effect: color          # color, rgb, dual_color, five_color, crossfade,
+                         # circle, animation, buzz, ping, "off", raw, stop
+  color: red
+  vibration: 1           # 0 = none, 1–11 = patterns
+  always_on: true
+```
+
+- `bridges`: list of bridge Command entities to use. Leave it out for all
+  bridges.
+- `effect: "off"` must be **quoted** in YAML. A bare `off` means false.
+- Other fields: `color2`, `colors`, `rgb_color`, `animation`, `leds`,
+  `on_seconds`, `fade_seconds`, `flash`, `fast`, `hex`, `duration_ms`, or
+  `command` for a raw command object. They're all in the action editor with
+  descriptions.
+- `magicband.list_bridges` returns the bridges it found.
+
+Example: flash red three times when your team scores.
+
+```yaml
+- repeat:
+    count: 3
+    sequence:
+      - action: magicband.send
+        data: {effect: color, color: red, vibration: 1, always_on: true}
+      - delay: 2
+      - action: magicband.send
+        data: {effect: "off"}
+      - delay: 2
+```
+
+## The blueprint
+
+The integration installs the **MagicBand+ notification** blueprint for you. It
+goes in `blueprints/automation/magicband/`, or, if you'd already imported it
+from GitHub, it updates that copy in place. Each integration update refreshes
+it and reloads automations, so you never need to re-import it.
+
+## Reacting to taps
 
 Every tap on a reader fires a **`magicband_tap`** event:
 

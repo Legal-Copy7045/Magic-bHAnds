@@ -1,0 +1,206 @@
+blueprint:
+  name: MagicBand+ notification
+  description: >-
+    Light up and/or buzz nearby MagicBand+ bands when something happens.
+    Requires the MagicBand integration (HACS) and one or more MagicBand bridges
+    added through ESPHome. Sends through every bridge unless you pick
+    specific ones.
+  domain: automation
+  source_url: https://github.com/Legal-Copy7045/Magic-bHAnds/blob/main/homeassistant/blueprints/automation/magicband_notify.yaml
+  input:
+    when:
+      name: When
+      description: What should trigger the band? (doorbell pressed, washer finished, ...)
+      selector:
+        trigger: {}
+    bridges:
+      name: Bridges
+      description: >-
+        Which bridges broadcast the effect. Leave empty to use all of them.
+        Pick each bridge's "Command" entity.
+      default: []
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - integration: esphome
+              domain: text
+    effect_section:
+      name: Effect
+      icon: mdi:watch-variant
+      input:
+        effect:
+          name: Effect
+          default: color
+          selector:
+            select:
+              mode: dropdown
+              options:
+                - {label: "Single colour (palette)", value: color}
+                - {label: "Any colour (colour picker)", value: rgb}
+                - {label: "Centre + outer ring", value: dual_color}
+                - {label: "Five colours", value: five_color}
+                - {label: "Crossfade", value: crossfade}
+                - {label: "Animation", value: animation}
+                - {label: "Vibrate only", value: buzz}
+        color1:
+          name: Colour
+          description: Single colour; centre colour for "centre + outer"; first crossfade colour.
+          default: blue
+          selector: &colour
+            select:
+              mode: dropdown
+              options:
+                - red
+                - red_orange
+                - orange
+                - yellow
+                - off_yellow
+                - lime
+                - lime_green
+                - green
+                - cyan
+                - blue
+                - midnight_blue
+                - purple
+                - bright_purple
+                - lavender
+                - pink
+                - white
+                - unique
+                - random
+        color2:
+          name: Second colour
+          description: Outer ring for "centre + outer"; second crossfade colour.
+          default: pink
+          selector: *colour
+        colors:
+          name: Five colours
+          description: "Comma-separated: centre, top right, bottom right, bottom left, top left."
+          default: "red, orange, yellow, green, blue"
+          selector:
+            text: {}
+        rgb_color:
+          name: Custom colour
+          description: Used by "Any colour".
+          default: [255, 0, 180]
+          selector:
+            color_rgb: {}
+        animation:
+          name: Animation
+          default: color_cycle
+          selector:
+            select:
+              mode: dropdown
+              options:
+                - {label: "Colour cycle", value: color_cycle}
+                - {label: "Rainbow", value: rainbow}
+                - {label: "Lightning", value: lightning}
+                - {label: "Orange blink", value: orange_blink}
+                - {label: "Circle", value: circle}
+                - {label: "Crossfade", value: crossfade}
+                - {label: "Spin + buzz", value: spin_buzz}
+        vibration:
+          name: Vibration
+          default: "0"
+          selector:
+            select:
+              mode: dropdown
+              options:
+                - {label: "None", value: "0"}
+                - {label: "1 · short buzz", value: "1"}
+                - {label: "2 · buzz", value: "2"}
+                - {label: "3 · long buzz", value: "3"}
+                - {label: "4 · buzz + pulse", value: "4"}
+                - {label: "5 · rumble", value: "5"}
+                - {label: "6 · long rumble", value: "6"}
+                - {label: "7 · 2-second buzz", value: "7"}
+                - {label: "8 · flutter", value: "8"}
+                - {label: "9 · short buzz (alt)", value: "9"}
+                - {label: "10 · half-second pulse", value: "10"}
+                - {label: "11 · one-second pulse", value: "11"}
+    timing_section:
+      name: Timing & LEDs (single colour / any colour)
+      icon: mdi:timer-outline
+      collapsed: true
+      input:
+        always_on:
+          name: Stay on
+          description: Keep the light on until another command (or the bridge's MagicBand light is turned off).
+          default: false
+          selector:
+            boolean: {}
+        on_seconds:
+          name: On time (seconds)
+          description: 0 = default (~27s). The band supports roughly 6-52 seconds.
+          default: 0
+          selector:
+            number: {min: 0, max: 52, step: 1, mode: slider}
+        fade_seconds:
+          name: Fade out (seconds)
+          default: 2
+          selector:
+            number: {min: 0, max: 3, step: 1, mode: slider}
+        leds:
+          name: LEDs (single colour)
+          default: all
+          selector:
+            select:
+              options:
+                - {label: "All", value: all}
+                - {label: "Top left", value: top_left}
+                - {label: "Top right", value: top_right}
+                - {label: "Bottom left", value: bottom_left}
+                - {label: "Bottom right", value: bottom_right}
+    advanced:
+      name: Advanced
+      icon: mdi:cog
+      collapsed: true
+      input:
+        repeat:
+          name: Repeat
+          description: How many times to send the effect.
+          default: 1
+          selector:
+            number: {min: 1, max: 5, step: 1, mode: box}
+
+mode: queued
+max: 5
+
+triggers: !input when
+
+variables:
+  bridges: !input bridges
+  effect: !input effect
+  color1: !input color1
+  color2: !input color2
+  colors: !input colors
+  rgb_color: !input rgb_color
+  animation: !input animation
+  vibration: !input vibration
+  always_on: !input always_on
+  on_seconds: !input on_seconds
+  fade_seconds: !input fade_seconds
+  leds: !input leds
+  repeat_count: !input repeat
+
+actions:
+  - alias: "Send the effect to the bridges"
+    repeat:
+      count: "{{ repeat_count | int }}"
+      sequence:
+        - action: magicband.send
+          data:
+            effect: "{{ effect }}"
+            color: "{{ color1 }}"
+            color2: "{{ color2 }}"
+            colors: "{{ colors }}"
+            rgb_color: "{{ rgb_color }}"
+            animation: "{{ animation }}"
+            vibration: "{{ vibration | int }}"
+            leds: "{{ leds }}"
+            on_seconds: "{{ on_seconds | float }}"
+            fade_seconds: "{{ fade_seconds | int }}"
+            always_on: "{{ always_on }}"
+            bridges: "{{ bridges }}"
+        - delay: {seconds: 2}

@@ -39,6 +39,8 @@ from .const import (
     SIGNAL_UPDATED,
     SYNC_INTERVAL_MINUTES,
 )
+from .blueprint_installer import async_install_blueprints
+from .bridges import ANIMATIONS, EFFECTS, async_send, find_bridges
 from .registry import Band, MagicBandRegistry, display_uid
 
 _LOGGER = logging.getLogger(__name__)
@@ -131,6 +133,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
         )
 
     _register_services(hass)
+    await async_install_blueprints(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
@@ -353,6 +356,42 @@ def _register_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(DOMAIN, "sync", sync, supports_response=SupportsResponse.OPTIONAL)
     hass.services.async_register(DOMAIN, "list", list_bands, supports_response=SupportsResponse.ONLY)
+
+    async def send(call: ServiceCall) -> dict[str, Any]:
+        bridges = await async_send(hass, dict(call.data))
+        return {"bridges": bridges}
+
+    async def list_bridges(call: ServiceCall) -> dict[str, Any]:
+        return {"bridges": find_bridges(hass)}
+
+    hass.services.async_register(
+        DOMAIN,
+        "send",
+        send,
+        vol.Schema(
+            {
+                vol.Optional("effect", default="color"): vol.In(EFFECTS),
+                vol.Optional("color"): cv.string,
+                vol.Optional("color2"): cv.string,
+                vol.Optional("colors"): cv.string,
+                vol.Optional("rgb_color"): vol.All(vol.ExactSequence((cv.byte, cv.byte, cv.byte)), list),
+                vol.Optional("animation"): vol.In(ANIMATIONS),
+                vol.Optional("vibration"): vol.All(vol.Coerce(int), vol.Range(min=0, max=15)),
+                vol.Optional("leds"): vol.In(["all", "top_left", "top_right", "bottom_left", "bottom_right"]),
+                vol.Optional("on_seconds"): vol.All(vol.Coerce(float), vol.Range(min=0, max=60)),
+                vol.Optional("fade_seconds"): vol.All(vol.Coerce(int), vol.Range(min=0, max=3)),
+                vol.Optional("always_on"): cv.boolean,
+                vol.Optional("flash"): cv.boolean,
+                vol.Optional("fast"): cv.boolean,
+                vol.Optional("hex"): cv.string,
+                vol.Optional("duration_ms"): vol.All(vol.Coerce(int), vol.Range(min=0, max=30000)),
+                vol.Optional("command"): dict,
+                vol.Optional("bridges"): vol.All(cv.ensure_list, [cv.entity_id]),
+            }
+        ),
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(DOMAIN, "list_bridges", list_bridges, supports_response=SupportsResponse.ONLY)
 
 
 def _band_dict(registry: MagicBandRegistry, band: Band) -> dict[str, Any]:

@@ -2,9 +2,9 @@ blueprint:
   name: MagicBand+ notification
   description: >-
     Light up and/or buzz nearby MagicBand+ bands when something happens.
-    Requires one or more MagicBand Bridges (ESP32-S3, firmware 0.3.0+) added to
-    Home Assistant through the ESPHome integration. Sends through every bridge
-    unless you pick specific ones.
+    Requires the MagicBand integration (HACS) and one or more MagicBand bridges
+    added through ESPHome. Sends through every bridge unless you pick
+    specific ones.
   domain: automation
   source_url: https://github.com/Legal-Copy7045/Magic-bHAnds/blob/main/homeassistant/blueprints/automation/magicband_notify.yaml
   input:
@@ -183,59 +183,24 @@ variables:
   fade_seconds: !input fade_seconds
   leds: !input leds
   repeat_count: !input repeat
-  # Every bridge's Command entity, unless specific ones were picked.
-  targets: >-
-    {%- if bridges -%}
-      {{- bridges -}}
-    {%- else -%}
-      {%- set ns = namespace(e=[]) -%}
-      {%- for e in integration_entities('esphome') | select('match', 'text[.]') | select('search', '_command$') -%}
-        {%- set d = device_id(e) -%}
-        {%- set has_light = d and (device_entities(d) | select('match', 'light[.].*magicband') | list | count > 0) -%}
-        {%- set label = ((device_attr(d, 'model') or '') ~ ' ' ~ (device_attr(d, 'name') or '') ~ ' ' ~ e) | lower -%}
-        {%- if has_light or 'magicband' in label -%}{%- set ns.e = ns.e + [e] -%}{%- endif -%}
-      {%- endfor -%}
-      {{- ns.e -}}
-    {%- endif -%}
-  # The command as JSON. The "mb" prefix stops Home Assistant turning it into a
-  # dict; the bridge ignores everything before the first "{".
-  command: >-
-    {% set v = vibration | int %}
-    {% set timing = {'on_seconds': on_seconds | float, 'fade_seconds': fade_seconds | int, 'always_on': always_on} %}
-    {% if effect == 'color' %}
-      {% set c = dict(timing, effect='color', color=color1, leds=leds, vibration=v) %}
-    {% elif effect == 'rgb' %}
-      {% set c = dict(timing, effect='rgb', rgb=rgb_color, vibration=v) %}
-    {% elif effect == 'dual_color' %}
-      {% set c = {'effect': 'dual_color', 'inner': color1, 'outer': color2, 'vibration': v} %}
-    {% elif effect == 'five_color' %}
-      {% set c = {'effect': 'five_color', 'colors': colors, 'vibration': v} %}
-    {% elif effect == 'crossfade' %}
-      {% set c = {'effect': 'crossfade', 'color1': color1, 'color2': color2, 'vibration': v} %}
-    {% elif effect == 'animation' %}
-      {% set c = {'effect': 'animation', 'name': animation} %}
-    {% else %}
-      {% set c = {'effect': 'buzz', 'vibration': v} %}
-    {% endif %}
-    mb{{ c | to_json }}
 
 actions:
-  - alias: "Check a MagicBand bridge was found"
-    if: "{{ targets | count == 0 }}"
-    then:
-      - action: system_log.write
-        data:
-          level: warning
-          logger: blueprints.magicband_notify
-          message: "No MagicBand bridges found. Is a bridge added through ESPHome?"
-      - stop: "No MagicBand bridges found"
   - alias: "Send the effect to the bridges"
     repeat:
       count: "{{ repeat_count | int }}"
       sequence:
-        - action: text.set_value
-          target:
-            entity_id: "{{ targets }}"
+        - action: magicband.send
           data:
-            value: "{{ command | trim }}"
+            effect: "{{ effect }}"
+            color: "{{ color1 }}"
+            color2: "{{ color2 }}"
+            colors: "{{ colors }}"
+            rgb_color: "{{ rgb_color }}"
+            animation: "{{ animation }}"
+            vibration: "{{ vibration | int }}"
+            leds: "{{ leds }}"
+            on_seconds: "{{ on_seconds | float }}"
+            fade_seconds: "{{ fade_seconds | int }}"
+            always_on: "{{ always_on }}"
+            bridges: "{{ bridges }}"
         - delay: {seconds: 2}

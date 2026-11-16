@@ -1,15 +1,20 @@
 {
   "domain": "magicband",
   "name": "MagicBand",
-  "after_dependencies": ["esphome"],
+  "after_dependencies": [
+    "esphome"
+  ],
   "codeowners": [],
   "config_flow": true,
-  "dependencies": ["tag", "persistent_notification"],
+  "dependencies": [
+    "tag",
+    "persistent_notification"
+  ],
   "documentation": "https://github.com/Legal-Copy7045/Magic-bHAnds/blob/main/docs/integration.md",
   "integration_type": "service",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/Legal-Copy7045/Magic-bHAnds/issues",
   "requirements": [],
   "single_config_entry": true,
-  "version": "0.1.0"
+  "version": "0.2.0"
 }

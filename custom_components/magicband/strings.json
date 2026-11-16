@@ -46,7 +46,9 @@
       },
       "edit_person": {
         "title": "Edit a person",
-        "data": {"person": "Person"}
+        "data": {
+          "person": "Person"
+        }
       },
       "edit_person_details": {
         "title": "Edit {name}",
@@ -59,12 +61,16 @@
       "remove_person": {
         "title": "Remove a person",
         "description": "Their bands are kept but become unassigned, so they'll be denied.",
-        "data": {"person": "Person"}
+        "data": {
+          "person": "Person"
+        }
       },
       "remove_band": {
         "title": "Remove a band",
         "description": "Forget a band completely. If it's tapped again it shows up as new.",
-        "data": {"band": "Band"}
+        "data": {
+          "band": "Band"
+        }
       }
     },
     "error": {
@@ -77,8 +83,12 @@
   },
   "entity": {
     "sensor": {
-      "last_tap": {"name": "Last tap"},
-      "unknown_bands": {"name": "Unknown bands"}
+      "last_tap": {
+        "name": "Last tap"
+      },
+      "unknown_bands": {
+        "name": "Unknown bands"
+      }
     }
   },
   "services": {
@@ -86,46 +96,175 @@
       "name": "Add person",
       "description": "Add someone who can be given bands.",
       "fields": {
-        "name": {"name": "Name", "description": "Their name."},
-        "ha_person": {"name": "Home Assistant person", "description": "Optional linked HA person."},
-        "allowed": {"name": "Allowed", "description": "Whether their bands get the welcome."}
+        "name": {
+          "name": "Name",
+          "description": "Their name."
+        },
+        "ha_person": {
+          "name": "Home Assistant person",
+          "description": "Optional linked HA person."
+        },
+        "allowed": {
+          "name": "Allowed",
+          "description": "Whether their bands get the welcome."
+        }
       }
     },
     "update_person": {
       "name": "Update person",
       "description": "Rename, link or allow/deny a person.",
       "fields": {
-        "person": {"name": "Person", "description": "Name or ID of the person."},
-        "name": {"name": "New name", "description": "Their new name."},
-        "ha_person": {"name": "Home Assistant person", "description": "Linked HA person, or empty to unlink."},
-        "allowed": {"name": "Allowed", "description": "Whether their bands get the welcome."}
+        "person": {
+          "name": "Person",
+          "description": "Name or ID of the person."
+        },
+        "name": {
+          "name": "New name",
+          "description": "Their new name."
+        },
+        "ha_person": {
+          "name": "Home Assistant person",
+          "description": "Linked HA person, or empty to unlink."
+        },
+        "allowed": {
+          "name": "Allowed",
+          "description": "Whether their bands get the welcome."
+        }
       }
     },
     "remove_person": {
       "name": "Remove person",
       "description": "Remove a person. Their bands become unassigned.",
-      "fields": {"person": {"name": "Person", "description": "Name or ID of the person."}}
+      "fields": {
+        "person": {
+          "name": "Person",
+          "description": "Name or ID of the person."
+        }
+      }
     },
     "assign_band": {
       "name": "Assign band",
       "description": "Give a band to a person.",
       "fields": {
-        "band": {"name": "Band", "description": "Band ID, or 'last' for the most recently tapped band."},
-        "person": {"name": "Person", "description": "Name or ID of the person."},
-        "label": {"name": "Label", "description": "Optional label, e.g. 'blue band'."}
+        "band": {
+          "name": "Band",
+          "description": "Band ID, or 'last' for the most recently tapped band."
+        },
+        "person": {
+          "name": "Person",
+          "description": "Name or ID of the person."
+        },
+        "label": {
+          "name": "Label",
+          "description": "Optional label, e.g. 'blue band'."
+        }
       }
     },
     "unassign_band": {
       "name": "Unassign band",
       "description": "Take a band away from its person (it will be denied).",
-      "fields": {"band": {"name": "Band", "description": "Band ID, or 'last'."}}
+      "fields": {
+        "band": {
+          "name": "Band",
+          "description": "Band ID, or 'last'."
+        }
+      }
     },
     "remove_band": {
       "name": "Remove band",
       "description": "Forget a band completely.",
-      "fields": {"band": {"name": "Band", "description": "Band ID, or 'last'."}}
+      "fields": {
+        "band": {
+          "name": "Band",
+          "description": "Band ID, or 'last'."
+        }
+      }
     },
-    "sync": {"name": "Sync readers", "description": "Send the allowed list to every reader now."},
-    "list": {"name": "List people and bands", "description": "Return all people and bands."}
+    "sync": {
+      "name": "Sync readers",
+      "description": "Send the allowed list to every reader now."
+    },
+    "list": {
+      "name": "List people and bands",
+      "description": "Return all people and bands."
+    },
+    "send": {
+      "name": "Send MagicBand effect",
+      "description": "Light up and/or buzz MagicBand+ bands through the MagicBand bridges (all of them unless you pick some).",
+      "fields": {
+        "effect": {
+          "name": "Effect",
+          "description": "What to show."
+        },
+        "color": {
+          "name": "Colour",
+          "description": "Palette colour (red, pink, lime_green, …): single colour, centre for two colours, first crossfade colour."
+        },
+        "color2": {
+          "name": "Second colour",
+          "description": "Outer ring for two colours; second crossfade colour."
+        },
+        "colors": {
+          "name": "Five colours",
+          "description": "Comma-separated: centre, top right, bottom right, bottom left, top left."
+        },
+        "rgb_color": {
+          "name": "Custom colour",
+          "description": "Any colour, for the rgb effect."
+        },
+        "animation": {
+          "name": "Animation",
+          "description": "For the animation effect."
+        },
+        "vibration": {
+          "name": "Vibration",
+          "description": "0 = none, 1–11 = patterns."
+        },
+        "leds": {
+          "name": "LEDs",
+          "description": "Which LEDs (single colour only)."
+        },
+        "on_seconds": {
+          "name": "On time",
+          "description": "Seconds the band stays lit (0 = default)."
+        },
+        "fade_seconds": {
+          "name": "Fade out",
+          "description": "Fade-out seconds (0–3)."
+        },
+        "always_on": {
+          "name": "Stay on",
+          "description": "Stay lit until the next command or 'off'."
+        },
+        "flash": {
+          "name": "Flash",
+          "description": "Blink (rgb effect)."
+        },
+        "fast": {
+          "name": "Fast ping",
+          "description": "Use the fast ping (ping effect)."
+        },
+        "hex": {
+          "name": "Raw hex",
+          "description": "Payload for the raw effect."
+        },
+        "duration_ms": {
+          "name": "Broadcast time",
+          "description": "How long each bridge broadcasts, in ms (0 = default 2 s)."
+        },
+        "command": {
+          "name": "Raw command",
+          "description": "A full command object (advanced); other fields are ignored."
+        },
+        "bridges": {
+          "name": "Bridges",
+          "description": "Command entities of the bridges to use. Leave empty for all bridges."
+        }
+      }
+    },
+    "list_bridges": {
+      "name": "List MagicBand bridges",
+      "description": "Return the Command entities of every MagicBand bridge."
+    }
   }
 }
