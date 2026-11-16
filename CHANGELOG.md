@@ -16,6 +16,17 @@ Home Assistant integration share one version number.
   entity. "Take control" in the ESPHome Device Builder adds its own
   password-protected uploads.
 
+### Added
+- **Published firmware for the SCREEK BP2-POE**, built from the same shared
+  MagicBand code as the bridge and reader. Install it from the web installer
+  or the Device Builder, with no secrets needed. Updates then arrive through
+  Home Assistant like the other boards. PSRAM is enabled for update headroom.
+- CI fails if the single-file BP2-POE config drifts from the shared add-on.
+
+### Fixed
+- Starting a release from the Actions page can no longer be cancelled by a
+  later push.
+
 ### Integration
 - No functional changes; version bumped to match.
 

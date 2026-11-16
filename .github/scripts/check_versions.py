@@ -25,6 +25,8 @@ def main() -> None:
         )["version"],
         "esphome/magicband-bridge.yaml": yaml_version("esphome/magicband-bridge.yaml"),
         "esphome/magicband-reader.yaml": yaml_version("esphome/magicband-reader.yaml"),
+        "esphome/screek-bp2-poe.yaml": yaml_version("esphome/screek-bp2-poe.yaml"),
+        "esphome/screek-bp2-poe-standalone.yaml": yaml_version("esphome/screek-bp2-poe-standalone.yaml"),
     }
     changelog = (REPO / "CHANGELOG.md").read_text()
     found["CHANGELOG.md"] = expected if f"## [{expected}]" in changelog else "no section"

@@ -7,6 +7,7 @@ Products:
   bridge -> manifest.json and firmware/ at the site root (kept there so
             existing bridges' update checks keep working)
   reader -> reader/manifest.json and reader/firmware/
+  bp2    -> bp2/manifest.json and bp2/firmware/
 
 Each manifest serves two purposes:
   * ESP Web Tools reads `builds[].parts` to flash a new board from the browser.
@@ -26,6 +27,7 @@ RELEASES = "https://github.com/Legal-Copy7045/Magic-bHAnds/releases"
 PRODUCTS = {
     "bridge": ("MagicBand Bridge", "magicband-bridge", ""),
     "reader": ("MagicBand Reader", "magicband-reader", "reader/"),
+    "bp2": ("SCREEK BP2-POE + MagicBand", "screek-bp2-poe", "bp2/"),
 }
 
 
@@ -78,7 +80,7 @@ def main() -> None:
         product, build_dir, yaml_path = spec.split("=", 2)
         versions.add(build_product(out, product, Path(build_dir), Path(yaml_path)))
     if len(versions) != 1:
-        sys.exit(f"Bridge and reader versions differ: {sorted(versions)}")
+        sys.exit(f"Firmware versions differ: {sorted(versions)}")
     version = versions.pop()
     page = (REPO / "web" / "index.html").read_text().replace("{{VERSION}}", version)
     (out / "index.html").write_text(page)

@@ -37,78 +37,51 @@ py -m esptool --chip esp32s3 --port COM4 --baud 921600 write-flash 0 screek-bp2-
 SCREEK's own web installer (tool.screek.io) can also reinstall a fresh copy
 of the factory firmware.
 
-## 2. Create the device in the ESPHome Device Builder
+## 2. Install
 
-1. Open the ESPHome Device Builder in Home Assistant and click **+ New device**,
-   then **Continue**, give it any name, choose **ESP32-S3**, and **Skip** the
-   install.
-2. Click **Edit** on the new device and **replace everything** with the
-   following. Replace `849a4c` with the last six characters of your board's
-   hostname, which is the factory hostname `screek-bp2-poe-xxxxxx`: the end of
-   its MAC address, shown in its boot log or on your router.
-   ```yaml
-   substitutions:
-     name: screek-bp2-poe-849a4c
-     friendly_name: SCREEK BP2-POE 849a4c
+Either way needs **no secrets**. The connection to Home Assistant is
+encrypted, and Home Assistant gives the board its own key when it first
+connects.
 
-   packages:
-     bp2:
-       url: https://github.com/Legal-Copy7045/Magic-bHAnds
-       ref: main
-       files: [esphome/screek-bp2-poe.yaml]
-       refresh: 1h
+**From the web installer:** plug the BP2-POE's USB-C into your computer, open
+https://legal-copy7045.github.io/Magic-bHAnds/ in Chrome or Edge, and click
+**Install on a BP2-POE**. Then connect Ethernet/PoE.
 
-   esphome:
-     name_add_mac_suffix: false
-   ```
-   Setting the full name keeps the factory hostname, and it lets the Device
-   Builder find the board: it can't see a name that's generated on the device,
-   so without this the board shows as offline and wireless installs fail.
-   This pulls the full config from GitHub, so improvements arrive without
-   re-pasting. Click **Install** when you want them.
+**From the ESPHome Device Builder** (e.g. if it's already running ESPHome
+firmware from here): make the device's config
+```yaml
+substitutions:
+  name: screek-bp2-poe-849a4c        # your board's hostname
+  friendly_name: SCREEK BP2-POE 849a4c
 
-   **Prefer one self-contained file?** Paste
-   [`esphome/screek-bp2-poe-standalone.yaml`](../esphome/screek-bp2-poe-standalone.yaml)
-   instead, which has everything inline with the name already set. Edit the
-   name if your board's code isn't `849a4c`.
-3. Click **Secrets** (top right) and add a key on its own line:
-   ```yaml
-   bp2_api_key: "PASTE-A-32-BYTE-BASE64-KEY"
-   ```
-   To generate one, run
-   `py -c "import secrets,base64;print(base64.b64encode(secrets.token_bytes(32)).decode())"`,
-   or copy the `key:` the Device Builder put in the new device before you
-   replaced its contents.
+packages:
+  bp2:
+    url: https://github.com/Legal-Copy7045/Magic-bHAnds
+    ref: main
+    files: [esphome/screek-bp2-poe.yaml]
+    refresh: 1h
 
-## 3. First install over USB
+esphome:
+  name_add_mac_suffix: false
+```
+or paste the single-file
+[`esphome/screek-bp2-poe-standalone.yaml`](../esphome/screek-bp2-poe-standalone.yaml),
+then **Install → Wirelessly**. The full hostname matters: the Device Builder
+can't find a board by a name generated on the device. That's why the config
+sets it, with `name_add_mac_suffix: false`.
 
-The factory firmware's network updates are password-protected, so the first
-install has to go over USB.
+**Factory SCREEK firmware has an update password,** so the first install
+over it must be over USB.
 
-1. Plug the BP2-POE into the computer you're browsing from. Use Chrome or Edge.
-2. In the Device Builder, open the device's **⋮** menu, choose **Install**,
-   then **Plug into this computer**. Wait for the build, which takes a few
-   minutes the first time, then pick its COM port.
-   - If your Home Assistant isn't on HTTPS, choose **Manual download** instead,
-     select the **Factory format** file, and flash it at
-     https://web.esphome.io (Connect, then Install).
-3. When it finishes, unplug it, connect Ethernet (and PoE), and it boots on
-   the network as `screek-bp2-poe-xxxxxx`.
+## 3. In Home Assistant
 
-**Later updates never need USB.** They install over Ethernet: click
-**Install** in the Device Builder and choose **Wirelessly**.
-
-## 4. Reconnect in Home Assistant
-
-Home Assistant knows the BP2-POE without encryption. After the install it will
-show the device as needing attention: open **Settings → Devices & services →
-ESPHome**, click **Reconfigure** on it, and enter the `bp2_api_key`. If
-nothing prompts you, delete the old BP2-POE entry and add it again; it's
-discovered automatically.
-
-The Scan Interval, Scan Window and Scan Active Mode entities use the same
-names as SCREEK's, so they should attach to your existing ones. If any old
-entities show as unavailable, delete them.
+- If Home Assistant says the device **disabled transport encryption**,
+  confirm it. Home Assistant then sets up a new key with the board
+  automatically.
+- From now on, new firmware appears as a **Firmware** update on the device,
+  and installs over Ethernet. You don't need the Device Builder again.
+- The Scan Interval, Scan Window and Scan Active Mode entities use SCREEK's
+  names, so they attach to your existing ones.
 
 ## Recovering
 
