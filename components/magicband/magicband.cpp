@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 
@@ -17,9 +18,15 @@ static const char *const TAG = "magicband";
 
 // If the BLE stack never confirms a config/start/stop, give up after this long.
 static constexpr uint32_t GAP_TIMEOUT_MS = 1000;
+// Light entity changes are sent once the value has been stable this long.
+static constexpr uint32_t LIGHT_DEBOUNCE_MS = 250;
 
-static inline uint8_t vib_byte(uint8_t v) { return 0xB0 | (std::min<uint8_t>(v, 15) & 0x0F); }
+static inline uint8_t vib_byte(uint8_t v) { return 0xB0 | (v & 0x0F); }
 static inline uint8_t col(uint8_t mode, uint8_t c) { return mode | (c & 0x1F); }
+static inline uint8_t rgb6(uint8_t v, bool flash) {
+  uint8_t six = static_cast<uint8_t>((v * 63 + 127) / 255);
+  return (flash ? 0x80 : 0x00) | static_cast<uint8_t>(six << 1);
+}
 
 void MagicBand::setup() {
   this->adv_params_ = {
@@ -49,6 +56,18 @@ void MagicBand::dump_config() {
 
 void MagicBand::loop() {
   const uint32_t now = millis();
+
+  if (this->light_pending_ && now - this->light_changed_at_ >= LIGHT_DEBOUNCE_MS) {
+    this->light_pending_ = false;
+    if (this->light_on_) {
+      this->send_rgb(this->light_rgb_[0], this->light_rgb_[1], this->light_rgb_[2], 0, TIMING_ALWAYS_ON);
+      this->light_was_on_ = true;
+    } else if (this->light_was_on_) {
+      this->send_off();
+      this->light_was_on_ = false;
+    }
+  }
+
   switch (this->state_) {
     case State::IDLE:
       if (!this->queue_.empty() && esp32_ble::global_ble != nullptr && esp32_ble::global_ble->is_active())
@@ -213,17 +232,31 @@ void MagicBand::stop() {
     this->stop_requested_ = true;
 }
 
-// ---------------------------------------------------------------------------
-// Command builders. Byte layouts come from community reverse engineering
-// (see docs/protocol.md). Byte after the 0xE9 opcode is the remaining length.
-// ---------------------------------------------------------------------------
-
-void MagicBand::send_single_color(uint8_t color, uint8_t vibration, uint8_t timing, uint32_t duration_ms) {
-  this->send_raw({0xE9, 0x05, 0x00, timing, 0x0E, col(0xE0, color), vib_byte(vibration)}, duration_ms);
+void MagicBand::request_light_state(bool on, uint8_t red, uint8_t green, uint8_t blue) {
+  this->light_on_ = on;
+  this->light_rgb_[0] = red;
+  this->light_rgb_[1] = green;
+  this->light_rgb_[2] = blue;
+  this->light_pending_ = true;
+  this->light_changed_at_ = millis();
 }
 
-void MagicBand::send_dual_color(uint8_t c1, uint8_t c2, uint8_t vibration, uint8_t timing, uint32_t duration_ms) {
-  this->send_raw({0xE9, 0x06, 0x00, timing, 0x0F, col(0x80, c1), col(0x80, c2), vib_byte(vibration)}, duration_ms);
+// ---------------------------------------------------------------------------
+// Command builders. Byte layouts come from community reverse engineering
+// (see docs/protocol.md). The byte after the 0xE9 opcode is the remaining length.
+// ---------------------------------------------------------------------------
+
+void MagicBand::send_single_color(uint8_t color, uint8_t vibration, uint8_t timing, uint8_t leds,
+                                  uint32_t duration_ms) {
+  this->send_raw({0xE9, 0x05, 0x00, timing, 0x0E, static_cast<uint8_t>(((leds & 0x07) << 5) | (color & 0x1F)),
+                  vib_byte(vibration)},
+                 duration_ms);
+}
+
+void MagicBand::send_dual_color(uint8_t inner, uint8_t outer, uint8_t vibration, uint8_t timing,
+                                uint32_t duration_ms) {
+  this->send_raw({0xE9, 0x06, 0x00, timing, 0x0F, col(0x80, inner), col(0x80, outer), vib_byte(vibration)},
+                 duration_ms);
 }
 
 void MagicBand::send_five_color(const std::string &colors, uint8_t vibration, uint8_t timing, uint32_t duration_ms) {
@@ -250,6 +283,13 @@ void MagicBand::send_five_color(const std::string &colors, uint8_t vibration, ui
   this->send_raw(p, duration_ms);
 }
 
+void MagicBand::send_rgb(uint8_t red, uint8_t green, uint8_t blue, uint8_t vibration, uint8_t timing, bool flash,
+                         uint32_t duration_ms) {
+  this->send_raw({0xE9, 0x08, 0x00, timing, 0xD2, 0x55, rgb6(red, flash), rgb6(green, flash), rgb6(blue, flash),
+                  vib_byte(vibration)},
+                 duration_ms);
+}
+
 void MagicBand::send_crossfade(uint8_t c1, uint8_t c2, uint8_t vibration, uint32_t duration_ms) {
   this->send_raw({0xE1, 0x00, 0xE9, 0x11, 0x00, 0x6F, 0x0F, col(0x40, c1), col(0x40, c2), 0x58, 0xF4, 0x48, 0x82,
                   0xD1, 0x46, 0x02, 0x08, 0xD0, 0x65, 0x00, vib_byte(vibration)},
@@ -261,7 +301,104 @@ void MagicBand::send_circle(uint8_t vibration, uint32_t duration_ms) {
       {0xE9, 0x0B, 0x0B, 0x0F, 0x0F, 0x5C, 0x5D, 0x48, 0xA5, 0xD1, 0x45, 0x32, vib_byte(vibration)}, duration_ms);
 }
 
-void MagicBand::send_ping(uint32_t duration_ms) { this->send_raw({0xCC, 0x03, 0x00, 0x00, 0x00}, duration_ms); }
+void MagicBand::send_ping(bool fast, uint32_t duration_ms) {
+  this->send_raw({0xCC, 0x03, 0x00, static_cast<uint8_t>(fast ? 0x01 : 0x00), 0x00}, duration_ms);
+}
+
+void MagicBand::send_off(uint32_t duration_ms) {
+  this->send_single_color(OFF, 0, TIMING_ALWAYS_ON, LEDS_ALL, duration_ms);
+}
+
+// Captured show packets (payload after 83 01). Names are descriptive guesses.
+struct Animation {
+  const char *name;
+  uint8_t len;
+  uint8_t bytes[MAX_PAYLOAD_LEN];
+};
+
+static const Animation ANIMATIONS[] = {
+    {"lightning", 14, {0xE9, 0x0C, 0x00, 0x0F, 0x0F, 0x5D, 0x46, 0x5B, 0xF0, 0x05, 0x32, 0x37, 0x48, 0x95}},
+    {"orange_blink", 14, {0xE9, 0x0C, 0x00, 0xEF, 0x0F, 0x4F, 0x4F, 0x5B, 0xF0, 0xFB, 0x14, 0x37, 0x48, 0x95}},
+    {"color_cycle", 14, {0xE9, 0x0C, 0x00, 0x0F, 0x0F, 0xB1, 0xB9, 0xB5, 0xB1, 0xA2, 0x30, 0x7B, 0x7D, 0xB0}},
+    {"rainbow", 14, {0xE9, 0x0C, 0x00, 0x0F, 0x0F, 0x5D, 0x46, 0x5B, 0xF0, 0x05, 0x32, 0x37, 0x48, 0xB0}},
+    {"circle", 13, {0xE9, 0x0B, 0x0B, 0x0F, 0x0F, 0x5C, 0x5D, 0x48, 0xA5, 0xD1, 0x45, 0x32, 0xB0}},
+    {"crossfade", 21, {0xE1, 0x00, 0xE9, 0x11, 0x00, 0x6F, 0x0F, 0x56, 0x48, 0x58, 0xF4, 0x48, 0x82, 0xD1, 0x46, 0x02,
+                       0x08, 0xD0, 0x65, 0x00, 0xB0}},
+    {"spin_buzz", 20, {0xE9, 0x12, 0x00, 0x01, 0x0F, 0xBC, 0xBD, 0xBD, 0xBD, 0xBD, 0x30, 0xD0, 0x37, 0xF4, 0xD2, 0x46,
+                       0x00, 0x00, 0xFC, 0xBB}},
+    {"show_e913", 21, {0xE9, 0x13, 0x00, 0xB6, 0x0F, 0x40, 0x44, 0x58, 0xF4, 0x48, 0x82, 0xD0, 0x65, 0x19, 0xD1, 0x46,
+                       0x06, 0x0A, 0x30, 0x7B, 0xFF}},
+};
+
+const char *const *MagicBand::animation_names(size_t &count) {
+  static const char *const NAMES[] = {"lightning", "orange_blink", "color_cycle", "rainbow",
+                                      "circle",    "crossfade",    "spin_buzz",   "show_e913"};
+  count = sizeof(NAMES) / sizeof(NAMES[0]);
+  return NAMES;
+}
+
+bool MagicBand::send_animation(const std::string &input, uint32_t duration_ms) {
+  std::string name;
+  for (char c : input) {
+    if (c == ' ' || c == '-')
+      c = '_';
+    name.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+  }
+  for (const auto &a : ANIMATIONS) {
+    if (name == a.name)
+      return this->send_raw(std::vector<uint8_t>(a.bytes, a.bytes + a.len), duration_ms);
+  }
+  ESP_LOGW(TAG, "Unknown animation '%s'", input.c_str());
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+uint8_t MagicBand::timing(float on_seconds, uint8_t fade_seconds, bool always_on) {
+  uint8_t fade = static_cast<uint8_t>(std::min<int>(std::max<int>(fade_seconds, 0), 3)) << 4;
+  if (always_on)
+    return 0x80 | fade;
+  // Two scalers: on = 1.5*v + 6.5 (6.5-29s) or on = 3.1*v + 5.5 (5.5-52s). Pick the closest.
+  uint8_t best = 0;
+  float best_err = 1e9f;
+  for (uint8_t scaler = 0; scaler < 2; scaler++) {
+    for (uint8_t v = 0; v < 16; v++) {
+      float t = scaler ? 3.1f * v + 5.5f : 1.5f * v + 6.5f;
+      float err = std::fabs(t - on_seconds);
+      if (err < best_err) {
+        best_err = err;
+        best = static_cast<uint8_t>((scaler << 6) | v);
+      }
+    }
+  }
+  return best | fade;
+}
+
+uint8_t MagicBand::timing_or(uint8_t fallback, float on_seconds, uint8_t fade_seconds, bool always_on) {
+  if (always_on || on_seconds > 0)
+    return timing(on_seconds, fade_seconds, always_on);
+  return fallback;
+}
+
+uint8_t MagicBand::leds_from_string(const std::string &input) {
+  std::string s;
+  for (char c : input) {
+    if (c == ' ' || c == '-')
+      c = '_';
+    s.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+  }
+  if (s == "top_left")
+    return LEDS_TOP_LEFT;
+  if (s == "top_right")
+    return LEDS_TOP_RIGHT;
+  if (s == "bottom_left")
+    return LEDS_BOTTOM_LEFT;
+  if (s == "bottom_right")
+    return LEDS_BOTTOM_RIGHT;
+  return LEDS_ALL;
+}
 
 uint8_t MagicBand::color_from_string(const std::string &input) {
   std::string s;
@@ -296,6 +433,7 @@ uint8_t MagicBand::color_from_string(const std::string &input) {
       {"lime_green", LIME_GREEN},
       {"white", WHITE},
       {"off", OFF},
+      {"unique", UNIQUE},
       {"random", RANDOM},
   };
   for (const auto &e : TABLE) {

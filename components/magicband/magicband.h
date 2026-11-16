@@ -22,7 +22,7 @@ static constexpr uint16_t DISNEY_COMPANY_ID = 0x0183;
 /// Max payload after the company ID: 31 (legacy adv) - 3 (flags AD) - 2 (mfg AD header) - 2 (company ID).
 static constexpr size_t MAX_PAYLOAD_LEN = 24;
 
-/// Known palette indexes (5-bit). Community-sourced; see docs/protocol.md.
+/// Palette indexes (5-bit). Community-sourced; see docs/protocol.md.
 enum Color : uint8_t {
   CYAN = 0x00,
   PURPLE = 0x01,
@@ -41,8 +41,24 @@ enum Color : uint8_t {
   LIME_GREEN = 0x1A,
   WHITE = 0x1B,
   OFF = 0x1D,
+  UNIQUE = 0x1E,
   RANDOM = 0x1F,
 };
+
+/// LED mask for single-colour commands (top 3 bits of the colour byte).
+enum Leds : uint8_t {
+  LEDS_ALL = 0b111,
+  LEDS_TOP_RIGHT = 0b001,
+  LEDS_BOTTOM_RIGHT = 0b010,
+  LEDS_BOTTOM_LEFT = 0b011,
+  LEDS_TOP_LEFT = 0b100,
+};
+
+/// Timing byte values captured from park shows, used as defaults.
+static constexpr uint8_t TIMING_SINGLE_DEFAULT = 0x2E;  // ~27.5s on, 2s fade
+static constexpr uint8_t TIMING_DUAL_DEFAULT = 0x22;    // ~9.5s on, 2s fade
+static constexpr uint8_t TIMING_FIVE_DEFAULT = 0x2E;
+static constexpr uint8_t TIMING_ALWAYS_ON = 0x80;
 
 class MagicBand : public Component {
  public:
@@ -63,22 +79,30 @@ class MagicBand : public Component {
 
   void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
 
-  // ---- High level commands (duration_ms = 0 uses the configured default) ----
+  // ---- Command builders. `duration_ms` is the broadcast length (0 = configured default). ----
 
-  /// Whole band one colour. `timing` is the community-observed default 0x2E.
-  void send_single_color(uint8_t color, uint8_t vibration = 0, uint8_t timing = 0x2E, uint32_t duration_ms = 0);
-  /// Two colours split across the band.
-  void send_dual_color(uint8_t color1, uint8_t color2, uint8_t vibration = 0, uint8_t timing = 0x22,
+  /// Whole band (or some LEDs) one palette colour.
+  void send_single_color(uint8_t color, uint8_t vibration = 0, uint8_t timing = TIMING_SINGLE_DEFAULT,
+                         uint8_t leds = LEDS_ALL, uint32_t duration_ms = 0);
+  /// Two palette colours: centre (inner) and outer ring.
+  void send_dual_color(uint8_t inner, uint8_t outer, uint8_t vibration = 0, uint8_t timing = TIMING_DUAL_DEFAULT,
                        uint32_t duration_ms = 0);
-  /// Five colours around the band, e.g. "red, orange, yellow, green, blue". Fewer than five repeat.
-  void send_five_color(const std::string &colors, uint8_t vibration = 0, uint8_t timing = 0x2E,
+  /// Five palette colours: "centre, top right, bottom right, bottom left, top left". Fewer than five repeat.
+  void send_five_color(const std::string &colors, uint8_t vibration = 0, uint8_t timing = TIMING_FIVE_DEFAULT,
                        uint32_t duration_ms = 0);
+  /// Any colour (0-255 per channel, sent as 6-bit). `flash` makes the band blink.
+  void send_rgb(uint8_t red, uint8_t green, uint8_t blue, uint8_t vibration = 0,
+                uint8_t timing = TIMING_SINGLE_DEFAULT, bool flash = false, uint32_t duration_ms = 0);
   /// Two colours crossfading.
   void send_crossfade(uint8_t color1, uint8_t color2, uint8_t vibration = 0, uint32_t duration_ms = 0);
   /// Spinning circle animation.
   void send_circle(uint8_t vibration = 0, uint32_t duration_ms = 0);
-  /// "Ping" packet seen from park beacons; may help wake bands.
-  void send_ping(uint32_t duration_ms = 0);
+  /// Captured park animation by name (see animation_names()). Returns false if unknown.
+  bool send_animation(const std::string &name, uint32_t duration_ms = 0);
+  /// Park "ping"; `fast` uses the variant believed to put bands in a quicker-response mode.
+  void send_ping(bool fast = false, uint32_t duration_ms = 0);
+  /// Turn the band's lights off (clears an always-on colour).
+  void send_off(uint32_t duration_ms = 0);
 
   /// Any payload as hex, e.g. "E9 05 00 2E 0E E5 B3". A leading "83 01" is accepted and stripped.
   bool send_hex(const std::string &hex, uint32_t duration_ms = 0);
@@ -88,9 +112,21 @@ class MagicBand : public Component {
   /// Stop broadcasting now and drop anything queued.
   void stop();
 
-  /// Resolve a colour name ("red", "lime_green", ...) or a number ("21", "0x15") to a palette index.
-  /// Returns WHITE for anything unrecognised.
+  /// Light entity support: debounced so colour-wheel drags don't flood the queue.
+  void request_light_state(bool on, uint8_t red, uint8_t green, uint8_t blue);
+
+  // ---- Helpers ----
+
+  /// Build a timing byte. `on_seconds` ~5.5-52s (rounded to what the band supports), `fade_seconds` 0-3.
+  static uint8_t timing(float on_seconds, uint8_t fade_seconds = 0, bool always_on = false);
+  /// Timing for the simple actions: on_seconds <= 0 keeps `fallback`, always_on wins over on_seconds.
+  static uint8_t timing_or(uint8_t fallback, float on_seconds, uint8_t fade_seconds, bool always_on);
+  /// Colour name ("red", "lime_green", ...) or number ("21", "0x15") -> palette index. Unknown -> white.
   static uint8_t color_from_string(const std::string &name);
+  /// "all", "top_left", "top_right", "bottom_left", "bottom_right" -> LED mask. Unknown -> all.
+  static uint8_t leds_from_string(const std::string &name);
+  /// Names accepted by send_animation().
+  static const char *const *animation_names(size_t &count);
 
   bool is_broadcasting() const { return this->state_ != State::IDLE; }
 
@@ -110,6 +146,13 @@ class MagicBand : public Component {
   State state_{State::IDLE};
   uint32_t state_since_{0};
   bool stop_requested_{false};
+
+  // Light entity debounce
+  bool light_pending_{false};
+  bool light_on_{false};
+  bool light_was_on_{false};
+  uint8_t light_rgb_[3]{0, 0, 0};
+  uint32_t light_changed_at_{0};
 
   uint32_t duration_ms_{2000};
   uint32_t min_interval_ms_{20};

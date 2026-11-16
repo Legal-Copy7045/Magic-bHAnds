@@ -15,4 +15,4 @@
       to: "finished"
   actions:
     - action: script.magicband_effect
-      data: {effect: dual_color, color1: cyan, color2: white, vibration: 2}
+      data: {effect: dual_color, color1: cyan, color2: white, vibration: 2}  # centre cyan, outer white

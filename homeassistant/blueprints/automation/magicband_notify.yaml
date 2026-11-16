@@ -2,8 +2,8 @@ blueprint:
   name: MagicBand+ notification
   description: >-
     Light up and/or buzz nearby MagicBand+ bands when something happens.
-    Requires the MagicBand Bridge (ESP32-S3) added to Home Assistant through
-    the ESPHome integration.
+    Requires the MagicBand Bridge (ESP32-S3, firmware 0.2.0+) added to Home
+    Assistant through the ESPHome integration.
   domain: automation
   source_url: https://github.com/Legal-Copy7045/Magic-bHAnds/blob/main/homeassistant/blueprints/automation/magicband_notify.yaml
   input:
@@ -23,14 +23,16 @@ blueprint:
             select:
               mode: dropdown
               options:
-                - {label: "Single colour", value: color}
-                - {label: "Two colours", value: dual_color}
+                - {label: "Single colour (palette)", value: color}
+                - {label: "Any colour (colour picker)", value: rgb}
+                - {label: "Centre + outer ring", value: dual_color}
                 - {label: "Five colours", value: five_color}
                 - {label: "Crossfade", value: crossfade}
-                - {label: "Spinning circle", value: circle}
+                - {label: "Animation", value: animation}
+                - {label: "Vibrate only", value: buzz}
         color1:
           name: Colour
-          description: Used by single colour, two colours and crossfade.
+          description: Single colour; centre colour for "centre + outer"; first crossfade colour.
           default: blue
           selector: &colour
             select:
@@ -52,24 +54,91 @@ blueprint:
                 - lavender
                 - pink
                 - white
+                - unique
                 - random
         color2:
           name: Second colour
-          description: Used by two colours and crossfade.
+          description: Outer ring for "centre + outer"; second crossfade colour.
           default: pink
           selector: *colour
         colors:
           name: Five colours
-          description: Comma-separated, used by the five-colour effect.
+          description: "Comma-separated: centre, top right, bottom right, bottom left, top left."
           default: "red, orange, yellow, green, blue"
           selector:
             text: {}
+        rgb_color:
+          name: Custom colour
+          description: Used by "Any colour".
+          default: [255, 0, 180]
+          selector:
+            color_rgb: {}
+        animation:
+          name: Animation
+          default: color_cycle
+          selector:
+            select:
+              mode: dropdown
+              options:
+                - {label: "Colour cycle", value: color_cycle}
+                - {label: "Rainbow", value: rainbow}
+                - {label: "Lightning", value: lightning}
+                - {label: "Orange blink", value: orange_blink}
+                - {label: "Circle", value: circle}
+                - {label: "Crossfade", value: crossfade}
+                - {label: "Spin + buzz", value: spin_buzz}
         vibration:
           name: Vibration
-          description: 0 = no vibration. Higher values = stronger / longer patterns.
+          default: "0"
+          selector:
+            select:
+              mode: dropdown
+              options:
+                - {label: "None", value: "0"}
+                - {label: "1 · short buzz", value: "1"}
+                - {label: "2 · buzz", value: "2"}
+                - {label: "3 · long buzz", value: "3"}
+                - {label: "4 · buzz + pulse", value: "4"}
+                - {label: "5 · rumble", value: "5"}
+                - {label: "6 · long rumble", value: "6"}
+                - {label: "7 · 2-second buzz", value: "7"}
+                - {label: "8 · flutter", value: "8"}
+                - {label: "9 · short buzz (alt)", value: "9"}
+                - {label: "10 · half-second pulse", value: "10"}
+                - {label: "11 · one-second pulse", value: "11"}
+    timing_section:
+      name: Timing & LEDs (single colour / any colour)
+      icon: mdi:timer-outline
+      collapsed: true
+      input:
+        always_on:
+          name: Stay on
+          description: Keep the light on until another command (or the bridge's MagicBand light is turned off).
+          default: false
+          selector:
+            boolean: {}
+        on_seconds:
+          name: On time (seconds)
+          description: 0 = default (~27s). The band supports roughly 6-52 seconds.
           default: 0
           selector:
-            number: {min: 0, max: 15, step: 1, mode: slider}
+            number: {min: 0, max: 52, step: 1, mode: slider}
+        fade_seconds:
+          name: Fade out (seconds)
+          default: 2
+          selector:
+            number: {min: 0, max: 3, step: 1, mode: slider}
+        leds:
+          name: LEDs (single colour)
+          default: all
+          selector:
+            select:
+              options:
+                - {label: "All", value: all}
+                - {label: "Top left", value: top_left}
+                - {label: "Top right", value: top_right}
+                - {label: "Bottom left", value: bottom_left}
+                - {label: "Bottom right", value: bottom_right}
     advanced:
       name: Advanced
       icon: mdi:cog
@@ -100,7 +169,13 @@ variables:
   color1: !input color1
   color2: !input color2
   colors: !input colors
+  rgb_color: !input rgb_color
+  animation: !input animation
   vibration: !input vibration
+  always_on: !input always_on
+  on_seconds: !input on_seconds
+  fade_seconds: !input fade_seconds
+  leds: !input leds
   device_name: !input device_name
   repeat_count: !input repeat
 
@@ -111,16 +186,30 @@ actions:
         - choose:
             - conditions: "{{ effect == 'color' }}"
               sequence:
-                - action: "esphome.{{ device_name }}_color"
+                - action: "esphome.{{ device_name }}_color_advanced"
                   data:
                     color: "{{ color1 }}"
                     vibration: "{{ vibration | int }}"
+                    leds: "{{ leds }}"
+                    on_seconds: "{{ on_seconds | float }}"
+                    fade_seconds: "{{ fade_seconds | int }}"
+                    always_on: "{{ always_on }}"
+            - conditions: "{{ effect == 'rgb' }}"
+              sequence:
+                - action: "esphome.{{ device_name }}_rgb"
+                  data:
+                    red: "{{ rgb_color[0] | int }}"
+                    green: "{{ rgb_color[1] | int }}"
+                    blue: "{{ rgb_color[2] | int }}"
+                    vibration: "{{ vibration | int }}"
+                    always_on: "{{ always_on }}"
+                    flash: false
             - conditions: "{{ effect == 'dual_color' }}"
               sequence:
                 - action: "esphome.{{ device_name }}_dual_color"
                   data:
-                    color1: "{{ color1 }}"
-                    color2: "{{ color2 }}"
+                    inner: "{{ color1 }}"
+                    outer: "{{ color2 }}"
                     vibration: "{{ vibration | int }}"
             - conditions: "{{ effect == 'five_color' }}"
               sequence:
@@ -135,8 +224,14 @@ actions:
                     color1: "{{ color1 }}"
                     color2: "{{ color2 }}"
                     vibration: "{{ vibration | int }}"
-            - conditions: "{{ effect == 'circle' }}"
+            - conditions: "{{ effect == 'animation' }}"
               sequence:
-                - action: "esphome.{{ device_name }}_circle"
+                - action: "esphome.{{ device_name }}_animation"
                   data:
+                    name: "{{ animation }}"
+            - conditions: "{{ effect == 'buzz' }}"
+              sequence:
+                - action: "esphome.{{ device_name }}_color"
+                  data:
+                    color: "off"
                     vibration: "{{ vibration | int }}"
