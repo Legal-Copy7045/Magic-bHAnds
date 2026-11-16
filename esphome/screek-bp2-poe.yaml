@@ -25,7 +25,11 @@ esphome:
   name: ${name}
   friendly_name: ${friendly_name}
   min_version: 2026.10.0
-  name_add_mac_suffix: true   # e.g. screek-bp2-poe-849a4c, as the factory firmware
+  # Adds the MAC suffix (e.g. screek-bp2-poe-849a4c), as the factory firmware
+  # does. In the ESPHome Device Builder, set `name: screek-bp2-poe-xxxxxx` and
+  # `name_add_mac_suffix: false` instead, or the dashboard can't find the board
+  # (see docs/screek-bp2-poe.md).
+  name_add_mac_suffix: true
 
 esp32:
   board: esp32-s3-devkitc-1
