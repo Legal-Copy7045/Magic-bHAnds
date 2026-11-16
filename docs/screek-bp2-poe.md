@@ -65,9 +65,12 @@ of the factory firmware.
    Builder find the board: it can't see a name that's generated on the device,
    so without this the board shows as offline and wireless installs fail.
    This pulls the full config from GitHub, so improvements arrive without
-   re-pasting. Click **Install** when you want them. To customise instead,
-   paste the full contents of
-   [`esphome/screek-bp2-poe.yaml`](../esphome/screek-bp2-poe.yaml).
+   re-pasting. Click **Install** when you want them.
+
+   **Prefer one self-contained file?** Paste
+   [`esphome/screek-bp2-poe-standalone.yaml`](../esphome/screek-bp2-poe-standalone.yaml)
+   instead, which has everything inline with the name already set. Edit the
+   name if your board's code isn't `849a4c`.
 3. Click **Secrets** (top right) and add a key on its own line:
    ```yaml
    bp2_api_key: "PASTE-A-32-BYTE-BASE64-KEY"
