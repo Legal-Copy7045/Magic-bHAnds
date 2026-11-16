@@ -6,7 +6,7 @@ into the Device Builder). It must resolve to exactly the same device as
 esphome/screek-bp2-poe.yaml, which pulls them from magicband-addon.yaml - the
 same file the MagicBand Bridge uses.
 
-Run from esphome/ with a secrets.yaml containing bp2_api_key.
+Run from esphome/ (no secrets needed).
 """
 
 import json

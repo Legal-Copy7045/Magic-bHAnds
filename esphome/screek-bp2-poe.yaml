@@ -1,21 +1,18 @@
 # SCREEK BP2-POE (ESP32-S3 + W5500 Ethernet) as a Bluetooth proxy + MagicBand
-# bridge.
+# bridge. Rebuilt from the factory firmware's boot log (SCREEK.Bluetooth_Proxy
+# BP2-POE 26.01.23-A), keeping its Scan Interval / Scan Window / Scan Active
+# Mode controls, plus the shared MagicBand add-on.
 #
-# Rebuilt from the factory firmware's boot log (SCREEK.Bluetooth_Proxy BP2-POE
-# 26.01.23-A). SCREEK hasn't published their YAML, so the Scan Interval / Scan
-# Window / Scan Active Mode controls are re-implemented here with the same
-# names and defaults. To go back to factory firmware, use SCREEK's web
-# installer or your esptool backup.
-#
-# First install must be over USB (factory firmware has an OTA password).
-# Secrets needed in the ESPHome Device Builder's secrets.yaml:
-#   bp2_api_key: 32-byte base64 key, e.g. from
-#     python -c "import secrets,base64;print(base64.b64encode(secrets.token_bytes(32)).decode())"
-# (used for both the Home Assistant connection and network updates)
+# Install: the web installer (https://legal-copy7045.github.io/Magic-bHAnds/)
+# over USB-C, or the ESPHome Device Builder. No secrets needed. Later updates
+# come from GitHub through Home Assistant's Firmware update entity.
+# To go back to factory firmware, use SCREEK's web installer or a backup.
 
 substitutions:
   name: screek-bp2-poe
   friendly_name: SCREEK BP2-POE
+  project_version: "0.7.1"
+  firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/bp2/manifest.json
 
 packages:
   # MagicBand component, actions, Command entity, light and buttons.
@@ -25,6 +22,9 @@ esphome:
   name: ${name}
   friendly_name: ${friendly_name}
   min_version: 2026.10.0
+  project:
+    name: legal-copy7045.magicband-bp2-poe
+    version: ${project_version}
   # Adds the MAC suffix (e.g. screek-bp2-poe-849a4c), as the factory firmware
   # does. In the ESPHome Device Builder, set `name: screek-bp2-poe-xxxxxx` and
   # `name_add_mac_suffix: false` instead, or the dashboard can't find the board
@@ -38,17 +38,36 @@ esp32:
   framework:
     type: esp-idf
 
+# 8 MB PSRAM: room for Bluetooth and the HTTPS download of firmware updates.
+psram:
+  mode: octal
+  speed: 80MHz
+
 logger:
   hardware_uart: USB_SERIAL_JTAG   # logs over the USB-C port
 
 api:
-  encryption:
-    key: !secret bp2_api_key
+  # Encrypted. Home Assistant gives the board its own key the first time it
+  # connects, so there's no key to manage.
+  encryption: {}
 
 ota:
-  - platform: esphome
-    # Encryption required; an empty block reuses the api key above.
-    encryption: {}
+  # Updates come from the published firmware through Home Assistant (the
+  # Firmware update entity), over the encrypted connection.
+  - platform: http_request
+
+http_request:
+
+update:
+  - platform: http_request
+    name: Firmware
+    source: ${firmware_manifest}
+    update_interval: 6h
+
+# Lets the ESPHome Device Builder offer "Take control" (adopt) for this device.
+dashboard_import:
+  package_import_url: github://Legal-Copy7045/Magic-bHAnds/esphome/screek-bp2-poe.yaml@main
+  import_full_config: false
 
 safe_mode:
 
