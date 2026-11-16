@@ -69,7 +69,9 @@ installer: the Wi-Fi setup step and logs run on that port.
 | Path | What |
 |------|------|
 | `components/magicband/` | ESPHome external component (C++) that builds and broadcasts the packets |
-| `esphome/magicband-bridge.yaml` | Device config, used by the web installer and "Take control" |
+| `esphome/magicband-bridge.yaml` | Device config for the ESP32-S3 bridge, used by the web installer and "Take control" |
+| `esphome/magicband-addon.yaml` | Reusable MagicBand package (component, actions, entities) for any ESPHome board |
+| `esphome/screek-bp2-poe.yaml` | SCREEK BP2-POE config (PoE Bluetooth proxy + MagicBand) |
 | `web/` | Web installer page |
 | `.github/workflows/firmware.yml` | Builds firmware on every push and publishes the installer to GitHub Pages from `main` |
 | `homeassistant/blueprints/` | Automation blueprint |
@@ -149,6 +151,22 @@ as its own device.
 Bands that hear two bridges get the same command twice, a few milliseconds
 apart, which should look the same as hearing it once (not yet confirmed on a
 real band).
+
+### Other ESPHome boards
+
+The MagicBand parts live in a reusable package, `esphome/magicband-addon.yaml`.
+Add it to any ESP32 that already runs ESPHome, including ones on Ethernet, to
+make that board a bridge as well:
+
+```yaml
+packages:
+  magicband: github://Legal-Copy7045/Magic-bHAnds/esphome/magicband-addon.yaml@main
+```
+
+**SCREEK BP2-POE:** a ready-made config is in `esphome/screek-bp2-poe.yaml`.
+It keeps the board's PoE Bluetooth proxy behaviour and adds MagicBand. See
+[docs/screek-bp2-poe.md](docs/screek-bp2-poe.md) for backup, the first USB
+install and reconnecting in Home Assistant.
 
 ### Bluetooth proxy
 

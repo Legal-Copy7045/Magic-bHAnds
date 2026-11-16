@@ -60,6 +60,34 @@ jobs:
           name: firmware
           path: _site/firmware
 
+  # Compile-check the SCREEK BP2-POE config (not published; flashed by the user).
+  build-bp2-poe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Cache ESPHome toolchain
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/esphome
+          key: esphome-${{ env.ESPHOME_VERSION }}-${{ runner.os }}-bp2
+
+      - name: Install ESPHome
+        run: pip install "esphome==${ESPHOME_VERSION}"
+
+      - name: Compile
+        working-directory: esphome
+        run: |
+          # Use this checkout's add-on rather than the copy on main, and a dummy key.
+          sed 's#magicband: github://.*magicband-addon.yaml@main#magicband: !include magicband-addon.yaml#' \
+            screek-bp2-poe.yaml > bp2-ci.yaml
+          echo "bp2_api_key: \"$(python3 -c 'import secrets,base64;print(base64.b64encode(secrets.token_bytes(32)).decode())')\"" > secrets.yaml
+          esphome -s component_source ../components compile bp2-ci.yaml
+
   deploy:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
