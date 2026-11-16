@@ -29,7 +29,7 @@ esp32:
 external_components:
   - source: github://Legal-Copy7045/Magic-bHAnds@main
     components: [magicband]
-    refresh: 1d
+    refresh: 0s   # always use the latest component (avoids stale-cache build errors)
 
 logger:
   hardware_uart: USB_SERIAL_JTAG   # logs over the USB-C port
