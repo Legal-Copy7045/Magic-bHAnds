@@ -168,12 +168,26 @@ void MagicBand::pause_scan_() {
 void MagicBand::resume_scan_() {
 #ifdef USE_ESP32_BLE_TRACKER
   auto *tracker = esp32_ble_tracker::global_esp32_ble_tracker;
-  this->scan_paused_ = false;
-  if (tracker == nullptr)
+  if (tracker == nullptr) {
+    this->scan_paused_ = false;
     return;
-  ESP_LOGD(TAG, "Resuming BLE scanning");
-  // The tracker restarts scanning by itself once it is idle and continuous.
+  }
+  auto state = tracker->get_scanner_state();
+  if (state == esp32_ble_tracker::ScannerState::RUNNING || state == esp32_ble_tracker::ScannerState::STARTING) {
+    // Back up (we kicked it, or a proxy connection restarted it).
+    this->scan_paused_ = false;
+    ESP_LOGD(TAG, "BLE scanning resumed");
+    return;
+  }
+  // Re-enable continuous scanning. The tracker only re-evaluates restarting on
+  // its own state changes, so also start it explicitly once it's idle (the
+  // same call ESPHome's esp32_ble_tracker.start_scan action uses). Called every
+  // loop until the scanner reports it is running again.
   tracker->set_scan_continuous(true);
+  if (state == esp32_ble_tracker::ScannerState::IDLE)
+    tracker->start_scan_if_idle();
+#else
+  this->scan_paused_ = false;
 #endif
 }
 
