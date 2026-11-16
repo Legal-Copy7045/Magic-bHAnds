@@ -267,6 +267,10 @@ This project builds on other people's work.
   reader with per-band sequences that triggers MagicBand+ effects through an
   ESP32 broadcaster.
 
+**Sounds**
+- The reader's start-up, tap-in and error sounds in `esphome/sounds/` were
+  recorded by the project owner.
+
 **Software and tools**
 - [ESPHome](https://esphome.io): the firmware framework. The `magicband`
   component's raw-advertising approach follows ESPHome's `esp32_ble_beacon`

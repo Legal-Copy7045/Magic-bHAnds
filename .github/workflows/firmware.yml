@@ -96,11 +96,8 @@ jobs:
             magicband-reader.yaml > reader-ci.yaml
           KEY="$(python3 -c 'import secrets,base64;print(base64.b64encode(secrets.token_bytes(32)).decode())')"
           printf 'bp2_api_key: "%s"\nreader_api_key: "%s"\nwifi_ssid: "ci"\nwifi_password: "ci-password"\n' "$KEY" "$KEY" > secrets.yaml
-          # Sound files aren't in the repo; build with short silent stand-ins.
-          mkdir -p sounds
-          for f in startup tap_in error; do
-            python3 -c "import wave,sys; w=wave.open(sys.argv[1],'wb'); w.setnchannels(1); w.setsampwidth(2); w.setframerate(48000); w.writeframes(b'\\0\\0'*4800); w.close()" "sounds/$f.wav"
-          done
+          # Build with this checkout's sound files rather than the copies on main.
+          sed -i 's#https://raw.githubusercontent.com/Legal-Copy7045/Magic-bHAnds/main/esphome/sounds/#sounds/#' reader-ci.yaml
           esphome -s component_source ../components compile reader-ci.yaml
 
   deploy:
