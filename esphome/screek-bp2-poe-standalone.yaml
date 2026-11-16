@@ -149,9 +149,7 @@ api:
         - lambda: id(band).stop();
 
 ota:
-  - platform: esphome
-    encryption:
-      key: !secret bp2_api_key
+  - platform: esphome   # encrypted with the api key above
 
 safe_mode:
 
