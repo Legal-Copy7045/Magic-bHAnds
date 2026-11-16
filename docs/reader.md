@@ -112,20 +112,26 @@ charger unplugged.
 
 ## Install
 
-1. In the **ESPHome Device Builder**: **+ New device**, then **Continue**,
-   name it `magicband-reader`, choose **ESP32-S3**, then **Skip**.
-2. **Edit** it and replace everything with the contents of
-   `esphome/magicband-reader.yaml`. Change `ring_leds` and `mickey_leds` if
-   your LED counts differ.
-3. **Secrets:** make sure `wifi_ssid` and `wifi_password` exist, and add
-   `reader_api_key` (generate one with
-   `py -c "import secrets,base64;print(base64.b64encode(secrets.token_bytes(32)).decode())"`).
-4. **Install → Plug into this computer** for the first install over USB.
-   After that, updates go over Wi-Fi.
-5. Add it in Home Assistant when it's discovered. Then open **Settings →
-   Devices & services → ESPHome → the reader → Configure**, and turn on
-   **Allow the device to perform Home Assistant actions**. That's needed for
-   tag scans to reach Home Assistant.
+**Web installer: https://legal-copy7045.github.io/Magic-bHAnds/** (choose
+*Install the reader*).
+
+1. Plug the ESP32-S3 into your computer through the USB-C port labelled
+   **UART**, with the 5 V supply **disconnected**.
+2. Open the web installer in Chrome or Edge, click **Install the reader**,
+   then enter your Wi-Fi details when asked.
+3. Add it in Home Assistant when it's discovered (ESPHome). Then open
+   **Settings → Devices & services → ESPHome → the reader → Configure**, and
+   turn on **Allow the device to perform Home Assistant actions**. That's
+   needed for tag scans to reach Home Assistant.
+4. Install the [MagicBand integration](integration.md) to manage people and
+   bands.
+
+Firmware updates then appear in Home Assistant as an update on the reader.
+
+**Customising** (LED counts, sounds, pins): in the ESPHome Device Builder the
+reader shows up with **Take control**, which imports
+`esphome/magicband-reader.yaml` as a package. Change `ring_leds` and
+`mickey_leds` in its substitutions if your LED counts differ from 24 and 12.
 
 ## Using it with Home Assistant
 
@@ -192,9 +198,9 @@ actions:
         value_template: >
           {{ trigger.event.data.tag_id in ['04-53-65-2A-C0-5F-80', '04-11-22-33-44-55-66'] }}
     then:
-      - action: esphome.magicband_reader_accept
+      - action: esphome.magicband_reader_XXXXXX_accept
     else:
-      - action: esphome.magicband_reader_deny
+      - action: esphome.magicband_reader_XXXXXX_deny
 ```
 
 ## Phones and watches
