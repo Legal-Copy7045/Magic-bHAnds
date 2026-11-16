@@ -1,8 +1,12 @@
-name: Build firmware & web installer
+name: Build, test & release
 
+# Every push builds both firmwares, runs the integration tests and (from main)
+# publishes the web installer. Pushing a tag like v0.7.0 also creates a GitHub
+# Release with the firmware attached; the version must match VERSION.
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 
@@ -10,15 +14,22 @@ permissions:
   contents: read
 
 concurrency:
-  group: firmware-${{ github.ref }}
+  group: build-${{ github.ref }}
   cancel-in-progress: true
 
 env:
   ESPHOME_VERSION: "2026.10.2"
-  DEVICE_YAML: esphome/magicband-bridge.yaml
 
 jobs:
+  versions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check versions match
+        run: python3 .github/scripts/check_versions.py ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
+
   build:
+    needs: versions
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -36,33 +47,44 @@ jobs:
       - name: Install ESPHome
         run: pip install "esphome==${ESPHOME_VERSION}"
 
-      - name: Compile
+      - name: Compile MagicBand Bridge
         working-directory: esphome
-        # Build against the component in this checkout, not the copy on main.
+        # Build against this checkout's component, not the copy on main.
         run: esphome -s component_source ../components compile magicband-bridge.yaml
+
+      - name: Compile MagicBand Reader
+        working-directory: esphome
+        run: |
+          # This checkout's add-on and sound files rather than the copies on main.
+          sed -e 's#magicband: github://.*magicband-addon.yaml@main#magicband: !include magicband-addon.yaml#' \
+              -e 's#https://raw.githubusercontent.com/Legal-Copy7045/Magic-bHAnds/main/esphome/sounds/#sounds/#' \
+              magicband-reader.yaml > reader-ci.yaml
+          esphome -s component_source ../components compile reader-ci.yaml
 
       - name: Assemble site
         run: |
-          python3 .github/scripts/make_site.py \
-            esphome/.esphome/build/magicband-bridge/build \
-            "$DEVICE_YAML" _site
+          python3 .github/scripts/make_site.py _site \
+            bridge=esphome/.esphome/build/magicband-bridge/build=esphome/magicband-bridge.yaml \
+            reader=esphome/.esphome/build/magicband-reader/build=esphome/magicband-reader.yaml
 
       - name: Upload Pages artifact
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v5
         with:
           path: _site
 
-      - name: Upload firmware (for testing PR builds)
-        if: github.event_name == 'pull_request'
+      - name: Upload firmware
         uses: actions/upload-artifact@v7
         with:
           name: firmware
-          path: _site/firmware
+          path: |
+            _site/firmware/*.bin
+            _site/reader/firmware/*.bin
 
-  # Compile-check the SCREEK BP2-POE and MagicBand Reader configs (not
-  # published; built by the user in the ESPHome Device Builder).
+  # Compile-check the SCREEK BP2-POE config (built by the user in the ESPHome
+  # Device Builder, not published).
   build-bp2-poe:
+    needs: versions
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -89,19 +111,9 @@ jobs:
           echo "bp2_api_key: \"$(python3 -c 'import secrets,base64;print(base64.b64encode(secrets.token_bytes(32)).decode())')\"" > secrets.yaml
           esphome -s component_source ../components compile bp2-ci.yaml
 
-      - name: Compile MagicBand Reader
-        working-directory: esphome
-        run: |
-          sed 's#magicband: github://.*magicband-addon.yaml@main#magicband: !include magicband-addon.yaml#' \
-            magicband-reader.yaml > reader-ci.yaml
-          KEY="$(python3 -c 'import secrets,base64;print(base64.b64encode(secrets.token_bytes(32)).decode())')"
-          printf 'bp2_api_key: "%s"\nreader_api_key: "%s"\nwifi_ssid: "ci"\nwifi_password: "ci-password"\n' "$KEY" "$KEY" > secrets.yaml
-          # Build with this checkout's sound files rather than the copies on main.
-          sed -i 's#https://raw.githubusercontent.com/Legal-Copy7045/Magic-bHAnds/main/esphome/sounds/#sounds/#' reader-ci.yaml
-          esphome -s component_source ../components compile reader-ci.yaml
-
   # Tests for the Home Assistant integration (custom_components/magicband).
   test-integration:
+    needs: versions
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -117,8 +129,8 @@ jobs:
         run: python -m pytest -q
 
   deploy:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    needs: build
+    if: github.ref == 'refs/heads/main'
+    needs: [build, test-integration]
     runs-on: ubuntu-latest
     permissions:
       pages: write
@@ -129,3 +141,31 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, build-bp2-poe, test-integration]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: firmware
+          path: firmware
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          V="${TAG#v}"
+          python3 .github/scripts/release_notes.py "$TAG" > notes.md
+          (cd custom_components && zip -qr "../magicband-integration-$V.zip" magicband)
+          find firmware -name '*.bin' | while read -r f; do
+            cp "$f" "./$(basename "${f%.bin}")-$V.bin"
+          done
+          gh release create "$TAG" --title "Magic bHAnds $V" --notes-file notes.md \
+            magicband-integration-$V.zip ./*-$V.bin

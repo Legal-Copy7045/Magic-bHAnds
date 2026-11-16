@@ -12,12 +12,15 @@
 # A start-up sound plays on boot. Sound files: see docs/reader.md.
 #
 # Hardware and wiring: docs/reader.md
-# Secrets needed in the Device Builder's secrets.yaml:
-#   wifi_ssid, wifi_password, reader_api_key (32-byte base64)
+# Install: the web installer (https://legal-copy7045.github.io/Magic-bHAnds/)
+# needs no secrets: Wi-Fi is set in the browser, and Home Assistant discovers
+# the reader. "Take control" in the ESPHome Device Builder to customise it.
 
 substitutions:
   name: magicband-reader
   friendly_name: MagicBand Reader
+  project_version: "0.7.0"
+  firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   ring_leds: 24       # LEDs in the ring
   mickey_leds: 12     # LEDs in the Mickey head, wired after the ring
   # Sound files: downloaded from this repo at build time. To use your own,
@@ -34,10 +37,12 @@ esphome:
   name: ${name}
   friendly_name: ${friendly_name}
   min_version: 2026.10.0
+  # Each reader gets a unique name such as magicband-reader-3fa2c1.
+  name_add_mac_suffix: true
   # Lets the MagicBand integration recognise this device as a reader.
   project:
     name: legal-copy7045.magicband-reader
-    version: "0.6.0"
+    version: ${project_version}
   on_boot:
     priority: -100
     then:
@@ -58,14 +63,26 @@ esp32:
   framework:
     type: esp-idf
 
+# The N16R8 boards have 8 MB of PSRAM. Using it leaves room for Bluetooth and
+# the HTTPS download that over-the-air updates need. Boards without PSRAM
+# still start (it's skipped if not found).
+psram:
+  mode: octal
+  speed: 80MHz
+
+# Lets the ESPHome Device Builder offer "Take control" (adopt) for this device.
+dashboard_import:
+  package_import_url: github://Legal-Copy7045/Magic-bHAnds/esphome/magicband-reader.yaml@main
+  import_full_config: false
+
 logger:
+  # Logs and the web installer's Wi-Fi setup use the port labelled "UART".
+  hardware_uart: UART0
 
 api:
-  encryption:
-    key: !secret reader_api_key
   actions:
     # For "Ask Home Assistant" mode: an automation on the tag scan calls one
-    # of these within 3 seconds (esphome.magicband_reader_accept / _deny).
+    # of these within 3 seconds (esphome.magicband_reader_<suffix>_accept / _deny).
     - action: accept
       then:
         - globals.set: {id: decision, value: "1"}
@@ -99,16 +116,26 @@ api:
         - component.update: known_band_count
 
 ota:
-  - platform: esphome
-    encryption: {}   # required; reuses the api key
+  - platform: esphome      # updates from the ESPHome Device Builder
+  - platform: http_request # updates from the published firmware (Update entity)
+
+http_request:
+
+update:
+  - platform: http_request
+    name: Firmware
+    source: ${firmware_manifest}
+    update_interval: 6h
 
 wifi:
-  ssid: !secret wifi_ssid
-  password: !secret wifi_password
+  # No credentials here: they're entered in the web installer (Improv) or via
+  # the fallback hotspot's captive portal.
   ap:
     ssid: "MagicBand Reader Setup"
 
 captive_portal:
+
+improv_serial:
 
 # Feedback to MagicBand+ is meant for the band on the reader, so keep the
 # Bluetooth power low (the add-on defaults to max for whole-room bridges).
