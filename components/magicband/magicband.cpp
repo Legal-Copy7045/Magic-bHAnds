@@ -7,6 +7,10 @@
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
+#ifdef USE_ESP32_BLE_TRACKER
+#include "esphome/components/esp32_ble_tracker/esp32_ble_tracker.h"
+#endif
+
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -51,8 +55,12 @@ void MagicBand::dump_config() {
                 (unsigned) this->duration_ms_, (unsigned) this->min_interval_ms_, (unsigned) this->max_interval_ms_,
                 this->queue_size_);
 #ifndef CONFIG_BT_CONTROLLER_DISABLED
-  ESP_LOGCONFIG(TAG, "  TX power: %ddBm", (this->tx_power_ * 3) - 12);
+  ESP_LOGCONFIG(TAG, "  TX power: %ddBm", this->tx_power_dbm_);
 #endif
+  ESP_LOGCONFIG(TAG,
+                "  Pause scanning while broadcasting: %s\n"
+                "  Alternate E1/E2 prefix: %s",
+                YESNO(this->pause_scanning_), YESNO(this->alternate_prefix_));
 }
 
 void MagicBand::loop() {
@@ -71,8 +79,11 @@ void MagicBand::loop() {
 
   switch (this->state_) {
     case State::IDLE:
-      if (!this->queue_.empty() && esp32_ble::global_ble != nullptr && esp32_ble::global_ble->is_active())
+      if (!this->queue_.empty() && esp32_ble::global_ble != nullptr && esp32_ble::global_ble->is_active()) {
         this->start_next_();
+      } else if (this->queue_.empty() && this->scan_paused_) {
+        this->resume_scan_();
+      }
       break;
     case State::CONFIGURING:
       if (now - this->state_since_ > GAP_TIMEOUT_MS) {
@@ -97,6 +108,16 @@ void MagicBand::start_next_() {
   this->current_ = std::move(this->queue_.front());
   this->queue_.pop_front();
   this->stop_requested_ = false;
+  this->pause_scan_();
+
+  // Experimental: alternate E1 00 / E2 00 in front of each new command (seen in
+  // park captures; may let bands tell a new command from a repeat).
+  if (this->alternate_prefix_ && this->current_.payload.size() + 2 <= MAX_PAYLOAD_LEN &&
+      this->current_.payload[0] != 0xE1 && this->current_.payload[0] != 0xE2) {
+    uint8_t prefix = this->next_prefix_e2_ ? 0xE2 : 0xE1;
+    this->current_.payload.insert(this->current_.payload.begin(), {prefix, 0x00});
+    this->next_prefix_e2_ = !this->next_prefix_e2_;
+  }
 
   // Flags AD + manufacturer-specific AD (0xFF) with Disney company ID.
   uint8_t adv[31];
@@ -128,6 +149,32 @@ void MagicBand::start_next_() {
   }
   this->state_ = State::CONFIGURING;
   this->state_since_ = millis();
+}
+
+void MagicBand::pause_scan_() {
+#ifdef USE_ESP32_BLE_TRACKER
+  auto *tracker = esp32_ble_tracker::global_esp32_ble_tracker;
+  if (!this->pause_scanning_ || this->scan_paused_ || tracker == nullptr)
+    return;
+  if (tracker->get_scanner_state() == esp32_ble_tracker::ScannerState::RUNNING ||
+      tracker->get_scanner_state() == esp32_ble_tracker::ScannerState::STARTING) {
+    ESP_LOGD(TAG, "Pausing BLE scanning while broadcasting");
+    tracker->stop_scan();
+    this->scan_paused_ = true;
+  }
+#endif
+}
+
+void MagicBand::resume_scan_() {
+#ifdef USE_ESP32_BLE_TRACKER
+  auto *tracker = esp32_ble_tracker::global_esp32_ble_tracker;
+  this->scan_paused_ = false;
+  if (tracker == nullptr)
+    return;
+  ESP_LOGD(TAG, "Resuming BLE scanning");
+  // The tracker restarts scanning by itself once it is idle and continuous.
+  tracker->set_scan_continuous(true);
+#endif
 }
 
 void MagicBand::request_stop_() {

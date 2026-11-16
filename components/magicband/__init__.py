@@ -11,6 +11,8 @@ from esphome.components.esp32 import request_bluetooth
 from esphome.components.esp32_ble import CONF_BLE_ID
 import esphome.config_validation as cv
 from esphome.const import CONF_ID, CONF_TX_POWER
+from esphome.components.esp32 import get_esp32_variant
+from esphome.components.esp32.const import VARIANT_ESP32C3, VARIANT_ESP32S3
 from esphome.core import TimePeriod
 import esphome.final_validate as fv
 
@@ -22,6 +24,35 @@ CONF_DURATION = "duration"
 CONF_MIN_INTERVAL = "min_interval"
 CONF_MAX_INTERVAL = "max_interval"
 CONF_QUEUE_SIZE = "queue_size"
+CONF_PAUSE_SCANNING = "pause_scanning"
+CONF_ALTERNATE_PREFIX = "alternate_prefix"
+
+# ESP32-S3/C3 controllers number power levels from -24 dBm (index 0) up to
+# +20 dBm (index 15) in 3 dB steps; the original ESP32 goes -12..+9 dBm.
+EXTENDED_POWER_VARIANTS = (VARIANT_ESP32S3, VARIANT_ESP32C3)
+
+
+def _max_power():
+    return 20 if get_esp32_variant() in EXTENDED_POWER_VARIANTS else 9
+
+
+def _validate_tx_power(value):
+    if isinstance(value, str) and value.strip().lower() == "max":
+        return "max"
+    return cv.decibel(value)
+
+
+def _power_index(dbm):
+    """dBm -> esp_power_level_t index for this variant."""
+    if get_esp32_variant() in EXTENDED_POWER_VARIANTS:
+        allowed = list(range(-24, 19, 3)) + [20]
+        if dbm not in allowed:
+            raise cv.Invalid(f"tx_power on this chip must be one of {allowed} dBm or 'max'")
+        return 15 if dbm == 20 else (dbm + 24) // 3
+    allowed = list(range(-12, 10, 3))
+    if dbm not in allowed:
+        raise cv.Invalid(f"tx_power on this chip must be one of {allowed} dBm or 'max'")
+    return (dbm + 12) // 3
 
 # Components that drive BLE advertising through ESPHome's own advertising
 # manager. This component drives the GAP layer directly, so the two would fight.
@@ -58,9 +89,13 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_MIN_INTERVAL, default="20ms"): _interval,
             cv.Optional(CONF_MAX_INTERVAL, default="40ms"): _interval,
             cv.Optional(CONF_QUEUE_SIZE, default=8): cv.int_range(min=1, max=32),
-            cv.Optional(CONF_TX_POWER, default="9dBm"): cv.All(
-                cv.decibel, cv.enum(esp32_ble.TX_POWER_LEVELS, int=True)
-            ),
+            # "max" = +20 dBm on ESP32-S3/C3, +9 dBm on the original ESP32.
+            cv.Optional(CONF_TX_POWER, default="max"): _validate_tx_power,
+            # Pause Bluetooth-proxy scanning while broadcasting, so the radio
+            # spends the broadcast on the bands (resumes afterwards).
+            cv.Optional(CONF_PAUSE_SCANNING, default=True): cv.boolean,
+            # Experimental: alternate an E1 00 / E2 00 prefix on each command.
+            cv.Optional(CONF_ALTERNATE_PREFIX, default=False): cv.boolean,
         }
     ).extend(cv.COMPONENT_SCHEMA),
     _validate,
@@ -69,6 +104,8 @@ CONFIG_SCHEMA = cv.All(
 
 def _final_validate(config):
     esp32_ble.validate_variant(config)
+    dbm = config[CONF_TX_POWER]
+    _power_index(_max_power() if dbm == "max" else int(dbm))
     full = fv.full_config.get()
     for comp in CONFLICTING_COMPONENTS:
         if comp in full:
@@ -93,6 +130,10 @@ async def to_code(config):
     cg.add(var.set_min_interval(config[CONF_MIN_INTERVAL]))
     cg.add(var.set_max_interval(config[CONF_MAX_INTERVAL]))
     cg.add(var.set_queue_size(config[CONF_QUEUE_SIZE]))
-    cg.add(var.set_tx_power(config[CONF_TX_POWER]))
+    dbm = config[CONF_TX_POWER]
+    dbm = _max_power() if dbm == "max" else int(dbm)
+    cg.add(var.set_tx_power(cg.RawExpression(f"static_cast<esp_power_level_t>({_power_index(dbm)})"), dbm))
+    cg.add(var.set_pause_scanning(config[CONF_PAUSE_SCANNING]))
+    cg.add(var.set_alternate_prefix(config[CONF_ALTERNATE_PREFIX]))
 
     request_bluetooth()

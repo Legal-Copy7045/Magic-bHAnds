@@ -175,8 +175,9 @@ Assistant's Bluetooth range like a Screek or Shelly proxy does. Turn on the
 **Bluetooth proxy** switch on the bridge's device page, under Configuration.
 It's off by default, and it remembers its setting through restarts.
 
-Proxying shares the radio with the band broadcasts. If a bridge seems less
-reliable at reaching bands with it on, turn it off on that bridge.
+Proxying shares the radio with the band broadcasts. The bridge pauses
+scanning for the ~2 seconds it broadcasts each command, then resumes, so the
+proxy's effect on band range is small.
 
 ## Component options
 
@@ -193,7 +194,9 @@ magicband:
   duration: 2s      # broadcast length per command (100ms–30s)
   min_interval: 20ms
   max_interval: 40ms
-  tx_power: 9dBm    # -12dBm .. 9dBm
+  tx_power: max     # +20 dBm on ESP32-S3/C3, +9 dBm on the original ESP32
+  pause_scanning: true    # pause Bluetooth-proxy scanning while broadcasting
+  alternate_prefix: false # experimental E1 00 / E2 00 alternation
   queue_size: 8     # commands queued while one is broadcasting
 ```
 
@@ -202,6 +205,16 @@ ESPHome. The component drives BLE advertising directly, so it can't share a
 device with `esp32_ble_beacon`, `esp32_improv` or `esp32_ble_server`. It can
 share with `esp32_ble_tracker` and Bluetooth proxy scanning, but heavy scanning
 reduces broadcast airtime.
+
+## Range and reliability tips
+
+- Bridges transmit at maximum power by default: +20 dBm on ESP32-S3. In
+  regions with a 20 dBm EIRP limit (such as the EU) and a high-gain antenna,
+  set `tx_power: 17dBm`.
+- Bands only listen now and then. If commands are missed, shake the band, or
+  try the **Alternate prefix (experimental)** switch on the device page. It
+  alternates the `E1 00` / `E2 00` prefix seen in park captures, which may
+  help bands accept commands sent in quick succession.
 
 ## Caveats
 
