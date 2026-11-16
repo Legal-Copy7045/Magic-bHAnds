@@ -19,7 +19,7 @@
 substitutions:
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.7.0"
+  project_version: "0.7.1"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   ring_leds: 24       # LEDs in the ring
   mickey_leds: 12     # LEDs in the Mickey head, wired after the ring
@@ -80,6 +80,9 @@ logger:
   hardware_uart: UART0
 
 api:
+  # Encrypted. Home Assistant gives each board its own key the first time it
+  # connects, so there's no key to manage.
+  encryption: {}
   actions:
     # For "Ask Home Assistant" mode: an automation on the tag scan calls one
     # of these within 3 seconds (esphome.magicband_reader_<suffix>_accept / _deny).
@@ -116,8 +119,10 @@ api:
         - component.update: known_band_count
 
 ota:
-  - platform: esphome      # updates from the ESPHome Device Builder
-  - platform: http_request # updates from the published firmware (Update entity)
+  # Updates come from the published firmware through Home Assistant (the
+  # Firmware update entity), over the encrypted connection. "Take control" in
+  # the ESPHome Device Builder adds its own password-protected upload method.
+  - platform: http_request
 
 http_request:
 

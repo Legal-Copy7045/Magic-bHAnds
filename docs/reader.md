@@ -127,6 +127,8 @@ charger unplugged.
    bands.
 
 Firmware updates then appear in Home Assistant as an update on the reader.
+The connection is encrypted: Home Assistant gives each reader its own key when
+it first connects.
 
 **Customising** (LED counts, sounds, pins): in the ESPHome Device Builder the
 reader shows up with **Take control**, which imports
