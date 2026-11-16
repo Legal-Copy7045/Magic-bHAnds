@@ -11,8 +11,10 @@ What changes compared with the factory firmware:
 - **Kept:** Ethernet, the Bluetooth proxy (active, 4 connections,
   1100 ms continuous scanning), the Identify LED, the diagnostic sensors, and
   the Reboot, Safe Mode Boot and Factory Reset buttons.
-- **Not kept:** SCREEK's Scan Interval and Scan Window numbers and their Scan
-  Active Mode switch. The scan settings are fixed in the YAML instead.
+- **Re-created:** the Scan Interval and Scan Window numbers and the Scan Active
+  Mode switch, with the same names and defaults (1100 ms, 1100 ms, on). The
+  code behind them is ours, because SCREEK's isn't published. Changing one
+  briefly restarts scanning. Settings survive reboots.
 - **Added:** MagicBand entities and actions, and encryption on the connection
   to Home Assistant and on network updates. The factory firmware had neither.
 
@@ -40,9 +42,19 @@ of the factory firmware.
 1. Open the ESPHome Device Builder in Home Assistant and click **+ New device**,
    then **Continue**, give it any name, choose **ESP32-S3**, and **Skip** the
    install.
-2. Click **Edit** on the new device, replace everything with the contents of
-   [`esphome/screek-bp2-poe.yaml`](../esphome/screek-bp2-poe.yaml), and click
-   **Save**.
+2. Click **Edit** on the new device and **replace everything** with:
+   ```yaml
+   packages:
+     bp2:
+       url: https://github.com/Legal-Copy7045/Magic-bHAnds
+       ref: main
+       files: [esphome/screek-bp2-poe.yaml]
+       refresh: 1h
+   ```
+   This pulls the full config from GitHub, so improvements arrive without
+   re-pasting. Click **Install** when you want them. To customise instead,
+   paste the full contents of
+   [`esphome/screek-bp2-poe.yaml`](../esphome/screek-bp2-poe.yaml).
 3. Click **Secrets** (top right) and add a key on its own line:
    ```yaml
    bp2_api_key: "PASTE-A-32-BYTE-BASE64-KEY"
@@ -67,8 +79,8 @@ install has to go over USB.
 3. When it finishes, unplug it, connect Ethernet (and PoE), and it boots on
    the network as `screek-bp2-poe-xxxxxx`.
 
-Later updates install over Ethernet: just click **Install** in the Device
-Builder and choose **Wirelessly**.
+**Later updates never need USB.** They install over Ethernet: click
+**Install** in the Device Builder and choose **Wirelessly**.
 
 ## 4. Reconnect in Home Assistant
 
@@ -78,8 +90,9 @@ ESPHome**, click **Reconfigure** on it, and enter the `bp2_api_key`. If
 nothing prompts you, delete the old BP2-POE entry and add it again; it's
 discovered automatically.
 
-Entities from SCREEK's Scan Interval, Scan Window and Scan Active Mode will
-show as unavailable. Delete them.
+The Scan Interval, Scan Window and Scan Active Mode entities use the same
+names as SCREEK's, so they should attach to your existing ones. If any old
+entities show as unavailable, delete them.
 
 ## Recovering
 

@@ -2,10 +2,10 @@
 # bridge.
 #
 # Rebuilt from the factory firmware's boot log (SCREEK.Bluetooth_Proxy BP2-POE
-# 26.01.23-A). SCREEK hasn't published their YAML, so their custom scan-tuning
-# entities (Scan Interval / Scan Window numbers, Scan Active Mode switch) are
-# replaced by fixed scan settings below. To go back to factory firmware, use
-# SCREEK's web installer or your esptool backup.
+# 26.01.23-A). SCREEK hasn't published their YAML, so the Scan Interval / Scan
+# Window / Scan Active Mode controls are re-implemented here with the same
+# names and defaults. To go back to factory firmware, use SCREEK's web
+# installer or your esptool backup.
 #
 # First install must be over USB (factory firmware has an OTA password).
 # Secrets needed in the ESPHome Device Builder's secrets.yaml:
@@ -60,8 +60,10 @@ ethernet:
 
 # Bluetooth proxy: always on, as on the factory firmware (continuous active
 # scanning, 1100 ms interval and window, 4 connection slots). Band broadcasts
-# share the radio with this scanning.
+# share the radio with this scanning. The Scan Interval / Scan Window / Scan
+# Active Mode entities below adjust it at runtime.
 esp32_ble_tracker:
+  id: ble_tracker
   scan_parameters:
     interval: 1100ms
     window: 1100ms
@@ -91,6 +93,72 @@ light:
     num_leds: 1
     default_transition_length: 1s
     entity_category: config
+
+# --- Scan tuning (same entities as the factory firmware) ---------------------
+# Changes restart scanning briefly to apply. Values survive reboots and are
+# re-applied at boot. Bluetooth requires window <= interval, so the window is
+# capped at the interval.
+script:
+  - id: apply_scan_settings
+    mode: restart
+    then:
+      - lambda: |-
+          float interval = id(scan_interval).state;
+          float window = std::min(id(scan_window).state, interval);
+          id(ble_tracker).set_scan_interval(static_cast<uint32_t>(interval / 0.625f));
+          id(ble_tracker).set_scan_window(static_cast<uint32_t>(window / 0.625f));
+          id(ble_tracker).set_scan_active(id(scan_active).state);
+          ESP_LOGI("scan", "Apply BLE scan: interval=%.0fms window=%.0fms active=%s",
+                   interval, window, id(scan_active).state ? "yes" : "no");
+      - esp32_ble_tracker.stop_scan:
+      - delay: 500ms
+      - esp32_ble_tracker.start_scan:
+          continuous: true
+
+number:
+  - platform: template
+    id: scan_interval
+    name: "Scan Interval"
+    icon: mdi:bluetooth-settings
+    unit_of_measurement: ms
+    entity_category: config
+    mode: box
+    min_value: 20
+    max_value: 10240
+    step: 10
+    initial_value: 1100
+    optimistic: true
+    restore_value: true
+    on_value:
+      - script.execute: apply_scan_settings
+  - platform: template
+    id: scan_window
+    name: "Scan Window"
+    icon: mdi:bluetooth-settings
+    unit_of_measurement: ms
+    entity_category: config
+    mode: box
+    min_value: 20
+    max_value: 10240
+    step: 10
+    initial_value: 1100
+    optimistic: true
+    restore_value: true
+    on_value:
+      - script.execute: apply_scan_settings
+
+switch:
+  - platform: template
+    id: scan_active
+    name: "Scan Active Mode"
+    icon: mdi:bluetooth-settings
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    on_turn_on:
+      - script.execute: apply_scan_settings
+    on_turn_off:
+      - script.execute: apply_scan_settings
 
 sensor:
   - platform: internal_temperature

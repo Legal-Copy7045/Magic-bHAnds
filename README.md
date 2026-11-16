@@ -164,7 +164,7 @@ packages:
 ```
 
 **SCREEK BP2-POE:** a ready-made config is in `esphome/screek-bp2-poe.yaml`.
-It keeps the board's PoE Bluetooth proxy behaviour and adds MagicBand. See
+It keeps the board's PoE Bluetooth proxy behaviour, including its scan-tuning controls, and adds MagicBand. See
 [docs/screek-bp2-poe.md](docs/screek-bp2-poe.md) for backup, the first USB
 install and reconnecting in Home Assistant.
 
