@@ -147,18 +147,21 @@ they play instantly with no network involved:
 | `sounds/tap_in.wav` | Band accepted |
 | `sounds/error.wav` | Band denied |
 
-**Sound files aren't included in this repo.** Supply your own:
+The sounds were recorded by the project owner and are included in this repo,
+in `esphome/sounds/`. The reader downloads them from GitHub when it's built,
+so there's nothing to copy onto Home Assistant.
+
+**Using your own sounds instead:**
 
 1. Convert each one to **mono, 16-bit, 48 kHz WAV**. This keeps them small and
    matches the speaker. With ffmpeg:
    `ffmpeg -i in.wav -ac 1 -ar 48000 -sample_fmt s16 out.wav`
-2. In Home Assistant, put them in **`/config/esphome/sounds/`** using the File
-   editor, Samba or Studio Code Server add-on, named exactly as above.
+2. Either host them somewhere and put the URLs in `sound_startup`,
+   `sound_tap_in` and `sound_error` at the top of the config, or put them in
+   `/config/esphome/sounds/` on Home Assistant (File editor, Samba or Studio
+   Code Server add-on) and set those values to `sounds/startup.wav` and so on.
 3. Install the reader from the Device Builder. The files are embedded each
-   time you build.
-
-To use different names or locations, change `sound_startup`, `sound_tap_in`
-and `sound_error` at the top of the config. Each file must be under 5 MB.
+   time you build, and each must be under 5 MB.
 
 ## Notes
 

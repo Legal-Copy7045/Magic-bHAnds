@@ -4,8 +4,3 @@ __pycache__/
 *.pyc
 .pioenvs/
 .piolibdeps/
-
-# Your own sound files for the reader (not distributed with this repo)
-esphome/sounds/*.wav
-esphome/sounds/*.flac
-esphome/sounds/*.mp3
