@@ -18,8 +18,15 @@ LL FF 83 01 <payload>    Manufacturer-specific AD, LL = 3 + len(payload)
 ```
 
 Legacy advertisements are limited to 31 bytes, so the payload can be at most
-**24 bytes**. Captured packets sometimes start the payload with `E1 00` or
-`E2 00`. Their purpose is unknown, and they aren't needed.
+**24 bytes**.
+
+### `E1 00` / `E2 00` prefix
+Captured packets sometimes start the payload with `E1 00` or `E2 00`. Bands
+react without the prefix. But in our testing on a real MagicBand+, **switching
+between `E1 00` and `E2 00` on each new command made repeated commands
+noticeably more reliable** than sending the same bytes every time. That
+suggests the prefix works as a toggle, letting the band tell a new command
+from a repeat. The bridge alternates it by default (`alternate_prefix`).
 
 ## Common building blocks
 
@@ -126,6 +133,14 @@ The Disney app talks to a specific band over a GATT connection, acting as an
 "Alexa Gadget". It can upload frame-based custom animations, but it needs BLE
 tokens from Disney's servers. Broadcasts reach every band in range and can't
 target one band.
+
+## Tested on a real band
+
+- Single colour, RGB light and animation commands work.
+- Range improves a lot when the bridge isn't also scanning flat out as a
+  Bluetooth proxy (the bridge now pauses scanning while broadcasting), and
+  with +20 dBm on ESP32-S3.
+- Alternating `E1 00` / `E2 00` makes repeated commands more reliable.
 
 ## Things to test on a real band
 
