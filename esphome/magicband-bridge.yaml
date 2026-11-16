@@ -10,7 +10,7 @@
 substitutions:
   name: magicband-bridge
   friendly_name: MagicBand Bridge
-  project_version: "0.2.0"
+  project_version: "0.3.0"
   # Where the magicband component is fetched from. CI and local development
   # override this with a path, e.g. `-s component_source ../components`.
   component_source: github://Legal-Copy7045/Magic-bHAnds@main
@@ -20,7 +20,9 @@ esphome:
   name: ${name}
   friendly_name: ${friendly_name}
   min_version: 2026.10.0
-  name_add_mac_suffix: false
+  # Each board gets a unique name such as magicband-bridge-3fa2c1, so you can
+  # run several for coverage.
+  name_add_mac_suffix: true
   project:
     name: legal-copy7045.magicband-bridge
     version: ${project_version}
@@ -50,7 +52,9 @@ logger:
   hardware_uart: UART0
 
 api:
-  # Each action shows up in Home Assistant as esphome.magicband_bridge_<action>.
+  # Per-board actions: esphome.magicband_bridge_<suffix>_<action>.
+  # To send to several boards at once, use the "Command" text entity instead
+  # (the blueprint and example scripts do this).
   # Colours: palette names (red, pink, lime_green, ...) or 0-31.
   # Vibration: 0 = none, 1-11 = patterns (see docs/protocol.md).
   actions:
@@ -188,6 +192,18 @@ improv_serial:
 esp32_ble:
   id: ble
 
+# Optional Bluetooth proxy for Home Assistant, controlled by the
+# "Bluetooth proxy" switch on the device page (off by default). Scanning
+# shares the radio with band broadcasts, so leave it off on boards whose only
+# job is reaching bands.
+esp32_ble_tracker:
+  id: ble_tracker
+  scan_parameters:
+    continuous: false   # scanning only starts when the switch is on
+
+bluetooth_proxy:
+  active: true
+
 magicband:
   id: band
   duration: 2s        # how long each command is broadcast
@@ -233,6 +249,35 @@ light:
           name: "Crossfade"
           update_interval: 1h
           lambda: 'if (initial_run) id(band).send_animation("crossfade");'
+
+text:
+  # Send a JSON command, e.g. {"effect":"color","color":"red","vibration":3}.
+  # Lets Home Assistant target one, several or all bridges with text.set_value.
+  # Fields: docs/commands.md
+  - platform: template
+    id: command
+    name: "Command"
+    icon: mdi:console-line
+    entity_category: config
+    mode: text
+    max_length: 255
+    optimistic: false
+    set_action:
+      - lambda: id(band).run_command_json(x);
+
+switch:
+  - platform: template
+    id: proxy_switch
+    name: "Bluetooth proxy"
+    icon: mdi:bluetooth-connect
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    turn_on_action:
+      - esp32_ble_tracker.start_scan:
+          continuous: true
+    turn_off_action:
+      - esp32_ble_tracker.stop_scan:
 
 select:
   # Used by the Buzz button. Patterns: '=0.125s  -=0.25s  *=0.5s  %=1s  #=2s

@@ -2,8 +2,9 @@ blueprint:
   name: MagicBand+ notification
   description: >-
     Light up and/or buzz nearby MagicBand+ bands when something happens.
-    Requires the MagicBand Bridge (ESP32-S3, firmware 0.2.0+) added to Home
-    Assistant through the ESPHome integration.
+    Requires one or more MagicBand Bridges (ESP32-S3, firmware 0.3.0+) added to
+    Home Assistant through the ESPHome integration. Sends through every bridge
+    unless you pick specific ones.
   domain: automation
   source_url: https://github.com/Legal-Copy7045/Magic-bHAnds/blob/main/homeassistant/blueprints/automation/magicband_notify.yaml
   input:
@@ -12,6 +13,18 @@ blueprint:
       description: What should trigger the band? (doorbell pressed, washer finished, ...)
       selector:
         trigger: {}
+    bridges:
+      name: Bridges
+      description: >-
+        Which bridges broadcast the effect. Leave empty to use all of them.
+        Pick each bridge's "Command" entity.
+      default: []
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - integration: esphome
+              domain: text
     effect_section:
       name: Effect
       icon: mdi:watch-variant
@@ -144,14 +157,6 @@ blueprint:
       icon: mdi:cog
       collapsed: true
       input:
-        device_name:
-          name: Bridge device name
-          description: >-
-            Only change this if you renamed the bridge or have more than one.
-            Use the ESPHome name with underscores, e.g. magicband_bridge.
-          default: magicband_bridge
-          selector:
-            text: {}
         repeat:
           name: Repeat
           description: How many times to send the effect.
@@ -165,6 +170,7 @@ max: 5
 triggers: !input when
 
 variables:
+  bridges: !input bridges
   effect: !input effect
   color1: !input color1
   color2: !input color2
@@ -176,62 +182,57 @@ variables:
   on_seconds: !input on_seconds
   fade_seconds: !input fade_seconds
   leds: !input leds
-  device_name: !input device_name
   repeat_count: !input repeat
+  # Every bridge's Command entity, unless specific ones were picked.
+  targets: >-
+    {%- if bridges -%}
+      {{- bridges -}}
+    {%- else -%}
+      {%- set ns = namespace(e=[]) -%}
+      {%- for e in integration_entities('esphome') | select('match', 'text[.]') | select('search', '_command$') -%}
+        {%- set d = device_id(e) -%}
+        {%- set label = ((device_attr(d, 'model') or '') ~ ' ' ~ (device_attr(d, 'name') or '') ~ ' ' ~ e) | lower -%}
+        {%- if 'magicband' in label -%}{%- set ns.e = ns.e + [e] -%}{%- endif -%}
+      {%- endfor -%}
+      {{- ns.e -}}
+    {%- endif -%}
+  # The command as JSON. The "mb" prefix stops Home Assistant turning it into a
+  # dict; the bridge ignores everything before the first "{".
+  command: >-
+    {% set v = vibration | int %}
+    {% set timing = {'on_seconds': on_seconds | float, 'fade_seconds': fade_seconds | int, 'always_on': always_on} %}
+    {% if effect == 'color' %}
+      {% set c = dict(timing, effect='color', color=color1, leds=leds, vibration=v) %}
+    {% elif effect == 'rgb' %}
+      {% set c = dict(timing, effect='rgb', rgb=rgb_color, vibration=v) %}
+    {% elif effect == 'dual_color' %}
+      {% set c = {'effect': 'dual_color', 'inner': color1, 'outer': color2, 'vibration': v} %}
+    {% elif effect == 'five_color' %}
+      {% set c = {'effect': 'five_color', 'colors': colors, 'vibration': v} %}
+    {% elif effect == 'crossfade' %}
+      {% set c = {'effect': 'crossfade', 'color1': color1, 'color2': color2, 'vibration': v} %}
+    {% elif effect == 'animation' %}
+      {% set c = {'effect': 'animation', 'name': animation} %}
+    {% else %}
+      {% set c = {'effect': 'buzz', 'vibration': v} %}
+    {% endif %}
+    mb{{ c | to_json }}
 
 actions:
+  - if: "{{ targets | count == 0 }}"
+    then:
+      - action: system_log.write
+        data:
+          level: warning
+          logger: blueprints.magicband_notify
+          message: "No MagicBand bridges found. Is a bridge added through ESPHome?"
+      - stop: No bridges
   - repeat:
       count: "{{ repeat_count | int }}"
       sequence:
-        - choose:
-            - conditions: "{{ effect == 'color' }}"
-              sequence:
-                - action: "esphome.{{ device_name }}_color_advanced"
-                  data:
-                    color: "{{ color1 }}"
-                    vibration: "{{ vibration | int }}"
-                    leds: "{{ leds }}"
-                    on_seconds: "{{ on_seconds | float }}"
-                    fade_seconds: "{{ fade_seconds | int }}"
-                    always_on: "{{ always_on }}"
-            - conditions: "{{ effect == 'rgb' }}"
-              sequence:
-                - action: "esphome.{{ device_name }}_rgb"
-                  data:
-                    red: "{{ rgb_color[0] | int }}"
-                    green: "{{ rgb_color[1] | int }}"
-                    blue: "{{ rgb_color[2] | int }}"
-                    vibration: "{{ vibration | int }}"
-                    always_on: "{{ always_on }}"
-                    flash: false
-            - conditions: "{{ effect == 'dual_color' }}"
-              sequence:
-                - action: "esphome.{{ device_name }}_dual_color"
-                  data:
-                    inner: "{{ color1 }}"
-                    outer: "{{ color2 }}"
-                    vibration: "{{ vibration | int }}"
-            - conditions: "{{ effect == 'five_color' }}"
-              sequence:
-                - action: "esphome.{{ device_name }}_five_color"
-                  data:
-                    colors: "{{ colors }}"
-                    vibration: "{{ vibration | int }}"
-            - conditions: "{{ effect == 'crossfade' }}"
-              sequence:
-                - action: "esphome.{{ device_name }}_crossfade"
-                  data:
-                    color1: "{{ color1 }}"
-                    color2: "{{ color2 }}"
-                    vibration: "{{ vibration | int }}"
-            - conditions: "{{ effect == 'animation' }}"
-              sequence:
-                - action: "esphome.{{ device_name }}_animation"
-                  data:
-                    name: "{{ animation }}"
-            - conditions: "{{ effect == 'buzz' }}"
-              sequence:
-                - action: "esphome.{{ device_name }}_color"
-                  data:
-                    color: "off"
-                    vibration: "{{ vibration | int }}"
+        - action: text.set_value
+          target:
+            entity_id: "{{ targets }}"
+          data:
+            value: "{{ command | trim }}"
+        - delay: {seconds: 2}

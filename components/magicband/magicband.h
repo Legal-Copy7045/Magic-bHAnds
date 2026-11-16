@@ -112,6 +112,11 @@ class MagicBand : public Component {
   /// Stop broadcasting now and drop anything queued.
   void stop();
 
+  /// Run a command given as JSON, e.g. {"effect":"color","color":"red","vibration":3}.
+  /// This is what the "Command" text entity feeds, so HA can target many bridges at once.
+  /// See docs/commands.md for the fields. Returns false if invalid.
+  bool run_command_json(const std::string &json);
+
   /// Light entity support: debounced so colour-wheel drags don't flood the queue.
   void request_light_state(bool on, uint8_t red, uint8_t green, uint8_t blue);
 

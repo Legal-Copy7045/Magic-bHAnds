@@ -1,113 +1,68 @@
-# Home Assistant scripts for the MagicBand+ bridge.
+# Home Assistant scripts for MagicBand bridges (firmware 0.3.0+).
 #
-# Paste into scripts.yaml (or a package). Assumes the ESPHome device is named
-# `magicband-bridge`, so its actions are `esphome.magicband_bridge_*`.
-# Check Developer Tools -> Actions for the exact names on your system.
+# Paste into scripts.yaml (or a package). Everything goes through
+# script.magicband_send, which sends a command to every bridge's "Command"
+# entity, or only to the bridges you list.
+#
+# Command fields are listed in docs/commands.md.
 
-magicband_effect:
-  alias: "MagicBand: effect"
-  icon: mdi:watch-variant
+magicband_send:
+  alias: "MagicBand: send command"
+  icon: mdi:access-point
   mode: queued
   fields:
-    effect:
-      name: Effect
+    command:
+      name: Command
+      description: 'e.g. {"effect": "color", "color": "red", "vibration": 3}'
       required: true
-      default: color
+      selector: {object: {}}
+    bridges:
+      name: Bridges
+      description: Command entities of the bridges to use. Empty = all bridges.
+      default: []
       selector:
-        select:
-          options: [color, dual_color, five_color, crossfade, circle]
-    color1:
-      name: Colour 1
-      default: blue
-      selector: &colors
-        select:
-          options:
-            - red
-            - red_orange
-            - orange
-            - yellow
-            - off_yellow
-            - lime
-            - lime_green
-            - green
-            - cyan
-            - blue
-            - midnight_blue
-            - purple
-            - bright_purple
-            - lavender
-            - pink
-            - white
-            - unique
-            - random
-    color2:
-      name: Colour 2 (outer ring / crossfade)
-      default: pink
-      selector: *colors
-    colors:
-      name: Colours (five_color, comma separated)
-      default: "red, orange, yellow, green, blue"
-      selector:
-        text:
-    vibration:
-      name: Vibration (0 = off)
-      default: 0
-      selector:
-        number: {min: 0, max: 11, step: 1, mode: slider}
+        entity:
+          multiple: true
+          filter: [{integration: esphome, domain: text}]
+  variables:
+    targets: >-
+      {%- if bridges -%}
+        {{- bridges -}}
+      {%- else -%}
+        {%- set ns = namespace(e=[]) -%}
+        {%- for e in integration_entities('esphome') | select('match', 'text[.]') | select('search', '_command$') -%}
+          {%- set d = device_id(e) -%}
+          {%- set label = ((device_attr(d, 'model') or '') ~ ' ' ~ (device_attr(d, 'name') or '') ~ ' ' ~ e) | lower -%}
+          {%- if 'magicband' in label -%}{%- set ns.e = ns.e + [e] -%}{%- endif -%}
+        {%- endfor -%}
+        {{- ns.e -}}
+      {%- endif -%}
   sequence:
-    - choose:
-        - conditions: "{{ effect == 'color' }}"
-          sequence:
-            - action: esphome.magicband_bridge_color
-              data: {color: "{{ color1 }}", vibration: "{{ vibration | int }}"}
-        - conditions: "{{ effect == 'dual_color' }}"
-          sequence:
-            - action: esphome.magicband_bridge_dual_color
-              data: {inner: "{{ color1 }}", outer: "{{ color2 }}", vibration: "{{ vibration | int }}"}
-        - conditions: "{{ effect == 'five_color' }}"
-          sequence:
-            - action: esphome.magicband_bridge_five_color
-              data: {colors: "{{ colors }}", vibration: "{{ vibration | int }}"}
-        - conditions: "{{ effect == 'crossfade' }}"
-          sequence:
-            - action: esphome.magicband_bridge_crossfade
-              data: {color1: "{{ color1 }}", color2: "{{ color2 }}", vibration: "{{ vibration | int }}"}
-        - conditions: "{{ effect == 'circle' }}"
-          sequence:
-            - action: esphome.magicband_bridge_circle
-              data: {vibration: "{{ vibration | int }}"}
+    - condition: template
+      value_template: "{{ targets | count > 0 }}"
+    - action: text.set_value
+      target:
+        entity_id: "{{ targets }}"
+      data:
+        # "mb" prefix stops HA converting the JSON back into a dict.
+        value: "mb{{ command | to_json }}"
 
-# Named presets: easy to call from automations and dashboards.
+# Named presets: call these from automations and dashboards.
 magicband_doorbell:
   alias: "MagicBand: doorbell"
   icon: mdi:doorbell
   sequence:
-    - action: script.magicband_effect
-      data: {effect: color, color1: yellow, vibration: 5}
+    - action: script.magicband_send
+      data:
+        command: {effect: color, color: yellow, vibration: 5}
 
 magicband_dinner_ready:
   alias: "MagicBand: dinner's ready"
   icon: mdi:silverware-fork-knife
   sequence:
-    - action: script.magicband_effect
-      data: {effect: five_color, colors: "red, orange, yellow, green, blue", vibration: 3}
-
-magicband_raw:
-  alias: "MagicBand: raw hex (experiments)"
-  icon: mdi:code-braces
-  fields:
-    hex:
-      name: Hex payload
-      example: "E9 05 00 2E 0E E5 B3"
-      required: true
-      selector: {text: {}}
-    duration_ms:
-      name: Duration (ms, 0 = default)
-      default: 0
-      selector: {number: {min: 0, max: 30000, step: 100}}
-  sequence:
-    - action: esphome.magicband_bridge_raw
-      data: {hex: "{{ hex }}", duration_ms: "{{ duration_ms | int }}"}
+    - action: script.magicband_send
+      data:
+        command: {effect: five_color, colors: "red, orange, yellow, green, blue", vibration: 3}
 
 magicband_rgb:
   alias: "MagicBand: any colour"
@@ -123,17 +78,44 @@ magicband_rgb:
       default: false
       selector: {boolean: {}}
   sequence:
-    - action: esphome.magicband_bridge_rgb
+    - action: script.magicband_send
       data:
-        red: "{{ rgb_color[0] | int }}"
-        green: "{{ rgb_color[1] | int }}"
-        blue: "{{ rgb_color[2] | int }}"
-        vibration: 0
-        always_on: "{{ always_on }}"
-        flash: false
+        command:
+          effect: rgb
+          rgb: "{{ rgb_color }}"
+          always_on: "{{ always_on }}"
 
 magicband_off:
   alias: "MagicBand: lights off"
   icon: mdi:lightbulb-off
   sequence:
-    - action: esphome.magicband_bridge_off
+    - action: script.magicband_send
+      data:
+        command: {effect: "off"}
+
+# Example: only the kitchen bridge (use your bridge's Command entity ID).
+magicband_kitchen_buzz:
+  alias: "MagicBand: buzz (kitchen bridge only)"
+  icon: mdi:vibrate
+  sequence:
+    - action: script.magicband_send
+      data:
+        command: {effect: buzz, vibration: 7}
+        bridges:
+          - text.magicband_bridge_3fa2c1_command
+
+magicband_raw:
+  alias: "MagicBand: raw hex (experiments)"
+  icon: mdi:code-braces
+  fields:
+    hex:
+      name: Hex payload
+      example: "E9 05 00 2E 0E E5 B3"
+      required: true
+      selector: {text: {}}
+  sequence:
+    - action: script.magicband_send
+      data:
+        command:
+          effect: raw
+          hex: "{{ hex }}"
