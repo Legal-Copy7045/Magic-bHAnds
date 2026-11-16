@@ -32,7 +32,7 @@ MagicBands give a 7-byte ID like `04-53-65-2A-C0-5F-80`.
 | Mickey head | WS2812B strip or rings, ~12 LEDs | Set `mickey_leds` |
 | Amplifier | **MAX98357A** I2S board | Plus a 3 W 4–8 Ω speaker |
 | Level shifter | 74AHCT125 (or a single SN74AHCT1G125) | 3.3 V → 5 V for the LED data line |
-| Power | 5 V **3 A** supply | 36 LEDs at full white draw ~2 A |
+| Power | 5 V **3 A** supply | 36 LEDs at full white draw ~2 A. A USB-C charger works: see below |
 | Odds and ends | 330 Ω resistor, 1000 µF capacitor | Resistor in series with LED data; capacitor across the LED 5 V/GND |
 
 ## Wiring
@@ -49,7 +49,7 @@ on the board's left pin row. Rows refer to breadboard B.
 | **GND** | Ground for everything (common ground is essential) |
 | **GPIO8** | PN532 **SDA** |
 | **GPIO9** | PN532 **SCL** |
-| **GPIO4** | Level shifter input → 330 Ω → first LED of the **ring** **DIN** |
+| **GPIO10** | Level shifter input → 330 Ω → first LED of the **ring** **DIN** |
 | **GPIO5** | MAX98357A **LRC** |
 | **GPIO6** | MAX98357A **BCLK** |
 | **GPIO7** | MAX98357A **DIN** |
@@ -64,6 +64,49 @@ on the board's left pin row. Rows refer to breadboard B.
 - **Placement:** put the PN532 antenna in the centre of the ring, under the
   lid, with **no metal** between it and the band. Read range is a few
   centimetres through plastic.
+
+### Using the Lonely Binary terminal base instead of a breadboard
+
+The Lonely Binary **ESP32-S3 pluggable terminal block** base takes the board
+and brings its pins out to push-in terminals. Every pin the reader needs is
+on a terminal, apart from 5 V:
+
+| Terminal | Goes to |
+|---|---|
+| Left **3V3** | PN532 **VCC** |
+| Left **GND** (×2), right **GND** (×2) | Ground for the PN532, MAX98357A and level shifter |
+| Left **7** | MAX98357A **DIN** |
+| Left **8** | PN532 **SDA** |
+| Left **9** | PN532 **SCL** |
+| Left **10** | Level shifter input (LED data) |
+| Right **5** | MAX98357A **LRC** |
+| Right **6** | MAX98357A **BCLK** |
+| **5V / GND pads** (bottom, solder a wire to each) | 5 V supply in |
+
+- **5 V has no terminal.** Solder a red and a black wire to the 5V and GND
+  pads by the USB ports, and run them to the 5 V supply.
+- **Distribute 5 V and ground** with lever connectors (Wago 221 or similar)
+  or a small power block. The supply feeds the board's 5V pad, the LED ring,
+  the MAX98357A Vin and the level shifter's VCC, and every ground meets in
+  one place.
+- **Feed the LEDs straight from the supply,** not through the base.
+- **The level shifter, 330 Ω resistor and 1000 µF capacitor** still need a
+  home. A small 74AHCT125 level-shifter module, or a scrap of perfboard,
+  sits in the cable run to the LED ring. Put the 1000 µF capacitor across the
+  ring's 5V and GND where its cable starts.
+- As always, **don't connect USB while the 5 V supply is on.**
+
+### Powering it from a USB-C charger
+
+A USB-C charger that can give **5 V at 3 A**, such as most Dell, Apple or
+Anker USB-C chargers, makes a good supply. Feed it in through a **USB-C power
+breakout board** (sometimes sold as a "USB-C 5V breakout" or "PD trigger"
+set to 5 V), which gives you 5V and GND terminals for the + and − rails.
+
+Don't run everything through the ESP32's own USB port. That port and its
+protection parts on the DevKitC are only meant for the board itself, and the
+LEDs can draw 2 A. Keep the ESP32's USB port for the first install, with the
+charger unplugged.
 
 ## Install
 

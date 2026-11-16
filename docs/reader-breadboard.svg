@@ -847,7 +847,7 @@ polyline.p5,polyline.gnd,polyline.p33,polyline.i2s,polyline.i2c,polyline.i2c2,po
 <text x="344.0" y="171.5" class="pinlbl" text-anchor="end" >RST</text>
 <rect x="349.5" y="181.5" width="9" height="9" rx="2" class="pin"/>
 <rect x="151.5" y="181.5" width="9" height="9" rx="2" class="pin"/>
-<text x="344.0" y="189.5" class="pinlbl used" text-anchor="end" >GPIO4</text>
+<text x="344.0" y="189.5" class="pinlbl" text-anchor="end" >GPIO4</text>
 <rect x="349.5" y="199.5" width="9" height="9" rx="2" class="pin"/>
 <rect x="151.5" y="199.5" width="9" height="9" rx="2" class="pin"/>
 <text x="344.0" y="207.5" class="pinlbl used" text-anchor="end" >GPIO5</text>
@@ -883,7 +883,7 @@ polyline.p5,polyline.gnd,polyline.p33,polyline.i2s,polyline.i2c,polyline.i2c2,po
 <text x="344.0" y="387.5" class="pinlbl used" text-anchor="end" >GPIO9</text>
 <rect x="349.5" y="397.5" width="9" height="9" rx="2" class="pin"/>
 <rect x="151.5" y="397.5" width="9" height="9" rx="2" class="pin"/>
-<text x="344.0" y="405.5" class="pinlbl" text-anchor="end" >GPIO10</text>
+<text x="344.0" y="405.5" class="pinlbl used" text-anchor="end" >GPIO10</text>
 <rect x="349.5" y="415.5" width="9" height="9" rx="2" class="pin"/>
 <rect x="151.5" y="415.5" width="9" height="9" rx="2" class="pin"/>
 <text x="344.0" y="423.5" class="pinlbl" text-anchor="end" >GPIO11</text>
@@ -1013,8 +1013,8 @@ polyline.p5,polyline.gnd,polyline.p33,polyline.i2s,polyline.i2c,polyline.i2c2,po
 <polyline points="664.0,285.0 722.0,285.0 722.0,150.0 875.0,150.0" class="w spkw"/>
 <circle cx="664.0" cy="285.0" r="3.6" class="wend spkw"/>
 <circle cx="875.0" cy="150.0" r="3.6" class="wend spkw"/>
-<polyline points="426.0,186.0 453.0,186.0 453.0,591.0 408.0,591.0 408.0,600.0" class="w led"/>
-<circle cx="426.0" cy="186.0" r="3.6" class="wend led"/>
+<polyline points="426.0,402.0 453.0,402.0 453.0,591.0 408.0,591.0 408.0,600.0" class="w led"/>
+<circle cx="426.0" cy="402.0" r="3.6" class="wend led"/>
 <circle cx="408.0" cy="600.0" r="3.6" class="wend led"/>
 <polyline points="372.0,582.0 300.0,582.0" class="w gnd"/>
 <circle cx="372.0" cy="582.0" r="3.6" class="wend gnd"/>
