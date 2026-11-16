@@ -25,6 +25,8 @@ static const char *const TAG = "magicband";
 static constexpr uint32_t GAP_TIMEOUT_MS = 1000;
 // Light entity changes are sent once the value has been stable this long.
 static constexpr uint32_t LIGHT_DEBOUNCE_MS = 250;
+// Prefix mode BOTH: how often to swap between the E1 and E2 versions in a burst.
+static constexpr uint32_t BOTH_SWAP_MS = 100;
 
 static inline uint8_t vib_byte(uint8_t v) { return 0xB0 | (v & 0x0F); }
 static inline uint8_t col(uint8_t mode, uint8_t c) { return mode | (c & 0x1F); }
@@ -59,8 +61,8 @@ void MagicBand::dump_config() {
 #endif
   ESP_LOGCONFIG(TAG,
                 "  Pause scanning while broadcasting: %s\n"
-                "  Alternate E1/E2 prefix: %s",
-                YESNO(this->pause_scanning_), YESNO(this->alternate_prefix_));
+                "  Prefix mode: %s",
+                YESNO(this->pause_scanning_), prefix_mode_name(this->prefix_mode_));
 }
 
 void MagicBand::loop() {
@@ -92,8 +94,15 @@ void MagicBand::loop() {
       }
       break;
     case State::ADVERTISING:
-      if (this->stop_requested_ || now - this->state_since_ >= this->current_.duration_ms)
+      if (this->stop_requested_ || now - this->state_since_ >= this->current_.duration_ms) {
         this->request_stop_();
+      } else if (this->swap_in_burst_ && now - this->last_swap_ >= BOTH_SWAP_MS) {
+        // Prefix mode BOTH: swap the advertisement data in place while advertising.
+        this->showing_alt_ = !this->showing_alt_;
+        this->last_swap_ = now;
+        esp_ble_gap_config_adv_data_raw(this->showing_alt_ ? this->adv_alt_ : this->adv_,
+                                        this->showing_alt_ ? this->adv_alt_len_ : this->adv_len_);
+      }
       break;
     case State::STOPPING:
       if (now - this->state_since_ > GAP_TIMEOUT_MS) {
@@ -104,37 +113,51 @@ void MagicBand::loop() {
   }
 }
 
+// Build a raw advertisement: Flags AD + manufacturer-specific AD (0xFF) with
+// Disney's company ID, then the payload. Returns its length.
+static size_t build_adv(uint8_t *adv, const std::vector<uint8_t> &payload) {
+  size_t n = 0;
+  adv[n++] = 0x02;
+  adv[n++] = 0x01;
+  adv[n++] = 0x06;
+  adv[n++] = static_cast<uint8_t>(1 + 2 + payload.size());
+  adv[n++] = 0xFF;
+  adv[n++] = DISNEY_COMPANY_ID & 0xFF;
+  adv[n++] = DISNEY_COMPANY_ID >> 8;
+  memcpy(adv + n, payload.data(), payload.size());
+  return n + payload.size();
+}
+
 void MagicBand::start_next_() {
   this->current_ = std::move(this->queue_.front());
   this->queue_.pop_front();
   this->stop_requested_ = false;
   this->pause_scan_();
 
-  // Alternate E1 00 / E2 00 in front of each new command. Seen in park captures;
-  // in testing, bands accept repeated commands more reliably with it.
-  if (this->alternate_prefix_ && this->current_.payload.size() + 2 <= MAX_PAYLOAD_LEN &&
-      this->current_.payload[0] != 0xE1 && this->current_.payload[0] != 0xE2) {
+  // E1 00 / E2 00 prefix (seen in park captures). ALTERNATE flips it on each new
+  // command, which in testing makes repeats more reliable. BOTH (experimental)
+  // also flips between the two versions within one burst.
+  this->swap_in_burst_ = false;
+  bool can_prefix = this->current_.payload.size() + 2 <= MAX_PAYLOAD_LEN && this->current_.payload[0] != 0xE1 &&
+                    this->current_.payload[0] != 0xE2;
+  if (this->prefix_mode_ != PREFIX_OFF && can_prefix) {
     uint8_t prefix = this->next_prefix_e2_ ? 0xE2 : 0xE1;
-    this->current_.payload.insert(this->current_.payload.begin(), {prefix, 0x00});
     this->next_prefix_e2_ = !this->next_prefix_e2_;
+    std::vector<uint8_t> other = this->current_.payload;
+    this->current_.payload.insert(this->current_.payload.begin(), {prefix, 0x00});
+    if (this->prefix_mode_ == PREFIX_BOTH) {
+      other.insert(other.begin(), {static_cast<uint8_t>(prefix == 0xE1 ? 0xE2 : 0xE1), 0x00});
+      this->adv_alt_len_ = build_adv(this->adv_alt_, other);
+      this->swap_in_burst_ = true;
+    }
   }
-
-  // Flags AD + manufacturer-specific AD (0xFF) with Disney company ID.
-  uint8_t adv[31];
-  size_t n = 0;
-  adv[n++] = 0x02;
-  adv[n++] = 0x01;
-  adv[n++] = 0x06;
-  adv[n++] = static_cast<uint8_t>(1 + 2 + this->current_.payload.size());
-  adv[n++] = 0xFF;
-  adv[n++] = DISNEY_COMPANY_ID & 0xFF;
-  adv[n++] = DISNEY_COMPANY_ID >> 8;
-  memcpy(adv + n, this->current_.payload.data(), this->current_.payload.size());
-  n += this->current_.payload.size();
+  this->adv_len_ = build_adv(this->adv_, this->current_.payload);
+  this->showing_alt_ = false;
 
   char hex[MAX_PAYLOAD_LEN * 3 + 1];
   format_hex_pretty_to(hex, this->current_.payload.data(), this->current_.payload.size(), ' ');
-  ESP_LOGD(TAG, "Broadcasting 83 01 %s for %ums", hex, (unsigned) this->current_.duration_ms);
+  ESP_LOGD(TAG, "Broadcasting 83 01 %s for %ums%s", hex, (unsigned) this->current_.duration_ms,
+           this->swap_in_burst_ ? " (switching E1/E2 within the burst)" : "");
 
 #ifndef CONFIG_BT_CONTROLLER_DISABLED
   esp_err_t err = esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_ADV, this->tx_power_);
@@ -142,13 +165,37 @@ void MagicBand::start_next_() {
     ESP_LOGW(TAG, "esp_ble_tx_power_set failed: %s", esp_err_to_name(err));
 #endif
 
-  esp_err_t cfg = esp_ble_gap_config_adv_data_raw(adv, n);
+  esp_err_t cfg = esp_ble_gap_config_adv_data_raw(this->adv_, this->adv_len_);
   if (cfg != ESP_OK) {
     ESP_LOGE(TAG, "esp_ble_gap_config_adv_data_raw failed: %s", esp_err_to_name(cfg));
     return;
   }
   this->state_ = State::CONFIGURING;
   this->state_since_ = millis();
+}
+
+const char *MagicBand::prefix_mode_name(uint8_t mode) {
+  switch (mode) {
+    case PREFIX_OFF:
+      return "off";
+    case PREFIX_BOTH:
+      return "both";
+    default:
+      return "alternate";
+  }
+}
+
+void MagicBand::set_prefix_mode_by_name(const std::string &input) {
+  std::string s;
+  for (char c : input)
+    s.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+  if (s.rfind("off", 0) == 0)
+    this->prefix_mode_ = PREFIX_OFF;
+  else if (s.rfind("both", 0) == 0)
+    this->prefix_mode_ = PREFIX_BOTH;
+  else
+    this->prefix_mode_ = PREFIX_ALTERNATE;
+  ESP_LOGI(TAG, "Prefix mode: %s", prefix_mode_name(this->prefix_mode_));
 }
 
 void MagicBand::pause_scan_() {
@@ -227,6 +274,7 @@ void MagicBand::gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_p
       }
       this->state_ = State::ADVERTISING;
       this->state_since_ = millis();
+      this->last_swap_ = this->state_since_;
       break;
     case ESP_GAP_BLE_ADV_STOP_COMPLETE_EVT:
       if (this->state_ == State::STOPPING)

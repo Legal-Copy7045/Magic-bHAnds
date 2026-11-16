@@ -199,22 +199,25 @@ text:
     set_action:
       - lambda: id(band).run_command_json(x);
 
-switch:
-  # Alternate an E1 00 / E2 00 prefix on each command (seen in park captures).
-  # On by default: in testing, bands accept repeated commands more reliably.
+select:
+  # E1 00 / E2 00 prefix (seen in park captures):
+  #   Alternate - flip it on each new command (default; makes repeats more reliable)
+  #   Both      - experimental: also flip it every 100 ms within each burst
+  #   Off       - no prefix
   - platform: template
-    id: alternate_prefix
-    name: "Alternate prefix"
+    id: prefix_mode
+    name: "Prefix mode"
     icon: mdi:swap-horizontal
     entity_category: config
     optimistic: true
-    restore_mode: RESTORE_DEFAULT_ON
-    turn_on_action:
-      - lambda: id(band).set_alternate_prefix(true);
-    turn_off_action:
-      - lambda: id(band).set_alternate_prefix(false);
-
-select:
+    restore_value: true
+    initial_option: "Alternate"
+    options:
+      - "Alternate"
+      - "Both (experimental)"
+      - "Off"
+    on_value:
+      - lambda: id(band).set_prefix_mode_by_name(x);
   # Used by the Buzz button. Patterns: '=0.125s  -=0.25s  *=0.5s  %=1s  #=2s
   - platform: template
     id: vibration_pattern

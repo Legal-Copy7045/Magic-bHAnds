@@ -54,6 +54,13 @@ enum Leds : uint8_t {
   LEDS_TOP_LEFT = 0b100,
 };
 
+/// E1 00 / E2 00 prefix handling.
+enum PrefixMode : uint8_t {
+  PREFIX_OFF = 0,        // no prefix
+  PREFIX_ALTERNATE = 1,  // flip E1/E2 on each new command (default)
+  PREFIX_BOTH = 2,       // experimental: also flip E1/E2 within each burst
+};
+
 /// Timing byte values captured from park shows, used as defaults.
 static constexpr uint8_t TIMING_SINGLE_DEFAULT = 0x2E;  // ~27.5s on, 2s fade
 static constexpr uint8_t TIMING_DUAL_DEFAULT = 0x22;    // ~9.5s on, 2s fade
@@ -81,9 +88,15 @@ class MagicBand : public Component {
 #endif
   /// Pause Bluetooth-proxy scanning while broadcasting (resumed afterwards).
   void set_pause_scanning(bool pause) { this->pause_scanning_ = pause; }
-  /// Prefix each new command with E1 00 / E2 00, alternating (helps repeats register).
-  void set_alternate_prefix(bool alternate) { this->alternate_prefix_ = alternate; }
-  bool get_alternate_prefix() const { return this->alternate_prefix_; }
+  /// E1 00 / E2 00 prefix mode (PREFIX_OFF / PREFIX_ALTERNATE / PREFIX_BOTH).
+  void set_prefix_mode(uint8_t mode) { this->prefix_mode_ = mode; }
+  /// "off", "alternate" or "both" (anything starting with those words).
+  void set_prefix_mode_by_name(const std::string &name);
+  uint8_t get_prefix_mode() const { return this->prefix_mode_; }
+  static const char *prefix_mode_name(uint8_t mode);
+  /// Older on/off form: true = alternate, false = off.
+  void set_alternate_prefix(bool alternate) { this->prefix_mode_ = alternate ? PREFIX_ALTERNATE : PREFIX_OFF; }
+  bool get_alternate_prefix() const { return this->prefix_mode_ != PREFIX_OFF; }
 
   void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
 
@@ -163,8 +176,16 @@ class MagicBand : public Component {
   bool stop_requested_{false};
   bool pause_scanning_{true};
   bool scan_paused_{false};
-  bool alternate_prefix_{true};
+  uint8_t prefix_mode_{PREFIX_ALTERNATE};
   bool next_prefix_e2_{false};
+  // Current advertisement (and, for PREFIX_BOTH, the other-prefix version).
+  uint8_t adv_[31]{};
+  size_t adv_len_{0};
+  uint8_t adv_alt_[31]{};
+  size_t adv_alt_len_{0};
+  bool swap_in_burst_{false};
+  bool showing_alt_{false};
+  uint32_t last_swap_{0};
   int tx_power_dbm_{9};
 
   // Light entity debounce

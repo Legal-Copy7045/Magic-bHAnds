@@ -26,6 +26,8 @@ CONF_MAX_INTERVAL = "max_interval"
 CONF_QUEUE_SIZE = "queue_size"
 CONF_PAUSE_SCANNING = "pause_scanning"
 CONF_ALTERNATE_PREFIX = "alternate_prefix"
+CONF_PREFIX_MODE = "prefix_mode"
+PREFIX_MODES = {"off": 0, "alternate": 1, "both": 2}
 
 # ESP32-S3/C3 controllers number power levels from -24 dBm (index 0) up to
 # +20 dBm (index 15) in 3 dB steps; the original ESP32 goes -12..+9 dBm.
@@ -96,7 +98,11 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_PAUSE_SCANNING, default=True): cv.boolean,
             # Alternate an E1 00 / E2 00 prefix on each command. Seen in park
             # captures; in testing it makes repeated commands more reliable.
-            cv.Optional(CONF_ALTERNATE_PREFIX, default=True): cv.boolean,
+            # Older on/off form of prefix_mode (true = alternate, false = off).
+            cv.Optional(CONF_ALTERNATE_PREFIX): cv.boolean,
+            # off / alternate (flip E1/E2 per command, default) / both
+            # (experimental: also flip within each burst).
+            cv.Optional(CONF_PREFIX_MODE): cv.one_of(*PREFIX_MODES, lower=True),
         }
     ).extend(cv.COMPONENT_SCHEMA),
     _validate,
@@ -135,6 +141,9 @@ async def to_code(config):
     dbm = _max_power() if dbm == "max" else int(dbm)
     cg.add(var.set_tx_power(cg.RawExpression(f"static_cast<esp_power_level_t>({_power_index(dbm)})"), dbm))
     cg.add(var.set_pause_scanning(config[CONF_PAUSE_SCANNING]))
-    cg.add(var.set_alternate_prefix(config[CONF_ALTERNATE_PREFIX]))
+    mode = config.get(CONF_PREFIX_MODE)
+    if mode is None:
+        mode = "alternate" if config.get(CONF_ALTERNATE_PREFIX, True) else "off"
+    cg.add(var.set_prefix_mode(PREFIX_MODES[mode]))
 
     request_bluetooth()
