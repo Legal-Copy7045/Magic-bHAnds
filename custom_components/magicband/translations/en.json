@@ -1,0 +1,131 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "MagicBand",
+        "description": "Logs bands tapped on your MagicBand readers, lets you give bands to people, and keeps every reader's allowed list in sync."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "MagicBand is already set up."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "People and bands",
+        "description": "{summary}",
+        "menu_options": {
+          "assign_band": "Add or assign a band",
+          "add_person": "Add a person",
+          "edit_person": "Edit a person",
+          "remove_band": "Remove a band",
+          "remove_person": "Remove a person"
+        }
+      },
+      "assign_band": {
+        "title": "Add or assign a band",
+        "description": "Tap the band on a reader first, then choose it here (most recent first) and who it belongs to. Bands belonging to an allowed person get the welcome on every reader.",
+        "data": {
+          "band": "Band",
+          "person": "Belongs to",
+          "label": "Label (optional)"
+        },
+        "data_description": {
+          "label": "For example 'blue MagicBand+'. Useful when someone has several bands."
+        }
+      },
+      "new_person": {
+        "title": "New person",
+        "description": "People don't need to be Home Assistant users. Link one only if you want automations to know which HA person tapped in.",
+        "data": {
+          "name": "Name",
+          "ha_person": "Home Assistant person (optional)",
+          "allowed": "Allowed in"
+        }
+      },
+      "edit_person": {
+        "title": "Edit a person",
+        "data": {"person": "Person"}
+      },
+      "edit_person_details": {
+        "title": "Edit {name}",
+        "data": {
+          "name": "Name",
+          "ha_person": "Home Assistant person (optional)",
+          "allowed": "Allowed in"
+        }
+      },
+      "remove_person": {
+        "title": "Remove a person",
+        "description": "Their bands are kept but become unassigned, so they'll be denied.",
+        "data": {"person": "Person"}
+      },
+      "remove_band": {
+        "title": "Remove a band",
+        "description": "Forget a band completely. If it's tapped again it shows up as new.",
+        "data": {"band": "Band"}
+      }
+    },
+    "error": {
+      "name_taken": "There's already a person with that name."
+    },
+    "abort": {
+      "no_bands": "No bands yet. Tap a band on a MagicBand reader first.",
+      "no_people": "No people yet. Add one first."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "last_tap": {"name": "Last tap"},
+      "unknown_bands": {"name": "Unknown bands"}
+    }
+  },
+  "services": {
+    "add_person": {
+      "name": "Add person",
+      "description": "Add someone who can be given bands.",
+      "fields": {
+        "name": {"name": "Name", "description": "Their name."},
+        "ha_person": {"name": "Home Assistant person", "description": "Optional linked HA person."},
+        "allowed": {"name": "Allowed", "description": "Whether their bands get the welcome."}
+      }
+    },
+    "update_person": {
+      "name": "Update person",
+      "description": "Rename, link or allow/deny a person.",
+      "fields": {
+        "person": {"name": "Person", "description": "Name or ID of the person."},
+        "name": {"name": "New name", "description": "Their new name."},
+        "ha_person": {"name": "Home Assistant person", "description": "Linked HA person, or empty to unlink."},
+        "allowed": {"name": "Allowed", "description": "Whether their bands get the welcome."}
+      }
+    },
+    "remove_person": {
+      "name": "Remove person",
+      "description": "Remove a person. Their bands become unassigned.",
+      "fields": {"person": {"name": "Person", "description": "Name or ID of the person."}}
+    },
+    "assign_band": {
+      "name": "Assign band",
+      "description": "Give a band to a person.",
+      "fields": {
+        "band": {"name": "Band", "description": "Band ID, or 'last' for the most recently tapped band."},
+        "person": {"name": "Person", "description": "Name or ID of the person."},
+        "label": {"name": "Label", "description": "Optional label, e.g. 'blue band'."}
+      }
+    },
+    "unassign_band": {
+      "name": "Unassign band",
+      "description": "Take a band away from its person (it will be denied).",
+      "fields": {"band": {"name": "Band", "description": "Band ID, or 'last'."}}
+    },
+    "remove_band": {
+      "name": "Remove band",
+      "description": "Forget a band completely.",
+      "fields": {"band": {"name": "Band", "description": "Band ID, or 'last'."}}
+    },
+    "sync": {"name": "Sync readers", "description": "Send the allowed list to every reader now."},
+    "list": {"name": "List people and bands", "description": "Return all people and bands."}
+  }
+}

@@ -34,6 +34,10 @@ esphome:
   name: ${name}
   friendly_name: ${friendly_name}
   min_version: 2026.10.0
+  # Lets the MagicBand integration recognise this device as a reader.
+  project:
+    name: legal-copy7045.magicband-reader
+    version: "0.6.0"
   on_boot:
     priority: -100
     then:
@@ -68,6 +72,31 @@ api:
     - action: deny
       then:
         - globals.set: {id: decision, value: "2"}
+    # Used by the MagicBand integration to replace the reader's allowed list.
+    # bands: comma-separated band IDs (any of 04-53-65-.., 0453652A.. forms).
+    - action: set_known_bands
+      variables:
+        bands: string
+      then:
+        - lambda: |-
+            std::string out = ",";
+            std::string cur;
+            for (char c : std::string(bands) + ",") {
+              if (c == ',') {
+                if (!cur.empty()) out += cur + ",";
+                cur.clear();
+              } else if (std::isalnum(static_cast<unsigned char>(c))) {
+                cur += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+              }
+            }
+            if (out.size() >= id(known_list).size()) {
+              ESP_LOGE("reader", "Too many bands (%u chars); list not changed", (unsigned) out.size());
+              return;
+            }
+            std::fill(id(known_list).begin(), id(known_list).end(), 0);
+            std::copy(out.begin(), out.end(), id(known_list).begin());
+            ESP_LOGI("reader", "Known bands updated: %s", out.c_str());
+        - component.update: known_band_count
 
 ota:
   - platform: esphome
@@ -212,6 +241,13 @@ globals:
   - id: decision          # 0 = waiting, 1 = accept, 2 = deny
     type: int
     initial_value: "0"
+  # Allowed bands for "Known bands only": ",UID,UID," with IDs uppercase and
+  # without separators. Stored on the reader, so it survives restarts and
+  # works with Home Assistant offline. Room for ~100 bands.
+  - id: known_list
+    type: std::array<char, 1600>
+    restore_value: true
+    update_interval: 5s
 
 select:
   - platform: template
@@ -245,21 +281,6 @@ switch:
     optimistic: true
     restore_mode: RESTORE_DEFAULT_ON
 
-text:
-  # Bands allowed in "Known bands only" mode, stored on the reader (survives
-  # restarts, works with Home Assistant offline). Comma-separated IDs; use the
-  # Allow / Forget buttons rather than typing. Room for about 12 bands.
-  - platform: template
-    id: known_bands
-    name: "Known bands"
-    icon: mdi:account-multiple-check
-    entity_category: config
-    mode: text
-    max_length: 255
-    optimistic: true
-    restore_value: true
-    initial_value: ""
-
 event:
   # Logs every scan in Home Assistant's logbook as welcomed or denied.
   - platform: template
@@ -269,6 +290,20 @@ event:
     event_types:
       - "welcomed"
       - "denied"
+
+sensor:
+  - platform: template
+    id: known_band_count
+    name: "Known bands"
+    icon: mdi:account-multiple-check
+    entity_category: diagnostic
+    accuracy_decimals: 0
+    update_interval: 60s
+    lambda: |-
+      std::string list(id(known_list).data());
+      int n = 0;
+      for (size_t i = 1; i < list.size(); i++) if (list[i] == ',') n++;
+      return n;
 
 text_sensor:
   - platform: template
@@ -311,8 +346,12 @@ script:
             # Decided on the reader: no round trip to Home Assistant.
             - delay: 800ms
             - lambda: |-
-                std::string list = "," + id(known_bands).state + ",";
-                id(decision) = list.find("," + uid + ",") != std::string::npos ? 1 : 2;
+                std::string key;
+                for (char c : uid)
+                  if (std::isalnum(static_cast<unsigned char>(c)))
+                    key += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+                std::string list(id(known_list).data());
+                id(decision) = (!key.empty() && list.find("," + key + ",") != std::string::npos) ? 1 : 2;
       - if:
           condition:
             lambda: 'return id(response_mode).current_option() == "Ask Home Assistant";'
@@ -379,47 +418,54 @@ script:
       - delay: 2s
 
 button:
-  # Manage "Known bands" from the reader's device page: tap a band, then press.
+  # Manage the reader's own list from its device page: tap a band, then press.
+  # With the MagicBand integration, manage bands there instead: it replaces
+  # this list whenever it syncs.
   - platform: template
     name: "Allow last band"
     icon: mdi:account-plus
     entity_category: config
     on_press:
       - lambda: |-
-          std::string uid = id(last_band).state;
-          std::string list = id(known_bands).state;
-          if (uid.empty() || uid == "TEST") return;
-          if (("," + list + ",").find("," + uid + ",") != std::string::npos) return;
-          std::string next = list.empty() ? uid : list + "," + uid;
-          if (next.size() > 255) { ESP_LOGW("reader", "Known bands list is full"); return; }
-          auto call = id(known_bands).make_call();
-          call.set_value(next);
-          call.perform();
-          ESP_LOGI("reader", "Allowed band %s", uid.c_str());
+          std::string key;
+          for (char c : id(last_band).state)
+            if (std::isalnum(static_cast<unsigned char>(c)))
+              key += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+          if (key.empty() || key == "TEST") return;
+          std::string list(id(known_list).data());
+          if (list.empty()) list = ",";
+          if (list.find("," + key + ",") != std::string::npos) return;
+          list += key + ",";
+          if (list.size() >= id(known_list).size()) { ESP_LOGW("reader", "Known bands list is full"); return; }
+          std::fill(id(known_list).begin(), id(known_list).end(), 0);
+          std::copy(list.begin(), list.end(), id(known_list).begin());
+          ESP_LOGI("reader", "Allowed band %s", key.c_str());
+      - component.update: known_band_count
   - platform: template
     name: "Forget last band"
     icon: mdi:account-minus
     entity_category: config
     on_press:
       - lambda: |-
-          std::string uid = id(last_band).state;
-          std::string list = "," + id(known_bands).state + ",";
-          size_t pos = list.find("," + uid + ",");
-          if (uid.empty() || pos == std::string::npos) return;
-          list.erase(pos, uid.size() + 1);
-          std::string next = list.size() > 2 ? list.substr(1, list.size() - 2) : "";
-          auto call = id(known_bands).make_call();
-          call.set_value(next);
-          call.perform();
-          ESP_LOGI("reader", "Forgot band %s", uid.c_str());
+          std::string key;
+          for (char c : id(last_band).state)
+            if (std::isalnum(static_cast<unsigned char>(c)))
+              key += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+          std::string list(id(known_list).data());
+          size_t pos = list.find("," + key + ",");
+          if (key.empty() || pos == std::string::npos) return;
+          list.erase(pos, key.size() + 1);
+          std::fill(id(known_list).begin(), id(known_list).end(), 0);
+          std::copy(list.begin(), list.end(), id(known_list).begin());
+          ESP_LOGI("reader", "Forgot band %s", key.c_str());
+      - component.update: known_band_count
   - platform: template
     name: "Forget all bands"
     icon: mdi:account-multiple-remove
     entity_category: config
     on_press:
-      - text.set:
-          id: known_bands
-          value: ""
+      - lambda: 'std::fill(id(known_list).begin(), id(known_list).end(), 0);'
+      - component.update: known_band_count
   - platform: template
     name: "Test welcome"
     icon: mdi:check-circle
