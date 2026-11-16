@@ -87,17 +87,36 @@ MagicBand+**, for example to turn on the lounge lights.
 |---|---|
 | **Ring**, **Mickey** | The LEDs as normal HA lights, so you can use them as a night light too |
 | **Last band** | ID of the last band read |
-| **Response mode** | *Welcome every band* (default, instant green), or *Ask Home Assistant* (see below) |
+| **Response mode** | *Welcome every band* (default), *Known bands only* (decided on the reader) or *Ask Home Assistant* (see below) |
+| **Known bands**, **Allow last band**, **Forget last band**, **Forget all bands** | The reader's own list of allowed bands, for *Known bands only* |
+| **Speaker** | Media player: Home Assistant can also play announcements and TTS through the reader |
 | **Light up MagicBand+** | Send green + buzz to a MagicBand+ on a successful read (default on) |
 | **Sound** | Chimes on/off |
 | **Test welcome** | Plays the welcome sequence without a band |
 | plus the MagicBand bridge entities | MagicBand light, Buzz, Command, Prefix mode and so on |
 
-### "Ask Home Assistant" mode: green for known bands, red for others
+### No waiting on Home Assistant
 
-Set **Response mode** to *Ask Home Assistant*. The ring then spins until HA
-answers. With no answer within 3 seconds, it shows red. Add an automation that
-answers:
+Everything the reader does is handled on the reader itself: reading the band,
+lights, sounds and the MagicBand+ feedback. Home Assistant is only told about
+the scan, and the reader never waits for it. The one exception is *Ask Home
+Assistant* mode.
+
+### "Known bands only" mode: green for your bands, red for others, decided instantly
+
+1. Set **Response mode** to *Known bands only*.
+2. Tap a band, then press **Allow last band** on the reader's device page.
+   Repeat for each band. The list holds about 12 bands and survives restarts.
+3. Remove one with **Forget last band** (tap it first), or start over with
+   **Forget all bands**.
+
+This works even when Home Assistant is offline.
+
+### "Ask Home Assistant" mode: let an automation decide
+
+Use this only if HA needs to decide, for example based on time of day or who's
+home. The ring spins until HA answers, and with no answer within 3 seconds it
+shows red. Add an automation that answers:
 
 ```yaml
 alias: "MagicBand reader: allow known bands"
@@ -119,9 +138,27 @@ actions:
 
 ## Sounds
 
-The reader plays simple built-in tones (RTTTL). You can change the tunes in
-the `reader_welcome` and `reader_deny` scripts. Disney's own sounds aren't
-included; play your own files from HA on another speaker if you want those.
+The reader plays three sound files, embedded in the firmware at build time so
+they play instantly with no network involved:
+
+| File | When |
+|---|---|
+| `sounds/startup.wav` | Reader starts up |
+| `sounds/tap_in.wav` | Band accepted |
+| `sounds/error.wav` | Band denied |
+
+**Sound files aren't included in this repo.** Supply your own:
+
+1. Convert each one to **mono, 16-bit, 48 kHz WAV**. This keeps them small and
+   matches the speaker. With ffmpeg:
+   `ffmpeg -i in.wav -ac 1 -ar 48000 -sample_fmt s16 out.wav`
+2. In Home Assistant, put them in **`/config/esphome/sounds/`** using the File
+   editor, Samba or Studio Code Server add-on, named exactly as above.
+3. Install the reader from the Device Builder. The files are embedded each
+   time you build.
+
+To use different names or locations, change `sound_startup`, `sound_tap_in`
+and `sound_error` at the top of the config. Each file must be under 5 MB.
 
 ## Notes
 
