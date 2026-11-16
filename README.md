@@ -72,34 +72,53 @@ installer: the Wi-Fi setup step and logs run on that port.
 | `homeassistant/*.yaml` | Example scripts and automations, for YAML users |
 | `docs/protocol.md` | What's known about the packet format |
 
-## Actions exposed to Home Assistant
+## What you get in Home Assistant
 
-The device is named `magicband-bridge`, so each action is prefixed
-`esphome.magicband_bridge_`.
+**Entities on the device page:**
+
+| Entity | What it does |
+|---|---|
+| **MagicBand** (light) | Pick any colour with the colour picker. Nearby bands glow it until you turn it off. The **Effects** list plays captured park animations (rainbow, colour cycle, lightning, …). |
+| **Buzz** (button) | Vibrates bands using the **Vibration pattern** setting. |
+| **Test red buzz**, **Test rainbow**, **Ping** | Quick tests. |
+| **Firmware** (update) | Installs new releases over Wi-Fi. |
+
+**Actions** for scripts and automations, all prefixed `esphome.magicband_bridge_`:
 
 | Action | Fields |
 |--------|--------|
-| `color` | `color`, `vibration` (0–15) |
-| `dual_color` | `color1`, `color2`, `vibration` |
-| `five_color` | `colors` ("red, orange, yellow, green, blue"), `vibration` |
+| `color` | `color`, `vibration` |
+| `color_advanced` | `color`, `vibration`, `leds` (all/top_left/top_right/bottom_left/bottom_right), `on_seconds` (≈6–52, 0 = default), `fade_seconds` (0–3), `always_on` |
+| `rgb` | `red`, `green`, `blue` (0–255), `vibration`, `always_on`, `flash` |
+| `dual_color` | `inner`, `outer`, `vibration` |
+| `five_color` | `colors` ("centre, top right, bottom right, bottom left, top left"), `vibration` |
 | `crossfade` | `color1`, `color2`, `vibration` |
 | `circle` | `vibration` |
-| `ping` | none |
+| `animation` | `name`: lightning, orange_blink, color_cycle, rainbow, circle, crossfade, spin_buzz, show_e913 |
+| `ping` | `fast` (bool) |
+| `off` | none, turns lights off |
 | `raw` | `hex` (e.g. `E9 05 00 2E 0E E5 B3`), `duration_ms` (0 = default) |
 | `stop` | none, stops broadcasting and clears the queue |
 
 Colours: `red`, `red_orange`, `orange`, `yellow`, `off_yellow`, `lime`,
 `lime_green`, `green`, `cyan`, `blue`, `midnight_blue`, `purple`,
-`bright_purple`, `lavender`, `pink`, `white`, `off`, `random`, or a number
-0–31.
+`bright_purple`, `lavender`, `pink`, `white`, `unique`, `random`, `off`, or a
+number 0–31.
+
+Vibration: 0 = none, and 1–11 are distinct patterns, from a short tap to a
+1-second pulse. See [docs/protocol.md](docs/protocol.md#vibration-byte).
 
 Example from Developer Tools → Actions:
 
 ```yaml
-action: esphome.magicband_bridge_color
+action: esphome.magicband_bridge_color_advanced
 data:
   color: pink
-  vibration: 4
+  vibration: 2
+  leds: all
+  on_seconds: 15
+  fade_seconds: 2
+  always_on: false
 ```
 
 ## Component options
@@ -107,6 +126,10 @@ data:
 ```yaml
 esp32_ble:
   id: ble
+
+light:
+  - platform: magicband   # optional RGB light entity
+    name: MagicBand
 
 magicband:
   id: band

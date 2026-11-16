@@ -38,9 +38,10 @@ magicband_effect:
             - lavender
             - pink
             - white
+            - unique
             - random
     color2:
-      name: Colour 2 (dual / crossfade)
+      name: Colour 2 (outer ring / crossfade)
       default: pink
       selector: *colors
     colors:
@@ -52,7 +53,7 @@ magicband_effect:
       name: Vibration (0 = off)
       default: 0
       selector:
-        number: {min: 0, max: 15, step: 1, mode: slider}
+        number: {min: 0, max: 11, step: 1, mode: slider}
   sequence:
     - choose:
         - conditions: "{{ effect == 'color' }}"
@@ -62,7 +63,7 @@ magicband_effect:
         - conditions: "{{ effect == 'dual_color' }}"
           sequence:
             - action: esphome.magicband_bridge_dual_color
-              data: {color1: "{{ color1 }}", color2: "{{ color2 }}", vibration: "{{ vibration | int }}"}
+              data: {inner: "{{ color1 }}", outer: "{{ color2 }}", vibration: "{{ vibration | int }}"}
         - conditions: "{{ effect == 'five_color' }}"
           sequence:
             - action: esphome.magicband_bridge_five_color
@@ -107,3 +108,32 @@ magicband_raw:
   sequence:
     - action: esphome.magicband_bridge_raw
       data: {hex: "{{ hex }}", duration_ms: "{{ duration_ms | int }}"}
+
+magicband_rgb:
+  alias: "MagicBand: any colour"
+  icon: mdi:palette
+  fields:
+    rgb_color:
+      name: Colour
+      required: true
+      default: [255, 0, 180]
+      selector: {color_rgb: {}}
+    always_on:
+      name: Stay on until turned off
+      default: false
+      selector: {boolean: {}}
+  sequence:
+    - action: esphome.magicband_bridge_rgb
+      data:
+        red: "{{ rgb_color[0] | int }}"
+        green: "{{ rgb_color[1] | int }}"
+        blue: "{{ rgb_color[2] | int }}"
+        vibration: 0
+        always_on: "{{ always_on }}"
+        flash: false
+
+magicband_off:
+  alias: "MagicBand: lights off"
+  icon: mdi:lightbulb-off
+  sequence:
+    - action: esphome.magicband_bridge_off
