@@ -221,10 +221,12 @@ select:
     entity_category: config
     optimistic: true
     restore_value: true
-    initial_option: "Welcome every band"
+    # Default: only bands on the reader's list are welcomed. A new band's first
+    # scan gets the denied sequence; allow it with "Allow last band".
+    initial_option: "Known bands only"
     options:
-      - "Welcome every band"
       - "Known bands only"
+      - "Welcome every band"
       - "Ask Home Assistant"
 
 switch:
@@ -257,6 +259,16 @@ text:
     optimistic: true
     restore_value: true
     initial_value: ""
+
+event:
+  # Logs every scan in Home Assistant's logbook as welcomed or denied.
+  - platform: template
+    id: band_scan
+    name: "Band scan"
+    icon: mdi:nfc-search-variant
+    event_types:
+      - "welcomed"
+      - "denied"
 
 text_sensor:
   - platform: template
@@ -324,9 +336,11 @@ script:
           condition:
             lambda: 'return id(decision) == 1;'
           then:
+            - event.trigger: {id: band_scan, event_type: "welcomed"}
             - script.execute: reader_welcome
             - script.wait: reader_welcome
           else:
+            - event.trigger: {id: band_scan, event_type: "denied"}
             - script.execute: reader_deny
             - script.wait: reader_deny
       - script.execute: reader_idle
