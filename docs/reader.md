@@ -87,7 +87,8 @@ MagicBand+**, for example to turn on the lounge lights.
 |---|---|
 | **Ring**, **Mickey** | The LEDs as normal HA lights, so you can use them as a night light too |
 | **Last band** | ID of the last band read |
-| **Response mode** | *Welcome every band* (default), *Known bands only* (decided on the reader) or *Ask Home Assistant* (see below) |
+| **Response mode** | *Known bands only* (default: decided on the reader; new bands are denied), *Welcome every band*, or *Ask Home Assistant* (see below) |
+| **Band scan** | Event entity: every scan appears in the logbook as *welcomed* or *denied* |
 | **Known bands**, **Allow last band**, **Forget last band**, **Forget all bands** | The reader's own list of allowed bands, for *Known bands only* |
 | **Speaker** | Media player: Home Assistant can also play announcements and TTS through the reader |
 | **Light up MagicBand+** | Send green + buzz to a MagicBand+ on a successful read (default on) |
@@ -102,10 +103,12 @@ lights, sounds and the MagicBand+ feedback. Home Assistant is only told about
 the scan, and the reader never waits for it. The one exception is *Ask Home
 Assistant* mode.
 
-### "Known bands only" mode: green for your bands, red for others, decided instantly
+### "Known bands only" mode (default): green for your bands, red for others, decided instantly
 
-1. Set **Response mode** to *Known bands only*.
-2. Tap a band, then press **Allow last band** on the reader's device page.
+A band's first scan gets the denied sequence. To allow it:
+
+1. Tap the band; check **Last band** shows its ID.
+2. Press **Allow last band** on the reader's device page.
    Repeat for each band. The list holds about 12 bands and survives restarts.
 3. Remove one with **Forget last band** (tap it first), or start over with
    **Forget all bands**.
@@ -135,6 +138,16 @@ actions:
     else:
       - action: esphome.magicband_reader_deny
 ```
+
+## Phones and watches
+
+Disney's phone and watch passes (MagicMobile in Apple and Google Wallet) use
+the wallets' encrypted protocols, which need Apple's, Google's and Disney's
+keys, and phones don't present a fixed NFC ID. So the reader can't recognise
+a phone or watch. As an alternative, stick an NFC tag on the reader and scan
+it with the Home Assistant Companion app. An automation on that tag can run
+the reader's welcome sequence (press **Test welcome**, or call its actions).
+That goes through Home Assistant, so it's slightly slower than a band.
 
 ## Sounds
 
