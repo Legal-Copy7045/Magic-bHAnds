@@ -32,6 +32,10 @@ effect. Use more bridges for more coverage.
 **Updates:** new firmware shows up in Home Assistant as an update on the device,
 and you install it over Wi-Fi.
 
+**Security:** the connection to Home Assistant is encrypted. Home Assistant
+gives each board its own key when it first connects, so there's nothing to set
+up.
+
 **More coverage:** flash more boards the same way. See
 [Multiple bridges](#multiple-bridges).
 

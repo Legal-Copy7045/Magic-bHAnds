@@ -10,7 +10,7 @@
 substitutions:
   name: magicband-bridge
   friendly_name: MagicBand Bridge
-  project_version: "0.7.0"
+  project_version: "0.7.1"
   # Where the magicband component is fetched from (default in the add-on).
   # CI and local development override it: `-s component_source ../components`.
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/manifest.json
@@ -56,9 +56,16 @@ logger:
   # the port the web installer uses.
   hardware_uart: UART0
 
+api:
+  # Encrypted. Home Assistant gives each board its own key the first time it
+  # connects, so there's no key to manage. (Actions come from the add-on.)
+  encryption: {}
+
 ota:
-  - platform: esphome      # updates from the ESPHome dashboard
-  - platform: http_request # updates from the published firmware (Update entity)
+  # Updates come from the published firmware through Home Assistant (the
+  # Firmware update entity), over the encrypted connection. "Take control" in
+  # the ESPHome Device Builder adds its own password-protected upload method.
+  - platform: http_request
 
 http_request:
 

@@ -3,6 +3,22 @@
 All notable changes to Magic bHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.7.1] - 2026-11-16
+
+### Security
+- **Bridge and reader connections to Home Assistant are now encrypted.**
+  Home Assistant gives each board its own key the first time it connects, so
+  there's nothing to set up. Boards on 0.7.0 may show a one-off "disabled
+  transport encryption" notice: confirm it, then install this update, and
+  encryption is switched back on.
+- **Unencrypted network firmware uploads are no longer accepted** by the
+  installer firmware. Updates come through Home Assistant's Firmware update
+  entity. "Take control" in the ESPHome Device Builder adds its own
+  password-protected uploads.
+
+### Integration
+- No functional changes; version bumped to match.
+
 ## [0.7.0] - 2026-11-16
 
 First release with proper version numbers. Everything before this was
