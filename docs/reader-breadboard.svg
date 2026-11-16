@@ -230,8 +230,9 @@ polyline.p5,polyline.gnd,polyline.p33,polyline.i2s,polyline.i2c,polyline.i2c2,po
 <rect x="152.5" y="560.5" width="7" height="7" rx="1.5" class="hole"/>
 <rect x="188.5" y="560.5" width="7" height="7" rx="1.5" class="hole"/>
 <rect x="206.5" y="560.5" width="7" height="7" rx="1.5" class="hole"/>
-<text x="147.0" y="608.0" class="cap" text-anchor="middle" >Breadboard A: holds the</text>
-<text x="147.0" y="624.0" class="cap" text-anchor="middle" >other pin row only</text>
+<text x="147.0" y="608.0" class="cap" text-anchor="middle" >Breadboard A (optional):</text>
+<text x="147.0" y="624.0" class="cap" text-anchor="middle" >only supports the other</text>
+<text x="147.0" y="640.0" class="cap" text-anchor="middle" >side. No wires go here.</text>
 <rect x="286" y="66" width="334" height="752" rx="10" class="board"/>
 <rect x="444.0" y="84" width="18" height="726" class="channel"/>
 <line x1="300" y1="82" x2="300" y2="812" class="rail neg"/>

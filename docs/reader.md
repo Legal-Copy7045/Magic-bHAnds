@@ -39,9 +39,11 @@ MagicBands give a 7-byte ID like `04-53-65-2A-C0-5F-80`.
 
 ![Breadboard wiring](reader-breadboard.svg)
 
-The diagram uses two breadboards: the DevKitC is too wide for one, so breadboard
-A just holds its unused right-hand pin row. All of the reader's connections are
-on the board's left pin row. Rows refer to breadboard B.
+All of the reader's connections are on the DevKitC's left pin row, in
+breadboard B (rows in the tables refer to it). The board is too wide to leave
+free holes on a single breadboard, so its right-hand side needs support: a
+second breadboard (A, as drawn), a wide "ESP32 breadboard", or a block of the
+same height. Nothing connects to the right-hand side.
 
 | ESP32-S3 pin | Goes to |
 |---|---|
