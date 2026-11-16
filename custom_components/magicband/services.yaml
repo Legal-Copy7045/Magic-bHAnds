@@ -73,3 +73,72 @@ remove_band:
 sync:
 
 list:
+
+send:
+  fields:
+    effect:
+      default: color
+      selector:
+        select:
+          options: [color, rgb, dual_color, five_color, crossfade, circle, animation, buzz, ping, "off", raw, stop]
+    color:
+      example: red
+      selector:
+        text:
+    color2:
+      example: pink
+      selector:
+        text:
+    colors:
+      example: "red, orange, yellow, green, blue"
+      selector:
+        text:
+    rgb_color:
+      example: [255, 0, 180]
+      selector:
+        color_rgb:
+    animation:
+      selector:
+        select:
+          options: [color_cycle, rainbow, lightning, orange_blink, circle, crossfade, spin_buzz, show_e913]
+    vibration:
+      default: 0
+      selector:
+        number: {min: 0, max: 15, step: 1, mode: slider}
+    leds:
+      selector:
+        select:
+          options: [all, top_left, top_right, bottom_left, bottom_right]
+    on_seconds:
+      selector:
+        number: {min: 0, max: 52, step: 1, mode: slider}
+    fade_seconds:
+      selector:
+        number: {min: 0, max: 3, step: 1, mode: slider}
+    always_on:
+      selector:
+        boolean:
+    flash:
+      selector:
+        boolean:
+    fast:
+      selector:
+        boolean:
+    hex:
+      selector:
+        text:
+    duration_ms:
+      selector:
+        number: {min: 0, max: 30000, step: 100, mode: box}
+    command:
+      selector:
+        object:
+    bridges:
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - integration: esphome
+              domain: text
+
+list_bridges:

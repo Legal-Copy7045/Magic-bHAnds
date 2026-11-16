@@ -16,6 +16,12 @@ def auto_enable_custom_integrations(enable_custom_integrations):
     return
 
 
+@pytest.fixture(autouse=True)
+def isolated_config_dir(hass: HomeAssistant, tmp_path):
+    """Give each test its own config folder (the integration writes blueprints there)."""
+    hass.config.config_dir = str(tmp_path)
+
+
 @pytest.fixture
 async def reader_device(hass: HomeAssistant) -> dr.DeviceEntry:
     """A device that looks like a MagicBand reader added through ESPHome."""
