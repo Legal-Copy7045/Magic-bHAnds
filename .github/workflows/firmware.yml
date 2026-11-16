@@ -118,6 +118,10 @@ jobs:
           echo "bp2_api_key: \"$(python3 -c 'import secrets,base64;print(base64.b64encode(secrets.token_bytes(32)).decode())')\"" > secrets.yaml
           esphome -s component_source ../components compile bp2-ci.yaml
 
+      - name: Check the standalone BP2-POE file matches the shared add-on
+        working-directory: esphome
+        run: python3 ../.github/scripts/check_bp2_standalone.py
+
   # Tests for the Home Assistant integration (custom_components/magicband).
   test-integration:
     needs: versions
