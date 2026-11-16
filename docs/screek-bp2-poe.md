@@ -70,6 +70,21 @@ then **Install → Wirelessly**. The full hostname matters: the Device Builder
 can't find a board by a name generated on the device. That's why the config
 sets it, with `name_add_mac_suffix: false`.
 
+**Switching from your own Device Builder firmware:** *Install → Wirelessly*
+needs the config to include ESPHome's network upload method, which the
+published firmware leaves out (it updates from GitHub). In your Device
+Builder copy, replace the `ota:` section with the following, using the key
+the board currently has (e.g. `bp2_api_key` in **Secrets**):
+```yaml
+ota:
+  - platform: http_request
+  - platform: esphome
+    encryption:
+      key: !secret bp2_api_key
+```
+This also keeps wireless installs from the Device Builder working later.
+Alternatively, install once over USB from the web installer.
+
 **Factory SCREEK firmware has an update password,** so the first install
 over it must be over USB.
 
