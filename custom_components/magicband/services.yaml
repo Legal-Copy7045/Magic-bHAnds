@@ -1,0 +1,75 @@
+add_person:
+  fields:
+    name:
+      required: true
+      example: Nana
+      selector:
+        text:
+    ha_person:
+      selector:
+        entity:
+          domain: person
+    allowed:
+      default: true
+      selector:
+        boolean:
+
+update_person:
+  fields:
+    person:
+      required: true
+      example: Morgan
+      selector:
+        text:
+    name:
+      selector:
+        text:
+    ha_person:
+      selector:
+        entity:
+          domain: person
+    allowed:
+      selector:
+        boolean:
+
+remove_person:
+  fields:
+    person:
+      required: true
+      selector:
+        text:
+
+assign_band:
+  fields:
+    band:
+      required: true
+      example: last
+      selector:
+        text:
+    person:
+      required: true
+      example: Nana
+      selector:
+        text:
+    label:
+      selector:
+        text:
+
+unassign_band:
+  fields:
+    band:
+      required: true
+      example: last
+      selector:
+        text:
+
+remove_band:
+  fields:
+    band:
+      required: true
+      selector:
+        text:
+
+sync:
+
+list:

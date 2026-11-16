@@ -73,6 +73,8 @@ installer: the Wi-Fi setup step and logs run on that port.
 | `esphome/magicband-addon.yaml` | Reusable MagicBand package (component, actions, entities) for any ESPHome board |
 | `esphome/screek-bp2-poe.yaml` | SCREEK BP2-POE config (PoE Bluetooth proxy + MagicBand) |
 | `esphome/magicband-reader.yaml` | MagicBand Reader: NFC touch point with LED ring, Mickey and sound |
+| `custom_components/magicband/` | MagicBand integration for Home Assistant (HACS): people, bands, sync |
+| `tests/` | Tests for the integration |
 | `web/` | Web installer page |
 | `.github/workflows/firmware.yml` | Builds firmware on every push and publishes the installer to GitHub Pages from `main` |
 | `homeassistant/blueprints/` | Automation blueprint |
@@ -190,6 +192,15 @@ optional mode lets HA decide green or red per band.
 
 Parts, wiring and setup are in [docs/reader.md](docs/reader.md). The config
 is `esphome/magicband-reader.yaml`.
+
+### MagicBand integration (HACS)
+
+Manages **people and their bands** across all your readers. It logs every
+tap, alerts you about unknown bands, lets you give bands to people (with or
+without a Home Assistant user, and with any number of bands each), keeps every
+reader's allowed list in sync, and fires `magicband_tap` events for
+automations. Install it through HACS as a custom repository. See
+[docs/integration.md](docs/integration.md).
 
 ## Component options
 

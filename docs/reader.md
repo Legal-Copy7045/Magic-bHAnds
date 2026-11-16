@@ -71,7 +71,10 @@ MagicBands give a 7-byte ID like `04-53-65-2A-C0-5F-80`.
    `py -c "import secrets,base64;print(base64.b64encode(secrets.token_bytes(32)).decode())"`).
 4. **Install → Plug into this computer** for the first install over USB.
    After that, updates go over Wi-Fi.
-5. Add it in Home Assistant when it's discovered.
+5. Add it in Home Assistant when it's discovered. Then open **Settings →
+   Devices & services → ESPHome → the reader → Configure**, and turn on
+   **Allow the device to perform Home Assistant actions**. That's needed for
+   tag scans to reach Home Assistant.
 
 ## Using it with Home Assistant
 
@@ -89,7 +92,8 @@ MagicBand+**, for example to turn on the lounge lights.
 | **Last band** | ID of the last band read |
 | **Response mode** | *Known bands only* (default: decided on the reader; new bands are denied), *Welcome every band*, or *Ask Home Assistant* (see below) |
 | **Band scan** | Event entity: every scan appears in the logbook as *welcomed* or *denied* |
-| **Known bands**, **Allow last band**, **Forget last band**, **Forget all bands** | The reader's own list of allowed bands, for *Known bands only* |
+| **Known bands** | How many bands are on the reader's allowed list |
+| **Allow last band**, **Forget last band**, **Forget all bands** | Manage the reader's list by hand, if you don't use the MagicBand integration |
 | **Speaker** | Media player: Home Assistant can also play announcements and TTS through the reader |
 | **Light up MagicBand+** | Send green + buzz to a MagicBand+ on a successful read (default on) |
 | **Sound** | Chimes on/off |
@@ -105,15 +109,18 @@ Assistant* mode.
 
 ### "Known bands only" mode (default): green for your bands, red for others, decided instantly
 
-A band's first scan gets the denied sequence. To allow it:
+A band's first scan gets the denied sequence. The reader stores its allowed
+list itself, with room for about 100 bands, so it answers instantly and keeps
+working when Home Assistant is offline.
 
-1. Tap the band; check **Last band** shows its ID.
-2. Press **Allow last band** on the reader's device page.
-   Repeat for each band. The list holds about 12 bands and survives restarts.
-3. Remove one with **Forget last band** (tap it first), or start over with
-   **Forget all bands**.
+**Recommended:** manage people and bands with the
+[MagicBand integration](integration.md). It logs scans, alerts you about new
+bands, lets you give bands to people, including people who aren't HA users and
+people with several bands, and keeps every reader's list in sync.
 
-This works even when Home Assistant is offline.
+**Without the integration:** tap the band, then press **Allow last band** on
+the reader's device page. **Forget last band** (tap it first) and **Forget
+all bands** remove entries.
 
 ### "Ask Home Assistant" mode: let an automation decide
 

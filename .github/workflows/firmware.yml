@@ -100,6 +100,22 @@ jobs:
           sed -i 's#https://raw.githubusercontent.com/Legal-Copy7045/Magic-bHAnds/main/esphome/sounds/#sounds/#' reader-ci.yaml
           esphome -s component_source ../components compile reader-ci.yaml
 
+  # Tests for the Home Assistant integration (custom_components/magicband).
+  test-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Install test framework
+        run: pip install pytest-homeassistant-custom-component
+
+      - name: Run tests
+        run: python -m pytest -q
+
   deploy:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
