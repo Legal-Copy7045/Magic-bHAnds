@@ -78,8 +78,8 @@
   <section class="card">
     <h2><span class="step">3</span> Add it to Home Assistant</h2>
     <ol>
-      <li>Home Assistant shows a <em>Discovered</em> notification for “MagicBand Bridge”. Click <strong>Add</strong>.
-        If it doesn't appear, go to Settings → Devices &amp; services → Add integration → ESPHome, and enter <code>magicband-bridge.local</code>.</li>
+      <li>Home Assistant shows a <em>Discovered</em> notification for “MagicBand Bridge” followed by a short code that's unique to the board. Click <strong>Add</strong>.
+        If it doesn't appear, go to Settings → Devices &amp; services → Add integration → ESPHome, and enter the board's IP address from your router.</li>
       <li>Open the device page, hold your band nearby, and press <strong>Test red buzz</strong>.</li>
     </ol>
   </section>
@@ -90,6 +90,7 @@
     <a class="btn" href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FLegal-Copy7045%2FMagic-bHAnds%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fmagicband_notify.yaml">Import blueprint</a>
   </section>
 
+  <p class="muted">More coverage? Install more boards the same way. Automations send through all of them by default.</p>
   <p class="muted">Firmware updates appear in Home Assistant as an update on the device. Source, docs and protocol notes:
     <a href="https://github.com/Legal-Copy7045/Magic-bHAnds">GitHub</a>.
     Unofficial hobby project, not affiliated with Disney.</p>

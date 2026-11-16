@@ -24,9 +24,10 @@ think of it as a room-wide effect. You can't easily target one band.
 2. **Flash it.** Open the web installer in Chrome or Edge, click **Install**,
    then enter your Wi-Fi details when asked. You don't compile or edit YAML.
 3. **Add it to Home Assistant.** HA shows a *Discovered* notification for
-   "MagicBand Bridge" through the ESPHome integration. Click **Add**. If no
-   notification appears: Settings → Devices & services → Add integration →
-   ESPHome → `magicband-bridge.local`.
+   "MagicBand Bridge 3fa2c1" through the ESPHome integration (the last six
+   characters are unique to each board). Click **Add**. If no notification
+   appears: Settings → Devices & services → Add integration → ESPHome, then
+   enter the board's IP address from your router.
 4. **Test it.** Open the device page, hold the band nearby (a shake wakes it),
    and press **Test red buzz**.
 5. **Automate it.** Import the blueprint and build "flash my band when…"
@@ -36,6 +37,9 @@ think of it as a room-wide effect. You can't easily target one band.
 
 **Updates:** new firmware shows up in Home Assistant as an update on the device,
 and you install it over Wi-Fi.
+
+**More coverage:** flash more boards the same way. See
+[Multiple bridges](#multiple-bridges).
 
 **Customising:** if you run the ESPHome Device Builder add-on, the bridge shows
 up there with **Take control**. That imports `esphome/magicband-bridge.yaml` as
@@ -81,9 +85,13 @@ installer: the Wi-Fi setup step and logs run on that port.
 | **MagicBand** (light) | Pick any colour with the colour picker. Nearby bands glow it until you turn it off. The **Effects** list plays captured park animations (rainbow, colour cycle, lightning, …). |
 | **Buzz** (button) | Vibrates bands using the **Vibration pattern** setting. |
 | **Test red buzz**, **Test rainbow**, **Ping** | Quick tests. |
+| **Command** (text, under Configuration) | Takes JSON commands so HA can send to one, several or all bridges. See [docs/commands.md](docs/commands.md). |
+| **Bluetooth proxy** (switch, under Configuration) | Off by default. Turn it on to also use this board as a Home Assistant Bluetooth proxy. |
 | **Firmware** (update) | Installs new releases over Wi-Fi. |
 
-**Actions** for scripts and automations, all prefixed `esphome.magicband_bridge_`:
+**Per-board actions**, prefixed `esphome.magicband_bridge_<suffix>_`. Each
+of these sends through that one board only. To send through several bridges,
+use the blueprint, `script.magicband_send`, or the Command entity.
 
 | Action | Fields |
 |--------|--------|
@@ -111,7 +119,7 @@ Vibration: 0 = none, and 1–11 are distinct patterns, from a short tap to a
 Example from Developer Tools → Actions:
 
 ```yaml
-action: esphome.magicband_bridge_color_advanced
+action: esphome.magicband_bridge_3fa2c1_color_advanced
 data:
   color: pink
   vibration: 2
@@ -120,6 +128,37 @@ data:
   fade_seconds: 2
   always_on: false
 ```
+
+## Multiple bridges
+
+One board covers roughly a room or two. For more coverage, flash more boards
+with the web installer and place them where the bands are used. Each board
+gets a unique name (`magicband-bridge-3fa2c1`) and shows up in Home Assistant
+as its own device.
+
+- **All bridges (the default).** The blueprint and `script.magicband_send`
+  send through every bridge unless you pick specific ones. New bridges are
+  included automatically.
+- **Some bridges.** In the blueprint, pick the bridges' **Command** entities
+  under *Bridges*. In scripts, pass `bridges:` with their entity IDs. See the
+  `magicband_kitchen_buzz` example in `homeassistant/magicband_scripts.yaml`.
+- **One colour picker for every bridge.** Create a light group: Settings →
+  Devices & services → Helpers → Create helper → Group → Light group, then
+  add every bridge's **MagicBand** light.
+
+Bands that hear two bridges get the same command twice, a few milliseconds
+apart, which should look the same as hearing it once (not yet confirmed on a
+real band).
+
+### Bluetooth proxy
+
+Each bridge can also work as an ESPHome **Bluetooth proxy**, extending Home
+Assistant's Bluetooth range like a Screek or Shelly proxy does. Turn on the
+**Bluetooth proxy** switch on the bridge's device page, under Configuration.
+It's off by default, and it remembers its setting through restarts.
+
+Proxying shares the radio with the band broadcasts. If a bridge seems less
+reliable at reaching bands with it on, turn it off on that bridge.
 
 ## Component options
 

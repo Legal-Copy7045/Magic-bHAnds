@@ -1,4 +1,5 @@
 # Example automations. Replace the entity IDs with your own.
+# These use script.magicband_send from magicband_scripts.yaml.
 
 - alias: "MagicBand: flash on doorbell"
   triggers:
@@ -14,5 +15,6 @@
       entity_id: sensor.washing_machine_status  # <- your appliance
       to: "finished"
   actions:
-    - action: script.magicband_effect
-      data: {effect: dual_color, color1: cyan, color2: white, vibration: 2}  # centre cyan, outer white
+    - action: script.magicband_send
+      data:
+        command: {effect: dual_color, inner: cyan, outer: white, vibration: 2}

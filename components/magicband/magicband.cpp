@@ -2,6 +2,7 @@
 
 #ifdef USE_ESP32
 
+#include "esphome/components/json/json_util.h"
 #include "esphome/core/hal.h"
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
@@ -350,6 +351,80 @@ bool MagicBand::send_animation(const std::string &input, uint32_t duration_ms) {
   }
   ESP_LOGW(TAG, "Unknown animation '%s'", input.c_str());
   return false;
+}
+
+// ---------------------------------------------------------------------------
+// JSON commands (from the "Command" text entity)
+// ---------------------------------------------------------------------------
+
+bool MagicBand::run_command_json(const std::string &input) {
+  // Home Assistant turns template output that looks like JSON into a dict, so
+  // callers prefix it (e.g. "mb{...}"). Everything before the first '{' is ignored.
+  size_t brace = input.find('{');
+  if (brace == std::string::npos) {
+    ESP_LOGW(TAG, "Command has no JSON object: %s", input.c_str());
+    return false;
+  }
+  const std::string json = input.substr(brace);
+  JsonDocument doc = json::parse_json(json);
+  JsonObject o = doc.as<JsonObject>();
+  if (o.isNull()) {
+    ESP_LOGW(TAG, "Command is not a JSON object: %s", json.c_str());
+    return false;
+  }
+  std::string effect = o["effect"] | "color";
+  uint8_t vib = static_cast<uint8_t>(o["vibration"] | 0);
+  float on_seconds = o["on_seconds"] | 0.0f;
+  uint8_t fade = static_cast<uint8_t>(o["fade_seconds"] | 0);
+  bool always_on = o["always_on"] | false;
+  uint32_t duration = o["duration_ms"] | 0u;
+  std::string c1 = o["color"] | (o["color1"] | "white");
+  std::string c2 = o["color2"] | "pink";
+
+  ESP_LOGD(TAG, "Command: %s", json.c_str());
+  if (effect == "color") {
+    this->send_single_color(color_from_string(c1), vib,
+                            timing_or(TIMING_SINGLE_DEFAULT, on_seconds, fade, always_on),
+                            leds_from_string(o["leds"] | "all"), duration);
+  } else if (effect == "rgb") {
+    uint8_t r = o["red"] | 0, g = o["green"] | 0, b = o["blue"] | 0;
+    JsonArrayConst arr = o["rgb"].as<JsonArrayConst>();
+    if (!arr.isNull() && arr.size() >= 3) {
+      r = arr[0] | 0;
+      g = arr[1] | 0;
+      b = arr[2] | 0;
+    }
+    this->send_rgb(r, g, b, vib, timing_or(TIMING_SINGLE_DEFAULT, on_seconds, fade, always_on),
+                   o["flash"] | false, duration);
+  } else if (effect == "dual_color") {
+    std::string inner = o["inner"] | c1.c_str();
+    std::string outer = o["outer"] | c2.c_str();
+    this->send_dual_color(color_from_string(inner), color_from_string(outer), vib,
+                          timing_or(TIMING_DUAL_DEFAULT, on_seconds, fade, always_on), duration);
+  } else if (effect == "five_color") {
+    this->send_five_color(o["colors"] | "red, orange, yellow, green, blue", vib,
+                          timing_or(TIMING_FIVE_DEFAULT, on_seconds, fade, always_on), duration);
+  } else if (effect == "crossfade") {
+    this->send_crossfade(color_from_string(c1), color_from_string(c2), vib, duration);
+  } else if (effect == "circle") {
+    this->send_circle(vib, duration);
+  } else if (effect == "animation") {
+    return this->send_animation(o["name"] | "color_cycle", duration);
+  } else if (effect == "buzz") {
+    this->send_single_color(OFF, vib, TIMING_SINGLE_DEFAULT, LEDS_ALL, duration);
+  } else if (effect == "ping") {
+    this->send_ping(o["fast"] | false, duration);
+  } else if (effect == "off") {
+    this->send_off(duration);
+  } else if (effect == "raw") {
+    return this->send_hex(o["hex"] | "", duration);
+  } else if (effect == "stop") {
+    this->stop();
+  } else {
+    ESP_LOGW(TAG, "Unknown effect '%s'", effect.c_str());
+    return false;
+  }
+  return true;
 }
 
 // ---------------------------------------------------------------------------

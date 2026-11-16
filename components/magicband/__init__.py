@@ -15,7 +15,7 @@ from esphome.core import TimePeriod
 import esphome.final_validate as fv
 
 CODEOWNERS = []
-AUTO_LOAD = ["esp32_ble"]
+AUTO_LOAD = ["esp32_ble", "json"]
 DEPENDENCIES = ["esp32"]
 
 CONF_DURATION = "duration"
