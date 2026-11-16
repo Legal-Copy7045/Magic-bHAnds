@@ -80,8 +80,9 @@ integration attached.
 - **Integration updates** appear in HACS.
 
 To make a release: bump `VERSION` and the versions it lists (CI checks they
-match), add a `CHANGELOG.md` section, merge to `main`, then push a tag such as
-`v0.7.0`.
+match), add a `CHANGELOG.md` section, and merge to `main`. Then go to
+**Actions → Build, test & release → Run workflow**, tick **release**, and run
+it on `main`. It tags `v<VERSION>` and publishes the GitHub Release.
 
 ## Repo layout
 
