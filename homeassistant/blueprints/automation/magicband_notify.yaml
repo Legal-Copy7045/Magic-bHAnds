@@ -1,0 +1,142 @@
+blueprint:
+  name: MagicBand+ notification
+  description: >-
+    Light up and/or buzz nearby MagicBand+ bands when something happens.
+    Requires the MagicBand Bridge (ESP32-S3) added to Home Assistant through
+    the ESPHome integration.
+  domain: automation
+  source_url: https://github.com/Legal-Copy7045/Magic-bHAnds/blob/main/homeassistant/blueprints/automation/magicband_notify.yaml
+  input:
+    when:
+      name: When
+      description: What should trigger the band? (doorbell pressed, washer finished, ...)
+      selector:
+        trigger: {}
+    effect_section:
+      name: Effect
+      icon: mdi:watch-variant
+      input:
+        effect:
+          name: Effect
+          default: color
+          selector:
+            select:
+              mode: dropdown
+              options:
+                - {label: "Single colour", value: color}
+                - {label: "Two colours", value: dual_color}
+                - {label: "Five colours", value: five_color}
+                - {label: "Crossfade", value: crossfade}
+                - {label: "Spinning circle", value: circle}
+        color1:
+          name: Colour
+          description: Used by single colour, two colours and crossfade.
+          default: blue
+          selector: &colour
+            select:
+              mode: dropdown
+              options:
+                - red
+                - red_orange
+                - orange
+                - yellow
+                - off_yellow
+                - lime
+                - lime_green
+                - green
+                - cyan
+                - blue
+                - midnight_blue
+                - purple
+                - bright_purple
+                - lavender
+                - pink
+                - white
+                - random
+        color2:
+          name: Second colour
+          description: Used by two colours and crossfade.
+          default: pink
+          selector: *colour
+        colors:
+          name: Five colours
+          description: Comma-separated, used by the five-colour effect.
+          default: "red, orange, yellow, green, blue"
+          selector:
+            text: {}
+        vibration:
+          name: Vibration
+          description: 0 = no vibration. Higher values = stronger / longer patterns.
+          default: 0
+          selector:
+            number: {min: 0, max: 15, step: 1, mode: slider}
+    advanced:
+      name: Advanced
+      icon: mdi:cog
+      collapsed: true
+      input:
+        device_name:
+          name: Bridge device name
+          description: >-
+            Only change this if you renamed the bridge or have more than one.
+            Use the ESPHome name with underscores, e.g. magicband_bridge.
+          default: magicband_bridge
+          selector:
+            text: {}
+        repeat:
+          name: Repeat
+          description: How many times to send the effect.
+          default: 1
+          selector:
+            number: {min: 1, max: 5, step: 1, mode: box}
+
+mode: queued
+max: 5
+
+triggers: !input when
+
+variables:
+  effect: !input effect
+  color1: !input color1
+  color2: !input color2
+  colors: !input colors
+  vibration: !input vibration
+  device_name: !input device_name
+  repeat_count: !input repeat
+
+actions:
+  - repeat:
+      count: "{{ repeat_count | int }}"
+      sequence:
+        - choose:
+            - conditions: "{{ effect == 'color' }}"
+              sequence:
+                - action: "esphome.{{ device_name }}_color"
+                  data:
+                    color: "{{ color1 }}"
+                    vibration: "{{ vibration | int }}"
+            - conditions: "{{ effect == 'dual_color' }}"
+              sequence:
+                - action: "esphome.{{ device_name }}_dual_color"
+                  data:
+                    color1: "{{ color1 }}"
+                    color2: "{{ color2 }}"
+                    vibration: "{{ vibration | int }}"
+            - conditions: "{{ effect == 'five_color' }}"
+              sequence:
+                - action: "esphome.{{ device_name }}_five_color"
+                  data:
+                    colors: "{{ colors }}"
+                    vibration: "{{ vibration | int }}"
+            - conditions: "{{ effect == 'crossfade' }}"
+              sequence:
+                - action: "esphome.{{ device_name }}_crossfade"
+                  data:
+                    color1: "{{ color1 }}"
+                    color2: "{{ color2 }}"
+                    vibration: "{{ vibration | int }}"
+            - conditions: "{{ effect == 'circle' }}"
+              sequence:
+                - action: "esphome.{{ device_name }}_circle"
+                  data:
+                    vibration: "{{ vibration | int }}"
