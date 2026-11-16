@@ -81,7 +81,7 @@ class MagicBand : public Component {
 #endif
   /// Pause Bluetooth-proxy scanning while broadcasting (resumed afterwards).
   void set_pause_scanning(bool pause) { this->pause_scanning_ = pause; }
-  /// Experimental: prefix each new command with E1 00 / E2 00, alternating.
+  /// Prefix each new command with E1 00 / E2 00, alternating (helps repeats register).
   void set_alternate_prefix(bool alternate) { this->alternate_prefix_ = alternate; }
   bool get_alternate_prefix() const { return this->alternate_prefix_; }
 
@@ -163,7 +163,7 @@ class MagicBand : public Component {
   bool stop_requested_{false};
   bool pause_scanning_{true};
   bool scan_paused_{false};
-  bool alternate_prefix_{false};
+  bool alternate_prefix_{true};
   bool next_prefix_e2_{false};
   int tx_power_dbm_{9};
 

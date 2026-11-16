@@ -196,7 +196,7 @@ magicband:
   max_interval: 40ms
   tx_power: max     # +20 dBm on ESP32-S3/C3, +9 dBm on the original ESP32
   pause_scanning: true    # pause Bluetooth-proxy scanning while broadcasting
-  alternate_prefix: false # experimental E1 00 / E2 00 alternation
+  alternate_prefix: true  # alternate E1 00 / E2 00 (helps repeated commands)
   queue_size: 8     # commands queued while one is broadcasting
 ```
 
@@ -211,10 +211,13 @@ reduces broadcast airtime.
 - Bridges transmit at maximum power by default: +20 dBm on ESP32-S3. In
   regions with a 20 dBm EIRP limit (such as the EU) and a high-gain antenna,
   set `tx_power: 17dBm`.
-- Bands only listen now and then. If commands are missed, shake the band, or
-  try the **Alternate prefix (experimental)** switch on the device page. It
-  alternates the `E1 00` / `E2 00` prefix seen in park captures, which may
-  help bands accept commands sent in quick succession.
+- Bands only listen now and then. If commands are missed, shake the band.
+- Each command starts with `E1 00` or `E2 00`, alternating, as seen in park
+  captures. In testing this made repeated commands noticeably more reliable.
+  It's on by default, and the **Alternate prefix** switch on the device page
+  turns it off.
+- On boards that are also Bluetooth proxies, scanning pauses during each
+  ~2 second broadcast. In testing this improved both range and reliability.
 
 ## Caveats
 

@@ -94,8 +94,9 @@ CONFIG_SCHEMA = cv.All(
             # Pause Bluetooth-proxy scanning while broadcasting, so the radio
             # spends the broadcast on the bands (resumes afterwards).
             cv.Optional(CONF_PAUSE_SCANNING, default=True): cv.boolean,
-            # Experimental: alternate an E1 00 / E2 00 prefix on each command.
-            cv.Optional(CONF_ALTERNATE_PREFIX, default=False): cv.boolean,
+            # Alternate an E1 00 / E2 00 prefix on each command. Seen in park
+            # captures; in testing it makes repeated commands more reliable.
+            cv.Optional(CONF_ALTERNATE_PREFIX, default=True): cv.boolean,
         }
     ).extend(cv.COMPONENT_SCHEMA),
     _validate,

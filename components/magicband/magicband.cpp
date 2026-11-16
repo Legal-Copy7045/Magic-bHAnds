@@ -110,8 +110,8 @@ void MagicBand::start_next_() {
   this->stop_requested_ = false;
   this->pause_scan_();
 
-  // Experimental: alternate E1 00 / E2 00 in front of each new command (seen in
-  // park captures; may let bands tell a new command from a repeat).
+  // Alternate E1 00 / E2 00 in front of each new command. Seen in park captures;
+  // in testing, bands accept repeated commands more reliably with it.
   if (this->alternate_prefix_ && this->current_.payload.size() + 2 <= MAX_PAYLOAD_LEN &&
       this->current_.payload[0] != 0xE1 && this->current_.payload[0] != 0xE2) {
     uint8_t prefix = this->next_prefix_e2_ ? 0xE2 : 0xE1;
