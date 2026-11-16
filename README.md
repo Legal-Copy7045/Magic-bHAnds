@@ -72,6 +72,7 @@ installer: the Wi-Fi setup step and logs run on that port.
 | `esphome/magicband-bridge.yaml` | Device config for the ESP32-S3 bridge, used by the web installer and "Take control" |
 | `esphome/magicband-addon.yaml` | Reusable MagicBand package (component, actions, entities) for any ESPHome board |
 | `esphome/screek-bp2-poe.yaml` | SCREEK BP2-POE config (PoE Bluetooth proxy + MagicBand) |
+| `esphome/magicband-reader.yaml` | MagicBand Reader: NFC touch point with LED ring, Mickey and sound |
 | `web/` | Web installer page |
 | `.github/workflows/firmware.yml` | Builds firmware on every push and publishes the installer to GitHub Pages from `main` |
 | `homeassistant/blueprints/` | Automation blueprint |
@@ -179,6 +180,17 @@ Proxying shares the radio with the band broadcasts. The bridge pauses
 scanning for the ~2 seconds it broadcasts each command, then resumes, so the
 proxy's effect on band range is small.
 
+## MagicBand Reader
+
+A park-style touch point built from an ESP32-S3, a PN532 NFC reader, an LED
+ring with a Mickey head and a small speaker. Tap an original MagicBand or a
+MagicBand+: the ring spins, Home Assistant receives the band as a **Tag**, the
+ring turns green with a chime, and a MagicBand+ also lights up and buzzes. An
+optional mode lets HA decide green or red per band.
+
+Parts, wiring and setup are in [docs/reader.md](docs/reader.md). The config
+is `esphome/magicband-reader.yaml`.
+
 ## Component options
 
 ```yaml
@@ -245,6 +257,15 @@ This project builds on other people's work.
 - **[Adafruit: BLE Beacon NeoPixels](https://learn.adafruit.com/ble-beacon-neopixels)**:
   Adafruit's MagicBand+ beacon project, referenced by the emcot.world wiki.
   It was also one of the first sources found for this project.
+
+**MagicBand reader projects** (inspiration for the reader; no code used)
+- [foolishmortalbuilders/magicbandreader](https://github.com/foolishmortalbuilders/magicbandreader):
+  a Raspberry Pi reader with a pixel ring, Mickey and sounds.
+- [dcivitano/Magic-Band-Reader](https://github.com/dcivitano/Magic-Band-Reader):
+  an Arduino reader with an RC522, NeoPixels and a DFPlayer.
+- [ncory/MagicReader](https://github.com/ncory/MagicReader): a Raspberry Pi
+  reader with per-band sequences that triggers MagicBand+ effects through an
+  ESP32 broadcaster.
 
 **Software and tools**
 - [ESPHome](https://esphome.io): the firmware framework. The `magicband`
