@@ -24,7 +24,8 @@ esp32_ble:
 magicband:
   id: band
   duration: 2s        # how long each command is broadcast
-  tx_power: 9dBm      # -12dBm .. 9dBm
+  tx_power: max       # +20 dBm on ESP32-S3/C3, +9 dBm on the original ESP32
+  pause_scanning: true  # pause Bluetooth-proxy scanning while broadcasting
 
 api:
   # Per-board actions: esphome.<device_name>_<action>.
@@ -197,6 +198,21 @@ text:
     optimistic: false
     set_action:
       - lambda: id(band).run_command_json(x);
+
+switch:
+  # Experimental: alternate an E1 00 / E2 00 prefix on each command. Seen in
+  # park captures; may help bands accept commands sent in quick succession.
+  - platform: template
+    id: alternate_prefix
+    name: "Alternate prefix (experimental)"
+    icon: mdi:swap-horizontal
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    turn_on_action:
+      - lambda: id(band).set_alternate_prefix(true);
+    turn_off_action:
+      - lambda: id(band).set_alternate_prefix(false);
 
 select:
   # Used by the Buzz button. Patterns: '=0.125s  -=0.25s  *=0.5s  %=1s  #=2s

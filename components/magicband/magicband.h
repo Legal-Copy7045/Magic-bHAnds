@@ -72,10 +72,18 @@ class MagicBand : public Component {
   void set_max_interval(uint32_t ms) { this->max_interval_ms_ = ms; }
   void set_queue_size(uint8_t n) { this->queue_size_ = n; }
 #ifndef CONFIG_BT_CONTROLLER_DISABLED
-  void set_tx_power(esp_power_level_t p) { this->tx_power_ = p; }
+  void set_tx_power(esp_power_level_t p, int dbm) {
+    this->tx_power_ = p;
+    this->tx_power_dbm_ = dbm;
+  }
 #else
-  void set_tx_power(int) {}
+  void set_tx_power(int, int dbm) { this->tx_power_dbm_ = dbm; }
 #endif
+  /// Pause Bluetooth-proxy scanning while broadcasting (resumed afterwards).
+  void set_pause_scanning(bool pause) { this->pause_scanning_ = pause; }
+  /// Experimental: prefix each new command with E1 00 / E2 00, alternating.
+  void set_alternate_prefix(bool alternate) { this->alternate_prefix_ = alternate; }
+  bool get_alternate_prefix() const { return this->alternate_prefix_; }
 
   void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
 
@@ -145,12 +153,19 @@ class MagicBand : public Component {
 
   void start_next_();
   void request_stop_();
+  void pause_scan_();
+  void resume_scan_();
 
   std::deque<Command> queue_;
   Command current_;
   State state_{State::IDLE};
   uint32_t state_since_{0};
   bool stop_requested_{false};
+  bool pause_scanning_{true};
+  bool scan_paused_{false};
+  bool alternate_prefix_{false};
+  bool next_prefix_e2_{false};
+  int tx_power_dbm_{9};
 
   // Light entity debounce
   bool light_pending_{false};
