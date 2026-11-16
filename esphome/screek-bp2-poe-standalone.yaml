@@ -1,0 +1,405 @@
+# SCREEK BP2-POE: Bluetooth proxy + MagicBand bridge. Single drop-in config
+# for the ESPHome Device Builder (no packages).
+#
+# Rebuilt from the factory firmware's boot log (SCREEK.Bluetooth_Proxy BP2-POE
+# 26.01.23-A). Project: https://github.com/Legal-Copy7045/Magic-bHAnds
+#
+# Needs one secret in the Device Builder's secrets.yaml:
+#   bp2_api_key: "<32-byte base64 key>"
+# If your board's MAC ends in something other than 84:9A:4C, change 849a4c below
+# to match its factory hostname (screek-bp2-poe-xxxxxx).
+
+substitutions:
+  name: screek-bp2-poe-849a4c
+  friendly_name: SCREEK BP2-POE 849a4c
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  min_version: 2026.10.0
+  name_add_mac_suffix: false
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+
+external_components:
+  - source: github://Legal-Copy7045/Magic-bHAnds@main
+    components: [magicband]
+    refresh: 1d
+
+logger:
+  hardware_uart: USB_SERIAL_JTAG   # logs over the USB-C port
+
+api:
+  encryption:
+    key: !secret bp2_api_key
+  # Per-board actions appear as esphome.screek_bp2_poe_849a4c_<action>.
+  actions:
+    # Whole band one colour.
+    - action: color
+      variables:
+        color: string
+        vibration: int
+      then:
+        - lambda: |-
+            id(band).send_single_color(
+                magicband::MagicBand::color_from_string(color), vibration);
+
+    # One colour with full control: which LEDs, how long, fade, always on.
+    - action: color_advanced
+      variables:
+        color: string
+        vibration: int
+        leds: string          # all, top_left, top_right, bottom_left, bottom_right
+        on_seconds: float     # ~5.5-52 (0 = default)
+        fade_seconds: int     # 0-3
+        always_on: bool       # stay lit until another command / off
+      then:
+        - lambda: |-
+            id(band).send_single_color(
+                magicband::MagicBand::color_from_string(color), vibration,
+                magicband::MagicBand::timing_or(magicband::TIMING_SINGLE_DEFAULT,
+                                                on_seconds, fade_seconds, always_on),
+                magicband::MagicBand::leds_from_string(leds));
+
+    # Any colour: 0-255 per channel.
+    - action: rgb
+      variables:
+        red: int
+        green: int
+        blue: int
+        vibration: int
+        always_on: bool
+        flash: bool
+      then:
+        - lambda: |-
+            id(band).send_rgb(red, green, blue, vibration,
+                always_on ? magicband::TIMING_ALWAYS_ON : magicband::TIMING_SINGLE_DEFAULT,
+                flash);
+
+    # Centre (inner) and outer ring colours.
+    - action: dual_color
+      variables:
+        inner: string
+        outer: string
+        vibration: int
+      then:
+        - lambda: |-
+            id(band).send_dual_color(
+                magicband::MagicBand::color_from_string(inner),
+                magicband::MagicBand::color_from_string(outer), vibration);
+
+    # "centre, top right, bottom right, bottom left, top left"
+    - action: five_color
+      variables:
+        colors: string
+        vibration: int
+      then:
+        - lambda: id(band).send_five_color(colors, vibration);
+
+    - action: crossfade
+      variables:
+        color1: string
+        color2: string
+        vibration: int
+      then:
+        - lambda: |-
+            id(band).send_crossfade(
+                magicband::MagicBand::color_from_string(color1),
+                magicband::MagicBand::color_from_string(color2), vibration);
+
+    - action: circle
+      variables:
+        vibration: int
+      then:
+        - lambda: id(band).send_circle(vibration);
+
+    # lightning, orange_blink, color_cycle, rainbow, circle, crossfade, spin_buzz, show_e913
+    - action: animation
+      variables:
+        name: string
+      then:
+        - lambda: id(band).send_animation(name);
+
+    - action: ping
+      variables:
+        fast: bool
+      then:
+        - lambda: id(band).send_ping(fast);
+
+    - action: "off"
+      then:
+        - lambda: id(band).send_off();
+
+    # Experimentation: any payload as hex (leading "83 01" optional), and a
+    # custom broadcast duration in ms (0 = default).
+    - action: raw
+      variables:
+        hex: string
+        duration_ms: int
+      then:
+        - lambda: id(band).send_hex(hex, duration_ms);
+
+    - action: stop
+      then:
+        - lambda: id(band).stop();
+
+ota:
+  - platform: esphome
+    encryption:
+      key: !secret bp2_api_key
+
+safe_mode:
+
+ethernet:
+  type: W5500
+  clk_pin: GPIO13
+  mosi_pin: GPIO11
+  miso_pin: GPIO12
+  cs_pin: GPIO14
+  interrupt_pin: GPIO10
+  reset_pin: GPIO9
+  clock_speed: 25MHz
+
+# Bluetooth proxy: continuous active scanning, as on the factory firmware.
+# Scan Interval / Scan Window / Scan Active Mode below adjust it at runtime.
+esp32_ble_tracker:
+  id: ble_tracker
+  scan_parameters:
+    interval: 1100ms
+    window: 1100ms
+    active: true
+    continuous: true
+
+bluetooth_proxy:
+  active: true
+  connection_slots: 4
+
+esp32_ble:
+  id: ble
+  max_connections: 4
+
+magicband:
+  id: band
+  duration: 2s        # how long each command is broadcast
+  tx_power: 9dBm      # -12dBm .. 9dBm
+
+time:
+  - platform: homeassistant
+
+debug:
+  update_interval: 60s
+
+# --- Scan tuning (same entities as the factory firmware) ---------------------
+# Changes restart scanning briefly to apply; values survive reboots.
+script:
+  - id: apply_scan_settings
+    mode: restart
+    then:
+      - lambda: |-
+          float interval = id(scan_interval).state;
+          float window = std::min(id(scan_window).state, interval);
+          id(ble_tracker).set_scan_interval(static_cast<uint32_t>(interval / 0.625f));
+          id(ble_tracker).set_scan_window(static_cast<uint32_t>(window / 0.625f));
+          id(ble_tracker).set_scan_active(id(scan_active).state);
+          ESP_LOGI("scan", "Apply BLE scan: interval=%.0fms window=%.0fms active=%s",
+                   interval, window, id(scan_active).state ? "yes" : "no");
+      - esp32_ble_tracker.stop_scan:
+      - delay: 500ms
+      - esp32_ble_tracker.start_scan:
+          continuous: true
+
+number:
+  - platform: template
+    id: scan_interval
+    name: "Scan Interval"
+    icon: mdi:bluetooth-settings
+    unit_of_measurement: ms
+    entity_category: config
+    mode: box
+    min_value: 20
+    max_value: 10240
+    step: 10
+    initial_value: 1100
+    optimistic: true
+    restore_value: true
+    on_value:
+      - script.execute: apply_scan_settings
+  - platform: template
+    id: scan_window
+    name: "Scan Window"
+    icon: mdi:bluetooth-settings
+    unit_of_measurement: ms
+    entity_category: config
+    mode: box
+    min_value: 20
+    max_value: 10240
+    step: 10
+    initial_value: 1100
+    optimistic: true
+    restore_value: true
+    on_value:
+      - script.execute: apply_scan_settings
+
+switch:
+  - platform: template
+    id: scan_active
+    name: "Scan Active Mode"
+    icon: mdi:bluetooth-settings
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    on_turn_on:
+      - script.execute: apply_scan_settings
+    on_turn_off:
+      - script.execute: apply_scan_settings
+
+light:
+  - platform: esp32_rmt_led_strip
+    id: identify_led
+    name: "Identify LED"
+    pin: GPIO21
+    chipset: WS2812
+    channel_colors: GRB
+    num_leds: 1
+    default_transition_length: 1s
+    entity_category: config
+  # Pick any colour in Home Assistant; nearby bands glow it until turned off.
+  # Effects play captured park animations.
+  - platform: magicband
+    id: band_light
+    name: "MagicBand"
+    icon: mdi:watch-variant
+    restore_mode: ALWAYS_OFF
+    default_transition_length: 0s
+    effects:
+      - lambda:
+          name: "Rainbow (5 colour)"
+          update_interval: 1h
+          lambda: |-
+            if (initial_run)
+              id(band).send_five_color("red, orange, yellow, green, blue", 0, magicband::TIMING_ALWAYS_ON);
+      - lambda:
+          name: "Colour cycle"
+          update_interval: 1h
+          lambda: 'if (initial_run) id(band).send_animation("color_cycle");'
+      - lambda:
+          name: "Rainbow animation"
+          update_interval: 1h
+          lambda: 'if (initial_run) id(band).send_animation("rainbow");'
+      - lambda:
+          name: "Lightning"
+          update_interval: 1h
+          lambda: 'if (initial_run) id(band).send_animation("lightning");'
+      - lambda:
+          name: "Orange blink"
+          update_interval: 1h
+          lambda: 'if (initial_run) id(band).send_animation("orange_blink");'
+      - lambda:
+          name: "Circle"
+          update_interval: 1h
+          lambda: 'if (initial_run) id(band).send_animation("circle");'
+      - lambda:
+          name: "Crossfade"
+          update_interval: 1h
+          lambda: 'if (initial_run) id(band).send_animation("crossfade");'
+
+text:
+  # Send a JSON command, e.g. {"effect":"color","color":"red","vibration":3}.
+  # Lets Home Assistant target one, several or all bridges with text.set_value.
+  # Fields: docs/commands.md
+  - platform: template
+    id: command
+    name: "Command"
+    icon: mdi:console-line
+    entity_category: config
+    mode: text
+    max_length: 255
+    optimistic: false
+    set_action:
+      - lambda: id(band).run_command_json(x);
+
+select:
+  # Used by the Buzz button. Patterns: '=0.125s  -=0.25s  *=0.5s  %=1s  #=2s
+  - platform: template
+    id: vibration_pattern
+    name: "Vibration pattern"
+    icon: mdi:vibrate
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_option: "3: ---"
+    options:
+      - "1: -"
+      - "2: --"
+      - "3: ---"
+      - "4: --*"
+      - "5: ----*-"
+      - "6: ---***---"
+      - "7: # (2s)"
+      - "8: flutter"
+      - "9: - (alt)"
+      - "10: * (0.5s)"
+      - "11: % (1s)"
+
+sensor:
+  - platform: internal_temperature
+    name: "CPU Temperature"
+    entity_category: diagnostic
+  - platform: debug
+    free:
+      name: "Heap Free"
+      entity_category: diagnostic
+
+text_sensor:
+  - platform: uptime
+    name: "Uptime"
+    entity_category: diagnostic
+  - platform: ethernet_info
+    ip_address:
+      name: "IP Address"
+      entity_category: diagnostic
+    mac_address:
+      name: "MAC Address"
+      entity_category: diagnostic
+  - platform: debug
+    reset_reason:
+      name: "Reboot Reason"
+      entity_category: diagnostic
+
+button:
+  - platform: restart
+    name: "Reboot Device"
+    entity_category: diagnostic
+  - platform: safe_mode
+    name: "Safe Mode Boot"
+    entity_category: diagnostic
+  - platform: factory_reset
+    name: "Factory Reset"
+    entity_category: diagnostic
+  - platform: template
+    name: "Buzz"
+    icon: mdi:vibrate
+    on_press:
+      - lambda: |-
+          id(band).send_single_color(magicband::OFF,
+              id(vibration_pattern).active_index().value_or(2) + 1);
+  - platform: template
+    name: "Test red buzz"
+    icon: mdi:watch-vibrate
+    on_press:
+      - lambda: id(band).send_single_color(magicband::RED, 3);
+  - platform: template
+    name: "Test rainbow"
+    icon: mdi:looks
+    on_press:
+      - lambda: id(band).send_five_color("red, orange, yellow, green, blue", 0);
+  - platform: template
+    name: "Ping"
+    icon: mdi:access-point
+    on_press:
+      - lambda: id(band).send_ping(true);
