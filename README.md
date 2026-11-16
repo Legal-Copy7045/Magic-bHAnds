@@ -15,42 +15,62 @@ think of it as a room-wide effect. You can't easily target one band.
 > Only works with **MagicBand+**. Original MagicBands (1.0/2.0) have no
 > Bluetooth receiver for effects.
 
+## Install
+
+**Web installer: https://legal-copy7045.github.io/Magic-bHAnds/**
+
+1. **Prepare the board.** On IPEX boards, click the antenna on first. Plug into
+   your computer through the USB-C port labelled **UART**, using a data cable.
+2. **Flash it.** Open the web installer in Chrome or Edge, click **Install**,
+   then enter your Wi-Fi details when asked. You don't compile or edit YAML.
+3. **Add it to Home Assistant.** HA shows a *Discovered* notification for
+   "MagicBand Bridge" through the ESPHome integration. Click **Add**. If no
+   notification appears: Settings → Devices & services → Add integration →
+   ESPHome → `magicband-bridge.local`.
+4. **Test it.** Open the device page, hold the band nearby (a shake wakes it),
+   and press **Test red buzz**.
+5. **Automate it.** Import the blueprint and build "flash my band when…"
+   automations from the UI:
+
+   [![Import blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FLegal-Copy7045%2FMagic-bHAnds%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fmagicband_notify.yaml)
+
+**Updates:** new firmware shows up in Home Assistant as an update on the device,
+and you install it over Wi-Fi.
+
+**Customising:** if you run the ESPHome Device Builder add-on, the bridge shows
+up there with **Take control**. That imports `esphome/magicband-bridge.yaml` as
+a package so you can edit it and build your own firmware.
+
+**If Wi-Fi setup fails,** the board starts a hotspot called
+"MagicBand Bridge Setup". Join it and pick your network.
+
+## Hardware
+
+The config targets an **ESP32-S3-DevKitC-1 N16R8** style board, such as the
+Lonely Binary ESP32-S3 N16R8 IPEX. Any ESP32-S3 should work if you build your
+own config (for a Seeed XIAO ESP32-S3: `board: seeed_xiao_esp32s3`,
+`flash_size: 8MB`). The board needs nothing else wired to it, just USB power
+somewhere central.
+
+**IPEX boards: fit the antenna before powering on.** The module has no built-in
+antenna, so without the external one, Wi-Fi and Bluetooth range is almost nil.
+Press the small connector straight down until it clicks. You don't need the
+pin headers.
+
+The DevKitC-1 has two USB-C ports. Use the one labelled **UART** for the web
+installer: the Wi-Fi setup step and logs run on that port.
+
 ## Repo layout
 
 | Path | What |
 |------|------|
-| `esphome/components/magicband/` | ESPHome external component (C++), which builds and broadcasts packets |
-| `esphome/magicband-bridge.yaml` | Example device config for an ESP32-S3, exposing actions to HA |
-| `esphome/secrets.example.yaml` | Template for `secrets.yaml` |
-| `homeassistant/` | Example scripts and automations |
+| `components/magicband/` | ESPHome external component (C++) that builds and broadcasts the packets |
+| `esphome/magicband-bridge.yaml` | Device config, used by the web installer and "Take control" |
+| `web/` | Web installer page |
+| `.github/workflows/firmware.yml` | Builds firmware on every push and publishes the installer to GitHub Pages from `main` |
+| `homeassistant/blueprints/` | Automation blueprint |
+| `homeassistant/*.yaml` | Example scripts and automations, for YAML users |
 | `docs/protocol.md` | What's known about the packet format |
-
-## Hardware
-
-The example config targets an **ESP32-S3-DevKitC-1 N16R8** style board, such as the Lonely Binary ESP32-S3 N16R8 IPEX. Any ESP32-S3 board works, e.g. a Seeed XIAO ESP32-S3.
-You need a USB **data** cable. The board needs no other parts or wiring: it
-just needs USB power somewhere central in the house.
-
-If your board isn't a DevKitC-1, change `board:` in the YAML. For a XIAO, use
-`seeed_xiao_esp32s3`.
-
-## Setup
-
-1. In Home Assistant, install the **ESPHome Device Builder** add-on/app.
-2. Copy `esphome/components/` and `esphome/magicband-bridge.yaml` into
-   `/config/esphome/`, using the Samba, File editor or VS Code add-ons.
-3. Add `wifi_ssid`, `wifi_password`, `ota_password`, `fallback_ap_password` and
-   `api_encryption_key` to `/config/esphome/secrets.yaml`. See
-   `secrets.example.yaml`.
-4. Plug the ESP32-S3 into the computer running your browser. In the ESPHome
-   dashboard, choose **Install → Plug into this computer** for the first flash.
-   Later updates go over Wi-Fi.
-   - If the board isn't detected, hold **BOOT**, tap **RESET**, then release
-     **BOOT**.
-5. HA discovers the device. Adopt it, then open its device page and press
-   **Test red buzz**. Have the band nearby; a shake can help wake it.
-6. Copy `homeassistant/magicband_scripts.yaml` into your `scripts.yaml`, and
-   use the automations file as inspiration.
 
 ## Actions exposed to Home Assistant
 
@@ -116,14 +136,15 @@ reduces broadcast airtime.
 The protocol information comes from the community reverse-engineering effort
 documented at [emcot.world](https://emcot.world/Disney_MagicBand%2B_Bluetooth_Codes).
 
-### DevKitC-1 / Lonely Binary notes
+## Development
 
-**IPEX boards: fit the antenna before powering on.** The WROOM-1U module has no
-built-in antenna, so without the external one Wi-Fi and Bluetooth range is
-almost nil. Press the small IPEX connector straight down until it clicks.
-You don't need the pin headers for this project.
+```bash
+pip install esphome
+cd esphome
+# Build against the local component instead of the copy on GitHub main:
+esphome -s component_source ../components compile magicband-bridge.yaml
+```
 
-The board has two USB-C ports. Either one can flash it:
-- **USB** is the S3's native USB.
-- **UART** goes through a USB-serial chip and is the most reliable for the
-  first flash.
+To release a new firmware version, bump `project_version` in
+`esphome/magicband-bridge.yaml` and merge to `main`. Devices then offer the
+update in Home Assistant.

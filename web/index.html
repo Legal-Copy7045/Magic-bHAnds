@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MagicBand Bridge Installer</title>
+  <meta name="description" content="Install the MagicBand Bridge firmware on an ESP32-S3 from your browser.">
+  <script type="module" src="https://unpkg.com/esp-web-tools@10.4.0/dist/web/install-button.js?module"></script>
+  <style>
+    :root {
+      --bg: #f7f5fb; --card: #ffffff; --text: #1d1a24; --muted: #625c70;
+      --accent: #6a3fd1; --accent-text: #ffffff; --border: #e3deee; --warn-bg: #fff6e0; --warn-border: #f0d48a;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #14121a; --card: #1e1b26; --text: #ece8f4; --muted: #a49db3;
+        --accent: #9b78f0; --accent-text: #14121a; --border: #2f2a3b; --warn-bg: #2b2414; --warn-border: #6b5520;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    main { max-width: 720px; margin: 0 auto; padding: 40px 16px 64px; }
+    h1 { font-size: 1.9rem; margin: 0 0 4px; }
+    .version { color: var(--muted); margin: 0 0 28px; }
+    .card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+      padding: 20px 22px; margin-bottom: 18px;
+    }
+    .card h2 { font-size: 1.1rem; margin: 0 0 10px; display: flex; gap: 10px; align-items: center; }
+    .step {
+      flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--accent);
+      color: var(--accent-text); display: inline-grid; place-items: center; font-size: .9rem; font-weight: 700;
+    }
+    ol, ul { padding-left: 1.2rem; margin: 8px 0; }
+    li { margin: 4px 0; }
+    .warn { display: block; background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: 10px; padding: 10px 14px; }
+    /* Until the installer script has loaded, only show the button. */
+    esp-web-install-button:not(:defined) [slot="unsupported"],
+    esp-web-install-button:not(:defined) [slot="not-allowed"] { display: none; }
+    esp-web-install-button button, .btn {
+      display: inline-block; background: var(--accent); color: var(--accent-text); border: 0;
+      border-radius: 10px; padding: 12px 22px; font: inherit; font-weight: 600; cursor: pointer; text-decoration: none;
+    }
+    .muted { color: var(--muted); font-size: .92rem; }
+    code { background: var(--border); padding: 1px 6px; border-radius: 5px; font-size: .9em; }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+<main>
+  <h1>MagicBand Bridge</h1>
+  <p class="version">Firmware {{VERSION}} · ESP32-S3 · controls MagicBand+ lights &amp; vibration from Home Assistant</p>
+
+  <section class="card">
+    <h2><span class="step">1</span> Prepare the board</h2>
+    <ul>
+      <li><strong>IPEX boards:</strong> click the antenna onto the board <em>before</em> powering it.</li>
+      <li>Plug it into this computer using the USB-C port labelled <code>UART</code>, with a data cable.</li>
+      <li>Use Chrome or Edge on a desktop. Safari and Firefox can't flash boards.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2><span class="step">2</span> Install the firmware</h2>
+    <p>Click Install and pick the serial port that appears when you plug the board in.
+      When flashing finishes, enter your Wi-Fi details.</p>
+    <esp-web-install-button manifest="manifest.json">
+      <button slot="activate">Install</button>
+      <span slot="unsupported" class="warn">Your browser can't flash boards. Open this page in Chrome or Edge on a computer.</span>
+      <span slot="not-allowed" class="warn">This page must be opened over HTTPS.</span>
+    </esp-web-install-button>
+    <p class="muted">Board not detected? Hold <code>BOOT</code>, tap <code>RST</code>, release <code>BOOT</code>, then try again.</p>
+  </section>
+
+  <section class="card">
+    <h2><span class="step">3</span> Add it to Home Assistant</h2>
+    <ol>
+      <li>Home Assistant shows a <em>Discovered</em> notification for “MagicBand Bridge”. Click <strong>Add</strong>.
+        If it doesn't appear, go to Settings → Devices &amp; services → Add integration → ESPHome, and enter <code>magicband-bridge.local</code>.</li>
+      <li>Open the device page, hold your band nearby, and press <strong>Test red buzz</strong>.</li>
+    </ol>
+  </section>
+
+  <section class="card">
+    <h2><span class="step">4</span> Make automations</h2>
+    <p>Import the blueprint, then create “flash my MagicBand when…” automations without writing YAML.</p>
+    <a class="btn" href="https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2FLegal-Copy7045%2FMagic-bHAnds%2Fblob%2Fmain%2Fhomeassistant%2Fblueprints%2Fautomation%2Fmagicband_notify.yaml">Import blueprint</a>
+  </section>
+
+  <p class="muted">Firmware updates appear in Home Assistant as an update on the device. Source, docs and protocol notes:
+    <a href="https://github.com/Legal-Copy7045/Magic-bHAnds">GitHub</a>.
+    Unofficial hobby project, not affiliated with Disney.</p>
+</main>
+</body>
+</html>
