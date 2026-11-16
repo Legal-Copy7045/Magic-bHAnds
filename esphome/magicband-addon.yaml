@@ -16,7 +16,7 @@ substitutions:
 external_components:
   - source: ${component_source}
     components: [magicband]
-    refresh: 1d
+    refresh: 0s   # always use the latest component (avoids stale-cache build errors)
 
 esp32_ble:
   id: ble
