@@ -46,9 +46,7 @@ api:
     key: !secret bp2_api_key
 
 ota:
-  - platform: esphome
-    encryption:
-      key: !secret bp2_api_key
+  - platform: esphome   # encrypted with the api key above
 
 safe_mode:
 
