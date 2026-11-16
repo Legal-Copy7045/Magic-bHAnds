@@ -10,11 +10,14 @@
 substitutions:
   name: magicband-bridge
   friendly_name: MagicBand Bridge
-  project_version: "0.3.0"
-  # Where the magicband component is fetched from. CI and local development
-  # override this with a path, e.g. `-s component_source ../components`.
-  component_source: github://Legal-Copy7045/Magic-bHAnds@main
+  project_version: "0.3.1"
+  # Where the magicband component is fetched from (default in the add-on).
+  # CI and local development override it: `-s component_source ../components`.
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/manifest.json
+
+packages:
+  # MagicBand component, actions, Command entity, light and buttons.
+  magicband: !include magicband-addon.yaml
 
 esphome:
   name: ${name}
@@ -36,11 +39,6 @@ esp32:
   framework:
     type: esp-idf
 
-external_components:
-  - source: ${component_source}
-    components: [magicband]
-    refresh: 1d
-
 # Lets the ESPHome dashboard offer "Take control" (adopt) for this device.
 dashboard_import:
   package_import_url: github://Legal-Copy7045/Magic-bHAnds/esphome/magicband-bridge.yaml@main
@@ -50,122 +48,6 @@ logger:
   # Logs + Improv Wi-Fi setup on the port labelled "UART" (USB-serial chip),
   # the port the web installer uses.
   hardware_uart: UART0
-
-api:
-  # Per-board actions: esphome.magicband_bridge_<suffix>_<action>.
-  # To send to several boards at once, use the "Command" text entity instead
-  # (the blueprint and example scripts do this).
-  # Colours: palette names (red, pink, lime_green, ...) or 0-31.
-  # Vibration: 0 = none, 1-11 = patterns (see docs/protocol.md).
-  actions:
-    # Whole band one colour.
-    - action: color
-      variables:
-        color: string
-        vibration: int
-      then:
-        - lambda: |-
-            id(band).send_single_color(
-                magicband::MagicBand::color_from_string(color), vibration);
-
-    # One colour with full control: which LEDs, how long, fade, always on.
-    - action: color_advanced
-      variables:
-        color: string
-        vibration: int
-        leds: string          # all, top_left, top_right, bottom_left, bottom_right
-        on_seconds: float     # ~5.5-52 (0 = default)
-        fade_seconds: int     # 0-3
-        always_on: bool       # stay lit until another command / off
-      then:
-        - lambda: |-
-            id(band).send_single_color(
-                magicband::MagicBand::color_from_string(color), vibration,
-                magicband::MagicBand::timing_or(magicband::TIMING_SINGLE_DEFAULT,
-                                                on_seconds, fade_seconds, always_on),
-                magicband::MagicBand::leds_from_string(leds));
-
-    # Any colour: 0-255 per channel.
-    - action: rgb
-      variables:
-        red: int
-        green: int
-        blue: int
-        vibration: int
-        always_on: bool
-        flash: bool
-      then:
-        - lambda: |-
-            id(band).send_rgb(red, green, blue, vibration,
-                always_on ? magicband::TIMING_ALWAYS_ON : magicband::TIMING_SINGLE_DEFAULT,
-                flash);
-
-    # Centre (inner) and outer ring colours.
-    - action: dual_color
-      variables:
-        inner: string
-        outer: string
-        vibration: int
-      then:
-        - lambda: |-
-            id(band).send_dual_color(
-                magicband::MagicBand::color_from_string(inner),
-                magicband::MagicBand::color_from_string(outer), vibration);
-
-    # "centre, top right, bottom right, bottom left, top left"
-    - action: five_color
-      variables:
-        colors: string
-        vibration: int
-      then:
-        - lambda: id(band).send_five_color(colors, vibration);
-
-    - action: crossfade
-      variables:
-        color1: string
-        color2: string
-        vibration: int
-      then:
-        - lambda: |-
-            id(band).send_crossfade(
-                magicband::MagicBand::color_from_string(color1),
-                magicband::MagicBand::color_from_string(color2), vibration);
-
-    - action: circle
-      variables:
-        vibration: int
-      then:
-        - lambda: id(band).send_circle(vibration);
-
-    # lightning, orange_blink, color_cycle, rainbow, circle, crossfade, spin_buzz, show_e913
-    - action: animation
-      variables:
-        name: string
-      then:
-        - lambda: id(band).send_animation(name);
-
-    - action: ping
-      variables:
-        fast: bool
-      then:
-        - lambda: id(band).send_ping(fast);
-
-    - action: "off"
-      then:
-        - lambda: id(band).send_off();
-
-    # Experimentation: any payload as hex (leading "83 01" optional), and a
-    # custom broadcast duration in ms (0 = default).
-    - action: raw
-      variables:
-        hex: string
-        duration_ms: int
-      then:
-        - lambda: id(band).send_hex(hex, duration_ms);
-
-    - action: stop
-      then:
-        - lambda: id(band).stop();
 
 ota:
   - platform: esphome      # updates from the ESPHome dashboard
@@ -189,9 +71,6 @@ captive_portal:
 
 improv_serial:
 
-esp32_ble:
-  id: ble
-
 # Optional Bluetooth proxy for Home Assistant, controlled by the
 # "Bluetooth proxy" switch on the device page (off by default). Scanning
 # shares the radio with band broadcasts, so leave it off on boards whose only
@@ -203,67 +82,6 @@ esp32_ble_tracker:
 
 bluetooth_proxy:
   active: true
-
-magicband:
-  id: band
-  duration: 2s        # how long each command is broadcast
-  tx_power: 9dBm      # -12dBm .. 9dBm
-
-light:
-  # Pick any colour in Home Assistant; nearby bands glow it until turned off.
-  # Effects play captured park animations.
-  - platform: magicband
-    id: band_light
-    name: "MagicBand"
-    icon: mdi:watch-variant
-    restore_mode: ALWAYS_OFF
-    default_transition_length: 0s
-    effects:
-      - lambda:
-          name: "Rainbow (5 colour)"
-          update_interval: 1h
-          lambda: |-
-            if (initial_run)
-              id(band).send_five_color("red, orange, yellow, green, blue", 0, magicband::TIMING_ALWAYS_ON);
-      - lambda:
-          name: "Colour cycle"
-          update_interval: 1h
-          lambda: 'if (initial_run) id(band).send_animation("color_cycle");'
-      - lambda:
-          name: "Rainbow animation"
-          update_interval: 1h
-          lambda: 'if (initial_run) id(band).send_animation("rainbow");'
-      - lambda:
-          name: "Lightning"
-          update_interval: 1h
-          lambda: 'if (initial_run) id(band).send_animation("lightning");'
-      - lambda:
-          name: "Orange blink"
-          update_interval: 1h
-          lambda: 'if (initial_run) id(band).send_animation("orange_blink");'
-      - lambda:
-          name: "Circle"
-          update_interval: 1h
-          lambda: 'if (initial_run) id(band).send_animation("circle");'
-      - lambda:
-          name: "Crossfade"
-          update_interval: 1h
-          lambda: 'if (initial_run) id(band).send_animation("crossfade");'
-
-text:
-  # Send a JSON command, e.g. {"effect":"color","color":"red","vibration":3}.
-  # Lets Home Assistant target one, several or all bridges with text.set_value.
-  # Fields: docs/commands.md
-  - platform: template
-    id: command
-    name: "Command"
-    icon: mdi:console-line
-    entity_category: config
-    mode: text
-    max_length: 255
-    optimistic: false
-    set_action:
-      - lambda: id(band).run_command_json(x);
 
 switch:
   - platform: template
@@ -279,52 +97,7 @@ switch:
     turn_off_action:
       - esp32_ble_tracker.stop_scan:
 
-select:
-  # Used by the Buzz button. Patterns: '=0.125s  -=0.25s  *=0.5s  %=1s  #=2s
-  - platform: template
-    id: vibration_pattern
-    name: "Vibration pattern"
-    icon: mdi:vibrate
-    entity_category: config
-    optimistic: true
-    restore_value: true
-    initial_option: "3: ---"
-    options:
-      - "1: -"
-      - "2: --"
-      - "3: ---"
-      - "4: --*"
-      - "5: ----*-"
-      - "6: ---***---"
-      - "7: # (2s)"
-      - "8:  (flutter)"
-      - "9: - (alt)"
-      - "10: * (0.5s)"
-      - "11: % (1s)"
-
 button:
-  - platform: template
-    name: "Buzz"
-    icon: mdi:vibrate
-    on_press:
-      - lambda: |-
-          id(band).send_single_color(magicband::OFF,
-              id(vibration_pattern).active_index().value_or(2) + 1);
-  - platform: template
-    name: "Test red buzz"
-    icon: mdi:watch-vibrate
-    on_press:
-      - lambda: id(band).send_single_color(magicband::RED, 3);
-  - platform: template
-    name: "Test rainbow"
-    icon: mdi:looks
-    on_press:
-      - lambda: id(band).send_five_color("red, orange, yellow, green, blue", 0);
-  - platform: template
-    name: "Ping"
-    icon: mdi:access-point
-    on_press:
-      - lambda: id(band).send_ping(true);
   - platform: restart
     name: "Restart"
     entity_category: diagnostic
