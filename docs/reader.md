@@ -37,6 +37,12 @@ MagicBands give a 7-byte ID like `04-53-65-2A-C0-5F-80`.
 
 ## Wiring
 
+![Breadboard wiring](reader-breadboard.svg)
+
+The diagram uses two breadboards: the DevKitC is too wide for one, so breadboard
+A just holds its unused right-hand pin row. All of the reader's connections are
+on the board's left pin row. Rows refer to breadboard B.
+
 | ESP32-S3 pin | Goes to |
 |---|---|
 | **5V** | 5 V supply (+). Also the PN532 VCC, the MAX98357A VIN, the level shifter VCC and the LED 5 V |
@@ -44,8 +50,8 @@ MagicBands give a 7-byte ID like `04-53-65-2A-C0-5F-80`.
 | **GPIO8** | PN532 **SDA** |
 | **GPIO9** | PN532 **SCL** |
 | **GPIO4** | Level shifter input → 330 Ω → first LED of the **ring** **DIN** |
-| **GPIO5** | MAX98357A **BCLK** |
-| **GPIO6** | MAX98357A **LRC** |
+| **GPIO5** | MAX98357A **LRC** |
+| **GPIO6** | MAX98357A **BCLK** |
 | **GPIO7** | MAX98357A **DIN** |
 
 - **LED chain order:** the ring comes first, then the ring's DOUT goes to the

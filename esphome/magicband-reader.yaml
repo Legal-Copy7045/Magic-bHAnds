@@ -206,8 +206,8 @@ light:
 # WAV/FLAC/MP3 under 5 MB each; see docs/reader.md.
 i2s_audio:
   - id: i2s_out
-    i2s_lrclk_pin: GPIO6
-    i2s_bclk_pin: GPIO5
+    i2s_lrclk_pin: GPIO5   # MAX98357A LRC
+    i2s_bclk_pin: GPIO6    # MAX98357A BCLK
 
 speaker:
   - platform: i2s_audio
