@@ -156,8 +156,41 @@ reduces broadcast airtime.
 
 ## Credits
 
-The protocol information comes from the community reverse-engineering effort
-documented at [emcot.world](https://emcot.world/Disney_MagicBand%2B_Bluetooth_Codes).
+This project builds on other people's work.
+
+**Protocol research**
+- **[emcot.world: Disney MagicBand+ Bluetooth Codes](https://emcot.world/Disney_MagicBand%2B_Bluetooth_Codes)**:
+  the community reverse-engineering wiki this project is based on. It covers
+  the packet layouts, timing byte, vibration patterns, LED masks, colour
+  palette, RGB command and the captured show animations. See
+  [docs/protocol.md](docs/protocol.md).
+- **[xxfunprojectsxx/esp32_magicband](https://github.com/xxfunprojectsxx/esp32_magicband)**:
+  an ESP32-S3 MagicBand+ broadcaster that we used to cross-check the command
+  byte layouts and colour codes. No code was copied (that repo has no
+  licence); this project's firmware was written independently.
+- **[Adafruit: BLE Beacon NeoPixels](https://learn.adafruit.com/ble-beacon-neopixels)**:
+  Adafruit's MagicBand+ beacon project, referenced by the emcot.world wiki.
+  It was also one of the first sources found for this project.
+
+**Software and tools**
+- [ESPHome](https://esphome.io): the firmware framework. The `magicband`
+  component's raw-advertising approach follows ESPHome's `esp32_ble_beacon`
+  component.
+- [ESP Web Tools](https://esphome.github.io/esp-web-tools/) and
+  [Improv Wi-Fi](https://www.improv-wifi.com): browser flashing and Wi-Fi
+  setup on the install page.
+- [Home Assistant](https://www.home-assistant.io): automations, the ESPHome
+  integration and blueprints.
+- [Espressif ESP-IDF](https://github.com/espressif/esp-idf): the ESP32
+  Bluetooth stack.
+
+**Hardware**
+- Developed for the Lonely Binary ESP32-S3 N16R8 IPEX board, which uses the
+  ESP32-S3-DevKitC-1 layout.
+
+MagicBand and MagicBand+ are trademarks of Disney. This is an unofficial hobby
+project with no affiliation to, or endorsement from, Disney, Adafruit or any of
+the projects above.
 
 ## Development
 
