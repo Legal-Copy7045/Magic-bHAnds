@@ -139,7 +139,7 @@ light:
   - platform: esp32_rmt_led_strip
     id: led_chain
     internal: true
-    pin: GPIO4
+    pin: GPIO10   # LED data (via the 74AHCT125); on the Lonely Binary terminal base too
     chipset: WS2812
     channel_colors: GRB
     num_leds: ${ring_leds + mickey_leds}
