@@ -1,14 +1,21 @@
 name: Build, test & release
 
 # Every push builds both firmwares, runs the integration tests and (from main)
-# publishes the web installer. Pushing a tag like v0.7.0 also creates a GitHub
-# Release with the firmware attached; the version must match VERSION.
+# publishes the web installer. To release: Actions -> "Build, test & release"
+# -> Run workflow on main with "release" ticked. That tags v<VERSION> and
+# creates a GitHub Release with the firmware and integration attached.
+# (Pushing a v* tag yourself does the same.)
 on:
   push:
     branches: [main]
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      release:
+        description: "Create a GitHub Release for the version in VERSION"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -143,7 +150,7 @@ jobs:
         uses: actions/deploy-pages@v5
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release && github.ref == 'refs/heads/main')
     needs: [build, build-bp2-poe, test-integration]
     runs-on: ubuntu-latest
     permissions:
@@ -159,13 +166,14 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
         run: |
-          V="${TAG#v}"
+          V="$(tr -d '[:space:]' < VERSION)"
+          TAG="v$V"
+          python3 .github/scripts/check_versions.py "$TAG"
           python3 .github/scripts/release_notes.py "$TAG" > notes.md
           (cd custom_components && zip -qr "../magicband-integration-$V.zip" magicband)
           find firmware -name '*.bin' | while read -r f; do
             cp "$f" "./$(basename "${f%.bin}")-$V.bin"
           done
-          gh release create "$TAG" --title "Magic bHAnds $V" --notes-file notes.md \
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "Magic bHAnds $V" --notes-file notes.md \
             magicband-integration-$V.zip ./*-$V.bin
