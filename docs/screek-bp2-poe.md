@@ -42,15 +42,28 @@ of the factory firmware.
 1. Open the ESPHome Device Builder in Home Assistant and click **+ New device**,
    then **Continue**, give it any name, choose **ESP32-S3**, and **Skip** the
    install.
-2. Click **Edit** on the new device and **replace everything** with:
+2. Click **Edit** on the new device and **replace everything** with the
+   following. Replace `849a4c` with the last six characters of your board's
+   hostname, which is the factory hostname `screek-bp2-poe-xxxxxx`: the end of
+   its MAC address, shown in its boot log or on your router.
    ```yaml
+   substitutions:
+     name: screek-bp2-poe-849a4c
+     friendly_name: SCREEK BP2-POE 849a4c
+
    packages:
      bp2:
        url: https://github.com/Legal-Copy7045/Magic-bHAnds
        ref: main
        files: [esphome/screek-bp2-poe.yaml]
        refresh: 1h
+
+   esphome:
+     name_add_mac_suffix: false
    ```
+   Setting the full name keeps the factory hostname, and it lets the Device
+   Builder find the board: it can't see a name that's generated on the device,
+   so without this the board shows as offline and wireless installs fail.
    This pulls the full config from GitHub, so improvements arrive without
    re-pasting. Click **Install** when you want them. To customise instead,
    paste the full contents of
