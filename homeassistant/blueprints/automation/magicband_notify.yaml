@@ -191,8 +191,9 @@ variables:
       {%- set ns = namespace(e=[]) -%}
       {%- for e in integration_entities('esphome') | select('match', 'text[.]') | select('search', '_command$') -%}
         {%- set d = device_id(e) -%}
+        {%- set has_light = d and (device_entities(d) | select('match', 'light[.].*magicband') | list | count > 0) -%}
         {%- set label = ((device_attr(d, 'model') or '') ~ ' ' ~ (device_attr(d, 'name') or '') ~ ' ' ~ e) | lower -%}
-        {%- if 'magicband' in label -%}{%- set ns.e = ns.e + [e] -%}{%- endif -%}
+        {%- if has_light or 'magicband' in label -%}{%- set ns.e = ns.e + [e] -%}{%- endif -%}
       {%- endfor -%}
       {{- ns.e -}}
     {%- endif -%}
