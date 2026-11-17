@@ -1228,10 +1228,10 @@ polyline.w{fill:none}
 <rect x="230" y="990" width="10" height="10" rx="2" class="hubport"/>
 <rect x="231" y="972" width="8" height="12" rx="2" class="lever"/>
 <rect x="36" y="1054.0" width="230" height="122" rx="8" class="psu"/>
-<text x="48.0" y="1076.0" class="modname" text-anchor="start" >USB-C PD breakout (5807)</text>
-<text x="48.0" y="1093.0" class="modsub" text-anchor="start" >HUSB238: 5V jumper closed,</text>
-<text x="48.0" y="1107.0" class="modsub" text-anchor="start" >1A jumper cut = 5 V 3 A.</text>
-<text x="48.0" y="1121.0" class="modsub" text-anchor="start" >Pi 27 W PD supply (5814)</text>
+<text x="48.0" y="1076.0" class="modname" text-anchor="start" >USB-C PD board, 5 V</text>
+<text x="48.0" y="1093.0" class="modsub" text-anchor="start" >HUSB238 (5807) or CH224K</text>
+<text x="48.0" y="1107.0" class="modsub" text-anchor="start" >board: see power diagram.</text>
+<text x="48.0" y="1121.0" class="modsub" text-anchor="start" >USB-C charger, 20 W+</text>
 <rect x="262" y="1140.0" width="8" height="8" rx="1.5" class="pin"/>
 <text x="256.0" y="1148.0" class="modpin" text-anchor="end" >+</text>
 <rect x="262" y="1158.0" width="8" height="8" rx="1.5" class="pin"/>

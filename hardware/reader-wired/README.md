@@ -27,25 +27,17 @@ and apply here unchanged.
 
 - **Supply:** a **USB-C charger of 20 W or more** (Apple 20 W, a laptop
   charger and so on) and a USB-C cable rated for 3 A or more. At 5 V, USB-C
-  gives up to 3 A; the reader needs at most about 2.6 A with a 24-LED ring
-  (2.1 A with 16).
-- **USB-C breakout:** Adafruit HUSB238 USB-C Power Delivery breakout
-  (product 5807), with the **5V jumper kept closed** and the **1A jumper
-  cut** for 5 V 3 A. Never cut the 5V jumper: that asks the charger for up
-  to 20 V. Details: [breadboard spec](../reader-breadboard/README.md#supply).
+  gives up to 3 A; the reader needs at most about 2.75 A with the 24-LED
+  ring and the 4 Ω speaker.
+- **USB-C PD board:** the Adafruit HUSB238 (product 5807) with the **5V
+  jumper kept closed** and the **1A jumper cut** (5 V 3 A), or a generic
+  CH224K board with its switch set to 5 V and taped down. Never select
+  anything above 5 V. Details: [breadboard spec](../reader-breadboard/README.md#supply)
+  and the [generic parts](../shopping-list.md#generic-alternatives).
 - **Two snap-action 5-wire connectors (Adafruit 874)**, one for 5 V and one for ground. Every power
   wire starts at a hub, and every ground meets at the GND hub.
 
-```
-USB-C charger ─ USB-C breakout ─(22 AWG)─┬─ 5 V hub ──┬─ ESP32 5V            (22 AWG; unclip before using the ESP32's USB)
-                                         │            ├─ interface board 5V  (22 AWG; also feeds the PN532)
-                                         │            ├─ amplifier Vin       (22 AWG)
-                                         │            └─ LED ring 5V         (22 AWG; 1000 µF at the ring)
-                                         └─ GND hub ──┬─ ESP32 GND
-                                                      ├─ interface board GND (also the PN532 ground)
-                                                      ├─ amplifier GND
-                                                      └─ LED ring GND
-```
+![Power distribution](../../docs/reader-power.svg)
 
 **USB rule:** before plugging USB into the ESP32 (for the first install or
 serial logs), **open the 5 V hub's lever and pull out the ESP32's 5 V
@@ -74,27 +66,7 @@ pair down each side). It holds the parts that would otherwise dangle in the
 wiring, and it's the same for both builds. The diagrams draw it hole for
 hole.
 
-```
-                     +3V3 (from ESP32 3V3)
-                      │        │
-                    4.7 kΩ   4.7 kΩ
-                      │        │
-  ESP32 GPIO8 ──────── SDA ────┼──────────────── PN532 SDA
-  ESP32 GPIO9 ──────────────── SCL ───────────── PN532 SCL
-  5 V hub ─── +5V ──────────────────────────────── PN532 VCC
-  GND hub ─── GND ──────────────────────────────── PN532 GND
-
-                  74AHCT125 (Adafruit 1787)
-               ┌──────────── U ────────────┐
-   GND ─── 1  │ 1OE                    VCC │ 14 ─── +5V ─┐
- GPIO10 ── 2  │ 1A                     4OE │ 13 ─── +5V   0.1 µF from pin 14's
-  LED ──── 3  │ 1Y                      4A │ 12 ─── GND   row to ground,
-  out      4  │ 2OE ─── +5V             4Y │ 11 (open)    beside the IC
-   GND ─── 5  │ 2A                     3OE │ 10 ─── +5V
-  (open)   6  │ 2Y                      3A │  9 ─── GND
-   GND ─── 7  │ GND                     3Y │  8 (open)
-               └───────────────────────────┘
-```
+![Interface board](../../docs/reader-interface-board.svg)
 
 | IC pin | Connection | Why |
 |---|---|---|

@@ -291,8 +291,8 @@ def build() -> str:
     # ---------------------------------------------------------------- power: USB-C -> hubs
     hp = hub(150, y(49), ("5 V hub", "Adafruit 874"), n=5, cls="hubp")
     hg = hub(150, y(54), ("GND hub", "Adafruit 874"), n=5, cls="hubg")
-    psu = module(36, y(59.5), 230, 122, "USB-C PD breakout (5807)", ["+", "−"],
-                 ["HUSB238: 5V jumper closed,", "1A jumper cut = 5 V 3 A.", "Pi 27 W PD supply (5814)"], side="right", cls="psu")
+    psu = module(36, y(59.5), 230, 122, "USB-C PD board, 5 V", ["+", "−"],
+                 ["HUSB238 (5807) or CH224K", "board: see power diagram.", "USB-C charger, 20 W+"], side="right", cls="psu")
     wire([psu["+"], (300, psu["+"][1]), (300, hp[0][1] + 14), (hp[0][0], hp[0][1] + 14), hp[0]], "p5 thick")
     wire([psu["−"], (286, psu["−"][1]), (286, hg[0][1] + 14), (hg[0][0], hg[0][1] + 14), hg[0]], "gnd thick")
     text(310, y(61), "22 AWG, ≤30 cm", "awg", "start")

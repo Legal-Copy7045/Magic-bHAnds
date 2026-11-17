@@ -252,8 +252,8 @@ def build(kind: str) -> str:
     # ---------------------------------------------------------------- power (below the interface board)
     hp = hub(620, 760, "5 V hub (874)", "hubp")
     hg = hub(800, 760, "GND hub (874)", "hubg")
-    psu = module(620, 900, 300, 104, "USB-C PD breakout (5807)", ["+", "−"],
-                 ["HUSB238: keep 5V jumper, cut 1A jumper", "= 5 V 3 A. Raspberry Pi 27 W PD supply", "(5814) or a 20 W USB-C charger"],
+    psu = module(620, 900, 300, 104, "USB-C PD board, set to 5 V", ["+", "−"],
+                 ["Adafruit HUSB238 (5807) or a CH224K", "board: see the power diagram.", "USB-C charger of 20 W or more"],
                  side="right", cls="psu")
     wire([psu["+"], (940, psu["+"][1]), (940, 860), (hp[0][0], 860), (hp[0][0], hp[0][1] + 36)], "p5 thick", ends=False)
     add(f'<circle cx="{psu["+"][0]}" cy="{psu["+"][1]}" r="3.4" class="end p5"/>')
@@ -356,11 +356,86 @@ def build(kind: str) -> str:
     return "\n".join(out)
 
 
+def build_interface_board() -> str:
+    """Close-up of the interface board with every wire in and out labelled."""
+    global BX, BY
+    BX, BY = 470, 130
+    out.clear()
+    w, h = 1330, 690
+    add(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" width="{w}" height="{h}" role="img" '
+        f'aria-label="MagicBand Reader interface board">')
+    add(f"<style>{CSS}</style>")
+    add(f'<rect width="{w}" height="{h}" class="bg"/>')
+    text(24, 34, "Interface board (terminal base and point-to-point builds)", "title")
+    text(24, 54, "Adafruit Perma-Proto half-sized PCB (1609), component side. Holes are row and column (c2 = row 2, column c).", "sub")
+    interface_board()
+
+    def tag(x, y, label, sub, cls, anchor):
+        tw = 7.0 * max(len(label), len(sub) * 0.85) + 24
+        bx_ = x - tw if anchor == "end" else x
+        add(f'<rect x="{bx_}" y="{y - 15}" width="{tw}" height="{34 if sub else 22}" rx="6" class="tag {cls}tag"/>')
+        text(bx_ + 10, y + 1, label, "tagt")
+        if sub:
+            text(bx_ + 10, y + 14, sub, "tags")
+
+    ins = [("c2", "ESP32 3V3", "3.3 V for the pull-ups", "p33", 0),
+           ("d6", "ESP32 GPIO8", "I²C SDA", "sda", 1),
+           ("d7", "ESP32 GPIO9", "I²C SCL", "scl", 2),
+           ("d11", "ESP32 GPIO10", "LED data in (IC pin 2)", "led", 3),
+           ("L+25", "5 V hub", "22 AWG red", "p5", 4),
+           ("L-26", "GND hub", "22 AWG black", "gnd", 5)]
+    text(BX - 210, 112, "IN", "h3l", "middle")
+    for hole_, lab, sub, cls, k in ins:
+        hx, hy = hole(hole_)
+        ty = 140 + k * 76
+        lane = bx("L-") - 30 - k * 6
+        wire([(hx, hy), (lane, hy), (lane, ty), (BX - 120, ty)], cls)
+        tag(BX - 120, ty, lab, sub, cls, "end")
+
+    outs = [("L-3", "PN532 GND", "", "gnd", 0),
+            ("L+4", "PN532 VCC", "5 V", "p5", 1),
+            ("c6", "PN532 SDA", "", "sda", 2),
+            ("c7", "PN532 SCL", "", "scl", 3),
+            ("c12", "LED data out", "→ 470 Ω at the ring → DIN", "led", 4)]
+    text(bx("R-") + 190, 112, "OUT", "h3l", "middle")
+    for hole_, lab, sub, cls, k in outs:
+        hx, hy = hole(hole_)
+        ty = 140 + k * 70
+        lx_ = bx("R-") + 120
+        if hole_ in ("L-3", "L+4"):
+            top = by(1) - 44 - k * 8
+            pts = [(hx, hy), (hx - 10 - k * 4, hy), (hx - 10 - k * 4, top), (lx_ - 20 + k * 4, top), (lx_ - 20 + k * 4, ty), (lx_, ty)]
+        elif hole_ == "c12":
+            pts = [(hx, hy), (hx, hy + 8), (bx("b") - 8, hy + 8), (bx("b") - 8, by(28)), (lx_ - 8, by(28)), (lx_ - 8, ty), (lx_, ty)]
+        else:
+            yy = hy - 7 if hole_ == "c6" else hy + 7
+            pts = [(hx, hy), (hx + 4, yy), (lx_ - 30 + k * 6, yy), (lx_ - 30 + k * 6, ty), (lx_, ty)]
+        wire(pts, cls)
+        tag(lx_, ty, lab, sub, cls, "start")
+
+    # pin key
+    kx, ky = bx("R-") + 120, 470
+    add(f'<rect x="{kx}" y="{ky}" width="430" height="170" rx="10" class="notes"/>')
+    text(kx + 14, ky + 22, "74AHCT125 pins (notch towards row 1)", "modname2")
+    left = ["1 1OE → GND (on)", "2 1A ← GPIO10", "3 1Y → LED out", "4 2OE → 5 V (off)",
+            "5 2A → GND", "6 2Y (open)", "7 GND"]
+    right = ["14 VCC → 5 V", "13 4OE → 5 V (off)", "12 4A → GND", "11 4Y (open)",
+             "10 3OE → 5 V (off)", "9 3A → GND", "8 3Y (open)"]
+    for i, (lt, rt) in enumerate(zip(left, right)):
+        text(kx + 14, ky + 46 + i * 17, lt, "mono")
+        text(kx + 230, ky + 46 + i * 17, rt, "mono")
+    text(24, h - 20, "Before fitting the IC: e10, e14, e16, f12, f15 beep to GND; e13, f10, f11, f14 beep to 5 V; 5 V to GND doesn't beep; c6 and c7 each read 4.7 kΩ to c2.", "sub")
+    add("</svg>")
+    return "\n".join(out)
+
+
 CSS = """
 .bg{fill:#ffffff} .title{font:700 22px Inter,system-ui,sans-serif;fill:#1d1b16} .sub{font:500 13px Inter,system-ui,sans-serif;fill:#5c5a52}
 .perma{fill:#1d3f86;stroke:#122a5c;stroke-width:1.5} .pchan{fill:#173570} .pad{fill:#e3c167;stroke:#9d7f2c;stroke-width:.8}
 .rail{stroke-width:2.4;opacity:.8} .rail.pos{stroke:#ff6b6b} .rail.neg{stroke:#9fb8ff}
 .railsym,.collbl,.rowlbl,.pinno{font:600 10px ui-monospace,Menlo,Consolas,monospace;fill:#cfdcff}
+.tag{stroke-width:1.5} .p5tag{fill:#fdecec;stroke:#d62f2f} .gndtag{fill:#ececee;stroke:#222} .p33tag{fill:#fff1df;stroke:#ef8a17} .sdatag{fill:#e6f3fb;stroke:#1f8fd6} .scltag{fill:#e8f5ec;stroke:#2e9a4f} .ledtag{fill:#fff8d6;stroke:#d6a900}
+.tagt{font:700 12px Inter,system-ui,sans-serif;fill:#1d1b16} .tags{font:500 10.5px Inter,system-ui,sans-serif;fill:#3d3b34} .h3l{font:800 13px Inter,system-ui,sans-serif;fill:#5c5a52} .mono{font:500 11.5px ui-monospace,Menlo,Consolas,monospace;fill:#2b2a26}
 .cap{font:600 12px Inter,system-ui,sans-serif;fill:#3d3b34} .pcap{font:600 11px Inter,system-ui,sans-serif;fill:#cfdcff}
 .pcb{fill:#1f3d2f;stroke:#14281e;stroke-width:1.5} .antenna{fill:none;stroke:#cfe0d4;stroke-dasharray:3 3}
 .can{fill:#c8ccd2;stroke:#14281e} .usb{fill:#9ca3ad} .base{fill:#2b2b31;stroke:#18181c;stroke-width:1.5}
@@ -395,4 +470,4 @@ polyline.w{fill:none}
 """
 
 if __name__ == "__main__":
-    print(build(sys.argv[1]))
+    print(build_interface_board() if sys.argv[1] == "interface-board" else build(sys.argv[1]))

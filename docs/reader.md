@@ -81,11 +81,14 @@ hole-by-hole layout and tests.
 
 ### Powering it from a USB-C charger
 
+![Power distribution](reader-power.svg)
+
 Use a **USB-C charger of 20 W or more** (Apple 20 W, a laptop charger and
 so on). At 5 V, USB-C gives **at most 3 A** whatever the charger's wattage,
 which covers a ring-only reader (about 2.6 A worst case). Feed it in through an **Adafruit HUSB238 USB-C Power
-Delivery breakout** (product 5807) set to 5 V 3 A: keep its 5V jumper, cut
-its 1A jumper. Details and the current budget:
+Delivery breakout** (product 5807) set to 5 V 3 A (keep its 5V jumper, cut
+its 1A jumper), or a generic CH224K board set to 5 V with its switch taped
+down. Details and the current budget:
 [breadboard build spec](../hardware/reader-breadboard/README.md#power).
 
 Don't run everything through the ESP32's own USB port. Keep that for the

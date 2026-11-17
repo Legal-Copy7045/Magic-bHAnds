@@ -4,6 +4,8 @@
 .perma{fill:#1d3f86;stroke:#122a5c;stroke-width:1.5} .pchan{fill:#173570} .pad{fill:#e3c167;stroke:#9d7f2c;stroke-width:.8}
 .rail{stroke-width:2.4;opacity:.8} .rail.pos{stroke:#ff6b6b} .rail.neg{stroke:#9fb8ff}
 .railsym,.collbl,.rowlbl,.pinno{font:600 10px ui-monospace,Menlo,Consolas,monospace;fill:#cfdcff}
+.tag{stroke-width:1.5} .p5tag{fill:#fdecec;stroke:#d62f2f} .gndtag{fill:#ececee;stroke:#222} .p33tag{fill:#fff1df;stroke:#ef8a17} .sdatag{fill:#e6f3fb;stroke:#1f8fd6} .scltag{fill:#e8f5ec;stroke:#2e9a4f} .ledtag{fill:#fff8d6;stroke:#d6a900}
+.tagt{font:700 12px Inter,system-ui,sans-serif;fill:#1d1b16} .tags{font:500 10.5px Inter,system-ui,sans-serif;fill:#3d3b34} .h3l{font:800 13px Inter,system-ui,sans-serif;fill:#5c5a52} .mono{font:500 11.5px ui-monospace,Menlo,Consolas,monospace;fill:#2b2a26}
 .cap{font:600 12px Inter,system-ui,sans-serif;fill:#3d3b34} .pcap{font:600 11px Inter,system-ui,sans-serif;fill:#cfdcff}
 .pcb{fill:#1f3d2f;stroke:#14281e;stroke-width:1.5} .antenna{fill:none;stroke:#cfe0d4;stroke-dasharray:3 3}
 .can{fill:#c8ccd2;stroke:#14281e} .usb{fill:#9ca3ad} .base{fill:#2b2b31;stroke:#18181c;stroke-width:1.5}
@@ -711,10 +713,10 @@ polyline.w{fill:none}
 <rect x="880" y="764" width="10" height="10" rx="2" class="hubport"/>
 <rect x="881" y="780" width="8" height="12" rx="2" class="lever"/>
 <rect x="620" y="900" width="300" height="104" rx="8" class="psu"/>
-<text x="632.0" y="922.0" class="modname" text-anchor="start" >USB-C PD breakout (5807)</text>
-<text x="632.0" y="939.0" class="modsub" text-anchor="start" >HUSB238: keep 5V jumper, cut 1A jumper</text>
-<text x="632.0" y="953.0" class="modsub" text-anchor="start" >= 5 V 3 A. Raspberry Pi 27 W PD supply</text>
-<text x="632.0" y="967.0" class="modsub" text-anchor="start" >(5814) or a 20 W USB-C charger</text>
+<text x="632.0" y="922.0" class="modname" text-anchor="start" >USB-C PD board, set to 5 V</text>
+<text x="632.0" y="939.0" class="modsub" text-anchor="start" >Adafruit HUSB238 (5807) or a CH224K</text>
+<text x="632.0" y="953.0" class="modsub" text-anchor="start" >board: see the power diagram.</text>
+<text x="632.0" y="967.0" class="modsub" text-anchor="start" >USB-C charger of 20 W or more</text>
 <rect x="916" y="968" width="8" height="8" rx="1.5" class="pin"/>
 <text x="910.0" y="976.0" class="modpin" text-anchor="end" >+</text>
 <rect x="916" y="986" width="8" height="8" rx="1.5" class="pin"/>

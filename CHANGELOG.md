@@ -35,6 +35,12 @@ Home Assistant integration share one version number.
 - Shopping list: wire sets, solder, flux, heat shrink, Kapton tape, tools,
   and a wiring guide (wire type, colour, length limit and how to finish
   each connection).
+- **Pictures instead of text diagrams:** a power distribution diagram for
+  all builds (both USB-C PD board options, hubs, every branch with wire,
+  length and current) and an interface board close-up with every wire in
+  and out labelled. The wiring diagrams now name either power board.
+- Shopping list: generic (non-Adafruit) alternatives and what to check for
+  each, including a CH224K DIP-switch PD board set to 5 V.
 
 ## [0.8.1] - 2026-11-17
 
