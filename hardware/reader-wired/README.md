@@ -14,6 +14,9 @@ shifter and I²C pull-ups, two lever-connector **power hubs**, and the ring,
 amplifier and PN532 wired to them. Parts: the
 [shopping list](../shopping-list.md).
 
+**Building it? Follow the [step-by-step build](build.md).** This page is the
+reference behind it.
+
 | Terminal base | Point-to-point |
 |---|---|
 | ![Terminal base wiring](../../docs/reader-terminal-base.svg) | ![Point-to-point wiring](../../docs/reader-point-to-point.svg) |
@@ -29,13 +32,13 @@ and apply here unchanged.
   charger and so on) and a USB-C cable rated for 3 A or more. At 5 V, USB-C
   gives up to 3 A; the reader needs at most about 2.75 A with the 24-LED
   ring and the 4 Ω speaker.
-- **USB-C PD board:** the Adafruit HUSB238 (product 5807) with the **5V
-  jumper kept closed** and the **1A jumper cut** (5 V 3 A), or a generic
-  CH224K board with its switch set to 5 V and taped down. Never select
-  anything above 5 V. Details: [breadboard spec](../reader-breadboard/README.md#supply)
-  and the [generic parts](../shopping-list.md#generic-alternatives).
-- **Two snap-action 5-wire connectors (Adafruit 874)**, one for 5 V and one for ground. Every power
-  wire starts at a hub, and every ground meets at the GND hub.
+- **USB-C PD trigger:** a CH224K board with its DIP switch **set to 5 V**,
+  checked with a meter and taped down (or the Adafruit HUSB238, 5807, with
+  the 5V jumper kept and the 1A jumper cut). Never select anything above
+  5 V. Details: [breadboard spec](../reader-breadboard/README.md#supply).
+- **Two 5-way lever connectors** (Wago 221-415 or similar), one for 5 V and
+  one for ground. Every power wire starts at a hub, and every ground meets
+  at the GND hub.
 
 ![Power distribution](../../docs/reader-power.svg)
 
@@ -51,12 +54,12 @@ without the breadboard and its jumpers, plus:
 
 | Qty | Part | Specification | For |
 |---|---|---|---|
-| 1 | Terminal base | **Lonely Binary ESP32-S3 pluggable terminal block** base for the DevKitC-1 layout | Terminal base build |
-| 9 | Jumper leads | **Female/male jumpers, 150 mm** (Adafruit 826), male end cut off | Point-to-point build |
-| 2 | Lever connectors | **Snap-action 5-wire block connector** (Adafruit 874) | Power hubs |
-| 1 | Perfboard | **Adafruit Perma-Proto Half-sized Breadboard PCB (1609)**: laid out like a breadboard | Interface board |
-| 1 | IC socket (optional) | DIP-14, 2.54 mm (not sold by Adafruit) | Lets the 74AHCT125 plug in; or solder it directly |
-| — | Wire | 22 AWG **stranded** 10-colour set (Adafruit 3175) instead of solid | All the runs. Colours, lengths and how to finish each wire: [wiring guide](../shopping-list.md#wiring-guide) |
+| 1 | Terminal base | **Lonely Binary ESP32-S3 screwless (push-in) terminal base** for the DevKitC-1 layout | Terminal base build |
+| 6 | Jumper leads | **Female-to-male Dupont jumpers**, 150–200 mm, male end cut off | Point-to-point build: ESP32 3V3, GPIO8/9/10, 5V, GND |
+| 2 | Lever connectors | **5-way lever connector** (Wago 221-415 or similar) | Power hubs |
+| 1 | Perfboard | **Half-size solderable breadboard PCB** (Adafruit Perma-Proto 1609 or similar: rows 1–30, columns a–j, a rail pair each side) | Interface board |
+| 1 | IC socket (optional) | DIP-14, 2.54 mm | Lets the 74AHCT125 plug in; or solder it directly |
+| — | Wire | 22 AWG **stranded** | All the runs. Colours, lengths and how to finish each wire: [wiring guide](../shopping-list.md#wiring-guide) |
 
 ## Interface board
 
@@ -120,9 +123,9 @@ c6 and c7 each to c2 read 4.7 kΩ.
 | **GPIO8** | Left **8** | J1-12 | Interface board SDA |
 | **GPIO9** | Left **9** | J1-15 | Interface board SCL |
 | **GPIO10** | Left **10** | J1-16 | Interface board GPIO10 (IC pin 2) |
-| **GPIO5** | Right **5** | J1-5 | Amplifier **LRC** |
-| **GPIO6** | Right **6** | J1-6 | Amplifier **BCLK** |
-| **GPIO7** | Left **7** | J1-7 | Amplifier **DIN** |
+| **GPIO5** | Right **5** | J1-5 | Amplifier cable **LRC** |
+| **GPIO6** | Right **6** | J1-6 | Amplifier cable **BCLK** |
+| **GPIO7** | Left **7** | J1-7 | Amplifier cable **DIN** |
 
 - **Point-to-point:** J1 is the header on the left with the antenna at the
   top (component side up); J1-1 (3V3) is nearest the antenna. Female Dupont
@@ -136,33 +139,23 @@ c6 and c7 each to c2 read 4.7 kΩ.
 
 | From | To | Notes |
 |---|---|---|
-| USB-C breakout terminal + / − | 5 V hub / GND hub | 22 AWG stranded, ≤ 30 cm |
+| PD trigger output + / − | 5 V hub / GND hub | 22 AWG stranded, ≤ 30 cm |
 | 5 V hub / GND hub | Interface board +5V / GND | 22 AWG |
 | Interface board +5V, GND, SDA, SCL | PN532 **VCC**, **GND**, **SDA**, **SCL** | ≤ 20 cm. Switches: 1 ON, 2 OFF (I²C) |
-| 5 V hub / GND hub | Amplifier **Vin** / **GND** | 22 AWG. 100 µF 16 V across Vin and GND at the amplifier (solder to its header pins), stripe to GND |
+| 5 V hub / GND hub | Amplifier cable **VIN** / **GND** | 22 AWG. Cut the Dupont ends off the cable's VIN and GND wires and solder each to its 22 AWG hub wire, **with the 100 µF soldered across that joint** (stripe to GND), within 5 cm of the amplifier |
+| Amplifier cable **LRC** / **BCLK** / **DIN** | ESP32 GPIO5 / GPIO6 / GPIO7 | Point-to-point: female Dupont ends plug straight onto J1-5/6/7 (male ends: use female-to-female jumpers). Terminal base: cut the Dupont ends off, strip 8–10 mm, push into the terminals |
 | Interface board LED out | 470 Ω → ring **DIN** | 22 AWG; resistor soldered inline at the ring, in heat-shrink |
 | 5 V hub / GND hub | Ring **5V** / **GND** (or a strip's input end: see [LED options](../shopping-list.md#if-a-ring-wont-fit-flexible-led-options)) | 22 AWG stranded, ≤ 50 cm; 1000 µF 10 V across the ring's pads, stripe to GND |
-| Amplifier + / − | Speaker (Adafruit 3351, 3 W 4 Ω) | Neither terminal is ground |
+| Amplifier PH2.0 speaker socket | Speaker (4 Ω 3 W, its own plug) | Neither wire is ground |
 
 - **Keep the I²S wires (LRC, BCLK, DIN) under about 20 cm**, routed together.
-- **Detachable leads (optional):** JST-PH 2.0 plugs inline, 3-pin for the
-  ring (5V, DATA, GND) and 2-pin for the speaker.
+- **Detachable leads (optional):** a 3-pin JST plug inline for the ring
+  (5V, DATA, GND). A 2-pin JST SM lead suits a detachable ring power pair
+  if the data wire gets its own connector.
 - Insulate every joint with heat-shrink, and fix the modules in the case so
   the joints don't flex.
 
 ## Build and test
 
-Follow the breadboard spec's
-[build and test sequence](../reader-breadboard/README.md#build-and-test-sequence),
-stage by stage, with these differences:
-
-- **Before stage 1:** check the interface board with the IC out (above).
-- **Stage 1:** install the firmware over USB with nothing else connected.
-  Then connect the hubs and the ESP32's 5V/GND, and measure the voltages
-  there.
-- **Stage 2:** the PN532 pre-check is the same: on its own from the 5 V hub,
-  SDA and SCL must read below 3.6 V. Then connect it to the interface board,
-  and the interface board to GPIO8/9 and 3V3.
-- **Stage 3:** fit the 74AHCT125 in its socket (notch to pin 1), then
-  connect the ring. Measure IC pins 14 to 7: 4.75–5.25 V.
-- **Stages 4 and 5:** as written.
+The staged build, with checks after each stage, is in the
+**[step-by-step build](build.md)**.

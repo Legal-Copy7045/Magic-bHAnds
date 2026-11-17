@@ -34,7 +34,7 @@ USED = {"3V3": "3V3", "5": "LRC", "6": "BCLK", "7": "DIN", "8": "SDA",
         "9": "SCL", "10": "LED", "5V": "5V in", "GND": "GND"}
 
 IC_TOP = 34        # 74AHCT125 pin 1 row (column e)
-AMP_TOP = 46       # MAX98357A LRC row (header in column h)
+AMP_TOP = 46       # MAX98357A LRC row: its cable plugs into column h, rows 46-48 and 51-52
 
 out: list[str] = []
 
@@ -167,20 +167,29 @@ def electrolytic(neg: str, pos: str, r=9):
 
 
 def amp():
-    """Adafruit MAX98357A: 7-pin header in column h, body overhanging the right rails."""
-    names = ["LRC", "BCLK", "DIN", "GAIN", "SD", "GND", "Vin"]
-    l, r = x("h") - 9, x("R-") + 96
-    add(f'<rect x="{l}" y="{y(AMP_TOP) - 11}" width="{r - l}" height="{6 * P + 22}" rx="4" class="mod"/>')
-    for i, n in enumerate(names):
-        add(f'<rect x="{x("h") - 4}" y="{y(AMP_TOP + i) - 4}" width="8" height="8" rx="1.5" class="pin"/>')
-        text(x("h") + 9, y(AMP_TOP + i) + 3.5, n, "modpin", "start")
-    text(r - 8, y(AMP_TOP) + 4, "MAX98357A", "modname", "end")
-    text(r - 8, y(AMP_TOP + 1) + 4, "Adafruit 3006", "modsub", "end")
-    text(r - 8, y(AMP_TOP + 2) + 4, "overhangs the", "modsub", "end")
-    text(r - 8, y(AMP_TOP + 3) + 4, "right rails", "modsub", "end")
-    add(f'<rect x="{r - 18}" y="{y(AMP_TOP + 4) - 4}" width="14" height="30" rx="2" class="term"/>')
-    text(r - 22, y(AMP_TOP + 5) + 4, "+ −", "modsub", "end")
-    return (r - 4, y(AMP_TOP + 4) + 4), (r - 4, y(AMP_TOP + 5) + 10)
+    """MAX98357A amplifier kit: off the board, on its 5-wire PH2.0-to-Dupont cable.
+
+    The cable's Dupont ends plug into column h: LRC h46, BCLK h47, DIN h48,
+    GND h51, VIN h52. Rows 49 and 50 stay empty. The speaker plugs into the
+    amplifier's own PH2.0 socket.
+    """
+    names = [("LRC", 0), ("BCLK", 1), ("DIN", 2), ("GND", 5), ("VIN", 6)]
+    mx, my, mw, mh = 776, y(AMP_TOP) - 4, 120, 150
+    add(f'<rect x="{mx}" y="{my}" width="{mw}" height="{mh}" rx="6" class="mod"/>')
+    text(mx + mw - 8, my + 18, "MAX98357A", "modname", "end")
+    text(mx + mw - 8, my + 33, "amp kit (5-pin)", "modsub", "end")
+    text(mx + mw - 8, my + 47, "on its own cable", "modsub", "end")
+    for k, (n, off) in enumerate(names):
+        py = my + 66 + k * 17
+        add(f'<rect x="{mx - 4}" y="{py - 4}" width="8" height="8" rx="1.5" class="pin"/>')
+        text(mx + 8, py + 4, n, "modpin", "start")
+        cls = {"GND": "gnd", "VIN": "p5"}.get(n, ("i2s1", "i2s2", "i2s3")[min(off, 2)])
+        wire([h(f"h{AMP_TOP + off}"), (x("h") + 6, y(AMP_TOP + off)), (752 - k * 4, y(AMP_TOP + off)),
+              (752 - k * 4, py), (mx - 4, py)], cls)
+    # speaker socket (PH2.0) on the bottom edge
+    add(f'<rect x="{mx + mw - 40}" y="{my + mh - 14}" width="28" height="12" rx="2" class="term"/>')
+    text(mx + mw - 46, my + mh - 4, "PH2.0", "modsub", "end")
+    return (mx + mw - 32, my + mh - 2), (mx + mw - 20, my + mh - 2)
 
 
 # ---------------------------------------------------------------- off-board
@@ -228,7 +237,7 @@ NOTES = [
     "0.1 µF across the 74AHCT125 supply (h33–h34); row 33 is grounded by j33.",
     "Unused 74AHCT125 channels tied off: enables to 5 V, inputs to ground.",
     "Left-to-right rail bridges (rows 42 and 43) feed the right-hand rails.",
-    "100 µF at the amplifier supply (g51–g52), stripe (−) to row 51.",
+    "100 µF at the amplifier supply (g51–g52), stripe (−) to row 51. The amp's cable plugs into h46–h48 and h51–h52.",
     "470 Ω at the ring end of the data wire; 1000 µF across the ring's 5V/GND pads.",
 ]
 
@@ -289,10 +298,10 @@ def build() -> str:
                                          (x("f") - 4, y(44.4 + (row - AMP_TOP) * 0.5)), (x("f") - 4, y(row))])
 
     # ---------------------------------------------------------------- power: USB-C -> hubs
-    hp = hub(150, y(49), ("5 V hub", "Adafruit 874"), n=5, cls="hubp")
-    hg = hub(150, y(54), ("GND hub", "Adafruit 874"), n=5, cls="hubg")
-    psu = module(36, y(59.5), 230, 122, "USB-C PD board, 5 V", ["+", "−"],
-                 ["HUSB238 (5807) or CH224K", "board: see power diagram.", "USB-C charger, 20 W+"], side="right", cls="psu")
+    hp = hub(150, y(49), ("5 V hub", "lever conn."), n=5, cls="hubp")
+    hg = hub(150, y(54), ("GND hub", "lever conn."), n=5, cls="hubg")
+    psu = module(36, y(59.5), 230, 122, "USB-C PD trigger, 5 V", ["+", "−"],
+                 ["CH224K: DIP switch at 5 V,", "taped (or HUSB238 5807).", "USB-C charger, 20 W+"], side="right", cls="psu")
     wire([psu["+"], (300, psu["+"][1]), (300, hp[0][1] + 14), (hp[0][0], hp[0][1] + 14), hp[0]], "p5 thick")
     wire([psu["−"], (286, psu["−"][1]), (286, hg[0][1] + 14), (hg[0][0], hg[0][1] + 14), hg[0]], "gnd thick")
     text(310, y(61), "22 AWG, ≤30 cm", "awg", "start")
@@ -306,7 +315,7 @@ def build() -> str:
 
     # ---------------------------------------------------------------- PN532
     pn = module(36, 176, 236, 196, "PN532 NFC module V3", ["GND", "VCC", "SDA", "SCL"],
-                ["Elechouse V3 or clone (AITRIP)", "Switches: 1 = ON, 2 = OFF (I²C)", "Header: GND VCC SDA SCL",
+                ["AITRIP or Elechouse V3", "Switches: 1 = ON, 2 = OFF (I²C)", "Header: GND VCC SDA SCL",
                  "VCC from 5 V. Its header has no", "pull-ups: the 4.7 kΩ add them"], side="right")
     wire([pn["GND"], (300, pn["GND"][1]), (300, y(28)), h("L-28")], "gnd")
     wire([pn["VCC"], (312, pn["VCC"][1]), (312, y(27)), h("L+27")], "p5")
@@ -315,8 +324,8 @@ def build() -> str:
     text(154, 392, "female-to-male jumpers, ≤20 cm", "awg", "middle")
 
     # ---------------------------------------------------------------- LED ring
-    ring = module(1010, RING_Y, 210, 128, "NeoPixel Ring 24", ["DIN", "5V", "GND"],
-                  ["Adafruit 1586, 24 LEDs: the", "PN532 sits inside the ring;", "1000 µF across 5V/GND pads"], side="left")
+    ring = module(1010, RING_Y, 210, 128, "WS2812B ring, 35 LEDs", ["DIN", "5V", "GND"],
+                  ["78 mm inside: the PN532 sits", "inside. LED count: 35. 1000 µF", "across the 5V/GND pads"], side="left")
     capx = ring["5V"][0] - 18
     capy = (ring["5V"][1] + ring["GND"][1]) / 2
     add(f'<circle cx="{capx}" cy="{capy}" r="9" class="elec"/>')
@@ -335,11 +344,11 @@ def build() -> str:
     text(1010, RING_Y + 161, "(22 AWG), never through the breadboard.", "awg", "start")
 
     # ---------------------------------------------------------------- speaker
-    sx, sy = 930, y(60)
-    add(f'<circle cx="{sx}" cy="{sy}" r="34" class="spk"/><circle cx="{sx}" cy="{sy}" r="14" class="spkc"/>')
-    text(sx, sy + 52, "Speaker 3 W 4 Ω (Adafruit 3351)", "partlbl", "middle")
-    wire([a_spk_p, (850, a_spk_p[1]), (850, sy - 10), (sx - 34, sy - 10)], "spkw")
-    wire([a_spk_n, (862, a_spk_n[1]), (862, sy + 10), (sx - 34, sy + 10)], "spkw")
+    sx, sy = 860, y(61)
+    add(f'<circle cx="{sx}" cy="{sy}" r="30" class="spk"/><circle cx="{sx}" cy="{sy}" r="12" class="spkc"/>')
+    text(sx, sy + 46, "Speaker 4 Ω 3 W (in the kit)", "partlbl", "middle")
+    wire([a_spk_p, (a_spk_p[0], sy - 40), (sx - 6, sy - 40), (sx - 6, sy - 30)], "spkw")
+    wire([a_spk_n, (a_spk_n[0], sy - 34), (sx + 6, sy - 34), (sx + 6, sy - 30)], "spkw")
 
     # ---------------------------------------------------------------- markers
     marker(1, x("L-") - 24, y(21.5))

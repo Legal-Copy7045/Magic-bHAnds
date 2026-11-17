@@ -12,6 +12,12 @@ Home Assistant integration share one version number.
   needed.
 - **LED brightness** (5–100 %) and **Idle glow** (0–100 %, 0 = off)
   settings, so the ring can be tuned after installing.
+- **Step-by-step build guides** for the breadboard and for the terminal
+  base and point-to-point builds (`build.md` in each folder), with a check
+  after every stage. The specs, shopping list and diagrams are now written
+  for generic parts: a CH224K USB-C PD trigger set to 5 V, a 5-pin
+  MAX98357A amplifier kit on its own cable, a 35-LED WS2812B ring; Adafruit
+  equivalents are listed alongside.
 - **Automatic power cap:** above 24 LEDs the output is capped at
   24 ÷ count, so full white stays within the 20 W supply (e.g. a generic
   35-LED WS2812B ring runs at up to 68 %).
