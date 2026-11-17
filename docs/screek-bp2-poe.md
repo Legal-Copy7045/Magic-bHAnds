@@ -11,10 +11,13 @@ What changes compared with the factory firmware:
 - **Kept:** Ethernet, the Bluetooth proxy (active, 4 connections,
   1100 ms continuous scanning), the Identify LED, the diagnostic sensors, and
   the Reboot, Safe Mode Boot and Factory Reset buttons.
-- **Re-created:** the Scan Interval and Scan Window numbers and the Scan Active
-  Mode switch, with the same names and defaults (1100 ms, 1100 ms, on). The
-  code behind them is ours, because SCREEK's isn't published. Changing one
-  briefly restarts scanning. Settings survive reboots.
+- **Re-created:** the Scan Interval and Scan Window numbers, with the same
+  names and defaults (1100 ms, 1100 ms). The code behind them is ours,
+  because SCREEK's isn't published. Changing one briefly restarts scanning.
+  Settings survive reboots.
+- **Removed:** the Scan Active Mode switch. Home Assistant now chooses
+  active or passive scanning itself (see below), and the switch fought that
+  choice: Home Assistant then reported the scanner as broken.
 - **Added:** MagicBand entities and actions, and encryption on the connection
   to Home Assistant and on network updates. The factory firmware had neither.
 
@@ -95,8 +98,14 @@ over it must be over USB.
   automatically.
 - From now on, new firmware appears as a **Firmware** update on the device,
   and installs over Ethernet. You don't need the Device Builder again.
-- The Scan Interval, Scan Window and Scan Active Mode entities use SCREEK's
-  names, so they attach to your existing ones.
+- The Scan Interval and Scan Window entities use SCREEK's names, so they
+  attach to your existing ones. The old **Scan Active Mode** entity shows as
+  unavailable after the update: delete it from the device page.
+- **Active or passive scanning** is set in Home Assistant: **Settings →
+  Devices & services → ESPHome → the BP2-POE → Configure → Bluetooth
+  scanning mode** (Auto, Active or Passive). Active scanning also asks
+  devices for their names and extra data; passive only listens, and uses
+  less airtime. Either works for MagicBand broadcasts and for hearing bands.
 
 ## Recovering
 

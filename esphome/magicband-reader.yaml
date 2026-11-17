@@ -19,7 +19,7 @@
 substitutions:
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.8.1"
+  project_version: "0.8.2"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   ring_leds: 24       # LEDs in the ring (e.g. 16 or 24, or a strip formed into a ring)
   # Sound files: downloaded from this repo at build time. To use your own,

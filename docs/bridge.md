@@ -169,6 +169,11 @@ Proxying shares the radio with the band broadcasts. The bridge pauses
 scanning for the ~2 seconds it broadcasts each command, then resumes, so the
 proxy's effect on band range is small.
 
+**Active or passive scanning** isn't a switch on the bridge: Home Assistant
+chooses it. Go to **Settings → Devices & services → ESPHome → the bridge →
+Configure → Bluetooth scanning mode** (Auto, Active or Passive). Auto is
+fine; the bridge supports both.
+
 ## Range and reliability tips
 
 - Bridges transmit at maximum power by default: +20 dBm on ESP32-S3. In
