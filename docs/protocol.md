@@ -102,30 +102,44 @@ colour, they are an **LED mask**:
 | **Any colour (RGB)** | `E9 08 00 TT D2 55 RR GG BB (B0\|v)` | each channel: bit 7 = flash, bits 6–1 = 6-bit level; `D2 55` fixed |
 | Five colours | `E9 09 00 TT 0F (A0\|c)×5 (B0\|v)` | order: centre, top right, bottom right, bottom left, top left |
 | Circle | `E9 0B 0B 0F 0F 5C 5D 48 A5 D1 45 32 (B0\|v)` | |
-| Animations | `E9 0C 00 …` | captured show packets, see below |
+| Scenes | `E9 07`…`E9 14` | captured show packets, see below |
 | Crossfade | `E1 00 E9 11 00 6F 0F (40\|c1) (40\|c2) 58 F4 48 82 D1 46 02 08 D0 65 00 (B0\|v)` | |
 | Spin + buzz | `E9 12 00 01 0F BC BD BD BD BD 30 D0 37 F4 D2 46 00 00 FC BB` | |
 | Ping | `CC 03 00 00 00` | seen everywhere in parks |
-| Fast ping | `CC 03 00 01 00` | believed to switch bands to quicker response *(untested)* |
+| Fast ping | `CC 03 00 01 00` | believed to switch bands to continuous listening, see [Fast mode](#fast-mode-cc-03-00-01-00) |
 
 RGB levels are not balanced: green appears dimmer than red or blue at low
 values, and the effect varies with battery level.
 
-### Captured animations (`send_animation(name)`)
+### Captured animations (scenes)
 
-| Name | Payload |
-|---|---|
-| `lightning` | `E9 0C 00 0F 0F 5D 46 5B F0 05 32 37 48 95` |
-| `orange_blink` | `E9 0C 00 EF 0F 4F 4F 5B F0 FB 14 37 48 95` |
-| `color_cycle` | `E9 0C 00 0F 0F B1 B9 B5 B1 A2 30 7B 7D B0` |
-| `rainbow` | `E9 0C 00 0F 0F 5D 46 5B F0 05 32 37 48 B0` |
-| `circle` | `E9 0B 0B 0F 0F 5C 5D 48 A5 D1 45 32 B0` |
-| `crossfade` | `E1 00 E9 11 00 6F 0F 56 48 58 F4 48 82 D1 46 02 08 D0 65 00 B0` |
-| `spin_buzz` | `E9 12 00 01 0F BC BD BD BD BD 30 D0 37 F4 D2 46 00 00 FC BB` |
-| `show_e913` | `E9 13 00 B6 0F 40 44 58 F4 48 82 D0 65 19 D1 46 06 0A 30 7B FF` |
+31 captured show packets are built in as scenes: see
+[commands.md](commands.md#scenes) for the full list with payloads. Opcodes
+`E9 07`, `0C`, `0E`, `0F`, `10`, `11`, `12`, `13` and `14` aren't decoded
+beyond the shared timing/colour/vibration bytes.
 
-The wiki lists more captures for opcodes `E9 0E`, `0F`, `10` and `14`. Those
-aren't decoded yet, but you can try them with the `raw` action.
+### Fast mode (`CC 03 00 01 00`)
+
+Bands normally listen for broadcasts only now and then. The fast-mode ping
+(captured during the Frozen show) is believed to switch them to continuous
+listening for a while. Haw8411's Flipper Zero app says this cuts the response
+time from about 15 s to under 2 s; that's the author's claim and hasn't been
+measured. The app sends the ping on its own for a "pre-warm" of 5–30 s, then
+interleaves it with the effect (2 packets in 10).
+
+The bridge's **Fast mode** (on by default) does the same: one 100 ms slot in
+five of every broadcast carries the fast ping, with the same E1/E2 prefix as
+the effect. **Fast mode warm-up** (0–15 s, default off) sends the ping on its
+own first when the bridge has been quiet for 30 s; it makes the first effect
+more reliable, but delays it by that long. **Wake bands** sends just the
+ping, for 15 s.
+
+### Band replies
+
+Bands are believed to answer the `CC 03` ping with a longer `CC` advertisement
+of their own, though its contents aren't understood. The MagicBand
+integration logs anything with Disney's company ID that Home Assistant's
+Bluetooth hears (see [integration.md](integration.md#hearing-bands-respond)).
 
 ## Not possible with broadcasts
 

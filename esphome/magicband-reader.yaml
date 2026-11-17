@@ -19,7 +19,7 @@
 substitutions:
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.7.1"
+  project_version: "0.8.0"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   ring_leds: 24       # LEDs in the ring
   mickey_leds: 12     # LEDs in the Mickey head, wired after the ring

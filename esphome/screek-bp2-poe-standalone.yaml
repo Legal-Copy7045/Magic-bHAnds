@@ -14,7 +14,7 @@
 substitutions:
   name: screek-bp2-poe-849a4c
   friendly_name: SCREEK BP2-POE 849a4c
-  project_version: "0.7.1"
+  project_version: "0.8.0"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/bp2/manifest.json
 
 esphome:
@@ -131,7 +131,8 @@ api:
       then:
         - lambda: id(band).send_circle(vibration);
 
-    # lightning, orange_blink, color_cycle, rainbow, circle, crossfade, spin_buzz, show_e913
+    # Predefined scene by name or label, e.g. rainbow, crossfade_3, "Spin & buzz 2".
+    # Full list: docs/commands.md#scenes
     - action: animation
       variables:
         name: string
@@ -143,6 +144,13 @@ api:
         fast: bool
       then:
         - lambda: id(band).send_ping(fast);
+
+    # Fast-mode ping on its own for a while, so bands react quickly afterwards.
+    - action: wake
+      variables:
+        seconds: float
+      then:
+        - lambda: 'id(band).wake_bands(seconds > 0 ? seconds : 15.0f);'
 
     - action: "off"
       then:
@@ -241,6 +249,24 @@ script:
           continuous: true
 
 number:
+  # Fast mode warm-up: after 30 s of quiet, send the fast ping on its own for
+  # this long before the next effect. Makes the first effect more reliable but
+  # delays it by this much. 0 = off.
+  - platform: template
+    id: fast_warmup
+    name: "Fast mode warm-up"
+    icon: mdi:timer-sand
+    entity_category: config
+    unit_of_measurement: s
+    min_value: 0
+    max_value: 15
+    step: 1
+    mode: box
+    optimistic: true
+    restore_value: true
+    initial_value: 0
+    on_value:
+      - lambda: id(band).set_fast_warmup(static_cast<uint32_t>(x * 1000));
   - platform: template
     id: scan_interval
     name: "Scan Interval"
@@ -273,6 +299,20 @@ number:
       - script.execute: apply_scan_settings
 
 switch:
+  # Mixes the "fast mode" ping (CC 03 00 01 00) into every broadcast. It's
+  # believed to switch bands from slow, occasional listening to continuous
+  # listening, so effects start sooner and back-to-back commands land.
+  - platform: template
+    id: fast_mode
+    name: "Fast mode"
+    icon: mdi:run-fast
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    turn_on_action:
+      - lambda: id(band).set_fast_mode(true);
+    turn_off_action:
+      - lambda: id(band).set_fast_mode(false);
   - platform: template
     id: scan_active
     name: "Scan Active Mode"
@@ -351,6 +391,48 @@ text:
       - lambda: id(band).run_command_json(x);
 
 select:
+  # Plays a predefined scene when chosen (use "Play scene" to repeat it).
+  - platform: template
+    id: scene
+    name: "Scene"
+    icon: mdi:movie-open-play
+    optimistic: true
+    restore_value: true
+    initial_option: "Rainbow"
+    options:
+      - "Lightning"
+      - "Orange blink"
+      - "Color cycle"
+      - "Rainbow"
+      - "Circle"
+      - "Alternating"
+      - "Crossfade"
+      - "Crossfade 2"
+      - "Crossfade 3"
+      - "Crossfade 4"
+      - "Crossfade 5"
+      - "Crossfade 6"
+      - "Crossfade 7"
+      - "Spin & buzz"
+      - "Spin & buzz 2"
+      - "Spin & buzz 3"
+      - "Show 0E 1"
+      - "Show 0E 2"
+      - "Show 0E 3"
+      - "Show 0E 4"
+      - "Show 0E 5"
+      - "Show 0F 1"
+      - "Show 0F 2"
+      - "Show 13 1"
+      - "Show 13 2"
+      - "Show 13 3"
+      - "Show 14 1"
+      - "Show 14 2"
+      - "Show 14 3"
+      - "Show 07 1"
+      - "Show 07 2"
+    set_action:
+      - lambda: id(band).send_animation(x);
   # E1 00 / E2 00 prefix (seen in park captures):
   #   Alternate - flip it on each new command (default; makes repeats more reliable)
   #   Both      - experimental: also flip it every 100 ms within each burst
@@ -448,3 +530,44 @@ button:
     icon: mdi:access-point
     on_press:
       - lambda: id(band).send_ping(true);
+  - platform: template
+    name: "Wake bands"
+    icon: mdi:alarm
+    on_press:
+      - lambda: id(band).wake_bands(15);
+  - platform: template
+    name: "Play scene"
+    icon: mdi:play
+    on_press:
+      - lambda: id(band).send_animation(id(scene).current_option());
+  # One-press scenes
+  - platform: template
+    name: "Scene: Rainbow"
+    icon: mdi:looks
+    on_press:
+      - lambda: id(band).send_animation("rainbow");
+  - platform: template
+    name: "Scene: Lightning"
+    icon: mdi:flash
+    on_press:
+      - lambda: id(band).send_animation("lightning");
+  - platform: template
+    name: "Scene: Colour cycle"
+    icon: mdi:palette
+    on_press:
+      - lambda: id(band).send_animation("color_cycle");
+  - platform: template
+    name: "Scene: Crossfade"
+    icon: mdi:gradient-horizontal
+    on_press:
+      - lambda: id(band).send_animation("crossfade");
+  - platform: template
+    name: "Scene: Spin & buzz"
+    icon: mdi:rotate-right
+    on_press:
+      - lambda: id(band).send_animation("spin_buzz");
+  - platform: template
+    name: "Scene: Alternating"
+    icon: mdi:swap-horizontal-variant
+    on_press:
+      - lambda: id(band).send_animation("alternating");

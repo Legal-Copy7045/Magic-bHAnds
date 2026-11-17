@@ -14,7 +14,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from . import MagicBandConfigEntry
-from .const import DOMAIN, SIGNAL_UPDATED
+from .const import DOMAIN, SIGNAL_HEARD, SIGNAL_UPDATED
 from .registry import MagicBandRegistry
 
 
@@ -35,7 +35,9 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: MagicBandConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     registry = entry.runtime_data.registry
-    async_add_entities([LastTapSensor(entry, registry), UnknownBandsSensor(entry, registry)])
+    async_add_entities(
+        [LastTapSensor(entry, registry), UnknownBandsSensor(entry, registry), LastHeardSensor(entry, registry)]
+    )
 
     known: dict[str, PersonLastTapSensor] = {}
 
@@ -170,3 +172,38 @@ class PersonLastTapSensor(_Base):
             "last_band": band.display if band else None,
             "last_reader": band.last_reader if band else None,
         }
+
+
+class LastHeardSensor(_Base):
+    """The last MagicBand+ Bluetooth response heard (through HA's Bluetooth)."""
+
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_translation_key = "last_heard"
+    _attr_icon = "mdi:bluetooth-audio"
+
+    def __init__(self, entry, registry) -> None:
+        super().__init__(entry, registry)
+        self._listener = entry.runtime_data.listener
+        self._attr_unique_id = f"{entry.entry_id}_last_heard"
+
+    async def async_added_to_hass(self) -> None:
+        self.async_on_remove(async_dispatcher_connect(self.hass, SIGNAL_HEARD, self.async_write_ha_state))
+
+    @property
+    def native_value(self) -> datetime | None:
+        heard = self._listener.last_band
+        return _ts(heard.time) if heard else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        heard = self._listener.last_band
+        attrs: dict[str, Any] = {"listening": self._listener.active}
+        if heard:
+            attrs.update(
+                address=heard.address,
+                rssi=heard.rssi,
+                heard_by=heard.source,
+                payload=heard.payload,
+                seconds_after_send=heard.after_send,
+            )
+        return attrs

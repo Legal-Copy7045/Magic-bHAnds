@@ -70,6 +70,11 @@ installer: the Wi-Fi setup step and logs run on that port.
 |---|---|
 | **MagicBand** (light) | Pick any colour with the colour picker. Nearby bands glow it until you turn it off. The **Effects** list plays captured park animations (rainbow, colour cycle, lightning, …). |
 | **Buzz** (button) | Vibrates bands using the **Vibration pattern** setting. |
+| **Scene** (select) + **Play scene** (button) | Plays any of the 31 [predefined scenes](commands.md#scenes). |
+| **Scene: Rainbow**, **Lightning**, **Colour cycle**, **Crossfade**, **Spin & buzz**, **Alternating** (buttons) | One-press scenes. |
+| **Wake bands** (button) | Sends the fast-mode ping for 15 s, so bands react quickly to what follows. |
+| **Fast mode** (switch, under Configuration) | On by default. Mixes the fast-mode ping into every broadcast. See [Fast mode](protocol.md#fast-mode-cc-03-00-01-00). |
+| **Fast mode warm-up** (number, under Configuration) | 0–15 s, default 0. After 30 s of quiet, sends the fast ping on its own first. More reliable first effect, but delayed. |
 | **Test red buzz**, **Test rainbow**, **Ping** | Quick tests. |
 | **Command** (text, under Configuration) | Takes JSON commands so HA can send to one, several or all bridges. See [docs/commands.md](commands.md). |
 | **Bluetooth proxy** (switch, under Configuration) | Off by default. Turn it on to also use this board as a Home Assistant Bluetooth proxy. |
@@ -88,8 +93,9 @@ use the blueprint, `script.magicband_send`, or the Command entity.
 | `five_color` | `colors` ("centre, top right, bottom right, bottom left, top left"), `vibration` |
 | `crossfade` | `color1`, `color2`, `vibration` |
 | `circle` | `vibration` |
-| `animation` | `name`: lightning, orange_blink, color_cycle, rainbow, circle, crossfade, spin_buzz, show_e913 |
+| `animation` | `name`: a [scene](commands.md#scenes) id or label |
 | `ping` | `fast` (bool) |
+| `wake` | `seconds`: fast-mode ping on its own (default 15) |
 | `off` | none, turns lights off |
 | `raw` | `hex` (e.g. `E9 05 00 2E 0E E5 B3`), `duration_ms` (0 = default) |
 | `stop` | none, stops broadcasting and clears the queue |
@@ -168,7 +174,10 @@ proxy's effect on band range is small.
 - Bridges transmit at maximum power by default: +20 dBm on ESP32-S3. In
   regions with a 20 dBm EIRP limit (such as the EU) and a high-gain antenna,
   set `tx_power: 17dBm`.
-- Bands only listen now and then. If commands are missed, shake the band.
+- Bands only listen now and then. **Fast mode** (on by default) asks them to
+  listen continuously. If the first effect after a quiet spell is often
+  missed, set **Fast mode warm-up** to 5–10 s, or press **Wake bands** first.
+  Shaking the band also wakes it.
 - Each command starts with `E1 00` or `E2 00`, alternating, as seen in park
   captures. In testing this made repeated commands noticeably more reliable.
   It's on by default. The **Prefix mode** setting on the device page can turn

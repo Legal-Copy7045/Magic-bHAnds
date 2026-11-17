@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "MagicBand",
-        "description": "Logs bands tapped on your MagicBand readers, lets you give bands to people, and keeps every reader's allowed list in sync."
+        "description": "Home Assistant side of Magic bHAnds. Sends light and vibration effects to MagicBand+ bands through your MagicBand bridges (the Send MagicBand effect action), and runs your MagicBand readers: it logs every band tapped, lets you give bands to people (Home Assistant users or not) and keeps each reader's allowed list in sync."
       }
     },
     "abort": {
@@ -88,6 +88,9 @@
       },
       "unknown_bands": {
         "name": "Unknown bands"
+      },
+      "last_heard": {
+        "name": "Last band heard"
       }
     }
   },
@@ -213,8 +216,8 @@
           "description": "Any colour, for the rgb effect."
         },
         "animation": {
-          "name": "Animation",
-          "description": "For the animation effect."
+          "name": "Scene",
+          "description": "Predefined scene, for the animation effect."
         },
         "vibration": {
           "name": "Vibration",
@@ -259,12 +262,20 @@
         "bridges": {
           "name": "Bridges",
           "description": "Command entities of the bridges to use. Leave empty for all bridges."
+        },
+        "seconds": {
+          "name": "Wake time",
+          "description": "Seconds to send the fast-mode ping for, for the wake effect (default 15)."
         }
       }
     },
     "list_bridges": {
       "name": "List MagicBand bridges",
       "description": "Return the Command entities of every MagicBand bridge."
+    },
+    "list_heard": {
+      "name": "List Bluetooth heard",
+      "description": "Return recent MagicBand+ Bluetooth traffic heard by Home Assistant's Bluetooth adapters and proxies: band responses and bridge commands, with the device address, signal strength, which proxy heard it and how long after the last send."
     }
   }
 }

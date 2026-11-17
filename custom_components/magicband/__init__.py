@@ -1,4 +1,7 @@
-"""MagicBand: people, bands and readers for Home Assistant.
+"""MagicBand: the Home Assistant side of Magic bHAnds.
+
+Sends light and vibration effects to MagicBand+ bands through MagicBand
+bridges (``magicband.send``), and hears what bands send back over Bluetooth.
 
 Listens for tag scans from MagicBand readers (ESPHome, project
 legal-copy7045.magicband-reader), keeps a log of every band, lets you give
@@ -41,6 +44,7 @@ from .const import (
 )
 from .blueprint_installer import async_install_blueprints
 from .bridges import ANIMATIONS, EFFECTS, async_send, find_bridges
+from .listener import BandListener
 from .registry import Band, MagicBandRegistry, display_uid
 
 _LOGGER = logging.getLogger(__name__)
@@ -56,6 +60,7 @@ class MagicBandData:
 
     registry: MagicBandRegistry
     sync: Debouncer
+    listener: BandListener
     unsubs: list = field(default_factory=list)
 
 
@@ -91,7 +96,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
         await async_sync_readers(hass, registry)
 
     debouncer = Debouncer(hass, _LOGGER, cooldown=2.0, immediate=False, function=_sync)
-    data = MagicBandData(registry=registry, sync=debouncer)
+    data = MagicBandData(registry=registry, sync=debouncer, listener=BandListener(hass))
     entry.runtime_data = data
 
     @callback
@@ -131,6 +136,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
         data.unsubs.append(
             hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, lambda _e: hass.async_create_task(debouncer.async_call()))
         )
+
+    if (unsub_bt := data.listener.async_start()) is not None:
+        data.unsubs.append(unsub_bt)
 
     _register_services(hass)
     await async_install_blueprints(hass)
@@ -359,7 +367,16 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def send(call: ServiceCall) -> dict[str, Any]:
         bridges = await async_send(hass, dict(call.data))
+        for entry in hass.config_entries.async_loaded_entries(DOMAIN):
+            entry.runtime_data.listener.note_send()
         return {"bridges": bridges}
+
+    async def list_heard(call: ServiceCall) -> dict[str, Any]:
+        entries = hass.config_entries.async_loaded_entries(DOMAIN)
+        if not entries:
+            raise ServiceValidationError("MagicBand isn't set up")
+        listener = entries[0].runtime_data.listener
+        return {"listening": listener.active, "heard": listener.as_list()}
 
     async def list_bridges(call: ServiceCall) -> dict[str, Any]:
         return {"bridges": find_bridges(hass)}
@@ -383,6 +400,7 @@ def _register_services(hass: HomeAssistant) -> None:
                 vol.Optional("always_on"): cv.boolean,
                 vol.Optional("flash"): cv.boolean,
                 vol.Optional("fast"): cv.boolean,
+                vol.Optional("seconds"): vol.All(vol.Coerce(float), vol.Range(min=1, max=60)),
                 vol.Optional("hex"): cv.string,
                 vol.Optional("duration_ms"): vol.All(vol.Coerce(int), vol.Range(min=0, max=30000)),
                 vol.Optional("command"): dict,
@@ -392,6 +410,7 @@ def _register_services(hass: HomeAssistant) -> None:
         supports_response=SupportsResponse.OPTIONAL,
     )
     hass.services.async_register(DOMAIN, "list_bridges", list_bridges, supports_response=SupportsResponse.ONLY)
+    hass.services.async_register(DOMAIN, "list_heard", list_heard, supports_response=SupportsResponse.ONLY)
 
 
 def _band_dict(registry: MagicBandRegistry, band: Band) -> dict[str, Any]:
