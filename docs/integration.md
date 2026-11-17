@@ -72,6 +72,8 @@ model shows *MagicBand+* once Bluetooth is linked, *MagicBand* before.
 | `sensor.<band>_last_tap` | NFC side: when it was last tapped on a reader; attributes: NFC ID, label, person, HA person, allowed, reader, scans, first seen, linked Bluetooth band |
 | `binary_sensor.<band>_nearby` | On while its beacon is heard; off after 35 minutes without one (two missed beacons) |
 | `sensor.<band>_last_seen` | When its beacon was last heard; attributes: person, NFC band, which adapter heard it, beacon count, raw payload |
+| `sensor.<band>_heard_by` | Which bridge, proxy or adapter heard its latest beacon, by its Home Assistant device name (e.g. "Kitchen MagicBand Bridge"); rename the device to change it |
+| `sensor.<band>_closest` | The bridge, proxy or adapter that heard it strongest in the last 20 minutes: a rough "which room"; attributes list every one that heard it, strongest first |
 | `sensor.<band>_signal` | Signal strength of the last beacon, and per adapter or proxy (diagnostic) |
 | `sensor.<band>_battery` | Battery level in %, from its beacon, in steps (5, 15, 50, 60, 72, 80, 98, 100). A battery sensor, so it works in battery views and low-battery automations |
 

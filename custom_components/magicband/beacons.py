@@ -35,10 +35,12 @@ from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 import logging
+import re
 from typing import Any
 
 from homeassistant.components import persistent_notification
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_call_later, async_track_time_interval
 from homeassistant.helpers.storage import Store
@@ -63,6 +65,7 @@ MATCH_BITS = 4
 ENCRYPTED_PREFIX = bytes.fromhex("0F1101")
 
 AWAY_AFTER = timedelta(minutes=35)  # two missed beacons
+CLOSEST_WINDOW = timedelta(minutes=20)  # beacons that count towards "closest"
 PAIRING_WINDOW = timedelta(minutes=20)  # covers at least one beacon
 CLEAR_WINNER_DB = 10
 SAMPLES = 50
@@ -99,6 +102,46 @@ def parse(payload: bytes) -> Beacon | None:
     )
 
 
+_MAC_IN_NAME = re.compile(r"\s*\(([0-9A-Fa-f:]{17})\)\s*$")
+
+
+def adapter_name(hass: HomeAssistant, source: str | None) -> str | None:
+    """A friendly name for a Bluetooth adapter or proxy ("Kitchen MagicBand Bridge").
+
+    `source` is the scanner's address (or an older "name (address)" string).
+    Uses the name of its device in Home Assistant, including any rename.
+    """
+    if not source:
+        return None
+    m = _MAC_IN_NAME.search(source)
+    address = (m.group(1) if m else source).upper()
+    dev_reg = dr.async_get(hass)
+    device = None
+    for entry in hass.config_entries.async_entries("bluetooth"):
+        if (entry.unique_id or "").upper() == address:
+            if device_id := entry.data.get("source_device_id"):
+                device = dev_reg.async_get(device_id)
+            if device is None:
+                device = next(iter(dr.async_entries_for_config_entry(dev_reg, entry.entry_id)), None)
+            if device is None:
+                return _MAC_IN_NAME.sub("", entry.title).removeprefix("Unknown ").strip() or source
+            break
+    if device is None:
+        device = dev_reg.async_get_device(connections={(dr.CONNECTION_BLUETOOTH, address)})
+    if device is not None:
+        name = device.name_by_user or device.name or source
+        return _MAC_IN_NAME.sub("", name).removeprefix("Unknown ").strip()
+    try:
+        from homeassistant.components import bluetooth
+
+        scanner = bluetooth.async_scanner_by_source(hass, address)
+        if scanner is not None and getattr(scanner, "name", None):
+            return _MAC_IN_NAME.sub("", scanner.name).strip()
+    except Exception:  # noqa: BLE001 - the name is cosmetic
+        pass
+    return _MAC_IN_NAME.sub("", source).strip() or source
+
+
 def bit_distance(a: bytes, b: bytes) -> int:
     return sum(bin(x ^ y).count("1") for x, y in zip(a, b))
 
@@ -124,6 +167,7 @@ class BluetoothBand:
     last_address: str | None = None
     last_payload: str | None = None
     rssi_by_source: dict[str, int] = field(default_factory=dict)
+    heard: dict[str, list] = field(default_factory=dict)  # source -> [rssi, iso time]
     forms: list[str] = field(default_factory=list)  # beacon forms seen, e.g. "C0 0F"
     level_history: list[list] = field(default_factory=list)  # [iso time, level]
     samples: list[list] = field(default_factory=list)  # [iso time, payload hex, rssi, source]
@@ -135,6 +179,19 @@ class BluetoothBand:
     @property
     def battery(self) -> int | None:
         return battery_from_level(self.level)
+
+    def closest(self, now: datetime | None = None) -> tuple[str | None, int | None]:
+        """The adapter that heard this band strongest in the last 20 minutes."""
+        now = now or dt_util.utcnow()
+        recent = [
+            (rssi, source)
+            for source, (rssi, when) in self.heard.items()
+            if (seen := dt_util.parse_datetime(when)) is not None and now - seen <= CLOSEST_WINDOW
+        ]
+        if not recent:
+            return None, None
+        rssi, source = max(recent)
+        return source, rssi
 
     def nearby(self, now: datetime | None = None) -> bool:
         seen = dt_util.parse_datetime(self.last_seen)
@@ -275,6 +332,7 @@ class BeaconTracker:
         band.last_address = address
         band.last_payload = payload.hex(" ").upper()
         band.rssi_by_source[source] = rssi
+        band.heard[source] = [rssi, now]
         if beacon.form not in band.forms:
             band.forms = [*band.forms, beacon.form]
         if beacon.level != band.level:
@@ -298,7 +356,7 @@ class BeaconTracker:
                 "battery": band.battery,
                 "level": band.level,
                 "rssi": rssi,
-                "heard_by": source,
+                "heard_by": adapter_name(self.hass, source),
                 "new": is_new,
             },
         )
@@ -431,8 +489,9 @@ class BeaconTracker:
             "level": band.level,
             "level_history": band.level_history,
             "rssi": band.last_rssi,
-            "heard_by": band.last_source,
-            "rssi_by_source": band.rssi_by_source,
+            "heard_by": adapter_name(self.hass, band.last_source),
+            "closest": adapter_name(self.hass, band.closest()[0]),
+            "rssi_by_source": {adapter_name(self.hass, s) or s: r for s, r in band.rssi_by_source.items()},
             "variable_bits": band.variable_bits(),
             "forms": band.forms,
             "samples": band.samples,

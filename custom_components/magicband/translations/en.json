@@ -116,6 +116,12 @@
       },
       "band_last_tap": {
         "name": "Last tap"
+      },
+      "band_heard_by": {
+        "name": "Heard by"
+      },
+      "band_closest": {
+        "name": "Closest"
       }
     },
     "binary_sensor": {

@@ -17,7 +17,7 @@ from homeassistant.util import dt as dt_util
 from . import MagicBandConfigEntry
 from .const import DOMAIN, SIGNAL_HEARD, SIGNAL_UPDATED
 from .band_entity import BluetoothBandEntity, NfcBandEntity, async_setup_band_entities
-from .beacons import BeaconTracker
+from .beacons import CLOSEST_WINDOW, BeaconTracker, adapter_name
 from .registry import MagicBandRegistry
 
 
@@ -65,7 +65,7 @@ async def async_setup_entry(
         hass,
         entry.runtime_data.beacons,
         async_add_entities,
-        [BandLastSeenSensor, BandSignalSensor, BandBatterySensor],
+        [BandLastSeenSensor, BandHeardBySensor, BandClosestSensor, BandSignalSensor, BandBatterySensor],
         [BandLastTapSensor],
         entry.async_on_unload,
     )
@@ -248,11 +248,57 @@ class BandLastSeenSensor(BluetoothBandEntity, SensorEntity):
         return {
             "person": person.name if person else None,
             "band": nfc.display if nfc else None,
-            "heard_by": band.last_source,
+            "heard_by": adapter_name(self.hass, band.last_source),
             "beacons": band.beacons,
             "first_seen": band.first_seen,
             "payload": band.last_payload,
         }
+
+
+class BandHeardBySensor(BluetoothBandEntity, SensorEntity):
+    """Which bridge, proxy or adapter heard the band's latest beacon."""
+
+    _attr_icon = "mdi:access-point"
+
+    def __init__(self, tracker: BeaconTracker, band_id: str) -> None:
+        super().__init__(tracker, band_id, "heard_by")
+
+    @property
+    def native_value(self) -> str | None:
+        band = self.band
+        return adapter_name(self.hass, band.last_source) if band else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        band = self.band
+        return {"rssi": band.last_rssi, "at": band.last_seen} if band else {}
+
+
+class BandClosestSensor(BluetoothBandEntity, SensorEntity):
+    """The bridge, proxy or adapter that heard the band strongest in the last 20 minutes."""
+
+    _attr_icon = "mdi:map-marker-radius"
+
+    def __init__(self, tracker: BeaconTracker, band_id: str) -> None:
+        super().__init__(tracker, band_id, "closest")
+
+    @property
+    def native_value(self) -> str | None:
+        band = self.band
+        return adapter_name(self.hass, band.closest()[0]) if band else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        band = self.band
+        if band is None:
+            return {}
+        now = dt_util.utcnow()
+        recent = {
+            adapter_name(self.hass, s) or s: rssi
+            for s, (rssi, when) in band.heard.items()
+            if (seen := dt_util.parse_datetime(when)) is not None and now - seen <= CLOSEST_WINDOW
+        }
+        return {"rssi": band.closest()[1], "heard_in_last_20_minutes": dict(sorted(recent.items(), key=lambda kv: -kv[1]))}
 
 
 class BandSignalSensor(BluetoothBandEntity, SensorEntity):
@@ -274,7 +320,12 @@ class BandSignalSensor(BluetoothBandEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         band = self.band
-        return {"heard_by": band.last_source, "by_source": band.rssi_by_source} if band else {}
+        if band is None:
+            return {}
+        return {
+            "heard_by": adapter_name(self.hass, band.last_source),
+            "by_source": {adapter_name(self.hass, s) or s: r for s, r in band.rssi_by_source.items()},
+        }
 
 
 class BandBatterySensor(BluetoothBandEntity, SensorEntity):
