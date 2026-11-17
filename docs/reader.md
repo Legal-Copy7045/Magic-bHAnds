@@ -46,7 +46,7 @@ In short:
 |---|---|
 | ESP32-S3 dev board | ESP32-S3-DevKitC-1 **N16R8** layout (Espressif, or Lonely Binary N16R8) |
 | NFC reader | **PN532 NFC module V3** (Elechouse or clone), switches set to **I²C** (1 ON, 2 OFF), powered from **5 V**, with two 4.7 kΩ pull-ups to 3.3 V |
-| LED ring | **Adafruit NeoPixel Ring 24** (1586); the PN532 sits inside it. Another ring works: set `ring_leds` |
+| LED ring | **Adafruit NeoPixel Ring 24** (1586); the PN532 sits inside it. For a housing a ring won't fit, a flexible strip works too: [LED options](../hardware/shopping-list.md#if-a-ring-wont-fit-flexible-led-options) |
 | Amplifier + speaker | Adafruit **MAX98357A** breakout (3006), **3 W 4 Ω enclosed speaker** (3351) |
 | Level shifter | **74AHCT125** DIP (Adafruit 1787) for the LED data line, 470 Ω at the ring end |
 | Power | **USB-C charger, 20 W or more**, through an Adafruit HUSB238 USB-C PD breakout set to 5 V 3 A |
@@ -122,8 +122,9 @@ it first connects.
 
 **Customising** (LED counts, sounds, pins): in the ESPHome Device Builder the
 reader shows up with **Take control**, which imports
-`esphome/magicband-reader.yaml` as a package. Change `ring_leds` in its
-substitutions if your ring doesn't have 24 LEDs.
+`esphome/magicband-reader.yaml` as a package. In its substitutions, change
+`ring_leds` if your ring or strip doesn't have 24 LEDs, and
+`ring_color_order` to `RGB` for Adafruit's silicone neon-like strip (4310).
 
 ## Using it with Home Assistant
 

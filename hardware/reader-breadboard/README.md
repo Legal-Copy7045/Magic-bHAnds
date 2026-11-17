@@ -34,7 +34,7 @@ replaces the earlier breadboard documentation, which had these problems:
 |---|---|---|---|
 | 1 | ESP32-S3 dev board | **ESP32-S3-DevKitC-1-N16R8** layout (Espressif, or Lonely Binary N16R8), headers fitted | The firmware needs 16 MB flash and octal PSRAM. Check a clone's pin labels match the [pinout](#esp32-s3-devkitc-1-j1-pins-used) |
 | 1 | NFC reader | **PN532 NFC module V3** (Elechouse, or a clone such as AITRIP), with its 4-pin header | Set to I²C (switch 1 ON, switch 2 OFF) |
-| 1 | LED ring | **Adafruit NeoPixel Ring, 24 × 5050 RGB (product 1586)**: WS2812B or SK6812, 5 V | 52.3 mm inside, so the PN532 fits inside it, clear of the antenna. Another ring works: set `ring_leds` |
+| 1 | LED ring | **Adafruit NeoPixel Ring, 24 × 5050 RGB (product 1586)**: WS2812B or SK6812, 5 V | 52.3 mm inside, so the PN532 fits inside it, clear of the antenna. In a housing a ring won't fit, use a flexible strip instead: [LED options](../shopping-list.md#if-a-ring-wont-fit-flexible-led-options) |
 | 1 | Amplifier | **Adafruit MAX98357A I²S amplifier breakout, product 3006** | A clone works if it has the same pins and a 1 MΩ SD resistor |
 | 1 | Speaker | **Adafruit Mono Enclosed Speaker, 3 W 4 Ω (product 3351)** | Rated for the amplifier's full 3 W into 4 Ω |
 | 1 | Level shifter | **74AHCT125, 14-pin DIP** (Adafruit 1787) | Not the SOT-23 74AHCT1G125, which doesn't fit a breadboard |
@@ -137,7 +137,7 @@ red rail at row 24). Rows run 1–63 from the top; columns are `L−` `L+` `a–
 | ESP32-S3-DevKitC-1 | J1 in **c1–c22**, J3 in **j1–j22** | Antenna towards row 1, USB ports towards row 25, component side up |
 | 4.7 kΩ (SDA pull-up) | a26 – a30 | Lying flat |
 | 4.7 kΩ (SCL pull-up) | b26 – b31 | Lying flat |
-| SN74AHCT125N | pin 1 in **e34**, pins 1–7 down column e (rows 34–40), pins 14–8 down column f | Notch towards row 1 |
+| 74AHCT125 | pin 1 in **e34**, pins 1–7 down column e (rows 34–40), pins 14–8 down column f | Notch towards row 1 |
 | 0.1 µF ceramic | h33 – h34 | |
 | Adafruit MAX98357A | header in **h46–h52** (LRC, BCLK, DIN, GAIN, SD, GND, Vin top to bottom) | Board overhangs the right-hand rails |
 | 100 µF electrolytic | **g51 (−)**, g52 (+) | Stripe towards row 51 |
@@ -227,7 +227,8 @@ Checked against `esphome/magicband-reader.yaml` and ESPHome's source:
   on (default; they sit in parallel with the 4.7 kΩ), bus scan on.
 - **PN532:** `pn532_i2c`, address 0x24 (ESPHome default), polled every 250 ms.
 - **LEDs:** `esp32_rmt_led_strip` on GPIO10, WS2812, **GRB** (the WS2812B
-  datasheet's order), `ring_leds` LEDs (default 24), off at boot, gamma 2.8.
+  datasheet's order; `ring_color_order` changes it), `ring_leds` LEDs
+  (default 24), off at boot, gamma 2.8.
   **There's no brightness cap**, which is why the supply is sized for full
   white.
 - **I²S:** LRCLK GPIO5, BCLK GPIO6, DOUT GPIO7, external DAC, mono. The
@@ -283,7 +284,8 @@ fix it. Fit them anyway.
 3. Power up. Measure: IC pin 14 to pin 7 = 4.75–5.25 V.
 4. In Home Assistant, turn on **Ring**: white 30 %, then red, green and
    blue 100 % each. All LEDs light; colours are correct.
-5. **Stop if:** wrong colours (check `ring_leds` and GRB), flicker or random
+5. **Stop if:** wrong colours (check `ring_leds`, and `ring_color_order`:
+   GRB for most NeoPixels, RGB for the 4310 strip), flicker or random
    colours (check the shifter wiring, the 470 Ω and the common ground), or
    the rail drops below 4.75 V.
 

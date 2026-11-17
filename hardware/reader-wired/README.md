@@ -169,7 +169,7 @@ c6 and c7 each to c2 read 4.7 kΩ.
 | Interface board +5V, GND, SDA, SCL | PN532 **VCC**, **GND**, **SDA**, **SCL** | ≤ 20 cm. Switches: 1 ON, 2 OFF (I²C) |
 | 5 V hub / GND hub | Amplifier **Vin** / **GND** | 22 AWG. 100 µF 16 V across Vin and GND at the amplifier (solder to its header pins), stripe to GND |
 | Interface board LED out | 470 Ω → ring **DIN** | 22 AWG; resistor soldered inline at the ring, in heat-shrink |
-| 5 V hub / GND hub | Ring **5V** / **GND** | 22 AWG stranded, ≤ 50 cm; 1000 µF 10 V across the ring's pads, stripe to GND |
+| 5 V hub / GND hub | Ring **5V** / **GND** (or a strip's input end: see [LED options](../shopping-list.md#if-a-ring-wont-fit-flexible-led-options)) | 22 AWG stranded, ≤ 50 cm; 1000 µF 10 V across the ring's pads, stripe to GND |
 | Amplifier + / − | Speaker (Adafruit 3351, 3 W 4 Ω) | Neither terminal is ground |
 
 - **Keep the I²S wires (LRC, BCLK, DIN) under about 20 cm**, routed together.
