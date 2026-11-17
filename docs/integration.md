@@ -60,11 +60,16 @@ their bands but unassigns them, so they're denied.
 | `sensor.magicband_unknown_bands` | How many bands don't belong to anyone yet, with the most recent in its attributes |
 | `sensor.magicband_last_band_heard` | When a MagicBand+ was last heard over Bluetooth; attributes: address, RSSI, which adapter/proxy heard it, payload, seconds after the last send |
 
-Each MagicBand+ heard over Bluetooth also gets its own device (see
-[Bands over Bluetooth](#bands-over-bluetooth)):
+**Every band gets its own device**, showing everything known about it. A
+band tapped on a reader has its NFC side; a MagicBand+ heard over Bluetooth
+has its Bluetooth side; once the two are linked (see
+[Bands over Bluetooth](#bands-over-bluetooth)) they're **one device** with
+both. It's named after its label or owner ("Nana's MagicBand+"), and its
+model shows *MagicBand+* once Bluetooth is linked, *MagicBand* before.
 
 | Entity | |
 |---|---|
+| `sensor.<band>_last_tap` | NFC side: when it was last tapped on a reader; attributes: NFC ID, label, person, HA person, allowed, reader, scans, first seen, linked Bluetooth band |
 | `binary_sensor.<band>_nearby` | On while its beacon is heard; off after 35 minutes without one (two missed beacons) |
 | `sensor.<band>_last_seen` | When its beacon was last heard; attributes: person, NFC band, which adapter heard it, beacon count, raw payload |
 | `sensor.<band>_signal` | Signal strength of the last beacon, and per adapter or proxy (diagnostic) |
@@ -236,7 +241,10 @@ band, so the integration recognises each band and gives it a device:
   `magicband.link_bluetooth`. To tell two bands apart, put one in a metal
   tin (or out of range) for half an hour: the one still nearby is the other.
 
-The device is named after its owner ("Nana's MagicBand+") once it's linked.
+Linking merges the two sides into one device: the Bluetooth entities move
+onto the band's device, and the Bluetooth-only device disappears.
+Unlinking splits them again. `magicband.list` also shows each band's
+Bluetooth side (nearby, battery, signal).
 Each beacon also fires a `magicband_band_seen` event with `bluetooth_band`,
 `name`, `person`, `band`, `battery`, `level`, `rssi`, `heard_by` and `new`.
 

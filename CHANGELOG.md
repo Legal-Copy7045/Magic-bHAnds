@@ -3,6 +3,16 @@
 All notable changes to Magic bHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.9.1] - 2026-11-17
+
+### Integration
+- **One device per band.** Every band tapped on a reader now has its own
+  device with a **Last tap** sensor (reader, scans, owner, allowed). Linking
+  its Bluetooth side merges the two into one device: Last tap, Nearby, Last
+  seen, Signal and Battery together, named after its label or owner.
+  Unlinking splits them again. `magicband.list` includes each band's
+  Bluetooth side.
+
 ## [0.9.0] - 2026-11-17
 
 ### Integration

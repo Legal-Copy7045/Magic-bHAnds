@@ -320,7 +320,7 @@ def _register_services(hass: HomeAssistant) -> None:
                 }
                 for p in registry.people
             ],
-            "bands": [_band_dict(registry, b) for b in registry.bands],
+            "bands": [_band_dict(registry, b, _beacons()[1]) for b in registry.bands],
         }
 
     hass.services.async_register(
@@ -420,11 +420,7 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def forget_bluetooth(call: ServiceCall) -> None:
         _, tracker = _beacons()
-        band = _bluetooth_band(tracker, call.data["bluetooth_band"])
-        tracker.forget(band)
-        device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, f"bluetooth_{band.id}")})
-        if device is not None:
-            dr.async_get(hass).async_remove_device(device.id)
+        tracker.forget(_bluetooth_band(tracker, call.data["bluetooth_band"]))
 
     hass.services.async_register(
         DOMAIN, "list_bluetooth_bands", list_bluetooth_bands, supports_response=SupportsResponse.ONLY
@@ -483,9 +479,15 @@ def _register_services(hass: HomeAssistant) -> None:
     hass.services.async_register(DOMAIN, "list_heard", list_heard, supports_response=SupportsResponse.ONLY)
 
 
-def _band_dict(registry: MagicBandRegistry, band: Band) -> dict[str, Any]:
+def _band_dict(registry: MagicBandRegistry, band: Band, tracker: BeaconTracker | None = None) -> dict[str, Any]:
     person = registry.get_person(band.person_id)
+    ble = tracker.for_nfc(band.uid) if tracker else None
     return {
+        "bluetooth": (
+            {"id": ble.id, "nearby": ble.nearby(), "last_seen": ble.last_seen, "battery": ble.battery, "rssi": ble.last_rssi}
+            if ble
+            else None
+        ),
         "band": display_uid(band.uid),
         "label": band.label or None,
         "person": person.name if person else None,
