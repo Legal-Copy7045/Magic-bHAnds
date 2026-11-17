@@ -32,6 +32,9 @@ Home Assistant integration share one version number.
   new `ring_color_order` setting for strips that aren't GRB (Adafruit's
   silicone neon-like strip is RGB). The published firmware is unchanged
   (GRB).
+- Shopping list: wire sets, solder, flux, heat shrink, Kapton tape, tools,
+  and a wiring guide (wire type, colour, length limit and how to finish
+  each connection).
 
 ## [0.8.1] - 2026-11-17
 

@@ -47,9 +47,9 @@ replaces the earlier breadboard documentation, which had these problems:
 | 2 | Lever connectors | **Snap-action 5-wire block connector**, 12–24 AWG, 32 A (Adafruit 874, pack of 3) | One for 5 V, one for GND |
 | 1 | USB-C breakout | **Adafruit USB Type C Power Delivery Dummy Breakout, HUSB238 (product 5807)**, set to **5 V 3 A**: keep the 5V jumper, **cut the 1A jumper** (2A stays open) | Rated to 20 V 5 A, with a terminal block. See [Power](#power) |
 | 1 | Power supply | **Raspberry Pi 27 W PD power supply, 5.1 V 5 A (Adafruit 5814)**, or any **USB-C charger of 20 W or more** with a 3 A cable | At 5 V a USB-C charger gives at most 3 A |
-| — | Wire | **22 AWG stranded** red/black (Adafruit 3068, 2976) for the supply, ring and amplifier runs; **22 AWG solid** red/black (Adafruit 288, 290) for wires into the breadboard | Keep the supply-to-hub run under 30 cm and the ring run under 50 cm |
+| — | Wire | **22 AWG stranded** 10-colour set (Adafruit 3175) for the supply, ring and amplifier runs and the LED data wire; **22 AWG solid** set (Adafruit 3174, or red/black 288 and 290) for wires into the breadboard | Colours, lengths and how to finish each wire: [wiring guide](../shopping-list.md#wiring-guide) |
 | — | Jumpers | Breadboarding wire bundle (Adafruit 153); 4 × female/male jumpers, 150 mm (Adafruit 826) for the PN532 | |
-| — | Misc | Heat-shrink, multimeter (DC volts, continuity) | |
+| — | Consumables and tools | Solder, flux pen, heat shrink, Kapton tape, cable ties; soldering iron, wire strippers, **multimeter** (DC volts, continuity) | See the [shopping list](../shopping-list.md#wire-and-consumables-every-build) |
 
 ## Power
 
