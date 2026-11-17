@@ -375,7 +375,7 @@ script:
           // Blank every LED the buffer holds first, so LEDs beyond a reduced count go dark.
           out->set_num_leds(${ring_max_leds});
           for (int i = 0; i < ${ring_max_leds}; i++) (*out)[i] = Color::BLACK;
-          out->write_state(&id(ring));   // sends now (copied into the RMT buffer)
+          out->write_state(id(ring));   // sends now (copied into the RMT buffer)
           out->set_num_leds(n);
           const bool rgb = id(ring_order).current_option() == "RGB";
           out->set_channel_colors(rgb ? light::ChannelColors{0, 1, 2, light::ChannelColors::NO_WHITE}
