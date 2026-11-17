@@ -73,7 +73,7 @@ model shows *MagicBand+* once Bluetooth is linked, *MagicBand* before.
 | `binary_sensor.<band>_nearby` | On while its beacon is heard; off after 35 minutes without one (two missed beacons) |
 | `sensor.<band>_last_seen` | When its beacon was last heard; attributes: person, NFC band, which adapter heard it, beacon count, raw payload |
 | `sensor.<band>_signal` | Signal strength of the last beacon, and per adapter or proxy (diagnostic) |
-| `sensor.<band>_battery_unconfirmed` | The beacon byte that looks like the battery percentage (see [protocol.md](protocol.md#band-beacons)) |
+| `sensor.<band>_battery` | Battery level in %, from its beacon, in steps (5, 15, 50, 60, 72, 80, 98, 100). A battery sensor, so it works in battery views and low-battery automations |
 
 ## Sending effects from automations
 
@@ -227,7 +227,7 @@ Every MagicBand+ sends a short Bluetooth status beacon about every 15
 minutes (details: [protocol.md](protocol.md#band-beacons)). Its Bluetooth
 address changes every time, but part of the beacon stays the same for each
 band, so the integration recognises each band and gives it a device:
-**Nearby**, **Last seen**, **Signal** and **Battery (unconfirmed)**.
+**Nearby**, **Last seen**, **Signal** and **Battery**.
 
 **Whose band is it?** Each Bluetooth band can be linked to the band's NFC ID
 (then it belongs to whoever owns that band), or given to a person directly:
@@ -253,10 +253,23 @@ Home Assistant uses. Adding proxies (any bridge's **Bluetooth proxy**
 switch) extends it. Beacons are stored, so presence and history survive a
 restart.
 
+**Low battery reminder,** for example:
+
+```yaml
+triggers:
+  - trigger: numeric_state
+    entity_id: sensor.morgan_s_magicband_battery
+    below: 20
+actions:
+  - action: notify.notify
+    data:
+      message: "Morgan's MagicBand+ needs charging"
+```
+
 **Help work out the rest:** `magicband.list_bluetooth_bands` returns each
 band's last 50 raw beacons, the history of its level byte and which bits
 change. Charging a band fully and checking whether its **Battery** goes
-back to 100 would confirm the battery reading.
+back to 100 confirmed the battery reading.
 
 ## How it fits with the reader
 

@@ -17,9 +17,8 @@ Worked out from real beacons (see docs/protocol.md, "Band beacons"):
   heard so far (``VARIABLE_BITS``); every other bit never changed. Those
   fixed bits are the band's **signature**: two bands differed in 16 of them,
   while each band's signature stayed identical across 33 beacons.
-- ``LL`` only ever went down, in round decimal steps (100, 98, 80, 72, 50):
-  probably the battery level in percent. *Unconfirmed*: a fully charged band
-  going back to 100 would confirm it.
+- ``LL`` is the **battery level** in percent, in steps (5, 15, 50, 60, 72,
+  80, 98, 100 seen): it fell over a day and rose when the bands were charged.
 - A second message type, ``0F 11 01 ...`` (19 bytes), looks encrypted. It's
   counted but not decoded.
 
