@@ -1,5 +1,7 @@
 # MagicBand Reader PCB (KiCad)
 
+Build option 4 of [the ways to build the reader](../README.md).
+
 A 26 × 58 mm, 2-layer board for the [MagicBand Reader](../../docs/reader.md).
 It replaces the dev board, amplifier module, level shifter and breadboard.
 The NFC reader, speaker and LEDs plug in on leads.
@@ -44,13 +46,17 @@ that offers **5 V 3 A** (most do). 36 LEDs at full white draw ~2 A, and the
 reader's default brightness is well below that. A plain USB-A port gives
 0.5–1.5 A, which is fine for the board but not for bright LEDs.
 
-## Firmware note
+## Firmware
 
-The board uses the ESP32-S3's **native USB** (there's no separate USB-serial
-chip), so the published reader firmware, which logs and sets up Wi-Fi on the
-dev board's UART port, needs `logger: hardware_uart: USB_SERIAL_JTAG` for this
-board. A PCB build of the reader firmware will be added to the web installer
-before boards exist. Flashing from the web installer works either way.
+Use **Reader on the custom PCB** in the web installer, built from
+[`esphome/magicband-reader-pcb.yaml`](../../esphome/magicband-reader-pcb.yaml).
+It's the standard reader with logs and Wi-Fi setup on the ESP32-S3's native
+USB port (the board has no USB-serial chip), and it updates on its own
+channel. Plug in USB-C, click install; if the board isn't detected, hold
+**BOOT**, tap **RESET**, release **BOOT**, and try again.
+
+Once it's running, go through the checks in
+[hardware/README.md](../README.md#checking-a-build-works).
 
 ## How it's made
 

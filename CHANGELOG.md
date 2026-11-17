@@ -21,6 +21,13 @@ Home Assistant integration share one version number.
   after the last send, and adds a `magicband_heard` event, a *Last band
   heard* sensor and `magicband.list_heard`.
 
+- **Ways to build the reader** (`hardware/README.md`): breadboard (start
+  here), Lonely Binary terminal base, point-to-point wiring, and a custom
+  26 × 58 mm PCB (KiCad, routed, Gerbers and JLCPCB files), with a checklist
+  to prove each build works.
+- **Reader firmware for the custom PCB** (`magicband-reader-pcb.yaml`), in
+  the web installer, built in CI with its own update channel.
+
 ### Changed
 - The integration's setup screen describes what it does.
 

@@ -93,6 +93,16 @@
   </section>
 
   <section class="card">
+    <h3>Reader on the custom PCB</h3>
+    <p style="margin:0 0 12px">For the <a href="https://github.com/Legal-Copy7045/Magic-bHAnds/blob/main/hardware/reader-pcb/README.md">MagicBand Reader PCB</a> only: the same reader firmware, set up for the board's built-in USB port. <strong>Untested:</strong> the PCB hasn't been built yet. For a breadboard or dev-board reader, use <em>Install the reader</em> above. <a href="https://github.com/Legal-Copy7045/Magic-bHAnds/blob/main/hardware/README.md">All the ways to build a reader</a>.</p>
+    <esp-web-install-button manifest="reader-pcb/manifest.json">
+      <button slot="activate">Install on the reader PCB</button>
+      <span slot="unsupported" class="warn">Your browser can't flash boards. Open this page in Chrome or Edge on a computer.</span>
+      <span slot="not-allowed" class="warn">This page must be opened over HTTPS.</span>
+    </esp-web-install-button>
+  </section>
+
+  <section class="card">
     <h3>Before you click Install</h3>
     <ul>
       <li><strong>IPEX boards:</strong> click the antenna on before powering the board.</li>
