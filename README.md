@@ -18,10 +18,17 @@ integration that ties them up.
 | | What it does | Bands | Hardware |
 |---|---|---|---|
 | **Part 1: [MagicBand Bridge](docs/bridge.md)** | Lights up and buzzes bands from automations: any colour, animations, vibration patterns | MagicBand+ (Bluetooth) | An ESP32-S3 board, nothing else |
-| **Part 2: [MagicBand Reader](docs/reader.md)** | A park-style tap point. The ring spins, Home Assistant knows whose band it is, green or red with sound, and a MagicBand+ lights up too | Original MagicBands and MagicBand+ (NFC) | ESP32-S3, NFC reader, LED ring, speaker |
+| **Part 2: [MagicBand Reader](docs/reader.md)** | A park-style tap point. The ring spins, Home Assistant knows whose band it is, green or red with sound, and a MagicBand+ lights up too | Original MagicBands and MagicBand+ (NFC) | ESP32-S3, PN532 NFC reader, LED ring (or strip), amplifier and speaker, powered by a USB-C charger. [Shopping list](hardware/shopping-list.md) |
 | **[MagicBand integration](docs/integration.md)** (HACS) | People and their bands (with or without a Home Assistant user), a log of every tap, the *Send MagicBand effect* action and the automation blueprint | Both | None |
 
 ## Quick start
+
+**Building a reader?** Get the parts from the
+[shopping list](hardware/shopping-list.md) and pick a build: the
+[breadboard](hardware/reader-breadboard/README.md) first, then the
+[terminal base or point-to-point](hardware/reader-wired/README.md) version.
+Flash the bare ESP32 (step 1) before wiring the rest, then follow the
+build's staged tests. A bridge needs no extra hardware.
 
 1. **Flash the firmware** from the web installer:
    **https://legal-copy7045.github.io/Magic-bHAnds/**. Choose *Install the
@@ -53,9 +60,14 @@ Then:
 - An optional Bluetooth proxy on the same board
 - Also runs on other ESPHome boards, such as the SCREEK BP2-POE
 
-**MagicBand Reader** ([guide](docs/reader.md), [wiring diagram](docs/reader-breadboard.svg), [ways to build it](hardware/README.md))
+**MagicBand Reader** ([guide](docs/reader.md), [ways to build it](hardware/README.md), [shopping list](hardware/shopping-list.md))
 - Reads original MagicBands and MagicBand+ by their NFC ID
-- LED ring, start-up, tap-in and error sounds
+- An LED ring (or a flexible strip for tighter housings), with start-up,
+  tap-in and error sounds
+- Three ways to build it, each with a wiring diagram, a hole-by-hole wiring
+  table and a staged test plan: [breadboard](hardware/reader-breadboard/README.md),
+  [terminal base and point-to-point](hardware/reader-wired/README.md)
+- Runs from one USB-C charger (20 W or more)
 - Decides green or red on the device, instantly, even with Home Assistant
   offline
 - Lights up and buzzes a MagicBand+ on a successful tap
@@ -100,9 +112,12 @@ it on `main`. It tags `v<VERSION>` and publishes the GitHub Release.
 | `esphome/sounds/` | The reader's sounds (the project owner's recordings) |
 | `custom_components/magicband/` | The MagicBand integration (HACS) |
 | `homeassistant/` | Blueprint and example scripts |
-| `hardware/` | [Ways to build the reader](hardware/README.md) and the [reader PCB](hardware/reader-pcb/README.md) (KiCad) |
+| `hardware/` | [Ways to build the reader](hardware/README.md) and the [shopping list](hardware/shopping-list.md) |
+| `hardware/reader-breadboard/` | Breadboard build: spec, wiring table, tests, and the diagram's generator |
+| `hardware/reader-wired/` | Terminal base and point-to-point builds, with the interface board |
+| `hardware/reader-pcb/` | Custom reader PCB (KiCad), parked until the breadboard build is proven |
 | `web/` | The web installer page |
-| `docs/` | Guides: [bridge](docs/bridge.md), [reader](docs/reader.md), [integration](docs/integration.md), [commands](docs/commands.md), [protocol](docs/protocol.md), [SCREEK BP2-POE](docs/screek-bp2-poe.md) |
+| `docs/` | Guides: [bridge](docs/bridge.md), [reader](docs/reader.md), [integration](docs/integration.md), [commands](docs/commands.md), [protocol](docs/protocol.md), [SCREEK BP2-POE](docs/screek-bp2-poe.md); reader wiring diagrams |
 | `tests/` | Integration tests |
 
 ## Caveats
@@ -112,6 +127,9 @@ it on `main`. It tags `v<VERSION>` and publishes the GitHub Release.
 - The protocol is unofficial and reverse-engineered. See
   [docs/protocol.md](docs/protocol.md).
 - This is for home tinkering. Don't run it anywhere near the parks.
+- The reader builds have been reviewed against the parts' datasheets but
+  not yet built and tested. Follow each build's staged tests, which check
+  voltages before anything is connected to the ESP32.
 
 ## Credits
 
@@ -137,6 +155,9 @@ This project builds on other people's work.
   It was also one of the first sources found for this project.
 
 **MagicBand reader projects** (inspiration for the reader; no code used)
+- [Adafruit: Magic Band Reader](https://learn.adafruit.com/magic-band-reader):
+  a Feather RP2040 reader. Its side-light NeoPixel strip is one of the
+  flexible LED options for tight housings.
 - [foolishmortalbuilders/magicbandreader](https://github.com/foolishmortalbuilders/magicbandreader):
   a Raspberry Pi reader with a pixel ring, Mickey and sounds.
 - [dcivitano/Magic-Band-Reader](https://github.com/dcivitano/Magic-Band-Reader):
@@ -164,6 +185,11 @@ This project builds on other people's work.
 **Hardware**
 - Developed for the Lonely Binary ESP32-S3 N16R8 IPEX board, which uses the
   ESP32-S3-DevKitC-1 layout.
+- The reader builds were checked against Espressif's DevKitC-1 guide,
+  schematic and drawings; Elechouse's PN532 V3 manual and schematic; TI's
+  74AHCT125, Worldsemi's WS2812B and Analog Devices' MAX98357A datasheets;
+  and Adafruit's product pages and guides (NeoPixel Überguide, MAX98357A,
+  HUSB238, PN532).
 
 MagicBand and MagicBand+ are trademarks of Disney. This is an unofficial hobby
 project with no affiliation to, or endorsement from, Disney, Adafruit or any of
@@ -178,6 +204,13 @@ cd esphome
 esphome -s component_source ../components compile magicband-bridge.yaml
 ```
 
-To release a new firmware version, bump `project_version` in
-`esphome/magicband-bridge.yaml` and merge to `main`. Devices then offer the
-update in Home Assistant.
+Hardware diagrams are generated, not drawn by hand:
+
+```bash
+python3 hardware/reader-breadboard/make_diagram.py > docs/reader-breadboard.svg
+python3 hardware/reader-wired/make_diagrams.py terminal-base  > docs/reader-terminal-base.svg
+python3 hardware/reader-wired/make_diagrams.py point-to-point > docs/reader-point-to-point.svg
+```
+
+Releases: see [Releases and versions](#releases-and-versions). Once a
+version is merged to `main`, devices offer the update in Home Assistant.
