@@ -55,7 +55,7 @@ Then:
 
 **MagicBand Reader** ([guide](docs/reader.md), [wiring diagram](docs/reader-breadboard.svg), [ways to build it](hardware/README.md))
 - Reads original MagicBands and MagicBand+ by their NFC ID
-- LED ring and Mickey head, start-up, tap-in and error sounds
+- LED ring, start-up, tap-in and error sounds
 - Decides green or red on the device, instantly, even with Home Assistant
   offline
 - Lights up and buzzes a MagicBand+ on a successful tap

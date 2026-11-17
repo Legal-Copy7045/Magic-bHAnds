@@ -2,7 +2,7 @@
 
 A park-style touch point for Home Assistant. Tap an **original MagicBand** or a
 **MagicBand+** on it: the ring spins, Home Assistant gets the band's ID, the
-ring and Mickey turn green with a chime, and a MagicBand+ also lights up green
+ring turns green with a chime, and a MagicBand+ also lights up green
 and buzzes.
 
 Config: [`esphome/magicband-reader.yaml`](../esphome/magicband-reader.yaml).
@@ -29,47 +29,36 @@ fixed ID, which is the same ID a phone app such as *NFC Tools* shows. The
 reader only reads that ID, so no encrypted Disney data is involved. Original
 MagicBands give a 7-byte ID like `04-53-65-2A-C0-5F-80`.
 
-## Parts
+## Parts and wiring (breadboard)
 
-| Part | Example | Notes |
-|---|---|---|
-| ESP32-S3 dev board | Lonely Binary / DevKitC-1 **N16R8** | Same board as the bridge |
-| NFC reader | **PN532** module (Elechouse V3 or clone) | Set its DIP switches to **I2C** |
-| LED ring | WS2812B ring, 24 LEDs | 12 or 16 also work: change `ring_leds` |
-| Mickey head | WS2812B strip or rings, ~12 LEDs | Set `mickey_leds` |
-| Amplifier | **MAX98357A** I2S board | Plus a 3 W 4–8 Ω speaker |
-| Level shifter | 74AHCT125 (or a single SN74AHCT1G125) | 3.3 V → 5 V for the LED data line |
-| Power | 5 V **3 A** supply | 36 LEDs at full white draw ~2 A. A USB-C charger works: see below |
-| Odds and ends | 330 Ω resistor, 1000 µF capacitor | Resistor in series with LED data; capacitor across the LED 5 V/GND |
+**Build it from the [breadboard build spec](../hardware/reader-breadboard/README.md).**
+It has the reviewed parts list, a hole-by-hole wiring table, the power
+budget and a staged test plan.
 
-## Wiring
+![Breadboard layout](reader-breadboard.svg)
 
-![Breadboard wiring](reader-breadboard.svg)
+In short:
 
-All of the reader's connections are on the DevKitC's left pin row, in
-breadboard B (rows in the tables refer to it). The board is too wide to leave
-free holes on a single breadboard, so its right-hand side needs support: a
-second breadboard (A, as drawn), a wide "ESP32 breadboard", or a block of the
-same height. Nothing connects to the right-hand side.
+| Part | Specification |
+|---|---|
+| ESP32-S3 dev board | ESP32-S3-DevKitC-1 **N16R8** layout (Espressif, or Lonely Binary N16R8) |
+| NFC reader | **PN532 NFC module V3** (Elechouse or clone), switches set to **I²C** (1 ON, 2 OFF), powered from **5 V**, with two 4.7 kΩ pull-ups to 3.3 V |
+| LED ring | One **WS2812B** ring of **16 or 24 LEDs** (or a strip formed into a ring). Set `ring_leds` |
+| Amplifier + speaker | Adafruit **MAX98357A** breakout, **8 Ω 2–3 W** speaker |
+| Level shifter | **SN74AHCT125N** (DIP) for the LED data line, 330 Ω at the ring end |
+| Power | **USB-C laptop charger** through a USB-C breakout with 5.1 kΩ CC resistors: 5 V, up to 3 A |
 
 | ESP32-S3 pin | Goes to |
 |---|---|
-| **5V** | 5 V supply (+). Also the PN532 VCC, the MAX98357A VIN, the level shifter VCC and the LED 5 V |
-| **GND** | Ground for everything (common ground is essential) |
-| **GPIO8** | PN532 **SDA** |
-| **GPIO9** | PN532 **SCL** |
-| **GPIO10** | Level shifter input → 330 Ω → first LED of the **ring** **DIN** |
-| **GPIO5** | MAX98357A **LRC** |
-| **GPIO6** | MAX98357A **BCLK** |
-| **GPIO7** | MAX98357A **DIN** |
+| **5V** | 5 V rail (remove this jumper before plugging USB into the ESP32) |
+| **GND** | Ground |
+| **3V3** | The two I²C pull-ups |
+| **GPIO8** / **GPIO9** | PN532 **SDA** / **SCL** |
+| **GPIO10** | 74AHCT125 → 330 Ω → ring **DIN** |
+| **GPIO5** / **GPIO6** / **GPIO7** | MAX98357A **LRC** / **BCLK** / **DIN** |
 
-- **LED chain order:** the ring comes first, then the ring's DOUT goes to the
-  Mickey head's DIN. The firmware splits the chain into a **Ring** light and a
-  **Mickey** light.
-- **Power the LEDs from the 5 V supply directly**, not through the ESP32's
-  USB.
-- **Level shifter (74AHCT125):** tie its OE pin for the channel you use (1OE)
-  to GND, and power it from 5 V.
+- **LED and amplifier power come straight from two lever-connector hubs**,
+  not through the breadboard rails, and every ground meets at the GND hub.
 - **Placement:** put the PN532 antenna in the centre of the ring, under the
   lid, with **no metal** between it and the band. Read range is a few
   centimetres through plastic.
@@ -124,7 +113,7 @@ the modules, with the board's pins on short leads:
   5 V and one for GND, as the hub for the supply, ESP32 5V/GND, LED ring,
   amplifier and shifter. Put the **1000 µF capacitor** across 5 V and GND
   where the LED ring's cable starts.
-- **Detachable leads:** if you want to unplug the ring, Mickey or speaker,
+- **Detachable leads:** if you want to unplug the ring or speaker,
   put JST-PH 2.0 plugs inline: 3-pin for the LEDs (5V, DATA, GND) and 2-pin
   for the speaker. Pre-crimped JST pigtails make this solder-and-heat-shrink
   only.
@@ -138,15 +127,16 @@ and connectors for leads to the NFC reader, speaker and LEDs.
 
 ### Powering it from a USB-C charger
 
-A USB-C charger that can give **5 V at 3 A**, such as most Dell, Apple or
-Anker USB-C chargers, makes a good supply. Feed it in through a **USB-C power
-breakout board** (sometimes sold as a "USB-C 5V breakout" or "PD trigger"
-set to 5 V), which gives you 5V and GND terminals for the + and − rails.
+A USB-C laptop charger (Dell, Apple, Anker and so on) works well. At 5 V
+USB-C gives **at most 3 A**, whatever the charger's wattage, which covers a
+ring-only reader. Feed it in through a **USB-C breakout with 5.1 kΩ
+resistors on CC1 and CC2**: without them, a standards-compliant charger
+won't switch its output on. Details and the current budget:
+[breadboard build spec](../hardware/reader-breadboard/README.md#power).
 
-Don't run everything through the ESP32's own USB port. That port and its
-protection parts on the DevKitC are only meant for the board itself, and the
-LEDs can draw 2 A. Keep the ESP32's USB port for the first install, with the
-charger unplugged.
+Don't run everything through the ESP32's own USB port. Keep that for the
+first install, with the charger unplugged, and pull the ESP32's 5 V jumper
+before plugging USB in later.
 
 ## Install
 
@@ -170,8 +160,8 @@ it first connects.
 
 **Customising** (LED counts, sounds, pins): in the ESPHome Device Builder the
 reader shows up with **Take control**, which imports
-`esphome/magicband-reader.yaml` as a package. Change `ring_leds` and
-`mickey_leds` in its substitutions if your LED counts differ from 24 and 12.
+`esphome/magicband-reader.yaml` as a package. Change `ring_leds` in its
+substitutions if your ring doesn't have 24 LEDs.
 
 ## Using it with Home Assistant
 
@@ -185,7 +175,7 @@ MagicBand+**, for example to turn on the lounge lights.
 
 | Entity | What it does |
 |---|---|
-| **Ring**, **Mickey** | The LEDs as normal HA lights, so you can use them as a night light too |
+| **Ring** | The LED ring as a normal HA light, so you can use it as a night light too. It glows white while idle |
 | **Last band** | ID of the last band read |
 | **Response mode** | *Known bands only* (default: decided on the reader; new bands are denied), *Welcome every band*, or *Ask Home Assistant* (see below) |
 | **Band scan** | Event entity: every scan appears in the logbook as *welcomed* or *denied* |
