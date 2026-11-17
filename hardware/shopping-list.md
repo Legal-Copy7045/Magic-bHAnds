@@ -98,26 +98,28 @@ under about 0.1 V.
 For a ready-made housing, a short length of flexible NeoPixel strip can
 replace the ring. Every option below is 5 V, uses the same three wires
 (5V, DATA, GND), and needs the same 470 Ω and 1000 µF at its input end.
-Set `ring_leds` to the number of LEDs you use. The wiring and diagrams are
+Set **LED count** to the number of LEDs you use. The wiring and diagrams are
 the same as for the ring: a strip's input end takes the place of the ring's
 DIN, 5V and GND pads.
 
-**Changing `ring_leds` or `ring_color_order`:** the web installer's firmware
-is built for the NeoPixel Ring 24 (24 LEDs, GRB). For another count or
-colour order, adopt the reader in the ESPHome Device Builder (**Take
-control**) and set them in its `substitutions:`, then install from there.
+**LED count and colour order are settings on the reader**, so the web
+installer's firmware fits any ring or strip. After installing, open the
+reader's device page in Home Assistant (Settings → Devices & services →
+ESPHome → the reader) and, under **Configuration**, set **LED count** (1–60;
+default 24) and **LED colour order** (GRB for most; RGB for the 4310 strip).
+They're kept through restarts and updates.
 
 **How many LEDs:** loop length (mm) × LEDs per metre ÷ 1000. A loop 60 mm
 across is about 190 mm long. The current budget assumes **24 LEDs (1.44 A
-at full white)**. With more, set `ring_max_brightness` to 2400 ÷ LEDs,
-rounded down to 5 % (30 LEDs: `80%`; 35: `65%`; 45: `50%`), which keeps
-full white at about 1.44 A. Cut only at the marked cut
+at full white)**. With more, the reader caps the LEDs' output automatically
+(24 ÷ LED count: 35 LEDs run at up to 68 %), so full white stays at about
+1.44 A. Cut only at the marked cut
 lines, and wire to the end marked as the input (arrows point away from it).
 
 | Adafruit | Strip | Width | LEDs/m (60 mm loop) | Light comes out | Notes |
 |---|---|---|---|---|---|
 | [3634](https://www.adafruit.com/product/3634) | NeoPixel **Side Light** Strip, black, 120 LED | 10 mm | 120 (≈ 22) | **Edge** | **Best match.** Curled into a loop standing on its edge, it shines upward like a ring. Adafruit's own Magic Band Reader uses this strip. Also [3635](https://www.adafruit.com/product/3635) (90/m) and [3636](https://www.adafruit.com/product/3636) (60/m, 8 mm) |
-| [4310](https://www.adafruit.com/product/4310) | Flexible Silicone **Neon-like** Skinny NeoPixel | 12 × 6 mm | 96 (≈ 18) | Edge, through a silicone diffuser | Smoothest glow (side-light strip inside silicone). Arrives as 1 m sealed at one end, with a JST SM input. **Colour order is RGB, not GRB**: set `ring_color_order: RGB` (see below) |
+| [4310](https://www.adafruit.com/product/4310) | Flexible Silicone **Neon-like** Skinny NeoPixel | 12 × 6 mm | 96 (≈ 18) | Edge, through a silicone diffuser | Smoothest glow (side-light strip inside silicone). Arrives as 1 m sealed at one end, with a JST SM input. **Colour order is RGB, not GRB**: set **LED colour order** to RGB (see above) |
 | [2963](https://www.adafruit.com/product/2963) / [2964](https://www.adafruit.com/product/2964) | **Mini Skinny** NeoPixel, 60 LED/m | 7.5 mm | 60 (≈ 11) | Face of the strip | Lines a housing wall, facing inward. Needs a diffuser to look continuous. 30/m ([2958](https://www.adafruit.com/product/2958)) is too sparse for a small loop |
 | [4368](https://www.adafruit.com/product/4368) | **Ultra Skinny** NeoPixel 1515, 4 mm | 4 mm | 150 (cut to fit; cap over 24) | Face of the strip | Tightest spaces; cut every 7 mm. Adafruit warns it shouldn't be flexed repeatedly: shape it once |
 
@@ -129,7 +131,7 @@ lines, and wire to the end marked as the input (arrows point away from it).
 - **RGBW strips:** the firmware drives RGB LEDs.
 - **144 LED/m strips** (e.g. [2970](https://www.adafruit.com/product/2970)):
   usable, but a 60 mm loop would hold 27 LEDs:
-  cut to 24, or keep 27 with `ring_max_brightness: 85%`.
+  cut to 24, or keep 27 (the reader caps them at 88 %).
 
 Not stated by Adafruit: the smallest safe bend for each strip. Try the
 loop size with the strip unpowered before you commit to the housing.
@@ -141,7 +143,7 @@ What to check on the listing:
 
 | Adafruit part | Generic? | Check on the listing |
 |---|---|---|
-| NeoPixel Ring 24 (1586) | Yes | **WS2812B** or **SK6812**, **5 V**, pads for DIN, 5V and GND. Not WS2811 (usually 12 V) or APA102 (4 wires). Inside diameter **about 45 mm or more**, so the PN532 fits inside. More than 24 LEDs (e.g. a 35-LED ring): set `ring_leds` and `ring_max_brightness` (see above). A bundled USB remote controller isn't used: only the ESP32 drives the data line |
+| NeoPixel Ring 24 (1586) | Yes | **WS2812B** or **SK6812**, **5 V**, pads for DIN, 5V and GND. Not WS2811 (usually 12 V) or APA102 (4 wires). Inside diameter **about 45 mm or more**, so the PN532 fits inside. More LEDs are fine (e.g. a generic 35-LED ring, 78 mm inside): set **LED count** and the reader limits their power (see above). A bundled USB remote controller isn't used: only the ESP32 drives the data line |
 | MAX98357A (3006) | Yes | Pins LRC, BCLK, DIN, GAIN, SD, GND, VIN. ⚠️ Adafruit's board has 1 MΩ from SD to Vin; without it the amplifier stays off. Stage 4 of the test plan catches this (SD should read about 0.45 V); if it reads near 0 V, add a 1 MΩ from SD to Vin |
 | Speaker 3 W 4 Ω (3351) | Yes | **4 Ω or more**, rated **3 W or more** |
 | 74AHCT125 (1787) | ⚠️ Only the right chip | **74AHCT125** or **74HCT125**, DIP-14. **Not 74HC125**: its input threshold at 5 V is too high for 3.3 V logic. **Not** "4-channel level shifter" modules (BSS138 MOSFET or TXS0108E types): unreliable at the LEDs' data rate |
@@ -153,7 +155,7 @@ What to check on the listing:
 | Breadboard 830 (239) | Yes | Cheap ones can have loose contacts or split rails; the build's rail bridges and continuity check cover that |
 | Jumpers, heat shrink, Kapton tape, solder | Yes | Any |
 | Perma-Proto half (1609) | Yes | A half-size solderable breadboard PCB with **30 rows, columns a–j and a rail pair down each side**; the interface board layout assumes that |
-| Flexible LED strips | Mostly | **5 V WS2812B or SK6812**. ⚠️ Many "silicone neon" strips are **12 V WS2811**. Colour order varies: set `ring_color_order` if colours come out swapped |
+| Flexible LED strips | Mostly | **5 V WS2812B or SK6812**. ⚠️ Many "silicone neon" strips are **12 V WS2811**. Colour order varies: change **LED colour order** if colours come out swapped |
 
 ## Breadboard build adds
 

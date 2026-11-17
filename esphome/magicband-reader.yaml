@@ -21,12 +21,14 @@ substitutions:
   friendly_name: MagicBand Reader
   project_version: "0.8.3"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
-  ring_leds: 24       # LEDs in the ring or strip loop
-  # Caps the LEDs' output so full white stays within the 20 W budget (1.44 A,
-  # i.e. 24 LEDs at 60 mA). 100% for 24 LEDs or fewer; more than 24: 2400 / LEDs,
-  # rounded down to 5% (35 LEDs: 65%). See hardware/shopping-list.md.
-  ring_max_brightness: 100%
+  # LED ring or strip. These are only the first-boot defaults: "LED count" and
+  # "LED colour order" are settings on the reader's device page, so the web
+  # installer's firmware fits any ring. With more than 24 LEDs the reader caps
+  # their output automatically (24 / count) so full white stays within the
+  # 20 W budget (1.44 A, i.e. 24 LEDs at 60 mA). See hardware/shopping-list.md.
+  ring_leds: "24"
   ring_color_order: GRB  # GRB for most NeoPixels; RGB for Adafruit's silicone neon-like strip (4310)
+  ring_max_leds: "60"    # the most LEDs the "LED count" setting allows
   # Sound files: downloaded from this repo at build time. To use your own,
   # point these at a URL or a path next to this config (e.g. sounds/my.wav).
   sound_startup: https://raw.githubusercontent.com/Legal-Copy7045/Magic-bHAnds/main/esphome/sounds/startup.wav
@@ -50,6 +52,7 @@ esphome:
   on_boot:
     priority: -100
     then:
+      - script.execute: apply_ring_settings
       - script.execute: reader_idle
       - if:
           condition:
@@ -177,12 +180,10 @@ light:
     name: "Ring"
     pin: GPIO10   # LED data (via the 74AHCT125); on the Lonely Binary terminal base too
     chipset: WS2812
+    # Sized for the largest ring; apply_ring_settings sets the real count,
+    # colour order and power cap from the settings at boot.
     channel_colors: ${ring_color_order}
-    num_leds: ${ring_leds}
-    color_correct:
-      - ${ring_max_brightness}
-      - ${ring_max_brightness}
-      - ${ring_max_brightness}
+    num_leds: ${ring_max_leds}
     default_transition_length: 300ms
     restore_mode: ALWAYS_OFF
     effects:
@@ -284,6 +285,37 @@ select:
       - "Known bands only"
       - "Welcome every band"
       - "Ask Home Assistant"
+  - platform: template
+    id: ring_order
+    name: "LED colour order"
+    icon: mdi:palette
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_option: ${ring_color_order}
+    options:
+      - "GRB"
+      - "RGB"
+    on_value:
+      - script.execute: apply_ring_settings
+      - script.execute: reader_idle
+
+number:
+  - platform: template
+    id: ring_count
+    name: "LED count"
+    icon: mdi:led-strip-variant
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: ${ring_leds}
+    min_value: 1
+    max_value: ${ring_max_leds}
+    step: 1
+    mode: box
+    on_value:
+      - script.execute: apply_ring_settings
+      - script.execute: reader_idle
 
 switch:
   - platform: template
@@ -332,6 +364,27 @@ text_sensor:
     icon: mdi:nfc-variant
 
 script:
+  # Applies "LED count" and "LED colour order", and caps the output so full
+  # white never draws more than 24 LEDs' worth (1.44 A).
+  - id: apply_ring_settings
+    then:
+      - lambda: |-
+          auto *out = static_cast<esp32_rmt_led_strip::ESP32RMTLEDStripLightOutput *>(id(ring).get_output());
+          int n = static_cast<int>(id(ring_count).state);
+          if (n < 1 || n > ${ring_max_leds}) n = ${ring_leds};
+          // Blank every LED the buffer holds first, so LEDs beyond a reduced count go dark.
+          out->set_num_leds(${ring_max_leds});
+          for (int i = 0; i < ${ring_max_leds}; i++) (*out)[i] = Color::BLACK;
+          out->write_state(&id(ring));   // sends now (copied into the RMT buffer)
+          out->set_num_leds(n);
+          const bool rgb = id(ring_order).current_option() == "RGB";
+          out->set_channel_colors(rgb ? light::ChannelColors{0, 1, 2, light::ChannelColors::NO_WHITE}
+                                      : light::ChannelColors{1, 0, 2, light::ChannelColors::NO_WHITE});
+          const float cap = n > 24 ? 24.0f / n : 1.0f;
+          out->set_correction(cap, cap, cap);
+          ESP_LOGI("reader", "Ring: %d LEDs, %s, output capped at %d%%", n, rgb ? "RGB" : "GRB",
+                   static_cast<int>(cap * 100));
+
   - id: reader_idle
     then:
       # A soft white glow while waiting for a band.

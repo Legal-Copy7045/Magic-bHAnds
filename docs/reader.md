@@ -123,13 +123,20 @@ from the 5 V rail or hub; the rest can stay powered.
 The connection is encrypted: Home Assistant gives each reader its own key when
 it first connects.
 
-**Customising** (LED counts, sounds, pins): in the ESPHome Device Builder the
+**Your ring or strip:** the web installer's firmware fits any of them. On
+the reader's device page in Home Assistant, under **Configuration**, set:
+
+- **LED count** (1–60, default 24): the number of LEDs in your ring or
+  strip. Above 24 the reader caps their output at 24 ÷ count (35 LEDs: 68 %)
+  so full white stays within the 20 W supply.
+- **LED colour order:** GRB for most NeoPixels and generic WS2812B rings; RGB
+  for Adafruit's silicone neon-like strip (4310). If green shows as red,
+  switch it.
+
+**Customising further** (sounds, pins): in the ESPHome Device Builder the
 reader shows up with **Take control**, which imports
-`esphome/magicband-reader.yaml` as a package. In its substitutions, change
-`ring_leds` if your ring or strip doesn't have 24 LEDs, and
-`ring_color_order` to `RGB` for Adafruit's silicone neon-like strip (4310).
-**More than 24 LEDs:** also set `ring_max_brightness` to 2400 ÷ LEDs, rounded
-down to 5 % (35 LEDs: `65%`), so full white stays within the 20 W supply.
+`esphome/magicband-reader.yaml` as a package; change its substitutions
+there.
 
 ## Using it with Home Assistant
 
