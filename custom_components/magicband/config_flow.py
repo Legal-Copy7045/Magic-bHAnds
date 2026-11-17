@@ -63,7 +63,7 @@ class MagicBandOptionsFlow(OptionsFlow):
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         return self.async_show_menu(
             step_id="init",
-            menu_options=["assign_band", "add_person", "edit_person", "remove_band", "remove_person"],
+            menu_options=["assign_band", "add_person", "edit_person", "link_bluetooth", "remove_band", "remove_person"],
             description_placeholders={"summary": self._summary()},
         )
 
@@ -75,6 +75,10 @@ class MagicBandOptionsFlow(OptionsFlow):
             linked = f" ({person.ha_person})" if person.ha_person else ""
             state = "" if person.allowed else " — not allowed"
             lines.append(f"- **{person.name}**{linked}: {bands}{state}")
+        tracker = self.config_entry.runtime_data.beacons
+        for band in tracker.bands.values():
+            where = "nearby" if band.nearby() else f"last heard {_ago(band.last_seen)}"
+            lines.append(f"- Bluetooth: **{tracker.name(band)}**, {where}")
         unknown = len(reg.unassigned_bands)
         if unknown:
             lines.append(f"\n{unknown} band(s) not assigned to anyone yet.")
@@ -207,6 +211,52 @@ class MagicBandOptionsFlow(OptionsFlow):
                 {vol.Required("person"): selector.SelectSelector(selector.SelectSelectorConfig(options=self._people_options()))}
             ),
         )
+
+    # ------------------------------------------------------------------ Bluetooth
+
+    async def async_step_link_bluetooth(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        tracker = self.config_entry.runtime_data.beacons
+        if not tracker.bands:
+            return self.async_abort(reason="no_bluetooth_bands")
+        if user_input is not None:
+            band = tracker.bands[user_input["bluetooth_band"]]
+            kind, _, value = user_input["owner"].partition(":")
+            if kind == "band":
+                tracker.link(band, nfc_uid=value)
+            else:
+                tracker.link(band, person_id=value or None)
+            return self.async_create_entry(data={})
+
+        def describe(b) -> str:
+            person, nfc = tracker.owner(b)
+            owner = f"{person.name}'s" if person else ("linked" if nfc else "unlinked")
+            battery = f", battery {b.battery} %?" if b.battery is not None else ""
+            signal = f", {b.last_rssi} dBm via {b.last_source}" if b.last_rssi is not None else ""
+            return f"{tracker.name(b)} ({owner}): {_ago(b.last_seen)}{signal}{battery}"
+
+        bands = sorted(tracker.bands.values(), key=lambda b: (b.band_uid is not None, b.first_seen))
+        owners = [
+            *(
+                selector.SelectOptionDict(value=f"band:{o['value']}", label=f"Band {o['label']}")
+                for o in self._band_options()
+            ),
+            *(selector.SelectOptionDict(value=f"person:{p.id}", label=f"Person: {p.name}") for p in self._registry.people),
+            selector.SelectOptionDict(value="person:", label="Nobody (unlink)"),
+        ]
+        schema = vol.Schema(
+            {
+                vol.Required("bluetooth_band", default=bands[0].id): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=[selector.SelectOptionDict(value=b.id, label=describe(b)) for b in bands],
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+                vol.Required("owner", default=owners[0]["value"]): selector.SelectSelector(
+                    selector.SelectSelectorConfig(options=owners, mode=selector.SelectSelectorMode.DROPDOWN)
+                ),
+            }
+        )
+        return self.async_show_form(step_id="link_bluetooth", data_schema=schema)
 
     # ------------------------------------------------------------------ bands
 

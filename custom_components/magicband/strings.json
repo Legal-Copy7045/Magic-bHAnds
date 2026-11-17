@@ -20,6 +20,7 @@
           "add_person": "Add a person",
           "edit_person": "Edit a person",
           "remove_band": "Remove a band",
+          "link_bluetooth": "Link a band's Bluetooth",
           "remove_person": "Remove a person"
         }
       },
@@ -71,6 +72,17 @@
         "data": {
           "band": "Band"
         }
+      },
+      "link_bluetooth": {
+        "title": "Link a band's Bluetooth",
+        "description": "Each MagicBand+ sends a Bluetooth beacon about every 15 minutes, which is how Home Assistant knows it's nearby. Choose the beacon (a Bluetooth band) and which band or person it belongs to.\n\nNot sure which is which? Put one band in a metal tin (or out of range) for half an hour: the one still showing *nearby* is the other. Tapping a band on a reader links it automatically when only one unlinked band is heard.",
+        "data": {
+          "bluetooth_band": "Bluetooth band",
+          "owner": "Belongs to"
+        },
+        "data_description": {
+          "owner": "Linking to a band's NFC ID gives it that band's owner. Or give it to a person directly, until the band has been tapped on a reader."
+        }
       }
     },
     "error": {
@@ -78,7 +90,8 @@
     },
     "abort": {
       "no_bands": "No bands yet. Tap a band on a MagicBand reader first.",
-      "no_people": "No people yet. Add one first."
+      "no_people": "No people yet. Add one first.",
+      "no_bluetooth_bands": "No MagicBand+ has been heard over Bluetooth yet. Its beacon comes about every 15 minutes: check back later."
     }
   },
   "entity": {
@@ -91,6 +104,20 @@
       },
       "last_heard": {
         "name": "Last band heard"
+      },
+      "band_last_seen": {
+        "name": "Last seen"
+      },
+      "band_signal": {
+        "name": "Signal"
+      },
+      "band_battery": {
+        "name": "Battery (unconfirmed)"
+      }
+    },
+    "binary_sensor": {
+      "band_nearby": {
+        "name": "Nearby"
       }
     }
   },
@@ -276,6 +303,48 @@
     "list_heard": {
       "name": "List Bluetooth heard",
       "description": "Return recent MagicBand+ Bluetooth traffic heard by Home Assistant's Bluetooth adapters and proxies. \"heard\" is the last 30 messages of any kind (mostly your bridges' own commands); \"bands\" keeps the last 200 band messages, so commands can't push them out. Each has the device address, signal strength, which proxy heard it and how long after the last send."
+    },
+    "list_bluetooth_bands": {
+      "name": "List Bluetooth bands",
+      "description": "Every MagicBand+ recognised from its Bluetooth beacon: owner, linked NFC band, nearby, battery (unconfirmed), signal by adapter, the level byte's history, which bits change, and the last 50 raw beacons. Also the encrypted messages heard and any pairing in progress."
+    },
+    "link_bluetooth": {
+      "name": "Link Bluetooth band",
+      "description": "Link a MagicBand+'s Bluetooth beacon to its NFC band (it then belongs to that band's owner), or give it to a person.",
+      "fields": {
+        "bluetooth_band": {
+          "name": "Bluetooth band",
+          "description": "Its ID (or the first few characters), its name, or \"last\"."
+        },
+        "band": {
+          "name": "Band",
+          "description": "The band's NFC ID, or \"last\" for the last band tapped."
+        },
+        "person": {
+          "name": "Person",
+          "description": "Give it to this person instead (name or ID)."
+        }
+      }
+    },
+    "unlink_bluetooth": {
+      "name": "Unlink Bluetooth band",
+      "description": "Remove its link to an NFC band or person.",
+      "fields": {
+        "bluetooth_band": {
+          "name": "Bluetooth band",
+          "description": "Its ID (or the first few characters), its name, or \"last\"."
+        }
+      }
+    },
+    "forget_bluetooth": {
+      "name": "Forget Bluetooth band",
+      "description": "Delete it and its entities. If it's heard again it comes back as new.",
+      "fields": {
+        "bluetooth_band": {
+          "name": "Bluetooth band",
+          "description": "Its ID (or the first few characters), its name, or \"last\"."
+        }
+      }
     }
   }
 }

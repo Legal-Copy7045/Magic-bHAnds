@@ -5,7 +5,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
+from homeassistant.const import PERCENTAGE, SIGNAL_STRENGTH_DECIBELS_MILLIWATT, EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
@@ -15,6 +16,8 @@ from homeassistant.util import dt as dt_util
 
 from . import MagicBandConfigEntry
 from .const import DOMAIN, SIGNAL_HEARD, SIGNAL_UPDATED
+from .band_entity import BluetoothBandEntity, async_setup_band_entities
+from .beacons import BeaconTracker
 from .registry import MagicBandRegistry
 
 
@@ -57,6 +60,14 @@ async def async_setup_entry(
 
     _sync_people()
     entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_UPDATED, _sync_people))
+
+    async_setup_band_entities(
+        hass,
+        entry.runtime_data.beacons,
+        async_add_entities,
+        [BandLastSeenSensor, BandSignalSensor, BandBatterySensor],
+        entry.async_on_unload,
+    )
 
 
 class _Base(SensorEntity):
@@ -207,3 +218,86 @@ class LastHeardSensor(_Base):
                 seconds_after_send=heard.after_send,
             )
         return attrs
+
+
+# ---------------------------------------------------------------------------
+# Per MagicBand+ (Bluetooth beacons)
+# ---------------------------------------------------------------------------
+
+
+class BandLastSeenSensor(BluetoothBandEntity, SensorEntity):
+    """When the band's beacon was last heard, and by which adapter or proxy."""
+
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+
+    def __init__(self, tracker: BeaconTracker, band_id: str) -> None:
+        super().__init__(tracker, band_id, "last_seen")
+
+    @property
+    def native_value(self) -> datetime | None:
+        band = self.band
+        return _ts(band.last_seen) if band else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        band = self.band
+        if band is None:
+            return {}
+        person, nfc = self._tracker.owner(band)
+        return {
+            "person": person.name if person else None,
+            "band": nfc.display if nfc else None,
+            "heard_by": band.last_source,
+            "beacons": band.beacons,
+            "first_seen": band.first_seen,
+            "payload": band.last_payload,
+        }
+
+
+class BandSignalSensor(BluetoothBandEntity, SensorEntity):
+    """Signal strength of the band's last beacon."""
+
+    _attr_device_class = SensorDeviceClass.SIGNAL_STRENGTH
+    _attr_native_unit_of_measurement = SIGNAL_STRENGTH_DECIBELS_MILLIWATT
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, tracker: BeaconTracker, band_id: str) -> None:
+        super().__init__(tracker, band_id, "signal")
+
+    @property
+    def native_value(self) -> int | None:
+        band = self.band
+        return band.last_rssi if band else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        band = self.band
+        return {"heard_by": band.last_source, "by_source": band.rssi_by_source} if band else {}
+
+
+class BandBatterySensor(BluetoothBandEntity, SensorEntity):
+    """The beacon's level byte, which looks like the battery percentage (unconfirmed)."""
+
+    _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_icon = "mdi:battery-unknown"
+
+    def __init__(self, tracker: BeaconTracker, band_id: str) -> None:
+        super().__init__(tracker, band_id, "battery")
+
+    @property
+    def native_value(self) -> int | None:
+        band = self.band
+        return band.battery if band else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        band = self.band
+        if band is None:
+            return {}
+        return {
+            "raw": f"0x{band.level:02X}" if band.level is not None else None,
+            "changes": band.level_history[-10:],
+            "note": "Unconfirmed: the beacon byte that only goes down. A full charge returning it to 100 would confirm it.",
+        }

@@ -3,7 +3,29 @@
 All notable changes to Magic bHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
-## [Unreleased]
+## [0.9.0] - 2026-11-17
+
+### Integration
+- **Bands over Bluetooth.** Every MagicBand+ sends a status beacon about
+  every 15 minutes. The integration now recognises each band from it,
+  although its Bluetooth address changes every time, and gives each one a
+  device: **Nearby** (presence), **Last seen**, **Signal** and **Battery
+  (unconfirmed)**. Stored, so it survives restarts.
+- **Pairing Bluetooth with NFC.** Tapping a band on a reader links it to the
+  Bluetooth band heard in the next 20 minutes, when it's clear which one;
+  otherwise link it under **Configure → Link a band's Bluetooth** or with
+  `magicband.link_bluetooth`. A Bluetooth band can also be given straight
+  to a person.
+- New actions: `list_bluetooth_bands` (raw beacons, level history, changing
+  bits), `link_bluetooth`, `unlink_bluetooth`, `forget_bluetooth`. New event:
+  `magicband_band_seen`.
+- The beacon format as far as it's understood is in docs/protocol.md.
+
+### Fixed
+- The 10-minute reader sync and the start-up sync ran their callbacks off
+  Home Assistant's event loop (Home Assistant warns about this). They now
+  run on the loop.
+
 
 ### Reader
 - **LED count and colour order are now settings** on the reader's device

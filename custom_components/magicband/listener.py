@@ -23,6 +23,7 @@ from collections import deque
 from dataclasses import asdict, dataclass
 import logging
 import time
+from collections.abc import Callable
 from typing import Any
 
 from homeassistant.core import HomeAssistant, callback
@@ -78,6 +79,8 @@ class BandListener:
         self._last_send: float | None = None
         self._last_fired: dict[tuple[str, str], float] = {}
         self.active = False
+        # Called with (address, rssi, source, payload) for every band message.
+        self.on_band: Callable[[str, int, str, bytes], Any] | None = None
 
     @callback
     def note_send(self) -> None:
@@ -135,6 +138,8 @@ class BandListener:
         else:
             _LOGGER.debug("Command heard by %s from %s (RSSI %s): 83 01 %s", heard.source, address, rssi, hexed)
         self.hass.bus.async_fire(EVENT_HEARD, {**asdict(heard), "likely_response": recent and heard.kind == "band"})
+        if heard.kind == "band" and self.on_band is not None:
+            self.on_band(address, rssi, heard.source, payload)
         async_dispatcher_send(self.hass, SIGNAL_HEARD)
         return heard
 
