@@ -12,9 +12,9 @@ it to check each later build.
 | # | Build | Size | Soldering | Firmware (web installer button) | Status |
 |---|---|---|---|---|---|
 | 1 | **[Breadboard](reader-breadboard/README.md)** ([diagram](../docs/reader-breadboard.svg)) | Large | Ring and capacitor pads only | *Install the reader* | Reviewed, first build |
-| 2 | **[Lonely Binary terminal base](../docs/reader.md#using-the-lonely-binary-terminal-base-instead-of-a-breadboard)** | Medium | Two power wires | *Install the reader* | Not built yet |
-| 3 | **[Point-to-point wiring](../docs/reader.md#point-to-point-wiring-small-no-breadboard)** | Small | Every joint | *Install the reader* | Not built yet |
-| 4 | **[Custom PCB](reader-pcb/README.md)** (26 × 58 mm, ordered assembled) | Smallest | None (factory-assembled) | *Reader on the custom PCB* | Designed, not ordered |
+| 2 | **[Lonely Binary terminal base](reader-wired/README.md)** | Medium | Interface board, two power wires | *Install the reader* | Reviewed, not built |
+| 3 | **[Point-to-point wiring](reader-wired/README.md)** | Small | Interface board, every joint | *Install the reader* | Reviewed, not built |
+| 4 | **[Custom PCB](reader-pcb/README.md)** (26 × 58 mm, ordered assembled) | Smallest | None (factory-assembled) | *Reader on the custom PCB* | **Parked**: not yet updated for the ring-only design and the review |
 
 Builds 1–3 use a dev board (ESP32-S3-DevKitC-1 layout, such as the Lonely
 Binary N16R8) and the same firmware. Build 4 has the ESP32-S3 module on the
@@ -54,6 +54,8 @@ sound volume, LED behaviour) and raise it as a GitHub issue.
 
 - [`reader-breadboard/`](reader-breadboard/README.md): the reviewed
   breadboard build (build 1) and the script that draws its diagram.
+- [`reader-wired/`](reader-wired/README.md): the terminal base and
+  point-to-point builds (2 and 3), with the shared interface board.
 - [`reader-pcb/`](reader-pcb/README.md): KiCad project, Gerbers and JLCPCB
   files for build 4, with the scripts that generate them.
 

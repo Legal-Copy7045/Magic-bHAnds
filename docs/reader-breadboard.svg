@@ -1226,7 +1226,7 @@ polyline.w{fill:none}
 <rect x="36" y="1054.0" width="230" height="122" rx="8" class="psu"/>
 <text x="48.0" y="1076.0" class="modname" text-anchor="start" >USB-C breakout, 5 V</text>
 <text x="48.0" y="1093.0" class="modsub" text-anchor="start" >5.1 kΩ on CC1 and CC2</text>
-<text x="48.0" y="1107.0" class="modsub" text-anchor="start" >Dell 65 W USB-C charger:</text>
+<text x="48.0" y="1107.0" class="modsub" text-anchor="start" >USB-C charger, 20 W or more:</text>
 <text x="48.0" y="1121.0" class="modsub" text-anchor="start" >5 V at up to 3 A</text>
 <rect x="262" y="1140.0" width="8" height="8" rx="1.5" class="pin"/>
 <text x="256.0" y="1148.0" class="modpin" text-anchor="end" >VBUS</text>

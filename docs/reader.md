@@ -46,7 +46,7 @@ In short:
 | LED ring | One **WS2812B** ring of **16 or 24 LEDs** (or a strip formed into a ring). Set `ring_leds` |
 | Amplifier + speaker | Adafruit **MAX98357A** breakout, **8 Ω 2–3 W** speaker |
 | Level shifter | **SN74AHCT125N** (DIP) for the LED data line, 330 Ω at the ring end |
-| Power | **USB-C laptop charger** through a USB-C breakout with 5.1 kΩ CC resistors: 5 V, up to 3 A |
+| Power | **USB-C charger, 20 W or more**, through a USB-C breakout with 5.1 kΩ CC resistors: 5 V, up to 3 A |
 
 | ESP32-S3 pin | Goes to |
 |---|---|
@@ -63,73 +63,19 @@ In short:
   lid, with **no metal** between it and the band. Read range is a few
   centimetres through plastic.
 
-### Using the Lonely Binary terminal base instead of a breadboard
+### Terminal base and point-to-point builds
 
-The Lonely Binary **ESP32-S3 pluggable terminal block** base takes the board
-and brings its pins out to push-in terminals. Every pin the reader needs is
-on a terminal, apart from 5 V:
-
-| Terminal | Goes to |
-|---|---|
-| Left **3V3** | PN532 **VCC** |
-| Left **GND** (×2), right **GND** (×2) | Ground for the PN532, MAX98357A and level shifter |
-| Left **7** | MAX98357A **DIN** |
-| Left **8** | PN532 **SDA** |
-| Left **9** | PN532 **SCL** |
-| Left **10** | Level shifter input (LED data) |
-| Right **5** | MAX98357A **LRC** |
-| Right **6** | MAX98357A **BCLK** |
-| **5V / GND pads** (bottom, solder a wire to each) | 5 V supply in |
-
-- **5 V has no terminal.** Solder a red and a black wire to the 5V and GND
-  pads by the USB ports, and run them to the 5 V supply.
-- **Distribute 5 V and ground** with lever connectors (Wago 221 or similar)
-  or a small power block. The supply feeds the board's 5V pad, the LED ring,
-  the MAX98357A Vin and the level shifter's VCC, and every ground meets in
-  one place.
-- **Feed the LEDs straight from the supply,** not through the base.
-- **The level shifter, 330 Ω resistor and 1000 µF capacitor** still need a
-  home. A small 74AHCT125 level-shifter module, or a scrap of perfboard,
-  sits in the cable run to the LED ring. Put the 1000 µF capacitor across the
-  ring's 5V and GND where its cable starts.
-- As always, **don't connect USB while the 5 V supply is on.**
-
-### Point-to-point wiring (small, no breadboard)
-
-For the smallest build without a custom PCB, solder wires straight between
-the modules, with the board's pins on short leads:
-
-- **Board:** solder the ESP32-S3 board's headers on (or buy it with headers)
-  and use **female Dupont jumper leads** onto them. Use 10–15 cm leads so you
-  can arrange the modules freely in the case.
-- **Amplifier and PN532:** solder their wires directly to the modules (or
-  use female-female Dupont leads on their header pins). Twist the three I2S
-  wires (LRC, BCLK, DIN) together with a ground wire, and keep them under
-  ~20 cm.
-- **Level shifter:** a single-channel **SN74AHCT1G125** on a tiny SOT-23
-  breakout, or a 74AHCT125 module, wired inline. Put the **330 Ω resistor**
-  in the LED data wire at the shifter's output end, inside heat-shrink.
-- **Power splits:** use two small lever connectors (Wago 221-413), one for
-  5 V and one for GND, as the hub for the supply, ESP32 5V/GND, LED ring,
-  amplifier and shifter. Put the **1000 µF capacitor** across 5 V and GND
-  where the LED ring's cable starts.
-- **Detachable leads:** if you want to unplug the ring or speaker,
-  put JST-PH 2.0 plugs inline: 3-pin for the LEDs (5V, DATA, GND) and 2-pin
-  for the speaker. Pre-crimped JST pigtails make this solder-and-heat-shrink
-  only.
-- Insulate every joint with heat-shrink, and hot-glue or zip-tie the modules
-  to the case so the joints don't flex.
-
-The wiring is the same as the table above. For something smaller and tidier
-still, there's a **[custom PCB](../hardware/reader-pcb/README.md)** with the
-ESP32-S3 module, amplifier, level shifter and USB-C on one 26 × 58 mm board,
-and connectors for leads to the NFC reader, speaker and LEDs.
+Once the breadboard works, the same circuit can be built smaller: on the
+Lonely Binary **terminal-block base**, or **point-to-point** with Dupont
+leads on the ESP32's pins. Both use a small perfboard **interface board**
+for the level shifter and I²C pull-ups, and the same power hubs. See
+**[hardware/reader-wired](../hardware/reader-wired/README.md)**.
 
 ### Powering it from a USB-C charger
 
-A USB-C laptop charger (Dell, Apple, Anker and so on) works well. At 5 V
-USB-C gives **at most 3 A**, whatever the charger's wattage, which covers a
-ring-only reader. Feed it in through a **USB-C breakout with 5.1 kΩ
+Use a **USB-C charger of 20 W or more** (Apple 20 W, a laptop charger and
+so on). At 5 V, USB-C gives **at most 3 A** whatever the charger's wattage,
+which covers a ring-only reader (about 2.6 A worst case). Feed it in through a **USB-C breakout with 5.1 kΩ
 resistors on CC1 and CC2**: without them, a standards-compliant charger
 won't switch its output on. Details and the current budget:
 [breadboard build spec](../hardware/reader-breadboard/README.md#power).
