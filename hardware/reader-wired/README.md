@@ -24,8 +24,10 @@ and apply here unchanged.
   charger and so on) and a USB-C cable rated for 3 A or more. At 5 V, USB-C
   gives up to 3 A; the reader needs at most about 2.6 A with a 24-LED ring
   (2.1 A with 16).
-- **USB-C breakout** with **5.1 kΩ resistors on CC1 and CC2**: without them,
-  the charger won't switch on its 5 V output.
+- **USB-C breakout:** Adafruit HUSB238 USB-C Power Delivery breakout
+  (product 5807), with the **5V jumper kept closed** and the **1A jumper
+  cut** for 5 V 3 A. Never cut the 5V jumper: that asks the charger for up
+  to 20 V. Details: [breadboard spec](../reader-breadboard/README.md#supply).
 - **Two Wago 221-415 hubs**, one for 5 V and one for ground. Every power
   wire starts at a hub, and every ground meets at the GND hub.
 
@@ -135,7 +137,7 @@ read 4.7 kΩ.
 
 | From | To | Notes |
 |---|---|---|
-| USB-C breakout VBUS / GND | 5 V hub / GND hub | 18 AWG |
+| USB-C breakout terminal + / − | 5 V hub / GND hub | 18 AWG |
 | 5 V hub / GND hub | Interface board +5V / GND | 22 AWG |
 | Interface board +5V, GND, SDA, SCL | PN532 **VCC**, **GND**, **SDA**, **SCL** | ≤ 20 cm. Switches: 1 ON, 2 OFF (I²C) |
 | 5 V hub / GND hub | Amplifier **Vin** / **GND** | 22 AWG. 100 µF 16 V across Vin and GND at the amplifier (solder to its header pins), stripe to GND |

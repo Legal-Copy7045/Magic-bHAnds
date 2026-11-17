@@ -45,7 +45,7 @@ replaces the earlier breadboard documentation, which had these problems:
 | 1 | Capacitor | 100 nF (0.1 µF), 50 V, X7R ceramic, 2.54 mm lead spacing | 74AHCT125 supply |
 | 1 | Breadboard | Full-size **830-point**, 63 rows, power rails both sides | |
 | 2 | Lever connectors | **Wago 221-414** (4-way) | One for 5 V, one for GND |
-| 1 | USB-C breakout | **USB-C sink breakout with 5.1 kΩ resistors on CC1 and CC2**, screw terminals or pads for VBUS and GND, rated ≥ 3 A | See [Power](#power) |
+| 1 | USB-C breakout | **Adafruit USB Type C Power Delivery Dummy Breakout, HUSB238 (product 5807)**, set to **5 V 3 A**: keep the 5V jumper, **cut the 1A jumper** (2A stays open) | Rated to 20 V 5 A, with a terminal block. See [Power](#power) |
 | 1 | Power supply | **USB-C charger, 20 W or more** (e.g. Apple 20 W or a laptop charger) and a USB-C cable rated **3 A or more** | At 5 V a USB-C charger gives at most 3 A |
 | — | Wire | 18 AWG stranded red/black (≈ 0.5 m each); 20 AWG stranded red/black (ring power, ≈ 1 m each); 22 AWG **solid** hook-up wire red/black (into the breadboard); 22 AWG stranded (LED data, speaker) | |
 | — | Jumpers | 22 AWG solid-core jumper kit; 4 × female-to-male Dupont jumpers (≤ 20 cm) for the PN532 | |
@@ -60,9 +60,22 @@ Use a **USB-C charger of 20 W or more**. Any such charger supplies 3 A at
 (15 W), and a charger's higher ratings only exist at 9–20 V. The budget
 below fits within 3 A.
 
-A USB-C charger only supplies 5 V if the device asks for it: the breakout's
-two **5.1 kΩ CC resistors** do that. A breakout without them gets no power
-from a standards-compliant charger.
+**USB-C breakout:** the **Adafruit HUSB238 USB-C Power Delivery breakout
+(product 5807)**. It asks the charger for a set voltage and current, chosen
+with solder jumpers. Out of the box it asks for 5 V 1 A. For this reader:
+
+- **Keep the 5V jumper closed. Never cut it:** with no voltage jumper
+  closed, the board asks for the charger's *highest* voltage (up to 20 V),
+  which would destroy the reader.
+- **Cut the 1A jumper** and leave 2A open: that selects 3 A.
+- Check with a meter before connecting anything: **4.75–5.25 V** across its
+  terminal block.
+
+Avoid plain USB-C socket breakouts without CC resistors (such as Adafruit's
+"Simple USB C Socket Breakout", 5180): a standards-compliant charger won't
+switch on. Adafruit's "USB Type C Breakout Board - Downstream Connection"
+(4090) has the 5.1 kΩ CC resistors, but Adafruit describes it as giving up to
+1.5 A, short of this reader's worst case.
 
 ### Current budget
 
@@ -133,8 +146,8 @@ red rail at row 24). Rows run 1–63 from the top; columns are `L−` `L+` `a–
 
 | From | To | Signal | Notes |
 |---|---|---|---|
-| USB-C breakout VBUS | 5 V hub | 5 V | 18 AWG red |
-| USB-C breakout GND | GND hub | GND | 18 AWG black |
+| USB-C breakout terminal **+** | 5 V hub | 5 V | 18 AWG red |
+| USB-C breakout terminal **−** | GND hub | GND | 18 AWG black |
 | 5 V hub | L+24 | 5 V to the breadboard | 22 AWG solid red |
 | GND hub | L−25 | GND to the breadboard | 22 AWG solid black |
 | L+29 | L+35 | 5 V rail bridge | Bridges a rail split; harmless if there's none |
@@ -236,8 +249,10 @@ fix it. Fit them anyway.
 1. Insert the ESP32 only. With USB on the **UART** port and nothing else
    connected, install the reader firmware from the web installer and set up
    Wi-Fi. Unplug USB.
-2. Wire the USB-C breakout, hubs and rail feeds, and fit a21 and a22.
-   Connect the charger.
+2. Set up the USB-C breakout (5V jumper closed, 1A jumper cut), plug in
+   the charger, and measure **4.75–5.25 V** at its terminals before wiring
+   anything to it. Unplug, then wire the hubs and rail feeds, and fit a21
+   and a22. Connect the charger.
 3. Measure: hub 5 V to GND **4.75–5.25 V**; ESP32 5V pin 4.75–5.25 V; 3V3
    pin **3.2–3.4 V**.
 4. Logs (Home Assistant → ESPHome → the reader → Logs): it boots and
