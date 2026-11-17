@@ -1,9 +1,13 @@
 """MagicBand+ Bluetooth beacons: which band is which, who owns it, and what it says.
 
-Every MagicBand+ sends a status beacon about every 15 minutes, on its own
-(not in reply to anything), with Disney's company ID (0x0183):
+Every MagicBand+ sends a status beacon every few minutes (6-15 seen), on
+its own (not in reply to anything), with Disney's company ID (0x0183):
 
     C0 0F 01 01  LL  B1 B2 B3 B4 B5 B6 B7 B8  00 35 33 00
+    C0 13 01 01  LL  B1 B2 B3 B4 B5 B6 B7 B8  00 36 31 00 00 00 00 00
+
+The second byte is the length of what follows (0x0F or 0x13); the longer
+form came from a band just switched on. Both are handled the same way.
 
 Worked out from real beacons (see docs/protocol.md, "Band beacons"):
 
@@ -49,8 +53,8 @@ _LOGGER = logging.getLogger(__name__)
 STORE_KEY = "magicband.bluetooth"
 STORE_VERSION = 1
 
-PREFIX = bytes.fromhex("C00F0101")
-BEACON_LEN = 17
+BEACON_TYPE = 0xC0
+MIN_BEACON_LEN = 13  # C0 LL 01 01, level, B1-B8
 # Bits of B1-B8 that changed between beacons from the same band.
 VARIABLE_BITS = bytes.fromhex("8342 40C0 8C04 104A")
 SIGNATURE_MASK = bytes(~b & 0xFF for b in VARIABLE_BITS)
@@ -74,11 +78,17 @@ class Beacon:
     body: bytes
     signature: bytes
     tail: bytes
+    form: str  # "C0 0F", "C0 13"
 
 
 def parse(payload: bytes) -> Beacon | None:
-    """Decode a status beacon, or None if it isn't one."""
-    if len(payload) != BEACON_LEN or not payload.startswith(PREFIX):
+    """Decode a status beacon (C0 <length> 01 01 ...), or None if it isn't one."""
+    if (
+        len(payload) < MIN_BEACON_LEN
+        or payload[0] != BEACON_TYPE
+        or payload[1] != len(payload) - 2
+        or payload[2:4] != b"\x01\x01"
+    ):
         return None
     body = payload[5:13]
     return Beacon(
@@ -86,6 +96,7 @@ def parse(payload: bytes) -> Beacon | None:
         body=body,
         signature=bytes(b & m for b, m in zip(body, SIGNATURE_MASK)),
         tail=payload[13:],
+        form=f"C0 {payload[1]:02X}",
     )
 
 
@@ -114,6 +125,7 @@ class BluetoothBand:
     last_address: str | None = None
     last_payload: str | None = None
     rssi_by_source: dict[str, int] = field(default_factory=dict)
+    forms: list[str] = field(default_factory=list)  # beacon forms seen, e.g. "C0 0F"
     level_history: list[list] = field(default_factory=list)  # [iso time, level]
     samples: list[list] = field(default_factory=list)  # [iso time, payload hex, rssi, source]
 
@@ -131,7 +143,7 @@ class BluetoothBand:
 
     def variable_bits(self) -> str:
         """Bits of B1-B8 seen changing in this band's samples, as hex."""
-        bodies = [bytes.fromhex(s[1])[5:13] for s in self.samples if len(bytes.fromhex(s[1])) == BEACON_LEN]
+        bodies = [b.body for s in self.samples if (b := parse(bytes.fromhex(s[1]))) is not None]
         if not bodies:
             return ""
         acc = bytearray(8)
@@ -264,6 +276,8 @@ class BeaconTracker:
         band.last_address = address
         band.last_payload = payload.hex(" ").upper()
         band.rssi_by_source[source] = rssi
+        if beacon.form not in band.forms:
+            band.forms = [*band.forms, beacon.form]
         if beacon.level != band.level:
             band.level_history = [*band.level_history, [now, beacon.level]][-LEVEL_HISTORY:]
             band.level = beacon.level
@@ -421,6 +435,7 @@ class BeaconTracker:
             "heard_by": band.last_source,
             "rssi_by_source": band.rssi_by_source,
             "variable_bits": band.variable_bits(),
+            "forms": band.forms,
             "samples": band.samples,
         }
 
