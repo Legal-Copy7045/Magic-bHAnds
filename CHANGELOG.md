@@ -3,6 +3,19 @@
 All notable changes to Magic bHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.8.2] - 2026-11-17
+
+### Fixed
+- **SCREEK BP2-POE: "requested passive mode but is operating in active
+  mode … needs to be power cycled".** Home Assistant now chooses each
+  proxy's active or passive scanning (ESPHome integration → the device →
+  Configure → Bluetooth scanning mode). The firmware's own Scan Active Mode
+  switch overrode that choice, so it's been removed. Delete the old entity
+  once it shows as unavailable. Scan Interval and Scan Window stay.
+
+### Docs
+- Bridge and BP2-POE guides: where to set active or passive scanning.
+
 ## [0.8.1] - 2026-11-17
 
 ### Changed

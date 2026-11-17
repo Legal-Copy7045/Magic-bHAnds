@@ -1,7 +1,7 @@
 # SCREEK BP2-POE (ESP32-S3 + W5500 Ethernet) as a Bluetooth proxy + MagicBand
 # bridge. Rebuilt from the factory firmware's boot log (SCREEK.Bluetooth_Proxy
-# BP2-POE 26.01.23-A), keeping its Scan Interval / Scan Window / Scan Active
-# Mode controls, plus the shared MagicBand add-on.
+# BP2-POE 26.01.23-A), keeping its Scan Interval / Scan Window controls
+# (Home Assistant sets active or passive scanning), plus the shared MagicBand add-on.
 #
 # Install: the web installer (https://legal-copy7045.github.io/Magic-bHAnds/)
 # over USB-C, or the ESPHome Device Builder. No secrets needed. Later updates
@@ -11,7 +11,7 @@
 substitutions:
   name: screek-bp2-poe
   friendly_name: SCREEK BP2-POE
-  project_version: "0.8.1"
+  project_version: "0.8.2"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/bp2/manifest.json
 
 packages:
@@ -83,8 +83,11 @@ ethernet:
 
 # Bluetooth proxy: always on, as on the factory firmware (continuous active
 # scanning, 1100 ms interval and window, 4 connection slots). Band broadcasts
-# share the radio with this scanning. The Scan Interval / Scan Window / Scan
-# Active Mode entities below adjust it at runtime.
+# share the radio with this scanning. The Scan Interval / Scan Window entities
+# below adjust it at runtime. Active or passive scanning is set by Home
+# Assistant: ESPHome integration -> this device -> Configure -> Bluetooth
+# scanning mode. (A device-side switch fought that setting and made Home
+# Assistant report the scanner as broken.)
 esp32_ble_tracker:
   id: ble_tracker
   scan_parameters:
@@ -130,9 +133,9 @@ script:
           float window = std::min(id(scan_window).state, interval);
           id(ble_tracker).set_scan_interval(static_cast<uint32_t>(interval / 0.625f));
           id(ble_tracker).set_scan_window(static_cast<uint32_t>(window / 0.625f));
-          id(ble_tracker).set_scan_active(id(scan_active).state);
-          ESP_LOGI("scan", "Apply BLE scan: interval=%.0fms window=%.0fms active=%s",
-                   interval, window, id(scan_active).state ? "yes" : "no");
+          // Active or passive scanning is Home Assistant's choice: ESPHome
+          // integration -> this device -> Configure -> Bluetooth scanning mode.
+          ESP_LOGI("scan", "Apply BLE scan: interval=%.0fms window=%.0fms", interval, window);
       - esp32_ble_tracker.stop_scan:
       - delay: 500ms
       - esp32_ble_tracker.start_scan:
@@ -168,19 +171,6 @@ number:
     optimistic: true
     restore_value: true
     on_value:
-      - script.execute: apply_scan_settings
-
-switch:
-  - platform: template
-    id: scan_active
-    name: "Scan Active Mode"
-    icon: mdi:bluetooth-settings
-    entity_category: config
-    optimistic: true
-    restore_mode: RESTORE_DEFAULT_ON
-    on_turn_on:
-      - script.execute: apply_scan_settings
-    on_turn_off:
       - script.execute: apply_scan_settings
 
 sensor:
