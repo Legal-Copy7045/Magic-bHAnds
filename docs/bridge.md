@@ -68,8 +68,7 @@ installer: the Wi-Fi setup step and logs run on that port.
 
 | Entity | What it does |
 |---|---|
-| **Colour** (select) | Pick a colour; nearby bands glow it until you choose **Off**. Not a light or a switch, so "turn off all lights" automations and voice commands leave it alone. |
-| **MagicBand** (light, disabled by default) | The same as a colour picker, plus an **Effects** list of captured park animations. Off by default because, as a light, it gets turned off by light-wide automations: enable it under the entity's settings if you want it (and hide it, or leave it out of those automations). |
+| **MagicBand** (light) | Pick any colour with the colour picker. Nearby bands glow it until you turn it off. The **Effects** list plays captured park animations (rainbow, colour cycle, lightning, …). |
 | **Buzz** (button) | Vibrates bands using the **Vibration pattern** setting. |
 | **Scene** (select) + **Play scene** (button) | Plays any of the 31 [predefined scenes](commands.md#scenes). |
 | **Scene: Rainbow**, **Lightning**, **Colour cycle**, **Crossfade**, **Spin & buzz**, **Alternating** (buttons) | One-press scenes. |
@@ -135,9 +134,9 @@ as its own device.
 - **Some bridges.** In the blueprint, pick the bridges' **Command** entities
   under *Bridges*. In scripts, pass `bridges:` with their entity IDs. See the
   `magicband_kitchen_buzz` example in `homeassistant/magicband_scripts.yaml`.
-- **One colour for every bridge.** Call `select.select_option` on every
-  bridge's **Colour** select at once, or use `magicband.send` with
-  `always_on: true` (and `effect: "off"` to stop).
+- **One colour picker for every bridge.** Create a light group: Settings →
+  Devices & services → Helpers → Create helper → Group → Light group, then
+  add every bridge's **MagicBand** light.
 
 Bands that hear two bridges get the same command twice, a few milliseconds
 apart, which should look the same as hearing it once (not yet confirmed on a
