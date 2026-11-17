@@ -137,7 +137,7 @@ def ic():
         add(f'<rect x="{x("e") - 3}" y="{y(IC_TOP + i) - 3}" width="6" height="6" class="icpin"/>')
         add(f'<rect x="{x("f") - 3}" y="{y(IC_TOP + i) - 3}" width="6" height="6" class="icpin"/>')
     cx, cy = (l + r) / 2, y(IC_TOP + 3)
-    text(cx, cy + 4, "SN74AHCT125N", "icname", "middle", f'transform="rotate(90 {cx} {cy})"')
+    text(cx, cy + 4, "74AHCT125", "icname", "middle", f'transform="rotate(90 {cx} {cy})"')
     for i in range(7):
         text(x("e") - 9, y(IC_TOP + i) + 3, str(1 + i), "pinno", "end")
         text(x("f") + 9, y(IC_TOP + i) + 3, str(14 - i), "pinno", "start")
@@ -229,7 +229,7 @@ NOTES = [
     "Unused 74AHCT125 channels tied off: enables to 5 V, inputs to ground.",
     "Left-to-right rail bridges (rows 42 and 43) feed the right-hand rails.",
     "100 µF at the amplifier supply (g51–g52), stripe (−) to row 51.",
-    "330 Ω at the ring end of the data wire; 1000 µF across the ring's 5V/GND pads.",
+    "470 Ω at the ring end of the data wire; 1000 µF across the ring's 5V/GND pads.",
 ]
 
 
@@ -289,13 +289,13 @@ def build() -> str:
                                          (x("f") - 4, y(44.4 + (row - AMP_TOP) * 0.5)), (x("f") - 4, y(row))])
 
     # ---------------------------------------------------------------- power: USB-C -> hubs
-    hp = hub(150, y(49), ("5 V hub", "Wago 221-414"), n=4, cls="hubp")
-    hg = hub(150, y(54), ("GND hub", "Wago 221-414"), n=4, cls="hubg")
-    psu = module(36, y(59.5), 230, 122, "USB-C PD breakout", ["+", "−"],
-                 ["Adafruit HUSB238 (5807): 5V jumper", "closed, 1A jumper cut = 5 V 3 A", "USB-C charger, 20 W or more"], side="right", cls="psu")
+    hp = hub(150, y(49), ("5 V hub", "Adafruit 874"), n=5, cls="hubp")
+    hg = hub(150, y(54), ("GND hub", "Adafruit 874"), n=5, cls="hubg")
+    psu = module(36, y(59.5), 230, 122, "USB-C PD breakout (5807)", ["+", "−"],
+                 ["HUSB238: 5V jumper closed,", "1A jumper cut = 5 V 3 A.", "Pi 27 W PD supply (5814)"], side="right", cls="psu")
     wire([psu["+"], (300, psu["+"][1]), (300, hp[0][1] + 14), (hp[0][0], hp[0][1] + 14), hp[0]], "p5 thick")
     wire([psu["−"], (286, psu["−"][1]), (286, hg[0][1] + 14), (hg[0][0], hg[0][1] + 14), hg[0]], "gnd thick")
-    text(310, y(61), "18 AWG", "awg", "start")
+    text(310, y(61), "22 AWG, ≤30 cm", "awg", "start")
     # hubs -> breadboard rails (22 AWG solid)
     wire([hp[1], (hp[1][0], y(47.6)), (338, y(47.6)), (338, y(24)), h("L+24")], "p5")
     wire([hg[1], (hg[1][0], y(52.6)), (350, y(52.6)), (350, y(25)), h("L-25")], "gnd")
@@ -315,8 +315,8 @@ def build() -> str:
     text(154, 392, "female-to-male jumpers, ≤20 cm", "awg", "middle")
 
     # ---------------------------------------------------------------- LED ring
-    ring = module(1010, RING_Y, 210, 128, "LED ring, WS2812B", ["DIN", "5V", "GND"],
-                  ["16 or 24 LEDs (set ring_leds)", "or a strip formed into a ring;", "1000 µF across 5V/GND pads"], side="left")
+    ring = module(1010, RING_Y, 210, 128, "NeoPixel Ring 24", ["DIN", "5V", "GND"],
+                  ["Adafruit 1586, 24 LEDs: the", "PN532 sits inside the ring;", "1000 µF across 5V/GND pads"], side="left")
     capx = ring["5V"][0] - 18
     capy = (ring["5V"][1] + ring["GND"][1]) / 2
     add(f'<circle cx="{capx}" cy="{capy}" r="9" class="elec"/>')
@@ -328,16 +328,16 @@ def build() -> str:
     for k, band in enumerate(("b-or", "b-or", "b-br", "b-gd")):
         add(f'<rect x="{rx - 13 + k * 7}" y="{ring["DIN"][1] - 5}" width="3" height="10" class="{band}"/>')
     wire([(rx + 16, ring["DIN"][1]), ring["DIN"]], "led", ends=False)
-    text(rx, ring["DIN"][1] - 10, "330 Ω", "partlbl", "middle")
+    text(rx, ring["DIN"][1] - 10, "470 Ω", "partlbl", "middle")
     wire([hp[3], (hp[3][0], y(45.2)), (930, y(45.2)), (930, ring["5V"][1]), ring["5V"]], "p5 thick")
     wire([hg[3], (hg[3][0], hg[3][1] + 8), (250, hg[3][1] + 8), (250, y(44.6)), (942, y(44.6)), (942, ring["GND"][1]), ring["GND"]], "gnd thick")
     text(1010, RING_Y + 146, "Ring power comes straight from the hubs", "awg", "start")
-    text(1010, RING_Y + 161, "(20 AWG), never through the breadboard.", "awg", "start")
+    text(1010, RING_Y + 161, "(22 AWG), never through the breadboard.", "awg", "start")
 
     # ---------------------------------------------------------------- speaker
     sx, sy = 930, y(60)
     add(f'<circle cx="{sx}" cy="{sy}" r="34" class="spk"/><circle cx="{sx}" cy="{sy}" r="14" class="spkc"/>')
-    text(sx, sy + 52, "Speaker 8 Ω, 2–3 W", "partlbl", "middle")
+    text(sx, sy + 52, "Speaker 3 W 4 Ω (Adafruit 3351)", "partlbl", "middle")
     wire([a_spk_p, (850, a_spk_p[1]), (850, sy - 10), (sx - 34, sy - 10)], "spkw")
     wire([a_spk_n, (862, a_spk_n[1]), (862, sy + 10), (sx - 34, sy + 10)], "spkw")
 
@@ -363,7 +363,7 @@ def build() -> str:
         yy = ly + 48 + k * 20
         wire([(lx + 18, yy), (lx + 56, yy)], cls, ends=False)
         text(lx + 68, yy + 4, lab, "leg", "start")
-    text(lx + 16, ly + 256, "Thick lines: 18 / 20 AWG power runs", "leg2", "start")
+    text(lx + 16, ly + 256, "Thick lines: 22 AWG stranded power runs", "leg2", "start")
 
     nx, ny = 930, 440
     add(f'<rect x="{nx}" y="{ny}" width="372" height="{NOTES_H}" rx="10" class="rules"/>')

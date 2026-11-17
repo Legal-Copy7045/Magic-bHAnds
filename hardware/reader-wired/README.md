@@ -11,7 +11,12 @@ same parts, connections and power:
 
 Everything else is shared: a small **interface board** for the level
 shifter and I²C pull-ups, two lever-connector **power hubs**, and the ring,
-amplifier and PN532 wired to them.
+amplifier and PN532 wired to them. Parts: the
+[shopping list](../shopping-list.md).
+
+| Terminal base | Point-to-point |
+|---|---|
+| ![Terminal base wiring](../../docs/reader-terminal-base.svg) | ![Point-to-point wiring](../../docs/reader-point-to-point.svg) |
 
 **Status:** reviewed, **not yet built**. Build and test the breadboard
 version first. The component review, current budget and the reasons behind
@@ -28,14 +33,14 @@ and apply here unchanged.
   (product 5807), with the **5V jumper kept closed** and the **1A jumper
   cut** for 5 V 3 A. Never cut the 5V jumper: that asks the charger for up
   to 20 V. Details: [breadboard spec](../reader-breadboard/README.md#supply).
-- **Two Wago 221-415 hubs**, one for 5 V and one for ground. Every power
+- **Two snap-action 5-wire connectors (Adafruit 874)**, one for 5 V and one for ground. Every power
   wire starts at a hub, and every ground meets at the GND hub.
 
 ```
-USB-C charger ─ USB-C breakout ─(18 AWG)─┬─ 5 V hub ──┬─ ESP32 5V            (22 AWG; unclip before using the ESP32's USB)
+USB-C charger ─ USB-C breakout ─(22 AWG)─┬─ 5 V hub ──┬─ ESP32 5V            (22 AWG; unclip before using the ESP32's USB)
                                          │            ├─ interface board 5V  (22 AWG; also feeds the PN532)
                                          │            ├─ amplifier Vin       (22 AWG)
-                                         │            └─ LED ring 5V         (20 AWG; 1000 µF at the ring)
+                                         │            └─ LED ring 5V         (22 AWG; 1000 µF at the ring)
                                          └─ GND hub ──┬─ ESP32 GND
                                                       ├─ interface board GND (also the PN532 ground)
                                                       ├─ amplifier GND
@@ -50,21 +55,24 @@ ESP32 together.
 ## Parts
 
 As in the [breadboard parts list](../reader-breadboard/README.md#parts),
-without the breadboard, jumper kit and Wago 221-414s, plus:
+without the breadboard and its jumpers, plus:
 
 | Qty | Part | Specification | For |
 |---|---|---|---|
 | 1 | Terminal base | **Lonely Binary ESP32-S3 pluggable terminal block** base for the DevKitC-1 layout | Terminal base build |
-| 9 | Jumper leads | **Female-to-bare** (or female-to-male, end cut off) Dupont leads, 10–15 cm | Point-to-point build |
-| 2 | Lever connectors | **Wago 221-415** (5-way) | Power hubs |
-| 1 | Perfboard | Single-sided, 2.54 mm pitch, about 30 × 40 mm | Interface board |
-| 1 | IC socket | DIP-14, 2.54 mm | Interface board (the 74AHCT125 plugs in) |
+| 9 | Jumper leads | **Female/male jumpers, 150 mm** (Adafruit 826), male end cut off | Point-to-point build |
+| 2 | Lever connectors | **Snap-action 5-wire block connector** (Adafruit 874) | Power hubs |
+| 1 | Perfboard | **Adafruit Perma-Proto Half-sized Breadboard PCB (1609)**: laid out like a breadboard | Interface board |
+| 1 | IC socket (optional) | DIP-14, 2.54 mm (not sold by Adafruit) | Lets the 74AHCT125 plug in; or solder it directly |
 | — | Wire | 22 AWG **stranded** hook-up wire (red, black and signal colours) instead of solid | All the short runs |
 
 ## Interface board
 
-A small perfboard that holds the parts that would otherwise dangle in the
-wiring. It's the same for both builds.
+An **Adafruit Perma-Proto half-sized PCB (1609)**: a solderable board laid
+out like a half-size breadboard (rows 1–30, columns a–j, a 5 V/GND rail
+pair down each side). It holds the parts that would otherwise dangle in the
+wiring, and it's the same for both builds. The diagrams draw it hole for
+hole.
 
 ```
                      +3V3 (from ESP32 3V3)
@@ -76,12 +84,12 @@ wiring. It's the same for both builds.
   5 V hub ─── +5V ──────────────────────────────── PN532 VCC
   GND hub ─── GND ──────────────────────────────── PN532 GND
 
-                  SN74AHCT125N (in a DIP-14 socket)
+                  74AHCT125 (Adafruit 1787)
                ┌──────────── U ────────────┐
    GND ─── 1  │ 1OE                    VCC │ 14 ─── +5V ─┐
- GPIO10 ── 2  │ 1A                     4OE │ 13 ─── +5V   0.1 µF from pin 14
-  LED ──── 3  │ 1Y                      4A │ 12 ─── GND   to pin 7, across
-  out      4  │ 2OE ─── +5V             4Y │ 11 (open)    the socket
+ GPIO10 ── 2  │ 1A                     4OE │ 13 ─── +5V   0.1 µF from pin 14's
+  LED ──── 3  │ 1Y                      4A │ 12 ─── GND   row to ground,
+  out      4  │ 2OE ─── +5V             4Y │ 11 (open)    beside the IC
    GND ─── 5  │ 2A                     3OE │ 10 ─── +5V
   (open)   6  │ 2Y                      3A │  9 ─── GND
    GND ─── 7  │ GND                     3Y │  8 (open)
@@ -92,22 +100,41 @@ wiring. It's the same for both builds.
 |---|---|---|
 | 1 (1OE) | GND | Enables channel 1 (active low) |
 | 2 (1A) | ESP32 **GPIO10** | LED data in, 3.3 V |
-| 3 (1Y) | LED data out → ring | 5 V data; the 330 Ω is at the ring end |
+| 3 (1Y) | LED data out → ring | 5 V data; the 470 Ω is at the ring end |
 | 4 (2OE), 10 (3OE), 13 (4OE) | +5V | Disables channels 2–4 |
 | 5 (2A), 9 (3A), 12 (4A) | GND | TI: unused inputs must be tied |
 | 6, 8, 11 | Open | Unused outputs |
 | 7 (GND) | GND | |
-| 14 (VCC) | +5V | 0.1 µF (X7R, 50 V) straight across pins 14 and 7 |
+| 14 (VCC) | +5V | 0.1 µF from pin 14's row to ground, right beside it |
 
-**Wires onto the board** (solder them in, or fit a 2.54 mm pin header or
-small screw terminal for each): +5V and GND from the hubs, +3V3, GPIO8,
-GPIO9 and GPIO10 from the ESP32; out to the PN532 (GND, +5V, SDA, SCL) and
-the ring (LED data).
+### Perma-Proto layout
 
-**Check the board before fitting the IC.** With the IC out of its socket
-and the meter on continuity: pins 1, 5, 7, 9 and 12 to GND = beep; pins 4,
-10, 13 and 14 to +5V = beep; +5V to GND = no beep; SDA and SCL each to +3V3
-read 4.7 kΩ.
+| Part or wire | Holes |
+|---|---|
+| 74AHCT125 | pin 1 in **e10** (pins 1–7 down column e, rows 10–16), pins 14–8 down column f; notch towards row 1 |
+| 4.7 kΩ (SDA pull-up) | a2 – a6 |
+| 4.7 kΩ (SCL pull-up) | b2 – b7 |
+| 0.1 µF | h9 – h10 |
+| **In:** 5 V hub / GND hub | **L+25** / **L−26** |
+| **In:** ESP32 3V3 | **c2** |
+| **In:** ESP32 GPIO8 (SDA) / GPIO9 (SCL) | **d6** / **d7** |
+| **In:** ESP32 GPIO10 | **d11** (IC pin 2) |
+| **Out:** PN532 SDA / SCL | **c6** / **c7** |
+| **Out:** PN532 VCC / GND | **L+4** / **L−3** |
+| **Out:** LED data to the ring | **c12** (IC pin 3) |
+| Tie: 1OE to GND, 2OE to 5 V, 2A to GND, IC GND | a10 – L−10, a13 – L+13, a14 – L−14, a16 – L−16 |
+| Tie: VCC, 4OE, 3OE to 5 V; 4A, 3A to GND | j10 – R+10, j11 – R+11, j14 – R+14; j12 – R−12, j15 – R−15 |
+| Ground for the 0.1 µF | j9 – R−9 |
+| Rail bridges | L+20 – R+20, L−21 – R−21 |
+
+Solder each wire into its hole (or fit a 2.54 mm pin header there if you
+want plug-in leads).
+
+**Check the board before fitting the IC** (or before soldering it, if you
+don't use a socket). With the meter on continuity: holes e10, e14, e16, f12
+and f15 (IC pins 1, 5, 7, 12, 9) to GND = beep; e13, f10, f11 and f14 (IC
+pins 4, 14, 13, 10) to 5 V = beep; 5 V to GND = no beep. On resistance:
+c6 and c7 each to c2 read 4.7 kΩ.
 
 ## Wiring
 
@@ -137,13 +164,13 @@ read 4.7 kΩ.
 
 | From | To | Notes |
 |---|---|---|
-| USB-C breakout terminal + / − | 5 V hub / GND hub | 18 AWG |
+| USB-C breakout terminal + / − | 5 V hub / GND hub | 22 AWG stranded, ≤ 30 cm |
 | 5 V hub / GND hub | Interface board +5V / GND | 22 AWG |
 | Interface board +5V, GND, SDA, SCL | PN532 **VCC**, **GND**, **SDA**, **SCL** | ≤ 20 cm. Switches: 1 ON, 2 OFF (I²C) |
 | 5 V hub / GND hub | Amplifier **Vin** / **GND** | 22 AWG. 100 µF 16 V across Vin and GND at the amplifier (solder to its header pins), stripe to GND |
-| Interface board LED out | 330 Ω → ring **DIN** | 22 AWG; resistor soldered inline at the ring, in heat-shrink |
-| 5 V hub / GND hub | Ring **5V** / **GND** | 20 AWG; 1000 µF 10 V across the ring's pads, stripe to GND |
-| Amplifier + / − | Speaker (8 Ω, 2–3 W) | Neither terminal is ground |
+| Interface board LED out | 470 Ω → ring **DIN** | 22 AWG; resistor soldered inline at the ring, in heat-shrink |
+| 5 V hub / GND hub | Ring **5V** / **GND** | 22 AWG stranded, ≤ 50 cm; 1000 µF 10 V across the ring's pads, stripe to GND |
+| Amplifier + / − | Speaker (Adafruit 3351, 3 W 4 Ω) | Neither terminal is ground |
 
 - **Keep the I²S wires (LRC, BCLK, DIN) under about 20 cm**, routed together.
 - **Detachable leads (optional):** JST-PH 2.0 plugs inline, 3-pin for the

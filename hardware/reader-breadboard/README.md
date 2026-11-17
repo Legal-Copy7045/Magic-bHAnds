@@ -20,7 +20,7 @@ replaces the earlier breadboard documentation, which had these problems:
 | # | Problem in the earlier documentation | Correction |
 |---|---|---|
 | 1 | The ESP32 board was drawn mirrored (J1 on the right) with its headers 11 holes apart. Viewed from the top with the antenna up, J1 is on the **left**, and the headers are **9 holes** (22.86 mm) apart. | One breadboard, J1 in column c, J3 in column j |
-| 2 | LED power ran through the breadboard rails and jumper wires | LED power comes straight from two lever-connector hubs (20 AWG) |
+| 2 | LED power ran through the breadboard rails and jumper wires | LED power comes straight from two lever-connector hubs |
 | 3 | PN532 VCC was 5 V in one table and 3V3 in another; no I²C pull-ups | PN532 on **5 V**, plus 2 × 4.7 kΩ pull-ups to 3.3 V (the module has none on its header side) |
 | 4 | 330 Ω resistor at the level shifter | At the **ring end** of the data wire (Adafruit's guidance) |
 | 5 | 0.1 µF decoupling drawn but not in the parts list; capacitors had no voltage ratings | Listed below with ratings and positions |
@@ -34,21 +34,21 @@ replaces the earlier breadboard documentation, which had these problems:
 |---|---|---|---|
 | 1 | ESP32-S3 dev board | **ESP32-S3-DevKitC-1-N16R8** layout (Espressif, or Lonely Binary N16R8), headers fitted | The firmware needs 16 MB flash and octal PSRAM. Check a clone's pin labels match the [pinout](#esp32-s3-devkitc-1-j1-pins-used) |
 | 1 | NFC reader | **PN532 NFC module V3** (Elechouse, or a clone such as AITRIP), with its 4-pin header | Set to I²C (switch 1 ON, switch 2 OFF) |
-| 1 | LED ring | **WS2812B** ring, **16 or 24 LEDs**, 5 V (or a WS2812B strip of that many LEDs formed into a ring) | Set `ring_leds` to match |
+| 1 | LED ring | **Adafruit NeoPixel Ring, 24 × 5050 RGB (product 1586)**: WS2812B or SK6812, 5 V | 52.3 mm inside, so the PN532 fits inside it, clear of the antenna. Another ring works: set `ring_leds` |
 | 1 | Amplifier | **Adafruit MAX98357A I²S amplifier breakout, product 3006** | A clone works if it has the same pins and a 1 MΩ SD resistor |
-| 1 | Speaker | **8 Ω, 2–3 W** | 4 Ω works but draws more |
-| 1 | Level shifter | **SN74AHCT125N** (TI, 14-pin DIP) | Not the SOT-23 74AHCT1G125, which doesn't fit a breadboard |
-| 2 | Resistor | 4.7 kΩ, ¼ W, 1 %, metal film | I²C pull-ups |
-| 1 | Resistor | 330 Ω, ¼ W, 1 %, metal film | LED data, at the ring |
-| 1 | Capacitor | 1000 µF, **10 V** or higher, radial electrolytic, 105 °C | Across the ring's 5V/GND pads |
-| 1 | Capacitor | 100 µF, **16 V**, radial electrolytic, 2.0–2.5 mm lead spacing | Amplifier supply |
-| 1 | Capacitor | 100 nF (0.1 µF), 50 V, X7R ceramic, 2.54 mm lead spacing | 74AHCT125 supply |
-| 1 | Breadboard | Full-size **830-point**, 63 rows, power rails both sides | |
-| 2 | Lever connectors | **Wago 221-414** (4-way) | One for 5 V, one for GND |
+| 1 | Speaker | **Adafruit Mono Enclosed Speaker, 3 W 4 Ω (product 3351)** | Rated for the amplifier's full 3 W into 4 Ω |
+| 1 | Level shifter | **74AHCT125, 14-pin DIP** (Adafruit 1787) | Not the SOT-23 74AHCT1G125, which doesn't fit a breadboard |
+| 2 | Resistor | 4.7 kΩ, ¼ W (Adafruit 2783) | I²C pull-ups |
+| 1 | Resistor | **470 Ω**, ¼ W (Adafruit 2781) | LED data, at the ring. Adafruit recommends 300–500 Ω |
+| 1 | Capacitor | 1000 µF, **10 V** or higher, radial electrolytic, 105 °C (not sold by Adafruit) | Across the ring's 5V/GND pads |
+| 1 | Capacitor | 100 µF, **16 V**, radial electrolytic (Adafruit 2193) | Amplifier supply |
+| 1 | Capacitor | 0.1 µF ceramic (Adafruit 753) | 74AHCT125 supply |
+| 1 | Breadboard | Full-size **830-point**, 63 rows, power rails both sides (Adafruit 239) | |
+| 2 | Lever connectors | **Snap-action 5-wire block connector**, 12–24 AWG, 32 A (Adafruit 874, pack of 3) | One for 5 V, one for GND |
 | 1 | USB-C breakout | **Adafruit USB Type C Power Delivery Dummy Breakout, HUSB238 (product 5807)**, set to **5 V 3 A**: keep the 5V jumper, **cut the 1A jumper** (2A stays open) | Rated to 20 V 5 A, with a terminal block. See [Power](#power) |
-| 1 | Power supply | **USB-C charger, 20 W or more** (e.g. Apple 20 W or a laptop charger) and a USB-C cable rated **3 A or more** | At 5 V a USB-C charger gives at most 3 A |
-| — | Wire | 18 AWG stranded red/black (≈ 0.5 m each); 20 AWG stranded red/black (ring power, ≈ 1 m each); 22 AWG **solid** hook-up wire red/black (into the breadboard); 22 AWG stranded (LED data, speaker) | |
-| — | Jumpers | 22 AWG solid-core jumper kit; 4 × female-to-male Dupont jumpers (≤ 20 cm) for the PN532 | |
+| 1 | Power supply | **Raspberry Pi 27 W PD power supply, 5.1 V 5 A (Adafruit 5814)**, or any **USB-C charger of 20 W or more** with a 3 A cable | At 5 V a USB-C charger gives at most 3 A |
+| — | Wire | **22 AWG stranded** red/black (Adafruit 3068, 2976) for the supply, ring and amplifier runs; **22 AWG solid** red/black (Adafruit 288, 290) for wires into the breadboard | Keep the supply-to-hub run under 30 cm and the ring run under 50 cm |
+| — | Jumpers | Breadboarding wire bundle (Adafruit 153); 4 × female/male jumpers, 150 mm (Adafruit 826) for the PN532 | |
 | — | Misc | Heat-shrink, multimeter (DC volts, continuity) | |
 
 ## Power
@@ -84,11 +84,9 @@ switch on. Adafruit's "USB Type C Breakout Board - Downstream Connection"
 | ESP32-S3 board (Wi-Fi + Bluetooth) | 0.15 A | 0.35 A | 0.50 A | *estimate* (Espressif's chip datasheet couldn't be retrieved) |
 | PN532 module (polling every 250 ms) | 0.10 A | 0.15 A | 0.15 A | *estimate* (NXP datasheet couldn't be retrieved) |
 | LED ring, 24 × WS2812B | 0.05 A (idle glow) | 0.48 A (welcome, full green) | **1.44 A** (full white) | 60 mA per LED at full white (Adafruit); one colour *estimated* at a third of that |
-| LED ring, 16 × WS2812B | 0.03 A | 0.32 A | **0.96 A** | as above |
-| MAX98357A + 8 Ω speaker | 0.003 A | 0.30 A | 0.45 A | 2.4 mA quiescent (datasheet); 1.8 W max into 8 Ω at 5 V (Adafruit); current *estimate* |
+| MAX98357A + 4 Ω speaker | 0.003 A | 0.30 A | 0.65 A | 2.4 mA quiescent (datasheet); up to 650 mA at 5 V into 4 Ω (Adafruit) |
 | 74AHCT125, pull-ups, board LEDs | 0.01 A | 0.01 A | 0.01 A | 74AHCT125 ≤ 20 µA (TI) |
-| **Total, 24-LED ring** | **≈ 0.3 A** | **≈ 1.3 A** | **≈ 2.6 A** | |
-| **Total, 16-LED ring** | **≈ 0.3 A** | **≈ 1.1 A** | **≈ 2.1 A** | |
+| **Total** | **≈ 0.3 A** | **≈ 1.4 A** | **≈ 2.75 A** | |
 
 - **Normal** is idle: the ring glowing white at 30 % (ESPHome's gamma
   correction makes that about 3 % of full power), nothing playing.
@@ -96,18 +94,18 @@ switch on. Adafruit's "USB Type C Breakout Board - Downstream Connection"
 - **Worst case** is Home Assistant setting the ring to full white while a
   sound plays at full volume and Wi-Fi transmits. The firmware has no
   brightness cap.
-- **Headroom on 3 A:** about 15 % with 24 LEDs, about 30 % with 16. A 4 Ω
-  speaker adds up to 0.2 A: use 8 Ω with a 24-LED ring.
+- **Headroom on 3 A:** about 8 % in that worst case, which stacks every
+  maximum at once. In use the reader stays under half the supply.
 
 ### Distribution
 
 ```
-USB-C charger ─ USB-C breakout ─(18 AWG)─┬─ 5 V hub ──┬─(22 AWG solid)─ breadboard L+ rail (row 24): ESP32 5V pin, PN532, 74AHCT125
+USB-C charger ─ USB-C breakout ─(22 AWG)─┬─ 5 V hub ──┬─(22 AWG solid)─ breadboard L+ rail (row 24): ESP32 5V pin, PN532, 74AHCT125
                                          │            ├─(22 AWG solid)─ amplifier Vin (f52)
-                                         │            └─(20 AWG)─────── LED ring 5V pad  (+1000 µF there)
+                                         │            └─(22 AWG)─────── LED ring 5V pad  (+1000 µF there)
                                          └─ GND hub ──┬─(22 AWG solid)─ breadboard L− rail (row 25)
                                                       ├─(22 AWG solid)─ amplifier GND (f51)
-                                                      └─(20 AWG)─────── LED ring GND pad
+                                                      └─(22 AWG)─────── LED ring GND pad
 ```
 
 - **One ground point:** every ground meets at the GND hub. The ring's and
@@ -115,7 +113,9 @@ USB-C charger ─ USB-C breakout ─(18 AWG)─┬─ 5 V hub ──┬─(22 AW
 - **The breadboard rails carry only the ESP32, PN532 and level shifter**
   (≤ 0.7 A worst case).
 - Keep the hubs within about 30 cm of the breadboard and the ring. With
-  20 AWG (33 mΩ/m), 1.44 A over 0.5 m each way drops about 50 mV.
+  22 AWG (about 53 mΩ/m), 1.44 A over 0.5 m each way drops about 80 mV,
+  and 2.75 A over 0.3 m each way about 90 mV. The Raspberry Pi supply's
+  5.1 V output leaves room for that.
 - **USB and the 5 V supply must never feed the ESP32 together.** Espressif
   lists USB, the 5V pin and the 3V3 pin as mutually exclusive power options.
   The board's USB ports feed its 5 V through Schottky diodes, so the charger
@@ -146,8 +146,8 @@ red rail at row 24). Rows run 1–63 from the top; columns are `L−` `L+` `a–
 
 | From | To | Signal | Notes |
 |---|---|---|---|
-| USB-C breakout terminal **+** | 5 V hub | 5 V | 18 AWG red |
-| USB-C breakout terminal **−** | GND hub | GND | 18 AWG black |
+| USB-C breakout terminal **+** | 5 V hub | 5 V | 22 AWG stranded red, ≤ 30 cm |
+| USB-C breakout terminal **−** | GND hub | GND | 22 AWG stranded black, ≤ 30 cm |
 | 5 V hub | L+24 | 5 V to the breadboard | 22 AWG solid red |
 | GND hub | L−25 | GND to the breadboard | 22 AWG solid black |
 | L+29 | L+35 | 5 V rail bridge | Bridges a rail split; harmless if there's none |
@@ -174,14 +174,14 @@ red rail at row 24). Rows run 1–63 from the top; columns are `L−` `L+` `a–
 | j38 (pin 10, 3OE) | R+38 | Disables channel 3 | |
 | j39 (pin 9, 3A) | R−39 | Unused input to GND | |
 | j33 | R−33 | Grounds row 33 for the 0.1 µF | |
-| c36 (pin 3, 1Y) | 330 Ω → ring **DIN** | LED data, 5 V | 22 AWG; the resistor is soldered inline at the ring end, in heat-shrink |
+| c36 (pin 3, 1Y) | 470 Ω → ring **DIN** | LED data, 5 V | 22 AWG; the resistor is soldered inline at the ring end, in heat-shrink |
 | b5 (**GPIO5**) | f46 | I²S LRC | |
 | b6 (**GPIO6**) | f47 | I²S BCLK | |
 | b7 (**GPIO7**) | f48 | I²S DIN | |
 | 5 V hub | f52 | Amplifier Vin | 22 AWG solid red |
 | GND hub | f51 | Amplifier GND | 22 AWG solid black |
-| 5 V hub | Ring **5V** pad | LED power | 20 AWG red |
-| GND hub | Ring **GND** pad | LED power return | 20 AWG black |
+| 5 V hub | Ring **5V** pad | LED power | 22 AWG stranded red, ≤ 50 cm |
+| GND hub | Ring **GND** pad | LED power return | 22 AWG stranded black, ≤ 50 cm |
 | 1000 µF + / − | Ring 5V / GND pads | Bulk capacitor | Soldered at the ring, stripe to GND |
 | Amplifier + / − terminal | Speaker | Audio | 22 AWG. Neither terminal is ground (bridge-tied output) |
 
@@ -209,12 +209,12 @@ by the board's flash and PSRAM (GPIO35–37).
 | PN532 supply voltage | 5 V vs 3.3 V (docs conflicted) | CHANGE REQUIRED | 5 V | The module feeds VCC to the PN532's VBAT. At 3.3 V the reset divider (10 k/20 k) gives about 2.2 V |
 | WS2812B LEDs | 24 ring + 12 Mickey | CHANGE REQUIRED | Ring only, 16 or 24 | 36 LEDs at full white (2.16 A) plus the rest exceeds 3 A |
 | Level shifter | 74AHCT125 / 74AHCT1G125 | PASS (SN74AHCT125N) | Use the DIP version | WS2812B needs 0.7 × VDD = 3.5 V high; 74AHCT125 accepts 2.0 V and outputs ≥ 3.8 V (TI) |
-| 330 Ω resistor | At the shifter | PASS WITH CONDITIONS | Move to the ring end | Adafruit: "at the end of the wire closest to the NeoPixel(s)" |
+| 330 Ω resistor | At the shifter | PASS WITH CONDITIONS | 470 Ω (Adafruit sells no 330 Ω), at the ring end | Adafruit: "at the end of the wire closest to the NeoPixel(s)" |
 | 1000 µF capacitor | No rating or position given | PASS WITH CONDITIONS | 10 V, at the ring's pads | Adafruit: 500–1000 µF, 6.3 V or higher |
 | 0.1 µF capacitor | Drawn, not listed | CHANGE REQUIRED | Add to the parts list, at the IC | Standard supply decoupling |
 | I²C pull-ups | None | CHANGE REQUIRED | 2 × 4.7 kΩ to 3.3 V | The module's header side has none; the ESP32's internal pull-ups are weak |
 | MAX98357A | Adafruit 3006 | PASS WITH CONDITIONS | Own supply wires; 100 µF at Vin | 2.5–5.5 V supply, 1.3 V logic threshold (datasheet); Adafruit budgets 650–800 mA |
-| Speaker | 3 W, 4–8 Ω | PASS WITH CONDITIONS | 8 Ω, 2–3 W | Lower current: 1.8 W max into 8 Ω at 5 V |
+| Speaker | 3 W, 4–8 Ω | PASS | Adafruit 3351, 3 W 4 Ω | Rated for the amplifier's 3 W into 4 Ω; 0.65 A fits the budget |
 | Power supply | 5 V 3 A | PASS WITH CONDITIONS | USB-C charger ≥ 20 W; ring only; USB-C breakout with CC resistors | Worst case ≈ 2.6 A |
 | Power distribution | Breadboard rails | CHANGE REQUIRED | Hubs; LED and amplifier wired directly | Breadboard contacts aren't meant for amps of LED current |
 | Firmware | `magicband-reader.yaml` | PASS | — | See below |
@@ -278,13 +278,13 @@ fix it. Fit them anyway.
    rows 42–43. Before fitting the chip, check with the meter: e34, a38, j36,
    j39 to GND = 0 Ω; j34, a37, j35, j38 to 5 V = 0 Ω.
 2. Wire the ring: 5V/GND from the hubs, 1000 µF at its pads (stripe to
-   GND), data from c36 through the 330 Ω at the ring end. Connect **ground
+   GND), data from c36 through the 470 Ω at the ring end. Connect **ground
    first**, then 5 V, then data.
 3. Power up. Measure: IC pin 14 to pin 7 = 4.75–5.25 V.
 4. In Home Assistant, turn on **Ring**: white 30 %, then red, green and
    blue 100 % each. All LEDs light; colours are correct.
 5. **Stop if:** wrong colours (check `ring_leds` and GRB), flicker or random
-   colours (check the shifter wiring, the 330 Ω and the common ground), or
+   colours (check the shifter wiring, the 470 Ω and the common ground), or
    the rail drops below 4.75 V.
 
 **Stage 4: amplifier and speaker.**
@@ -304,7 +304,7 @@ fix it. Fit them anyway.
    meter can measure up to 10 A, the charger-to-hub current should stay
    **under 3 A** (expect ≈ 1.5–2.6 A).
 3. Afterwards, check the ESP32's *Uptime* hasn't reset, and nothing is hot:
-   the 18/20 AWG wires, hubs, USB-C breakout and the 74AHCT125 should be
+   the power wires, hubs, USB-C breakout and the 74AHCT125 should be
    barely warm.
 4. **Stop if:** the voltage dips below 4.75 V, the charger cuts out, the
    ESP32 restarts, or anything is hot.

@@ -15,6 +15,19 @@ Home Assistant integration share one version number.
 
 ### Docs
 - Bridge and BP2-POE guides: where to set active or passive scanning.
+- **Shopping list** (`hardware/shopping-list.md`): exact Adafruit parts for
+  all three reader builds, checked against Adafruit's product pages, and the
+  three parts Adafruit doesn't sell. The builds now use them:
+  - NeoPixel Ring 24 (the PN532 fits inside it).
+  - 3 W 4 Ω enclosed speaker.
+  - 470 Ω data resistor.
+  - Snap-action connectors as the power hubs.
+  - 22 AWG stranded power wiring.
+  - HUSB238 USB-C PD breakout with the Raspberry Pi 27 W supply.
+- **Diagrams for the terminal base and point-to-point builds**, with the
+  interface board drawn hole for hole on an Adafruit Perma-Proto.
+- Reader install steps: flash the bare ESP32 first; disconnect the ESP32's
+  5 V before plugging in USB later.
 
 ## [0.8.1] - 2026-11-17
 

@@ -5,6 +5,8 @@ ESP32-S3 N16R8, a PN532 NFC reader, a MAX98357A amplifier, a 74AHCT125 level
 shifter, a WS2812B LED ring and a speaker), the same GPIOs and the same
 firmware features. Only the way the parts are joined changes.
 
+**Parts for every build: the [shopping list](shopping-list.md).**
+
 **Start with the breadboard.** It's the reference build: quick to put
 together, easy to probe, and everything can be rewired. Once it works, use
 it to check each later build.
@@ -55,7 +57,10 @@ sound volume, LED behaviour) and raise it as a GitHub issue.
 - [`reader-breadboard/`](reader-breadboard/README.md): the reviewed
   breadboard build (build 1) and the script that draws its diagram.
 - [`reader-wired/`](reader-wired/README.md): the terminal base and
-  point-to-point builds (2 and 3), with the shared interface board.
+  point-to-point builds (2 and 3), with the shared interface board, and the
+  script that draws their diagrams.
+- [`shopping-list.md`](shopping-list.md): exact parts (Adafruit) for all
+  three builds.
 - [`reader-pcb/`](reader-pcb/README.md): KiCad project, Gerbers and JLCPCB
   files for build 4, with the scripts that generate them.
 
