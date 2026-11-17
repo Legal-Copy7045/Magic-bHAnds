@@ -3,6 +3,19 @@
 All notable changes to Magic bHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.8.3] - 2026-11-17
+
+### Integration
+- **Band messages get their own history.** `magicband.list_heard` now also
+  returns `bands`: the last 200 messages from bands, kept separately from the
+  30 most recent messages of any kind. Your bridges' own commands fill that
+  30-entry list within a minute, so band messages used to be pushed out
+  before you could look.
+
+### Also in this release
+- The reader's `ring_color_order` setting, the shopping list's generic
+  alternatives, and the new power and interface-board diagrams (see 0.8.2).
+
 ## [0.8.2] - 2026-11-17
 
 ### Fixed

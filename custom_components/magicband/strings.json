@@ -275,7 +275,7 @@
     },
     "list_heard": {
       "name": "List Bluetooth heard",
-      "description": "Return recent MagicBand+ Bluetooth traffic heard by Home Assistant's Bluetooth adapters and proxies: band responses and bridge commands, with the device address, signal strength, which proxy heard it and how long after the last send."
+      "description": "Return recent MagicBand+ Bluetooth traffic heard by Home Assistant's Bluetooth adapters and proxies. \"heard\" is the last 30 messages of any kind (mostly your bridges' own commands); \"bands\" keeps the last 200 band messages, so commands can't push them out. Each has the device address, signal strength, which proxy heard it and how long after the last send."
     }
   }
 }
