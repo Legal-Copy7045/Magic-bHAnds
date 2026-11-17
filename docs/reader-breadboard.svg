@@ -997,7 +997,7 @@ polyline.w{fill:none}
 <rect x="609" y="723" width="6" height="6" class="icpin"/>
 <rect x="561" y="739" width="6" height="6" class="icpin"/>
 <rect x="609" y="739" width="6" height="6" class="icpin"/>
-<text x="588.0" y="698.0" class="icname" text-anchor="middle" transform="rotate(90 588.0 694)">SN74AHCT125N</text>
+<text x="588.0" y="698.0" class="icname" text-anchor="middle" transform="rotate(90 588.0 694)">74AHCT125</text>
 <text x="555.0" y="649.0" class="pinno" text-anchor="end" >1</text>
 <text x="621.0" y="649.0" class="pinno" text-anchor="start" >14</text>
 <text x="555.0" y="665.0" class="pinno" text-anchor="end" >2</text>
@@ -1201,9 +1201,9 @@ polyline.w{fill:none}
 <polyline points="516.0,214.0 512.0,214.0 512.0,218.0 427.0,218.0 427.0,828.4 608.0,828.4 608.0,870.0 612.0,870.0" class="w i2s3"/>
 <circle cx="516.0" cy="214.0" r="3.4" class="end i2s3"/>
 <circle cx="612.0" cy="870.0" r="3.4" class="end i2s3"/>
-<rect x="150" y="886" width="90" height="40" rx="6" class="hub hubp"/>
+<rect x="150" y="886" width="106" height="40" rx="6" class="hub hubp"/>
 <text x="142.0" y="902.0" class="modsub2" text-anchor="end" >5 V hub</text>
-<text x="142.0" y="917.0" class="modsub2" text-anchor="end" >Wago 221-414</text>
+<text x="142.0" y="917.0" class="modsub2" text-anchor="end" >Adafruit 874</text>
 <rect x="166" y="910" width="10" height="10" rx="2" class="hubport"/>
 <rect x="167" y="892" width="8" height="12" rx="2" class="lever"/>
 <rect x="182" y="910" width="10" height="10" rx="2" class="hubport"/>
@@ -1212,9 +1212,11 @@ polyline.w{fill:none}
 <rect x="199" y="892" width="8" height="12" rx="2" class="lever"/>
 <rect x="214" y="910" width="10" height="10" rx="2" class="hubport"/>
 <rect x="215" y="892" width="8" height="12" rx="2" class="lever"/>
-<rect x="150" y="966" width="90" height="40" rx="6" class="hub hubg"/>
+<rect x="230" y="910" width="10" height="10" rx="2" class="hubport"/>
+<rect x="231" y="892" width="8" height="12" rx="2" class="lever"/>
+<rect x="150" y="966" width="106" height="40" rx="6" class="hub hubg"/>
 <text x="142.0" y="982.0" class="modsub2" text-anchor="end" >GND hub</text>
-<text x="142.0" y="997.0" class="modsub2" text-anchor="end" >Wago 221-414</text>
+<text x="142.0" y="997.0" class="modsub2" text-anchor="end" >Adafruit 874</text>
 <rect x="166" y="990" width="10" height="10" rx="2" class="hubport"/>
 <rect x="167" y="972" width="8" height="12" rx="2" class="lever"/>
 <rect x="182" y="990" width="10" height="10" rx="2" class="hubport"/>
@@ -1223,11 +1225,13 @@ polyline.w{fill:none}
 <rect x="199" y="972" width="8" height="12" rx="2" class="lever"/>
 <rect x="214" y="990" width="10" height="10" rx="2" class="hubport"/>
 <rect x="215" y="972" width="8" height="12" rx="2" class="lever"/>
+<rect x="230" y="990" width="10" height="10" rx="2" class="hubport"/>
+<rect x="231" y="972" width="8" height="12" rx="2" class="lever"/>
 <rect x="36" y="1054.0" width="230" height="122" rx="8" class="psu"/>
-<text x="48.0" y="1076.0" class="modname" text-anchor="start" >USB-C PD breakout</text>
-<text x="48.0" y="1093.0" class="modsub" text-anchor="start" >Adafruit HUSB238 (5807): 5V jumper</text>
-<text x="48.0" y="1107.0" class="modsub" text-anchor="start" >closed, 1A jumper cut = 5 V 3 A</text>
-<text x="48.0" y="1121.0" class="modsub" text-anchor="start" >USB-C charger, 20 W or more</text>
+<text x="48.0" y="1076.0" class="modname" text-anchor="start" >USB-C PD breakout (5807)</text>
+<text x="48.0" y="1093.0" class="modsub" text-anchor="start" >HUSB238: 5V jumper closed,</text>
+<text x="48.0" y="1107.0" class="modsub" text-anchor="start" >1A jumper cut = 5 V 3 A.</text>
+<text x="48.0" y="1121.0" class="modsub" text-anchor="start" >Pi 27 W PD supply (5814)</text>
 <rect x="262" y="1140.0" width="8" height="8" rx="1.5" class="pin"/>
 <text x="256.0" y="1148.0" class="modpin" text-anchor="end" >+</text>
 <rect x="262" y="1158.0" width="8" height="8" rx="1.5" class="pin"/>
@@ -1238,7 +1242,7 @@ polyline.w{fill:none}
 <polyline points="266.0,1162.0 286.0,1162.0 286.0,1014.0 171.0,1014.0 171.0,1000.0" class="w gnd thick"/>
 <circle cx="266.0" cy="1162.0" r="3.4" class="end gnd thick"/>
 <circle cx="171.0" cy="1000.0" r="3.4" class="end gnd thick"/>
-<text x="310.0" y="1078.0" class="awg" text-anchor="start" >18 AWG</text>
+<text x="310.0" y="1078.0" class="awg" text-anchor="start" >22 AWG, ≤30 cm</text>
 <polyline points="187.0,920.0 187.0,863.6 338.0,863.6 338.0,486.0 468.0,486.0" class="w p5"/>
 <circle cx="187.0" cy="920.0" r="3.4" class="end p5"/>
 <circle cx="468.0" cy="486.0" r="3.4" class="end p5"/>
@@ -1281,9 +1285,9 @@ polyline.w{fill:none}
 <circle cx="532.0" cy="598.0" r="3.4" class="end scl"/>
 <text x="154.0" y="392.0" class="awg" text-anchor="middle" >female-to-male jumpers, ≤20 cm</text>
 <rect x="1010" y="842" width="210" height="128" rx="8" class="mod"/>
-<text x="1022.0" y="864.0" class="modname" text-anchor="start" >LED ring, WS2812B</text>
-<text x="1022.0" y="881.0" class="modsub" text-anchor="start" >16 or 24 LEDs (set ring_leds)</text>
-<text x="1022.0" y="895.0" class="modsub" text-anchor="start" >or a strip formed into a ring;</text>
+<text x="1022.0" y="864.0" class="modname" text-anchor="start" >NeoPixel Ring 24</text>
+<text x="1022.0" y="881.0" class="modsub" text-anchor="start" >Adafruit 1586, 24 LEDs: the</text>
+<text x="1022.0" y="895.0" class="modsub" text-anchor="start" >PN532 sits inside the ring;</text>
 <text x="1022.0" y="909.0" class="modsub" text-anchor="start" >1000 µF across 5V/GND pads</text>
 <rect x="1006" y="916" width="8" height="8" rx="1.5" class="pin"/>
 <text x="1020.0" y="924.0" class="modpin" text-anchor="start" >DIN</text>
@@ -1302,7 +1306,7 @@ polyline.w{fill:none}
 <rect x="967" y="915" width="3" height="10" class="b-br"/>
 <rect x="974" y="915" width="3" height="10" class="b-gd"/>
 <polyline points="982.0,920.0 1010.0,920.0" class="w led"/>
-<text x="966.0" y="910.0" class="partlbl" text-anchor="middle" >330 Ω</text>
+<text x="966.0" y="910.0" class="partlbl" text-anchor="middle" >470 Ω</text>
 <polyline points="219.0,920.0 219.0,825.2 930.0,825.2 930.0,938.0 1010.0,938.0" class="w p5 thick"/>
 <circle cx="219.0" cy="920.0" r="3.4" class="end p5 thick"/>
 <circle cx="1010.0" cy="938.0" r="3.4" class="end p5 thick"/>
@@ -1310,9 +1314,9 @@ polyline.w{fill:none}
 <circle cx="219.0" cy="1000.0" r="3.4" class="end gnd thick"/>
 <circle cx="1010.0" cy="956.0" r="3.4" class="end gnd thick"/>
 <text x="1010.0" y="988.0" class="awg" text-anchor="start" >Ring power comes straight from the hubs</text>
-<text x="1010.0" y="1003.0" class="awg" text-anchor="start" >(20 AWG), never through the breadboard.</text>
+<text x="1010.0" y="1003.0" class="awg" text-anchor="start" >(22 AWG), never through the breadboard.</text>
 <circle cx="930" cy="1062" r="34" class="spk"/><circle cx="930" cy="1062" r="14" class="spkc"/>
-<text x="930.0" y="1114.0" class="partlbl" text-anchor="middle" >Speaker 8 Ω, 2–3 W</text>
+<text x="930.0" y="1114.0" class="partlbl" text-anchor="middle" >Speaker 3 W 4 Ω (Adafruit 3351)</text>
 <polyline points="816.0,906.0 850.0,906.0 850.0,1052.0 896.0,1052.0" class="w spkw"/>
 <circle cx="816.0" cy="906.0" r="3.4" class="end spkw"/>
 <circle cx="896.0" cy="1052.0" r="3.4" class="end spkw"/>
@@ -1357,7 +1361,7 @@ polyline.w{fill:none}
 <text x="998.0" y="362.0" class="leg" text-anchor="start" >LED data: GPIO10 → 74AHCT125 → ring</text>
 <polyline points="948.0,378.0 986.0,378.0" class="w spkw"/>
 <text x="998.0" y="382.0" class="leg" text-anchor="start" >Speaker</text>
-<text x="946.0" y="406.0" class="leg2" text-anchor="start" >Thick lines: 18 / 20 AWG power runs</text>
+<text x="946.0" y="406.0" class="leg2" text-anchor="start" >Thick lines: 22 AWG stranded power runs</text>
 <rect x="930" y="440" width="372" height="362" rx="10" class="rules"/>
 <text x="946.0" y="466.0" class="modname2" text-anchor="start" >Numbered points</text>
 <circle cx="956.0" cy="486.0" r="9" class="mark"/>
@@ -1390,6 +1394,6 @@ polyline.w{fill:none}
 <text x="974.0" y="739.0" class="leg" text-anchor="start" >stripe (−) to row 51.</text>
 <circle cx="956.0" cy="759.0" r="9" class="mark"/>
 <text x="956.0" y="763.0" class="markno" text-anchor="middle" >8</text>
-<text x="974.0" y="763.0" class="leg" text-anchor="start" >330 Ω at the ring end of the data wire; 1000 µF</text>
+<text x="974.0" y="763.0" class="leg" text-anchor="start" >470 Ω at the ring end of the data wire; 1000 µF</text>
 <text x="974.0" y="778.0" class="leg" text-anchor="start" >across the ring's 5V/GND pads.</text>
 </svg>

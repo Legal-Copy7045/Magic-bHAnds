@@ -31,6 +31,9 @@ MagicBands give a 7-byte ID like `04-53-65-2A-C0-5F-80`.
 
 ## Parts and wiring (breadboard)
 
+**Parts: the [shopping list](../hardware/shopping-list.md)** (exact Adafruit
+products, plus the three parts Adafruit doesn't sell).
+
 **Build it from the [breadboard build spec](../hardware/reader-breadboard/README.md).**
 It has the reviewed parts list, a hole-by-hole wiring table, the power
 budget and a staged test plan.
@@ -43,9 +46,9 @@ In short:
 |---|---|
 | ESP32-S3 dev board | ESP32-S3-DevKitC-1 **N16R8** layout (Espressif, or Lonely Binary N16R8) |
 | NFC reader | **PN532 NFC module V3** (Elechouse or clone), switches set to **I²C** (1 ON, 2 OFF), powered from **5 V**, with two 4.7 kΩ pull-ups to 3.3 V |
-| LED ring | One **WS2812B** ring of **16 or 24 LEDs** (or a strip formed into a ring). Set `ring_leds` |
-| Amplifier + speaker | Adafruit **MAX98357A** breakout, **8 Ω 2–3 W** speaker |
-| Level shifter | **SN74AHCT125N** (DIP) for the LED data line, 330 Ω at the ring end |
+| LED ring | **Adafruit NeoPixel Ring 24** (1586); the PN532 sits inside it. Another ring works: set `ring_leds` |
+| Amplifier + speaker | Adafruit **MAX98357A** breakout (3006), **3 W 4 Ω enclosed speaker** (3351) |
+| Level shifter | **74AHCT125** DIP (Adafruit 1787) for the LED data line, 470 Ω at the ring end |
 | Power | **USB-C charger, 20 W or more**, through an Adafruit HUSB238 USB-C PD breakout set to 5 V 3 A |
 
 | ESP32-S3 pin | Goes to |
@@ -54,7 +57,7 @@ In short:
 | **GND** | Ground |
 | **3V3** | The two I²C pull-ups |
 | **GPIO8** / **GPIO9** | PN532 **SDA** / **SCL** |
-| **GPIO10** | 74AHCT125 → 330 Ω → ring **DIN** |
+| **GPIO10** | 74AHCT125 → 470 Ω → ring **DIN** |
 | **GPIO5** / **GPIO6** / **GPIO7** | MAX98357A **LRC** / **BCLK** / **DIN** |
 
 - **LED and amplifier power come straight from two lever-connector hubs**,
@@ -69,7 +72,12 @@ Once the breadboard works, the same circuit can be built smaller: on the
 Lonely Binary **terminal-block base**, or **point-to-point** with Dupont
 leads on the ESP32's pins. Both use a small perfboard **interface board**
 for the level shifter and I²C pull-ups, and the same power hubs. See
-**[hardware/reader-wired](../hardware/reader-wired/README.md)**.
+**[hardware/reader-wired](../hardware/reader-wired/README.md)** for the
+hole-by-hole layout and tests.
+
+| Terminal base | Point-to-point |
+|---|---|
+| ![Terminal base wiring](reader-terminal-base.svg) | ![Point-to-point wiring](reader-point-to-point.svg) |
 
 ### Powering it from a USB-C charger
 
@@ -89,10 +97,15 @@ before plugging USB in later.
 **Web installer: https://legal-copy7045.github.io/Magic-bHAnds/** (choose
 *Install the reader*).
 
-1. Plug the ESP32-S3 into your computer through the USB-C port labelled
-   **UART**, with the 5 V supply **disconnected**.
+Install the firmware **before wiring anything else to the ESP32**, as stage
+1 of the build's test sequence
+([breadboard](../hardware/reader-breadboard/README.md#build-and-test-sequence),
+[terminal base and point-to-point](../hardware/reader-wired/README.md#build-and-test)).
+
+1. Plug the bare ESP32-S3 into your computer through the USB-C port
+   labelled **UART**.
 2. Open the web installer in Chrome or Edge, click **Install the reader**,
-   then enter your Wi-Fi details when asked.
+   then enter your Wi-Fi details when asked. Unplug it, then build the rest.
 3. Add it in Home Assistant when it's discovered (ESPHome). Then open
    **Settings → Devices & services → ESPHome → the reader → Configure**, and
    turn on **Allow the device to perform Home Assistant actions**. That's
@@ -100,7 +113,10 @@ before plugging USB in later.
 4. Install the [MagicBand integration](integration.md) to manage people and
    bands.
 
-Firmware updates then appear in Home Assistant as an update on the reader.
+Firmware updates then appear in Home Assistant as an update on the reader,
+and install over Wi-Fi: no USB needed. If you ever do plug USB into the
+built reader (for serial logs), **first disconnect the ESP32's 5 V wire**
+from the 5 V rail or hub; the rest can stay powered.
 The connection is encrypted: Home Assistant gives each reader its own key when
 it first connects.
 
