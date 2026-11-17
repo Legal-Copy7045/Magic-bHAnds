@@ -98,6 +98,37 @@ on a terminal, apart from 5 V:
   ring's 5V and GND where its cable starts.
 - As always, **don't connect USB while the 5 V supply is on.**
 
+### Point-to-point wiring (small, no breadboard)
+
+For the smallest build without a custom PCB, solder wires straight between
+the modules, with the board's pins on short leads:
+
+- **Board:** solder the ESP32-S3 board's headers on (or buy it with headers)
+  and use **female Dupont jumper leads** onto them. Use 10–15 cm leads so you
+  can arrange the modules freely in the case.
+- **Amplifier and PN532:** solder their wires directly to the modules (or
+  use female-female Dupont leads on their header pins). Twist the three I2S
+  wires (LRC, BCLK, DIN) together with a ground wire, and keep them under
+  ~20 cm.
+- **Level shifter:** a single-channel **SN74AHCT1G125** on a tiny SOT-23
+  breakout, or a 74AHCT125 module, wired inline. Put the **330 Ω resistor**
+  in the LED data wire at the shifter's output end, inside heat-shrink.
+- **Power splits:** use two small lever connectors (Wago 221-413), one for
+  5 V and one for GND, as the hub for the supply, ESP32 5V/GND, LED ring,
+  amplifier and shifter. Put the **1000 µF capacitor** across 5 V and GND
+  where the LED ring's cable starts.
+- **Detachable leads:** if you want to unplug the ring, Mickey or speaker,
+  put JST-PH 2.0 plugs inline: 3-pin for the LEDs (5V, DATA, GND) and 2-pin
+  for the speaker. Pre-crimped JST pigtails make this solder-and-heat-shrink
+  only.
+- Insulate every joint with heat-shrink, and hot-glue or zip-tie the modules
+  to the case so the joints don't flex.
+
+The wiring is the same as the table above. For something smaller and tidier
+still, there's a **[custom PCB](../hardware/reader-pcb/README.md)** with the
+ESP32-S3 module, amplifier, level shifter and USB-C on one 26 × 58 mm board,
+and connectors for leads to the NFC reader, speaker and LEDs.
+
 ### Powering it from a USB-C charger
 
 A USB-C charger that can give **5 V at 3 A**, such as most Dell, Apple or
