@@ -55,7 +55,7 @@ Then:
   and 31 predefined park scenes, with one-press scene buttons
 - Fast mode: mixes in the park's "fast mode" ping so bands respond sooner
 - 11 vibration patterns, on-time, fade-out and stay-on control
-- A **Colour** select for the bands (not a light, so "all lights off" leaves it alone), plus an optional light entity with animation effects
+- A MagicBand light entity with a colour picker and animation effects
 - Several bridges for whole-house coverage, all addressed at once by default
 - An optional Bluetooth proxy on the same board
 - Also runs on other ESPHome boards, such as the SCREEK BP2-POE

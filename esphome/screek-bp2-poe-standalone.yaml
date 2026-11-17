@@ -330,10 +330,6 @@ light:
     id: band_light
     name: "MagicBand"
     icon: mdi:watch-variant
-    # Off by default: as a light it gets swept up by "turn off all lights"
-    # automations. The Colour select below does the same without being a
-    # light. Enable this in Home Assistant if you want the colour picker.
-    disabled_by_default: true
     restore_mode: RESTORE_DEFAULT_ON   # on by default, then remembers on/off and colour
     default_transition_length: 0s
     effects:
@@ -384,41 +380,6 @@ text:
       - lambda: id(band).run_command_json(x);
 
 select:
-  # Colour for nearby bands, until "Off" is chosen. Not a light or a switch,
-  # so "turn off all lights" automations leave it alone.
-  - platform: template
-    id: band_colour
-    name: "Colour"
-    icon: mdi:palette
-    optimistic: true
-    options:
-      - "Off"
-      - "White"
-      - "Red"
-      - "Red orange"
-      - "Orange"
-      - "Yellow orange"
-      - "Off yellow"
-      - "Lime"
-      - "Lime green"
-      - "Green"
-      - "Cyan"
-      - "Blue"
-      - "Midnight blue"
-      - "Purple"
-      - "Bright purple"
-      - "Lavender"
-      - "Pink"
-      - "Random"
-    initial_option: "Off"
-    set_action:
-      - lambda: |-
-          if (x == "Off") {
-            id(band).send_off();
-          } else {
-            id(band).send_single_color(magicband::MagicBand::color_from_string(x), 0, magicband::TIMING_ALWAYS_ON);
-          }
-
   # Plays a predefined scene when chosen (use "Play scene" to repeat it).
   - platform: template
     id: scene
