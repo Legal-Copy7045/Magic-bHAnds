@@ -231,8 +231,10 @@ Checked against `esphome/magicband-reader.yaml` and ESPHome's source:
 - **LEDs:** `esp32_rmt_led_strip` on GPIO10, WS2812, **GRB** (the WS2812B
   datasheet's order; `ring_color_order` changes it), `ring_leds` LEDs
   (default 24), off at boot, gamma 2.8.
-  **There's no brightness cap**, which is why the supply is sized for full
-  white.
+  `ring_max_brightness` (default 100 %) caps the output; with 24 LEDs
+  there's no cap, which is why the supply is sized for full white. A ring
+  with more LEDs needs the cap (see the
+  [shopping list](../shopping-list.md#if-a-ring-wont-fit-flexible-led-options)).
 - **I²S:** LRCLK GPIO5, BCLK GPIO6, DOUT GPIO7, external DAC, mono. The
   MAX98357A needs no MCLK. *Not verified:* whether ESPHome's mono mode fills
   one I²S slot or both. If only one, the (L+R)/2 mix halves the level, which

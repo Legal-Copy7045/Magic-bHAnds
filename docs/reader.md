@@ -128,6 +128,8 @@ reader shows up with **Take control**, which imports
 `esphome/magicband-reader.yaml` as a package. In its substitutions, change
 `ring_leds` if your ring or strip doesn't have 24 LEDs, and
 `ring_color_order` to `RGB` for Adafruit's silicone neon-like strip (4310).
+**More than 24 LEDs:** also set `ring_max_brightness` to 2400 ÷ LEDs, rounded
+down to 5 % (35 LEDs: `65%`), so full white stays within the 20 W supply.
 
 ## Using it with Home Assistant
 
