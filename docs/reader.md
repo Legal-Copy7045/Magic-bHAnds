@@ -46,7 +46,7 @@ In short:
 | LED ring | One **WS2812B** ring of **16 or 24 LEDs** (or a strip formed into a ring). Set `ring_leds` |
 | Amplifier + speaker | Adafruit **MAX98357A** breakout, **8 Ω 2–3 W** speaker |
 | Level shifter | **SN74AHCT125N** (DIP) for the LED data line, 330 Ω at the ring end |
-| Power | **USB-C charger, 20 W or more**, through a USB-C breakout with 5.1 kΩ CC resistors: 5 V, up to 3 A |
+| Power | **USB-C charger, 20 W or more**, through an Adafruit HUSB238 USB-C PD breakout set to 5 V 3 A |
 
 | ESP32-S3 pin | Goes to |
 |---|---|
@@ -75,9 +75,9 @@ for the level shifter and I²C pull-ups, and the same power hubs. See
 
 Use a **USB-C charger of 20 W or more** (Apple 20 W, a laptop charger and
 so on). At 5 V, USB-C gives **at most 3 A** whatever the charger's wattage,
-which covers a ring-only reader (about 2.6 A worst case). Feed it in through a **USB-C breakout with 5.1 kΩ
-resistors on CC1 and CC2**: without them, a standards-compliant charger
-won't switch its output on. Details and the current budget:
+which covers a ring-only reader (about 2.6 A worst case). Feed it in through an **Adafruit HUSB238 USB-C Power
+Delivery breakout** (product 5807) set to 5 V 3 A: keep its 5V jumper, cut
+its 1A jumper. Details and the current budget:
 [breadboard build spec](../hardware/reader-breadboard/README.md#power).
 
 Don't run everything through the ESP32's own USB port. Keep that for the
