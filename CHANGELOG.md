@@ -3,13 +3,6 @@
 All notable changes to Magic bHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
-## [Unreleased]
-
-### Removed
-- The custom reader PCB (KiCad design, its firmware build and its web
-  installer button) is out of date, so it's been taken out for now. It's in
-  the git history and in release v0.9.3 and earlier, for when it's revisited.
-
 ## [0.9.3] - 2026-11-17
 
 ### Integration
@@ -17,6 +10,11 @@ Home Assistant integration share one version number.
   the beacon's level byte is the battery percentage. Each band's
   **Battery** sensor is now a real battery sensor (battery icon, battery
   views, low-battery automations); existing entity IDs are kept.
+
+### Removed
+- The custom reader PCB (KiCad design, its firmware build and its web
+  installer button) is out of date, so it's been taken out for now. It's in
+  the git history and in release v0.9.2 and earlier, for when it's revisited.
 
 ## [0.9.2] - 2026-11-17
 
