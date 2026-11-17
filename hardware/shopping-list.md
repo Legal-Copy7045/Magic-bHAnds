@@ -128,7 +128,7 @@ lines, and wire to the end marked as the input (arrows point away from it).
   every 50–100 mm, so only 2–4 LEDs on a small loop.
 - **RGBW strips:** the firmware drives RGB LEDs.
 - **144 LED/m strips** (e.g. [2970](https://www.adafruit.com/product/2970)):
-  usable, but a 60 mm loop would hold 27 LEDs, over 24 LEDs:
+  usable, but a 60 mm loop would hold 27 LEDs:
   cut to 24, or keep 27 with `ring_max_brightness: 85%`.
 
 Not stated by Adafruit: the smallest safe bend for each strip. Try the
