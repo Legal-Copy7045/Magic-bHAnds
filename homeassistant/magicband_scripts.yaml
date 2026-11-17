@@ -104,3 +104,36 @@ magicband_raw:
         command:
           effect: raw
           hex: "{{ hex }}"
+
+# "Alexa, start the magic": a random colour scheme and vibration on every
+# MagicBand+ in range, then off after 45 seconds. Expose this script to
+# Alexa (Home Assistant Cloud shows it as a scene) and add an Alexa routine
+# with the phrase "start the magic" that runs it.
+start_the_magic:
+  alias: "Start the magic"
+  icon: mdi:magic-staff
+  mode: restart
+  sequence:
+    - variables:
+        palette: [red, red_orange, orange, yellow, lime, lime_green, green, cyan,
+                  blue, midnight_blue, purple, bright_purple, lavender, pink, white]
+        scheme: "{{ ['color', 'dual_color', 'five_color'] | random }}"
+        vibration: "{{ range(1, 12) | random }}"
+        color1: "{{ palette | random }}"
+        color2: "{{ palette | reject('eq', color1) | list | random }}"
+        five: "{{ [palette | random, palette | random, palette | random, palette | random, palette | random] | join(', ') }}"
+    - choose:
+        - conditions: "{{ scheme == 'color' }}"
+          sequence:
+            - action: magicband.send
+              data: {effect: color, color: "{{ color1 }}", vibration: "{{ vibration }}", always_on: true}
+        - conditions: "{{ scheme == 'dual_color' }}"
+          sequence:
+            - action: magicband.send
+              data: {effect: dual_color, color: "{{ color1 }}", color2: "{{ color2 }}", vibration: "{{ vibration }}", always_on: true}
+      default:
+        - action: magicband.send
+          data: {effect: five_color, colors: "{{ five }}", vibration: "{{ vibration }}", always_on: true}
+    - delay: {seconds: 45}
+    - action: magicband.send
+      data: {effect: "off"}
