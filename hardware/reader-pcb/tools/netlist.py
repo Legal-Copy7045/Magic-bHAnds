@@ -62,7 +62,7 @@ PARTS = [
     # SD_MODE: 1M to VDD with the internal 100k pull-down gives ~0.45 V,
     # i.e. (L+R)/2 mono, like the Adafruit breakout. GAIN_SLOT open = 9 dB.
     dict(ref="U3", sym="Audio:MAX98357A", value="MAX98357A",
-         fp="Package_DFN_QFN:TQFN-16-1EP_3x3mm_P0.5mm_EP1.23x1.23mm_ThermalVias",
+         fp="Package_DFN_QFN:TQFN-16-1EP_3x3mm_P0.5mm_EP1.23x1.23mm",
          mpn="MAX98357AETE+T", lcsc="C910544",
          pins={"1": "I2S_DOUT", "14": "I2S_LRCLK", "16": "I2S_BCLK", "4": "SD_MODE",
                "7": V5, "8": V5, "3": GND, "11": GND, "15": GND, "17": GND,
@@ -110,4 +110,4 @@ PARTS = [
 PWR_FLAGS = [V5, GND]
 
 # Track widths (mm) per net; everything else uses the default.
-POWER_NETS = {GND: 0.5, V5: 0.6, V3: 0.4}
+POWER_NETS = {GND: 0.3, V5: 0.4, V3: 0.4}  # see the net classes in the .kicad_pro
