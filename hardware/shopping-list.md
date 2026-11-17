@@ -1,20 +1,54 @@
-# MagicBand Reader: shopping list (Adafruit)
+# MagicBand Reader: shopping list
 
-Exact parts for the reader, from Adafruit where they sell a suitable part.
-Each one was checked against its Adafruit product page or guide. Stock
-changes often: check availability before ordering.
+The build guides
+([breadboard](reader-breadboard/build.md),
+[terminal base and point-to-point](reader-wired/build.md)) are written for
+the generic parts in the first table. Every part has an Adafruit
+equivalent, listed after it, checked against its Adafruit product page or
+guide. Mix and match: the [generic alternatives](#generic-alternatives)
+table says what to check on any listing.
 
-The same core parts serve all three builds
-([breadboard](reader-breadboard/README.md),
-[terminal base and point-to-point](reader-wired/README.md)); the last two
-tables list what each build adds.
+## The parts the guides are written for
 
-## Core parts (every build)
+| Qty | Part | Specification | Used for |
+|---|---|---|---|
+| 1 | ESP32-S3 dev board | **Lonely Binary ESP32-S3 N16R8** (DevKitC-1 layout; 16 MB flash, 8 MB octal PSRAM). The IPEX version needs its antenna fitted | The reader |
+| 1 | NFC reader | **PN532 NFC module V3** (AITRIP, Elechouse or similar), 4-pin header | Reading bands |
+| 1 | LED ring | **WS2812B ring, 35 LEDs, 5 V**, 78 mm inside | The PN532 sits inside it. Set **LED count** to 35 |
+| 1 | Amplifier and speaker | **MAX98357A I²S amplifier kit** with a **4 Ω 3 W speaker** (5-pin PH2.0 socket, PH2.0-to-Dupont cable, PH2.0 speaker socket) | Sound |
+| 1 | Level shifter | **SN74AHCT125N** (DIP-14) | LED data, 3.3 V → 5 V |
+| 1 | Resistor kit | ¼ W assortment with **470 Ω** and **4.7 kΩ** | LED data resistor, 2 I²C pull-ups |
+| 1 | Ceramic capacitor kit | Includes **0.1 µF ("104")** | 74AHCT125 decoupling |
+| 1 | Electrolytic capacitor kit | Includes **1000 µF** and **100 µF**, 10 V or more | Ring and amplifier supply |
+| 1 | USB-C PD trigger | **CH224K board, 5–20 V by DIP switch**, set to **5 V** and taped | Power input |
+| 2 | Lever connectors | **5-way**, 12–24 AWG (Wago 221-415 or similar) | 5 V and GND power hubs |
+| 1 | Charger and cable | **USB-C charger, 20 W or more**, and a USB-C cable rated 3 A | Power |
+| 1 | USB-C data cable | Any data (not charge-only) cable | First firmware install |
+| 1 | Wire | **22 AWG stranded**, 6 colours or more | Power runs, ring, LED data |
+| 1 | Breadboard kit | **830-point** breadboard and male-to-male jumpers | Breadboard build |
+| 1 | Dupont jumpers | Male-to-female, male-to-male, female-to-female | PN532 leads; point-to-point ESP32 leads |
+| 1 | Heat shrink | Assorted sizes | Every soldered joint |
+| — | Tools | Soldering iron, solder, wire strippers, **multimeter** | Every build |
+
+**The wired builds add:** a half-size solderable breadboard PCB (Perma-Proto
+or similar) for the interface board, an optional DIP-14 socket, and for the
+terminal-base build the **Lonely Binary screwless terminal base**.
+
+**Not needed:**
+- A **USB-C breadboard power supply module**: the PD trigger replaces it.
+  Never connect both at once.
+- The **USB remote controller** often bundled with LED rings: only the
+  ESP32 drives the ring's data.
+- **12 V LED strips** (WS2811), a **74HC125** (without the T) or a MOSFET
+  "level shifter module".
+- Smaller breadboards and JST leads: optional extras.
+
+## Adafruit equivalents
 
 | Qty | Part | Adafruit | Why this one |
 |---|---|---|---|
-| 1 | NeoPixel Ring, 24 × 5050 RGB LED | [1586](https://www.adafruit.com/product/1586) | 65.5 mm outside, **52.3 mm inside**: the PN532 module (43 × 41 mm) fits inside the ring, so the LEDs stay clear of its antenna. Ships with WS2812B or SK6812 LEDs, same protocol. Matches the firmware's default `ring_leds: 24` |
-| 1 | I2S 3W Class D Amplifier Breakout, MAX98357A | [3006](https://www.adafruit.com/product/3006) | The amplifier the firmware is written for. 2.5–5.5 V supply; 1 MΩ on SD gives mono (L+R)/2 at 5 V; 9 dB default gain |
+| 1 | NeoPixel Ring, 24 × 5050 RGB LED | [1586](https://www.adafruit.com/product/1586) | 65.5 mm outside, **52.3 mm inside**: the PN532 module (43 × 41 mm) fits inside the ring, so the LEDs stay clear of its antenna. Ships with WS2812B or SK6812 LEDs, same protocol. Matches the firmware's default **LED count** of 24 |
+| 1 | I2S 3W Class D Amplifier Breakout, MAX98357A | [3006](https://www.adafruit.com/product/3006) | Same chip as the kit. 2.5–5.5 V supply; 1 MΩ on SD gives mono (L+R)/2 at 5 V; 9 dB default gain. 7-pin header: LRC, BCLK, DIN, GND and Vin wire as the kit's pins; GAIN and SD stay unconnected |
 | 1 | Mono Enclosed Speaker, 3 W 4 Ω | [3351](https://www.adafruit.com/product/3351) | Rated for the amplifier's full output (3 W into 4 Ω at 5 V). Adafruit's 8 Ω speakers are 1 W, below what the amplifier can deliver. Its lead ends in a 2-pin JST-PH plug: cut the plug off to use the amplifier's screw terminal |
 | 1 | 74AHCT125 Quad Level-Shifter (3V to 5V), DIP-14 | [1787](https://www.adafruit.com/product/1787) | Lifts the ESP32's 3.3 V LED data to the 5 V the LEDs need |
 | 1 | Through-Hole Resistors, 4.7 kΩ 5 % ¼ W, pack of 25 | [2783](https://www.adafruit.com/product/2783) | Two I²C pull-ups |
@@ -67,15 +101,15 @@ under about 0.1 V.
 |---|---|---|---|---|
 | Power board → 5 V / GND hubs | 22 AWG stranded | **red / black** | 30 cm | Screw terminal → lever connector |
 | Hubs → LED ring 5V / GND | 22 AWG stranded | **red / black** | 50 cm | Lever connector → **soldered** to the ring's pads; 1000 µF soldered across the same pads |
-| Hubs → amplifier Vin / GND | 22 AWG stranded (solid on a breadboard) | **red / black** | 30 cm | Lever connector → amplifier header (soldered, or into its breadboard row) |
-| Hubs → ESP32 5V / GND | 22 AWG (solid on a breadboard; female jumper on point-to-point; soldered to the terminal base's pads) | **red / black** | 20 cm | Lever connector → board. **The 5 V one must be easy to unplug** (USB rule) |
-| Hubs → breadboard or interface-board rails | 22 AWG (solid on a breadboard, stranded to the Perma-Proto) | **red / black** | 20 cm | Lever connector → rail |
+| Hubs → amplifier VIN / GND | 22 AWG stranded | **red / black** | 30 cm | Lever connector → breadboard rows 52/51 (end tinned), or soldered to the amp cable's VIN/GND with the 100 µF across the joint |
+| Hubs → ESP32 5V / GND | 22 AWG (breadboard: via the rails; female jumper on point-to-point; soldered to the terminal base's pads) | **red / black** | 20 cm | Lever connector → board. **The 5 V one must be easy to unplug** (USB rule) |
+| Hubs → breadboard or interface-board rails | 22 AWG stranded | **red / black** | 20 cm | Lever connector → rail (breadboard end tinned) |
 | ESP32 3V3 → pull-ups | 22 AWG | **orange** (or any spare colour) | 20 cm | |
 | GPIO8 SDA / GPIO9 SCL → PN532 | 22 AWG, then female jumpers onto the PN532 header | **blue / green** | 20 cm in total | Keep the two together |
 | GPIO10 → level shifter | 22 AWG | **yellow** | 15 cm | |
 | Level shifter out → ring DIN | 22 AWG stranded | **yellow** | 50 cm | **470 Ω soldered inline at the ring end**, in heat shrink. Run it alongside the ring's power pair |
-| GPIO5 / 6 / 7 → amplifier LRC / BCLK / DIN | 22 AWG | **three distinct colours** (e.g. purple, grey, white) | 20 cm | Keep the three together, alongside the amplifier's GND |
-| Amplifier → speaker | The speaker's own lead, plug cut off | as supplied | as supplied | Screw terminal. Neither wire is ground |
+| GPIO5 / 6 / 7 → amplifier LRC / BCLK / DIN | The amplifier kit's cable | as supplied | 20 cm | Keep the three together, alongside the amplifier's GND |
+| Amplifier → speaker | The speaker's own PH2.0 plug | as supplied | as supplied | Into the amplifier's speaker socket. Neither wire is ground |
 
 **Finishing wires:**
 - **Lever connectors (874):** strip **11 mm** (Adafruit's spec), twist
@@ -83,6 +117,8 @@ under about 0.1 V.
 - **Don't tin wire going into a lever connector or screw terminal.**
   Solder creeps under clamping pressure, and the joint loosens over time.
   Twist the strands instead.
+- **Stranded wire into a breadboard:** strip 6 mm, twist and **tin** it,
+  so it pushes in cleanly and doesn't fray.
 - **Screw terminals** (amplifier, power board): strip about 5 mm, so no
   bare copper shows outside the terminal once it's tightened.
 - **Soldering to the ring:** flux, tin the pad and the wire first, then
@@ -145,11 +181,11 @@ What to check on the listing:
 | Adafruit part | Generic? | Check on the listing |
 |---|---|---|
 | NeoPixel Ring 24 (1586) | Yes | **WS2812B** or **SK6812**, **5 V**, pads for DIN, 5V and GND. Not WS2811 (usually 12 V) or APA102 (4 wires). Inside diameter **about 45 mm or more**, so the PN532 fits inside. More LEDs are fine (e.g. a generic 35-LED ring, 78 mm inside): set **LED count** and the reader limits their power (see above). A bundled USB remote controller isn't used: only the ESP32 drives the data line |
-| MAX98357A (3006) | Yes | Pins LRC, BCLK, DIN, GAIN, SD, GND, VIN. ⚠️ Adafruit's board has 1 MΩ from SD to Vin; without it the amplifier stays off. Stage 4 of the test plan catches this (SD should read about 0.45 V); if it reads near 0 V, add a 1 MΩ from SD to Vin |
+| MAX98357A (3006) | Yes | Pins LRC, BCLK, DIN, GND, VIN (a 5-pin kit sets gain and SD on the board). ⚠️ A board with an SD pin needs SD pulled up (Adafruit's has 1 MΩ from SD to Vin), or the amplifier stays off: SD should read about 0.45 V; if it reads near 0 V, add a 1 MΩ from SD to Vin |
 | Speaker 3 W 4 Ω (3351) | Yes | **4 Ω or more**, rated **3 W or more** |
 | 74AHCT125 (1787) | ⚠️ Only the right chip | **74AHCT125** or **74HCT125**, DIP-14. **Not 74HC125**: its input threshold at 5 V is too high for 3.3 V logic. **Not** "4-channel level shifter" modules (BSS138 MOSFET or TXS0108E types): unreliable at the LEDs' data rate |
 | Resistors, capacitors | Yes | Any assortment kit: 4.7 kΩ, 470 Ω; capacitors rated **10 V or more** |
-| HUSB238 PD breakout (5807) | ⚠️ With care | A **CH224K** PD board with a DIP switch works: set it to **5 V** from the board's own table, measure **4.75–5.25 V** with nothing connected, unplug and re-plug and measure again, then **cover the switch** with Kapton tape or hot glue. A bumped switch would send up to 20 V into everything. Avoid boards that can't select 5 V, and plain USB-C sockets without CC resistors. See the [power diagram](../docs/reader-power.svg) |
+| HUSB238 PD breakout (5807) | ⚠️ With care | A **CH224K** PD trigger with a DIP switch (what the guides use): set it to **5 V** from the board's own table, measure **4.75–5.25 V** with nothing connected, unplug and re-plug and measure again, then **cover the switch** with Kapton tape or hot glue. A bumped switch would send up to 20 V into everything. Avoid boards that can't select 5 V, and plain USB-C sockets without CC resistors. See the [power diagram](../docs/reader-power.svg) |
 | Raspberry Pi 27 W PD supply (5814) | Yes | Any USB-C charger of **20 W or more**, with a cable rated 3 A or more |
 | Snap-action connectors (874) | Yes | Genuine **Wago 221-415** (5-way) is the same job |
 | 22 AWG wire | Yes | **Pure copper**, not CCA (copper-clad aluminium) |
@@ -186,7 +222,7 @@ more, such as Adafruit's
 
 | Load | Worst case |
 |---|---|
-| NeoPixel Ring 24, full white (60 mA per LED, Adafruit) | 1.44 A |
+| LED ring at full white: 24 LEDs × 60 mA (Adafruit); a bigger ring, such as 35 LEDs, is capped by the firmware to the same | 1.44 A |
 | MAX98357A into 4 Ω at full volume (Adafruit: up to 650 mA) | 0.65 A |
 | ESP32-S3 board (*estimate*) | 0.50 A |
 | PN532 module (*estimate*) | 0.15 A |

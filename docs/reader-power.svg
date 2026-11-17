@@ -27,14 +27,15 @@ polyline.w{fill:none}
 <text x="24.0" y="58.0" class="sub" text-anchor="start" >The same for every build. Each load gets its own wires from the hubs; every ground meets at the GND hub.</text>
 <rect x="24" y="96" width="220" height="92" rx="10" class="chg"/>
 <text x="40.0" y="124.0" class="h3w" text-anchor="start" >USB-C charger</text>
-<text x="40.0" y="144.0" class="tw" text-anchor="start" >20 W or more, e.g. Raspberry Pi</text>
-<text x="40.0" y="160.0" class="tw" text-anchor="start" >27 W PD (5814) or Apple 20 W.</text>
+<text x="40.0" y="144.0" class="tw" text-anchor="start" >20 W or more, e.g. a laptop</text>
+<text x="40.0" y="160.0" class="tw" text-anchor="start" >USB-C charger or Apple 20 W.</text>
 <text x="40.0" y="176.0" class="tw" text-anchor="start" >At 5 V it gives up to 3 A.</text>
 <path d="M244 142 C 268 142, 270 250, 300 250" class="cable"/>
 <path d="M244 142 C 268 142, 270 470, 300 470" class="cable"/>
 <text x="250.0" y="300.0" class="small" text-anchor="start" transform="rotate(90 250 300)">USB-C cable</text>
+<g transform="translate(0 220)">
 <rect x="300" y="180" width="380" height="200" rx="10" class="opt"/>
-<text x="316.0" y="206.0" class="h3" text-anchor="start" >Option A: Adafruit HUSB238 (5807)</text>
+<text x="316.0" y="206.0" class="h3" text-anchor="start" >Option B: Adafruit HUSB238 (5807)</text>
 <text x="316.0" y="226.0" class="t" text-anchor="start" >Solder jumpers: can't change by accident.</text>
 <text x="316.0" y="262.0" class="ok" text-anchor="start" >Keep 5V closed</text>
 <text x="316.0" y="278.0" class="t" text-anchor="start" >(never cut it: that</text>
@@ -69,9 +70,11 @@ polyline.w{fill:none}
 <rect x="624" y="300" width="26" height="44" rx="3" class="term"/>
 <text x="637.0" y="316.0" class="termt" text-anchor="middle" >+</text>
 <text x="637.0" y="338.0" class="termt" text-anchor="middle" >−</text>
+</g>
+<g transform="translate(0 -220)">
 <rect x="300" y="400" width="380" height="200" rx="10" class="opt"/>
-<text x="316.0" y="426.0" class="h3" text-anchor="start" >Option B: generic CH224K PD board</text>
-<text x="316.0" y="446.0" class="t" text-anchor="start" >DIP switch: set it, check it, lock it.</text>
+<text x="316.0" y="426.0" class="h3" text-anchor="start" >Option A: USB-C PD trigger (CH224K)</text>
+<text x="316.0" y="446.0" class="t" text-anchor="start" >5–20 V DIP switch: set, check, lock.</text>
 <text x="316.0" y="482.0" class="ok" text-anchor="start" >Set 5 V from the</text>
 <text x="316.0" y="498.0" class="t" text-anchor="start" >board's own table</text>
 <text x="316.0" y="526.0" class="ok" text-anchor="start" >Cover the switch</text>
@@ -91,12 +94,14 @@ polyline.w{fill:none}
 <rect x="624" y="520" width="26" height="44" rx="3" class="term"/>
 <text x="637.0" y="536.0" class="termt" text-anchor="middle" >+</text>
 <text x="637.0" y="558.0" class="termt" text-anchor="middle" >−</text>
+</g>
 <rect x="300" y="618" width="380" height="76" rx="10" class="warn"/>
 <text x="316.0" y="642.0" class="h3" text-anchor="start" >Before connecting anything:</text>
 <text x="316.0" y="662.0" class="t" text-anchor="start" >measure 4.75–5.25 V across + and −,</text>
 <text x="316.0" y="678.0" class="t" text-anchor="start" >unplug and re-plug, and measure again.</text>
 <rect x="720" y="230" width="140" height="52" rx="7" class="hub hubp"/>
-<text x="790.0" y="302.0" class="h3" text-anchor="middle" >5 V hub (Adafruit 874)</text>
+<text x="790.0" y="300.0" class="h3" text-anchor="middle" >5 V hub</text>
+<text x="790.0" y="316.0" class="small" text-anchor="middle" >5-way lever connector</text>
 <rect x="740" y="236" width="12" height="12" rx="2" class="hubport"/>
 <rect x="741" y="256" width="10" height="16" rx="2" class="lever"/>
 <rect x="762" y="236" width="12" height="12" rx="2" class="hubport"/>
@@ -108,7 +113,8 @@ polyline.w{fill:none}
 <rect x="828" y="236" width="12" height="12" rx="2" class="hubport"/>
 <rect x="829" y="256" width="10" height="16" rx="2" class="lever"/>
 <rect x="720" y="470" width="140" height="52" rx="7" class="hub hubg"/>
-<text x="790.0" y="542.0" class="h3" text-anchor="middle" >GND hub (Adafruit 874)</text>
+<text x="790.0" y="540.0" class="h3" text-anchor="middle" >GND hub</text>
+<text x="790.0" y="556.0" class="small" text-anchor="middle" >5-way lever connector</text>
 <rect x="740" y="476" width="12" height="12" rx="2" class="hubport"/>
 <rect x="741" y="496" width="10" height="16" rx="2" class="lever"/>
 <rect x="762" y="476" width="12" height="12" rx="2" class="hubport"/>
@@ -168,9 +174,9 @@ polyline.w{fill:none}
 <circle cx="939.0" cy="350.0" r="3.6" class="end gnd"/>
 <text x="1286.0" y="358.0" class="small" text-anchor="end" >22 AWG, ≤ 20 cm</text>
 <rect x="940" y="396" width="356" height="118" rx="10" class="load"/>
-<text x="954.0" y="420.0" class="h3w" text-anchor="start" >Amplifier (MAX98357A) Vin / GND</text>
-<text x="954.0" y="440.0" class="tw" text-anchor="start" >100 µF 16 V across Vin and GND at the amplifier,</text>
-<text x="954.0" y="456.0" class="tw" text-anchor="start" >stripe to GND.</text>
+<text x="954.0" y="420.0" class="h3w" text-anchor="start" >Amplifier (MAX98357A) VIN / GND</text>
+<text x="954.0" y="440.0" class="tw" text-anchor="start" >100 µF across VIN and GND within 5 cm of the</text>
+<text x="954.0" y="456.0" class="tw" text-anchor="start" >amplifier, stripe to GND (breadboard: g51–g52).</text>
 <rect x="1204" y="406" width="80" height="22" rx="11" class="amp"/>
 <text x="1244.0" y="421.0" class="ampt" text-anchor="middle" >≤ 0.65 A</text>
 <rect x="934" y="479" width="10" height="10" rx="2" class="pinr"/>
@@ -187,7 +193,7 @@ polyline.w{fill:none}
 <rect x="940" y="546" width="356" height="118" rx="10" class="load"/>
 <text x="954.0" y="570.0" class="h3w" text-anchor="start" >LED ring or strip: 5V / GND pads</text>
 <text x="954.0" y="590.0" class="tw" text-anchor="start" >1000 µF 10 V soldered across its input pads,</text>
-<text x="954.0" y="606.0" class="tw" text-anchor="start" >stripe to GND. 24 LEDs or fewer.</text>
+<text x="954.0" y="606.0" class="tw" text-anchor="start" >stripe to GND. Over 24 LEDs: firmware caps it.</text>
 <rect x="1204" y="556" width="80" height="22" rx="11" class="amp"/>
 <text x="1244.0" y="571.0" class="ampt" text-anchor="middle" >≤ 1.44 A</text>
 <rect x="934" y="629" width="10" height="10" rx="2" class="pinr"/>

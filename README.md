@@ -24,11 +24,11 @@ integration that ties them up.
 ## Quick start
 
 **Building a reader?** Get the parts from the
-[shopping list](hardware/shopping-list.md) and pick a build: the
-[breadboard](hardware/reader-breadboard/README.md) first, then the
-[terminal base or point-to-point](hardware/reader-wired/README.md) version.
-Flash the bare ESP32 (step 1) before wiring the rest, then follow the
-build's staged tests. A bridge needs no extra hardware.
+[shopping list](hardware/shopping-list.md) and follow a step-by-step
+build: the [breadboard](hardware/reader-breadboard/build.md) first, then the
+[terminal base or point-to-point](hardware/reader-wired/build.md) version.
+Each starts by flashing the bare ESP32 and checks every stage as you go. A
+bridge needs no extra hardware.
 
 1. **Flash the firmware** from the web installer:
    **https://legal-copy7045.github.io/Magic-bHAnds/**. Choose *Install the
@@ -65,8 +65,9 @@ Then:
 - An LED ring (or a flexible strip for tighter housings), with start-up,
   tap-in and error sounds
 - Three ways to build it, each with a wiring diagram, a hole-by-hole wiring
-  table and a staged test plan: [breadboard](hardware/reader-breadboard/README.md),
-  [terminal base and point-to-point](hardware/reader-wired/README.md)
+  table and step-by-step instructions with checks:
+  [breadboard](hardware/reader-breadboard/build.md),
+  [terminal base and point-to-point](hardware/reader-wired/build.md)
 - Runs from one USB-C charger (20 W or more)
 - Decides green or red on the device, instantly, even with Home Assistant
   offline
@@ -113,8 +114,8 @@ it on `main`. It tags `v<VERSION>` and publishes the GitHub Release.
 | `custom_components/magicband/` | The MagicBand integration (HACS) |
 | `homeassistant/` | Blueprint and example scripts |
 | `hardware/` | [Ways to build the reader](hardware/README.md), the [shopping list](hardware/shopping-list.md) (with generic alternatives), and the power diagram's generator |
-| `hardware/reader-breadboard/` | Breadboard build: spec, wiring table, tests, and the diagram's generator |
-| `hardware/reader-wired/` | Terminal base and point-to-point builds, with the interface board |
+| `hardware/reader-breadboard/` | Breadboard build: step-by-step build, spec and wiring table, and the diagram's generator |
+| `hardware/reader-wired/` | Terminal base and point-to-point builds, with the interface board: step-by-step build and spec |
 | `hardware/reader-pcb/` | Custom reader PCB (KiCad), parked until the breadboard build is proven |
 | `web/` | The web installer page |
 | `docs/` | Guides: [bridge](docs/bridge.md), [reader](docs/reader.md), [integration](docs/integration.md), [commands](docs/commands.md), [protocol](docs/protocol.md), [SCREEK BP2-POE](docs/screek-bp2-poe.md); reader wiring diagrams |

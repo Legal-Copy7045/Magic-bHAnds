@@ -594,8 +594,8 @@ polyline.w{fill:none}
 <rect x="996" y="232" width="8" height="8" rx="1.5" class="pin"/>
 <text x="1010.0" y="240.0" class="modpin" text-anchor="start" >SCL</text>
 <rect x="1040" y="300" width="220" height="116" rx="8" class="mod"/>
-<text x="1052.0" y="322.0" class="modname" text-anchor="start" >NeoPixel Ring 24 (1586)</text>
-<text x="1052.0" y="339.0" class="modsub" text-anchor="start" >PN532 sits inside the ring</text>
+<text x="1052.0" y="322.0" class="modname" text-anchor="start" >WS2812B ring, 35 LEDs</text>
+<text x="1052.0" y="339.0" class="modsub" text-anchor="start" >PN532 sits inside (78 mm)</text>
 <text x="1052.0" y="353.0" class="modsub" text-anchor="start" >1000 µF across 5V/GND pads</text>
 <rect x="1036" y="362" width="8" height="8" rx="1.5" class="pin"/>
 <text x="1050.0" y="370.0" class="modpin" text-anchor="start" >DIN</text>
@@ -604,37 +604,35 @@ polyline.w{fill:none}
 <rect x="1036" y="398" width="8" height="8" rx="1.5" class="pin"/>
 <text x="1050.0" y="406.0" class="modpin" text-anchor="start" >GND</text>
 <rect x="1000" y="470" width="210" height="168" rx="8" class="mod"/>
-<text x="1012.0" y="492.0" class="modname" text-anchor="start" >MAX98357A (3006)</text>
-<rect x="996" y="512" width="8" height="8" rx="1.5" class="pin"/>
-<text x="1010.0" y="520.0" class="modpin" text-anchor="start" >LRC</text>
-<rect x="996" y="530" width="8" height="8" rx="1.5" class="pin"/>
-<text x="1010.0" y="538.0" class="modpin" text-anchor="start" >BCLK</text>
+<text x="1012.0" y="492.0" class="modname" text-anchor="start" >MAX98357A amp kit</text>
+<text x="1012.0" y="509.0" class="modsub" text-anchor="start" >5-wire PH2.0 cable: go by</text>
+<text x="1012.0" y="523.0" class="modsub" text-anchor="start" >the labels on the board</text>
 <rect x="996" y="548" width="8" height="8" rx="1.5" class="pin"/>
-<text x="1010.0" y="556.0" class="modpin" text-anchor="start" >DIN</text>
+<text x="1010.0" y="556.0" class="modpin" text-anchor="start" >LRC</text>
 <rect x="996" y="566" width="8" height="8" rx="1.5" class="pin"/>
-<text x="1010.0" y="574.0" class="modpin" text-anchor="start" >GAIN</text>
+<text x="1010.0" y="574.0" class="modpin" text-anchor="start" >BCLK</text>
 <rect x="996" y="584" width="8" height="8" rx="1.5" class="pin"/>
-<text x="1010.0" y="592.0" class="modpin" text-anchor="start" >SD</text>
+<text x="1010.0" y="592.0" class="modpin" text-anchor="start" >DIN</text>
 <rect x="996" y="602" width="8" height="8" rx="1.5" class="pin"/>
 <text x="1010.0" y="610.0" class="modpin" text-anchor="start" >GND</text>
 <rect x="996" y="620" width="8" height="8" rx="1.5" class="pin"/>
-<text x="1010.0" y="628.0" class="modpin" text-anchor="start" >Vin</text>
-<rect x="1192" y="510" width="14" height="30" rx="2" class="termg"/>
+<text x="1010.0" y="628.0" class="modpin" text-anchor="start" >VIN</text>
+<rect x="1192" y="546" width="14" height="30" rx="2" class="termg"/>
 <circle cx="1270" cy="720" r="32" class="spk"/><circle cx="1270" cy="720" r="13" class="spkc"/>
-<text x="1270.0" y="768.0" class="partlbl" text-anchor="middle" >Speaker 3 W 4 Ω</text>
-<text x="1270.0" y="782.0" class="partlbl" text-anchor="middle" >(3351)</text>
-<polyline points="1206.0,518.0 1262.0,518.0 1262.0,688.0" class="w spkw"/>
-<circle cx="1206.0" cy="518.0" r="3.4" class="end spkw"/>
+<text x="1270.0" y="768.0" class="partlbl" text-anchor="middle" >Speaker 4 Ω 3 W</text>
+<text x="1270.0" y="782.0" class="partlbl" text-anchor="middle" >(PH2.0 plug)</text>
+<polyline points="1206.0,554.0 1262.0,554.0 1262.0,688.0" class="w spkw"/>
+<circle cx="1206.0" cy="554.0" r="3.4" class="end spkw"/>
 <circle cx="1262.0" cy="688.0" r="3.4" class="end spkw"/>
-<polyline points="1206.0,532.0 1280.0,532.0 1280.0,689.0" class="w spkw"/>
-<circle cx="1206.0" cy="532.0" r="3.4" class="end spkw"/>
+<polyline points="1206.0,568.0 1280.0,568.0 1280.0,689.0" class="w spkw"/>
+<circle cx="1206.0" cy="568.0" r="3.4" class="end spkw"/>
 <circle cx="1280.0" cy="689.0" r="3.4" class="end spkw"/>
 <circle cx="978" cy="615.0" r="9" class="elec"/>
 <path d="M972.6 622.2 A9 9 0 0 0 983.4 622.2" class="stripe"/>
 <circle cx="1018" cy="393.0" r="9" class="elec"/>
 <path d="M1012.6 400.2 A9 9 0 0 0 1023.4 400.2" class="stripe"/>
 <rect x="620" y="760" width="106" height="40" rx="6" class="hub hubp"/>
-<text x="726.0" y="816.0" class="modsub2" text-anchor="end" >5 V hub (874)</text>
+<text x="726.0" y="816.0" class="modsub2" text-anchor="end" >5 V hub (lever)</text>
 <rect x="636" y="764" width="10" height="10" rx="2" class="hubport"/>
 <rect x="637" y="780" width="8" height="12" rx="2" class="lever"/>
 <rect x="652" y="764" width="10" height="10" rx="2" class="hubport"/>
@@ -646,7 +644,7 @@ polyline.w{fill:none}
 <rect x="700" y="764" width="10" height="10" rx="2" class="hubport"/>
 <rect x="701" y="780" width="8" height="12" rx="2" class="lever"/>
 <rect x="800" y="760" width="106" height="40" rx="6" class="hub hubg"/>
-<text x="906.0" y="816.0" class="modsub2" text-anchor="end" >GND hub (874)</text>
+<text x="906.0" y="816.0" class="modsub2" text-anchor="end" >GND hub (lever)</text>
 <rect x="816" y="764" width="10" height="10" rx="2" class="hubport"/>
 <rect x="817" y="780" width="8" height="12" rx="2" class="lever"/>
 <rect x="832" y="764" width="10" height="10" rx="2" class="hubport"/>
@@ -658,9 +656,9 @@ polyline.w{fill:none}
 <rect x="880" y="764" width="10" height="10" rx="2" class="hubport"/>
 <rect x="881" y="780" width="8" height="12" rx="2" class="lever"/>
 <rect x="620" y="900" width="300" height="104" rx="8" class="psu"/>
-<text x="632.0" y="922.0" class="modname" text-anchor="start" >USB-C PD board, set to 5 V</text>
-<text x="632.0" y="939.0" class="modsub" text-anchor="start" >Adafruit HUSB238 (5807) or a CH224K</text>
-<text x="632.0" y="953.0" class="modsub" text-anchor="start" >board: see the power diagram.</text>
+<text x="632.0" y="922.0" class="modname" text-anchor="start" >USB-C PD trigger, set to 5 V</text>
+<text x="632.0" y="939.0" class="modsub" text-anchor="start" >CH224K: DIP switch at 5 V, taped</text>
+<text x="632.0" y="953.0" class="modsub" text-anchor="start" >(or HUSB238 5807). See power diagram.</text>
 <text x="632.0" y="967.0" class="modsub" text-anchor="start" >USB-C charger of 20 W or more</text>
 <rect x="916" y="968" width="8" height="8" rx="1.5" class="pin"/>
 <text x="910.0" y="976.0" class="modpin" text-anchor="end" >+</text>
@@ -707,15 +705,15 @@ polyline.w{fill:none}
 <polyline points="308.0,304.0 308.0,354.0 601.2,354.0 601.2,310.0 736.0,310.0" class="w led"/>
 <circle cx="308.0" cy="304.0" r="3.4" class="end led"/>
 <circle cx="736.0" cy="310.0" r="3.4" class="end led"/>
-<polyline points="100.0,116.0 100.0,88.0 920.0,88.0 920.0,516.0 1000.0,516.0" class="w i2s1"/>
+<polyline points="100.0,116.0 100.0,88.0 920.0,88.0 920.0,552.0 1000.0,552.0" class="w i2s1"/>
 <circle cx="100.0" cy="116.0" r="3.4" class="end i2s1"/>
-<circle cx="1000.0" cy="516.0" r="3.4" class="end i2s1"/>
-<polyline points="152.0,116.0 152.0,92.0 930.0,92.0 930.0,534.0 1000.0,534.0" class="w i2s2"/>
+<circle cx="1000.0" cy="552.0" r="3.4" class="end i2s1"/>
+<polyline points="152.0,116.0 152.0,92.0 930.0,92.0 930.0,570.0 1000.0,570.0" class="w i2s2"/>
 <circle cx="152.0" cy="116.0" r="3.4" class="end i2s2"/>
-<circle cx="1000.0" cy="534.0" r="3.4" class="end i2s2"/>
-<polyline points="152.0,304.0 152.0,678.0 940.0,678.0 940.0,552.0 1000.0,552.0" class="w i2s3"/>
+<circle cx="1000.0" cy="570.0" r="3.4" class="end i2s2"/>
+<polyline points="152.0,304.0 152.0,678.0 940.0,678.0 940.0,588.0 1000.0,588.0" class="w i2s3"/>
 <circle cx="152.0" cy="304.0" r="3.4" class="end i2s3"/>
-<circle cx="1000.0" cy="552.0" r="3.4" class="end i2s3"/>
+<circle cx="1000.0" cy="588.0" r="3.4" class="end i2s3"/>
 <polyline points="720.0,230.0 724.0,223.0 952.0,223.0 952.0,218.0 1000.0,218.0" class="w sda"/>
 <circle cx="720.0" cy="230.0" r="3.4" class="end sda"/>
 <circle cx="1000.0" cy="218.0" r="3.4" class="end sda"/>
@@ -775,8 +773,8 @@ polyline.w{fill:none}
 <text x="66.0" y="882.0" class="leg2" text-anchor="start" >ground.</text>
 <circle cx="48.0" cy="900.0" r="9" class="mark"/>
 <text x="48.0" y="904.0" class="markno" text-anchor="middle" >6</text>
-<text x="66.0" y="904.0" class="leg2" text-anchor="start" >100 µF soldered across the amplifier's Vin and GND pins, stripe to</text>
-<text x="66.0" y="918.0" class="leg2" text-anchor="start" >GND.</text>
+<text x="66.0" y="904.0" class="leg2" text-anchor="start" >100 µF across the amp cable's VIN and GND wires, at the joint with</text>
+<text x="66.0" y="918.0" class="leg2" text-anchor="start" >the hub wires (≤ 5 cm from the amp), stripe to GND.</text>
 <circle cx="48.0" cy="936.0" r="9" class="mark"/>
 <text x="48.0" y="940.0" class="markno" text-anchor="middle" >7</text>
 <text x="66.0" y="940.0" class="leg2" text-anchor="start" >470 Ω at the ring end of the data wire; 1000 µF across the ring's</text>

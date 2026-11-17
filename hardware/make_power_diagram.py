@@ -45,7 +45,10 @@ def pad(x, y, label, state):
 def hub(x, y, title, cls, labels):
     w = 30 + 5 * 22
     add(f'<rect x="{x}" y="{y}" width="{w}" height="52" rx="7" class="hub {cls}"/>')
-    text(x + w / 2, y + 72, title, "h3", "middle")
+    main, _, sub = title.partition(" (")
+    text(x + w / 2, y + 70, main, "h3", "middle")
+    if sub:
+        text(x + w / 2, y + 86, sub.rstrip(")"), "small", "middle")
     ports = []
     for k in range(5):
         cx = x + 26 + k * 22
@@ -76,16 +79,17 @@ def build():
     # ---------------------------------------------------------------- charger
     box(24, 96, 220, 92, "chg")
     text(40, 124, "USB-C charger", "h3w")
-    text(40, 144, "20 W or more, e.g. Raspberry Pi", "tw")
-    text(40, 160, "27 W PD (5814) or Apple 20 W.", "tw")
+    text(40, 144, "20 W or more, e.g. a laptop", "tw")
+    text(40, 160, "USB-C charger or Apple 20 W.", "tw")
     text(40, 176, "At 5 V it gives up to 3 A.", "tw")
     add('<path d="M244 142 C 268 142, 270 250, 300 250" class="cable"/>')
     add('<path d="M244 142 C 268 142, 270 470, 300 470" class="cable"/>')
     text(250, 300, "USB-C cable", "small", "start", 'transform="rotate(90 250 300)"')
 
-    # ---------------------------------------------------------------- option A: HUSB238
+    # ---------------------------------------------------------------- option B: HUSB238 (drawn lower)
+    add('<g transform="translate(0 220)">')
     box(300, 180, 380, 200, "opt")
-    text(316, 206, "Option A: Adafruit HUSB238 (5807)", "h3")
+    text(316, 206, "Option B: Adafruit HUSB238 (5807)", "h3")
     text(316, 226, "Solder jumpers: can't change by accident.", "t")
     text(316, 262, "Keep 5V closed", "ok")
     text(316, 278, "(never cut it: that", "t")
@@ -101,12 +105,14 @@ def build():
     add('<rect x="624" y="300" width="26" height="44" rx="3" class="term"/>')
     text(637, 316, "+", "termt", "middle")
     text(637, 338, "−", "termt", "middle")
-    a_plus, a_minus = (650, 312), (650, 334)
+    add('</g>')
+    b_plus, b_minus = (650, 532), (650, 554)
 
-    # ---------------------------------------------------------------- option B: CH224K
+    # ---------------------------------------------------------------- option A: CH224K PD trigger (drawn upper)
+    add('<g transform="translate(0 -220)">')
     box(300, 400, 380, 200, "opt")
-    text(316, 426, "Option B: generic CH224K PD board", "h3")
-    text(316, 446, "DIP switch: set it, check it, lock it.", "t")
+    text(316, 426, "Option A: USB-C PD trigger (CH224K)", "h3")
+    text(316, 446, "5–20 V DIP switch: set, check, lock.", "t")
     text(316, 482, "Set 5 V from the", "ok")
     text(316, 498, "board's own table", "t")
     text(316, 526, "Cover the switch", "ok")
@@ -123,7 +129,8 @@ def build():
     add('<rect x="624" y="520" width="26" height="44" rx="3" class="term"/>')
     text(637, 536, "+", "termt", "middle")
     text(637, 558, "−", "termt", "middle")
-    b_plus, b_minus = (650, 532), (650, 554)
+    add('</g>')
+    a_plus, a_minus = (650, 312), (650, 334)
 
     box(300, 618, 380, 76, "warn")
     text(316, 642, "Before connecting anything:", "h3")
@@ -131,8 +138,8 @@ def build():
     text(316, 678, "unplug and re-plug, and measure again.", "t")
 
     # ---------------------------------------------------------------- hubs
-    hp = hub(720, 230, "5 V hub (Adafruit 874)", "hubp", [])
-    hg = hub(720, 470, "GND hub (Adafruit 874)", "hubg", [])
+    hp = hub(720, 230, "5 V hub (5-way lever connector)", "hubp", [])
+    hg = hub(720, 470, "GND hub (5-way lever connector)", "hubg", [])
     # power board -> hubs (either option; B dashed)
     wire([a_plus, (700, a_plus[1]), (700, hp[0][1] - 18), (hp[0][0], hp[0][1] - 18), hp[0]], "p5 thick")
     wire([a_minus, (712, a_minus[1]), (712, hg[0][1] - 18), (hg[0][0], hg[0][1] - 18), hg[0]], "gnd thick")
@@ -149,8 +156,8 @@ def build():
                                              "rail via a21/a22. Unplug its 5 V before using USB."], "≤ 0.5 A", "22 AWG, ≤ 20 cm"),
         ("Breadboard rails or interface board", ["PN532 (5 V), 74AHCT125, I²C pull-ups.",
                                                  "Breadboard: L+24 / L−25. Interface board: L+25 / L−26."], "≤ 0.2 A", "22 AWG, ≤ 20 cm"),
-        ("Amplifier (MAX98357A) Vin / GND", ["100 µF 16 V across Vin and GND at the amplifier,", "stripe to GND."], "≤ 0.65 A", "22 AWG, ≤ 30 cm"),
-        ("LED ring or strip: 5V / GND pads", ["1000 µF 10 V soldered across its input pads,", "stripe to GND. 24 LEDs or fewer."], "≤ 1.44 A", "22 AWG, ≤ 50 cm"),
+        ("Amplifier (MAX98357A) VIN / GND", ["100 µF across VIN and GND within 5 cm of the", "amplifier, stripe to GND (breadboard: g51–g52)."], "≤ 0.65 A", "22 AWG, ≤ 30 cm"),
+        ("LED ring or strip: 5V / GND pads", ["1000 µF 10 V soldered across its input pads,", "stripe to GND. Over 24 LEDs: firmware caps it."], "≤ 1.44 A", "22 AWG, ≤ 50 cm"),
     ]
     for k, (title, lines, amps, awg) in enumerate(loads):
         y = 96 + k * 150

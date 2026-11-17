@@ -152,7 +152,7 @@ NOTES = [
     "0.1 µF across the 74AHCT125 supply (h9–h10); row 9 grounded by j9.",
     "Unused 74AHCT125 channels tied off: enables to 5 V, inputs to ground.",
     "Rail bridges (rows 20 and 21): the right-hand rails get 5 V and ground.",
-    "100 µF soldered across the amplifier's Vin and GND pins, stripe to GND.",
+    "100 µF across the amp cable's VIN and GND wires, at the joint with the hub wires (≤ 5 cm from the amp), stripe to GND.",
     "470 Ω at the ring end of the data wire; 1000 µF across the ring's 5V/GND pads.",
 ]
 
@@ -234,26 +234,26 @@ def build(kind: str) -> str:
     # ---------------------------------------------------------------- modules (right column)
     pn = module(1000, 110, 240, 140, "PN532 NFC module V3", ["GND", "VCC", "SDA", "SCL"],
                 ["Your AITRIP V3. Switches: I²C", "(1 = ON, 2 = OFF). VCC from 5 V"], side="left")
-    ring = module(1040, 300, 220, 116, "NeoPixel Ring 24 (1586)", ["DIN", "5V", "GND"],
-                  ["PN532 sits inside the ring", "1000 µF across 5V/GND pads"], side="left")
-    amp = module(1000, 470, 210, 168, "MAX98357A (3006)", ["LRC", "BCLK", "DIN", "GAIN", "SD", "GND", "Vin"],
-                 [], side="left")
+    ring = module(1040, 300, 220, 116, "WS2812B ring, 35 LEDs", ["DIN", "5V", "GND"],
+                  ["PN532 sits inside (78 mm)", "1000 µF across 5V/GND pads"], side="left")
+    amp = module(1000, 470, 210, 168, "MAX98357A amp kit", ["LRC", "BCLK", "DIN", "GND", "VIN"],
+                 ["5-wire PH2.0 cable: go by", "the labels on the board"], side="left")
     tx = 1000 + 210 - 18
     add(f'<rect x="{tx}" y="{amp["LRC"][1] - 6}" width="14" height="30" rx="2" class="termg"/>')
     sx, sy = 1270, 720
     add(f'<circle cx="{sx}" cy="{sy}" r="32" class="spk"/><circle cx="{sx}" cy="{sy}" r="13" class="spkc"/>')
-    text(sx, sy + 48, "Speaker 3 W 4 Ω", "partlbl", "middle")
-    text(sx, sy + 62, "(3351)", "partlbl", "middle")
+    text(sx, sy + 48, "Speaker 4 Ω 3 W", "partlbl", "middle")
+    text(sx, sy + 62, "(PH2.0 plug)", "partlbl", "middle")
     wire([(tx + 14, amp["LRC"][1] + 2), (1262, amp["LRC"][1] + 2), (1262, sy - 32)], "spkw")
     wire([(tx + 14, amp["LRC"][1] + 16), (1280, amp["LRC"][1] + 16), (1280, sy - 31)], "spkw")
-    elec(amp["GND"][0] - 22, (amp["GND"][1] + amp["Vin"][1]) / 2)
+    elec(amp["GND"][0] - 22, (amp["GND"][1] + amp["VIN"][1]) / 2)
     elec(ring["5V"][0] - 22, (ring["5V"][1] + ring["GND"][1]) / 2)
 
     # ---------------------------------------------------------------- power (below the interface board)
-    hp = hub(620, 760, "5 V hub (874)", "hubp")
-    hg = hub(800, 760, "GND hub (874)", "hubg")
-    psu = module(620, 900, 300, 104, "USB-C PD board, set to 5 V", ["+", "−"],
-                 ["Adafruit HUSB238 (5807) or a CH224K", "board: see the power diagram.", "USB-C charger of 20 W or more"],
+    hp = hub(620, 760, "5 V hub (lever)", "hubp")
+    hg = hub(800, 760, "GND hub (lever)", "hubg")
+    psu = module(620, 900, 300, 104, "USB-C PD trigger, set to 5 V", ["+", "−"],
+                 ["CH224K: DIP switch at 5 V, taped", "(or HUSB238 5807). See power diagram.", "USB-C charger of 20 W or more"],
                  side="right", cls="psu")
     wire([psu["+"], (940, psu["+"][1]), (940, 860), (hp[0][0], 860), (hp[0][0], hp[0][1] + 36)], "p5 thick", ends=False)
     add(f'<circle cx="{psu["+"][0]}" cy="{psu["+"][1]}" r="3.4" class="end p5"/>')
@@ -264,7 +264,7 @@ def build(kind: str) -> str:
     wire([hp[1], (hp[1][0], 730), (bx("L+") - 22, 730), (bx("L+") - 22, by(25)), hole("L+25")], "p5")
     wire([hg[1], (hg[1][0], 722), (bx("L-") - 30, 722), (bx("L-") - 30, by(26)), hole("L-26")], "gnd")
     # hubs -> amplifier
-    wire([hp[2], (hp[2][0], 714), (968, 714), (968, amp["Vin"][1]), amp["Vin"]], "p5")
+    wire([hp[2], (hp[2][0], 714), (968, 714), (968, amp["VIN"][1]), amp["VIN"]], "p5")
     wire([hg[2], (hg[2][0], 706), (958, 706), (958, amp["GND"][1]), amp["GND"]], "gnd")
     # hubs -> ring
     wire([hp[3], (hp[3][0], 698), (988, 698), (988, ring["5V"][1]), ring["5V"]], "p5 thick")
@@ -321,7 +321,7 @@ def build(kind: str) -> str:
     marker(3, bx("i") + 4, by(8.3))
     marker(4, bx("R-") + 22, by(13))
     marker(5, bx("R-") + 22, by(20.5))
-    marker(6, amp["GND"][0] - 22, amp["Vin"][1] + 22)
+    marker(6, amp["GND"][0] - 22, amp["VIN"][1] + 22)
     marker(7, rx - 32, ring["DIN"][1] - 14)
 
     # ---------------------------------------------------------------- notes + legend (bottom left)

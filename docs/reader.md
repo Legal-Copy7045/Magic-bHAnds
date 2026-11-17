@@ -31,12 +31,13 @@ MagicBands give a 7-byte ID like `04-53-65-2A-C0-5F-80`.
 
 ## Parts and wiring (breadboard)
 
-**Parts: the [shopping list](../hardware/shopping-list.md)** (exact Adafruit
-products, plus the three parts Adafruit doesn't sell).
+**Parts: the [shopping list](../hardware/shopping-list.md)** (the generic
+parts the guides use, and their Adafruit equivalents).
 
-**Build it from the [breadboard build spec](../hardware/reader-breadboard/README.md).**
-It has the reviewed parts list, a hole-by-hole wiring table, the power
-budget and a staged test plan.
+**Build it: the [step-by-step breadboard build](../hardware/reader-breadboard/build.md)**,
+with a check after each stage. The [build spec](../hardware/reader-breadboard/README.md)
+behind it has the reviewed parts list, the hole-by-hole wiring and the
+power budget.
 
 ![Breadboard layout](reader-breadboard.svg)
 
@@ -44,12 +45,12 @@ In short:
 
 | Part | Specification |
 |---|---|
-| ESP32-S3 dev board | ESP32-S3-DevKitC-1 **N16R8** layout (Espressif, or Lonely Binary N16R8) |
-| NFC reader | **PN532 NFC module V3** (Elechouse or clone), switches set to **I²C** (1 ON, 2 OFF), powered from **5 V**, with two 4.7 kΩ pull-ups to 3.3 V |
-| LED ring | **Adafruit NeoPixel Ring 24** (1586); the PN532 sits inside it. For a housing a ring won't fit, a flexible strip works too: [LED options](../hardware/shopping-list.md#if-a-ring-wont-fit-flexible-led-options) |
-| Amplifier + speaker | Adafruit **MAX98357A** breakout (3006), **3 W 4 Ω enclosed speaker** (3351) |
-| Level shifter | **74AHCT125** DIP (Adafruit 1787) for the LED data line, 470 Ω at the ring end |
-| Power | **USB-C charger, 20 W or more**, through an Adafruit HUSB238 USB-C PD breakout set to 5 V 3 A |
+| ESP32-S3 dev board | ESP32-S3-DevKitC-1 **N16R8** layout (Lonely Binary N16R8, or Espressif) |
+| NFC reader | **PN532 NFC module V3** (AITRIP, Elechouse or similar), switches set to **I²C** (1 ON, 2 OFF), powered from **5 V**, with two 4.7 kΩ pull-ups to 3.3 V |
+| LED ring | Any **5 V WS2812B ring** big enough for the PN532 to sit inside (the guides use a 35-LED ring, 78 mm inside; Adafruit's NeoPixel Ring 24 also works). For a housing a ring won't fit, a flexible strip works too: [LED options](../hardware/shopping-list.md#if-a-ring-wont-fit-flexible-led-options) |
+| Amplifier + speaker | **MAX98357A** I²S amplifier kit with a **4 Ω 3 W speaker** (or Adafruit's 3006 breakout and 3351 speaker) |
+| Level shifter | **SN74AHCT125N** DIP for the LED data line, 470 Ω at the ring end |
+| Power | **USB-C charger, 20 W or more**, through a CH224K **USB-C PD trigger set to 5 V** (or Adafruit's HUSB238 set to 5 V 3 A) |
 
 | ESP32-S3 pin | Goes to |
 |---|---|
@@ -85,10 +86,11 @@ hole-by-hole layout and tests.
 
 Use a **USB-C charger of 20 W or more** (Apple 20 W, a laptop charger and
 so on). At 5 V, USB-C gives **at most 3 A** whatever the charger's wattage,
-which covers a ring-only reader (about 2.6 A worst case). Feed it in through an **Adafruit HUSB238 USB-C Power
-Delivery breakout** (product 5807) set to 5 V 3 A (keep its 5V jumper, cut
-its 1A jumper), or a generic CH224K board set to 5 V with its switch taped
-down. Details and the current budget:
+which covers a ring-only reader (about 2.75 A worst case). Feed it in
+through a **CH224K USB-C PD trigger** with its DIP switch set to 5 V,
+checked with a meter and taped down, or an Adafruit HUSB238 breakout set to
+5 V 3 A (keep its 5V jumper, cut its 1A jumper). Details and the current
+budget:
 [breadboard build spec](../hardware/reader-breadboard/README.md#power).
 
 Don't run everything through the ESP32's own USB port. Keep that for the
@@ -100,10 +102,10 @@ before plugging USB in later.
 **Web installer: https://legal-copy7045.github.io/Magic-bHAnds/** (choose
 *Install the reader*).
 
-Install the firmware **before wiring anything else to the ESP32**, as stage
-1 of the build's test sequence
-([breadboard](../hardware/reader-breadboard/README.md#build-and-test-sequence),
-[terminal base and point-to-point](../hardware/reader-wired/README.md#build-and-test)).
+Install the firmware **before wiring anything else to the ESP32**, as step
+1 of the build
+([breadboard](../hardware/reader-breadboard/build.md),
+[terminal base and point-to-point](../hardware/reader-wired/build.md)).
 
 1. Plug the bare ESP32-S3 into your computer through the USB-C port
    labelled **UART**.
