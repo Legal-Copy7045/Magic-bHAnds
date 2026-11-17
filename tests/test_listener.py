@@ -48,3 +48,14 @@ async def test_heard_band_is_reported_after_send(hass: HomeAssistant, setup_inte
 
     result = await hass.services.async_call(DOMAIN, "list_heard", {}, blocking=True, return_response=True)
     assert [h["kind"] for h in result["heard"]] == ["command", "band"]
+    assert [h["address"] for h in result["bands"]] == ["AA:BB:CC:DD:EE:FF"]
+
+
+async def test_band_history_survives_many_commands(hass: HomeAssistant, setup_integration) -> None:
+    listener = hass.config_entries.async_entries(DOMAIN)[0].runtime_data.listener
+    listener.async_heard("AA:BB:CC:DD:EE:01", None, -60, "proxy", bytes.fromhex("C0 0F 01 01 48 4A"))
+    for i in range(100):  # far more commands than the 30-entry history
+        listener.async_heard(f"11:22:33:44:55:{i:02X}", None, -60, "proxy", bytes.fromhex("E1 00 E9 05 00 80 0E FA BA"))
+    await hass.async_block_till_done()
+    assert all(h.kind == "command" for h in listener.history)
+    assert [h.address for h in listener.bands] == ["AA:BB:CC:DD:EE:01"]

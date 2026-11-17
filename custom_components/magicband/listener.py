@@ -34,6 +34,9 @@ from .const import DISNEY_COMPANY_ID, EVENT_HEARD, SIGNAL_HEARD
 _LOGGER = logging.getLogger(__name__)
 
 HISTORY = 30
+# Band messages are rare and our own bridges' commands are frequent, so band
+# messages get their own, longer history: commands can't push them out.
+BAND_HISTORY = 200
 # Don't repeat an event for the same address and data more often than this.
 REPEAT_SECONDS = 5.0
 # A band heard this soon after a send is reported as a likely response.
@@ -70,6 +73,7 @@ class BandListener:
     def __init__(self, hass: HomeAssistant) -> None:
         self.hass = hass
         self.history: deque[Heard] = deque(maxlen=HISTORY)
+        self.bands: deque[Heard] = deque(maxlen=BAND_HISTORY)
         self.last_band: Heard | None = None
         self._last_send: float | None = None
         self._last_fired: dict[tuple[str, str], float] = {}
@@ -118,6 +122,7 @@ class BandListener:
         recent = after is not None and after <= RESPONSE_WINDOW_SECONDS
         if heard.kind == "band":
             self.last_band = heard
+            self.bands.appendleft(heard)
             _LOGGER.info(
                 "%s %s (RSSI %s) via %s: 83 01 %s%s",
                 "Response from" if recent else "Heard",
@@ -157,3 +162,6 @@ class BandListener:
 
     def as_list(self) -> list[dict[str, Any]]:
         return [asdict(h) for h in self.history]
+
+    def bands_list(self) -> list[dict[str, Any]]:
+        return [asdict(h) for h in self.bands]

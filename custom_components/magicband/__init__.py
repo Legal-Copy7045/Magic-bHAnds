@@ -376,7 +376,7 @@ def _register_services(hass: HomeAssistant) -> None:
         if not entries:
             raise ServiceValidationError("MagicBand isn't set up")
         listener = entries[0].runtime_data.listener
-        return {"listening": listener.active, "heard": listener.as_list()}
+        return {"listening": listener.active, "heard": listener.as_list(), "bands": listener.bands_list()}
 
     async def list_bridges(call: ServiceCall) -> dict[str, Any]:
         return {"bridges": find_bridges(hass)}
