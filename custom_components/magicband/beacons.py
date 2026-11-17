@@ -192,20 +192,33 @@ class BeaconTracker:
 
     # ------------------------------------------------------------------ owners
 
+    def linked_nfc(self, band: BluetoothBand):
+        """The NFC band this Bluetooth band is linked to, if it still exists."""
+        return self.registry.get_band(band.band_uid) if band.band_uid else None
+
     def owner(self, band: BluetoothBand):
         """(person, NFC band) for a Bluetooth band; either may be None."""
-        nfc = self.registry.get_band(band.band_uid) if band.band_uid else None
+        nfc = self.linked_nfc(band)
         person_id = nfc.person_id if nfc else band.person_id
         return self.registry.get_person(person_id), nfc
 
     def name(self, band: BluetoothBand) -> str:
-        person, nfc = self.owner(band)
-        if nfc and nfc.label:
+        return self.band_name(self.linked_nfc(band), band)
+
+    def band_name(self, nfc, ble: BluetoothBand | None) -> str:
+        """The name of one physical band: its NFC side, its Bluetooth side, or both."""
+        if nfc is not None and nfc.label:
             return nfc.label
-        if person:
-            others = [b for b in self.bands.values() if b is not band and self.owner(b)[0] is person]
-            return f"{person.name}'s MagicBand+" + (f" {band.short}" if others else "")
-        return f"MagicBand+ {band.short}"
+        kind = "MagicBand+" if ble is not None else "MagicBand"
+        short = ble.short if ble is not None else nfc.uid[-4:]
+        person = self.registry.get_person(nfc.person_id if nfc is not None else ble.person_id)
+        if person is None:
+            return f"{kind} {short}"
+        # Count this person's physical bands: NFC bands, plus Bluetooth bands not linked to one.
+        count = len(self.registry.bands_for(person.id)) + sum(
+            1 for b in self.bands.values() if b.person_id == person.id and self.linked_nfc(b) is None
+        )
+        return f"{person.name}'s {kind}" + (f" {short}" if count > 1 else "")
 
     def find(self, value: str) -> BluetoothBand | None:
         """By ID (or its first characters), name, or 'last'."""

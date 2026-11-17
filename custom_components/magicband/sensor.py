@@ -16,7 +16,7 @@ from homeassistant.util import dt as dt_util
 
 from . import MagicBandConfigEntry
 from .const import DOMAIN, SIGNAL_HEARD, SIGNAL_UPDATED
-from .band_entity import BluetoothBandEntity, async_setup_band_entities
+from .band_entity import BluetoothBandEntity, NfcBandEntity, async_setup_band_entities
 from .beacons import BeaconTracker
 from .registry import MagicBandRegistry
 
@@ -66,6 +66,7 @@ async def async_setup_entry(
         entry.runtime_data.beacons,
         async_add_entities,
         [BandLastSeenSensor, BandSignalSensor, BandBatterySensor],
+        [BandLastTapSensor],
         entry.async_on_unload,
     )
 
@@ -300,4 +301,39 @@ class BandBatterySensor(BluetoothBandEntity, SensorEntity):
             "raw": f"0x{band.level:02X}" if band.level is not None else None,
             "changes": band.level_history[-10:],
             "note": "Unconfirmed: the beacon byte that only goes down. A full charge returning it to 100 would confirm it.",
+        }
+
+
+class BandLastTapSensor(NfcBandEntity, SensorEntity):
+    """When this band was last tapped on a reader, and its NFC details."""
+
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_icon = "mdi:nfc-variant"
+
+    def __init__(self, tracker: BeaconTracker, uid: str) -> None:
+        super().__init__(tracker, uid, "last_tap")
+
+    @property
+    def native_value(self) -> datetime | None:
+        nfc = self.nfc
+        return _ts(nfc.last_seen) if nfc else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        nfc = self.nfc
+        if nfc is None:
+            return {}
+        registry = self._tracker.registry
+        person = registry.get_person(nfc.person_id)
+        ble = self._tracker.for_nfc(nfc.uid)
+        return {
+            "band": nfc.display,
+            "label": nfc.label or None,
+            "person": person.name if person else None,
+            "ha_person": person.ha_person if person else None,
+            "allowed": registry.band_allowed(nfc.uid),
+            "reader": nfc.last_reader,
+            "scans": nfc.scans,
+            "first_seen": nfc.first_seen,
+            "bluetooth_band": ble.id if ble else None,
         }

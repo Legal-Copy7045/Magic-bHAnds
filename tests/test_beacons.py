@@ -132,6 +132,7 @@ async def test_give_to_person_names_the_device(hass: HomeAssistant, setup_integr
 
     await hass.services.async_call(DOMAIN, "forget_bluetooth", {"bluetooth_band": band.id}, blocking=True)
     await hass.async_block_till_done()
+    await hass.async_block_till_done()
     assert dr.async_get(hass).async_get_device(identifiers={(DOMAIN, f"bluetooth_{band.id}")}) is None
     assert not _tracker(hass).bands
 
@@ -199,3 +200,70 @@ async def test_tap_prefers_the_band_given_to_the_same_person(
     await hass.async_block_till_done()
 
     assert y.band_uid == "0453652AC05F80" and x.band_uid is None
+
+
+def _band_devices(hass: HomeAssistant) -> dict[str, dr.DeviceEntry]:
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    out = {}
+    for device in dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id):
+        for domain, ident in device.identifiers:
+            if domain == DOMAIN and ident.startswith(("band_", "bluetooth_")):
+                out[ident] = device
+    return out
+
+
+def _entities_on(hass: HomeAssistant, device: dr.DeviceEntry) -> list[str]:
+    from homeassistant.helpers import entity_registry as er
+
+    return sorted(e.entity_id for e in er.async_entries_for_device(er.async_get(hass), device.id))
+
+
+async def test_linking_makes_one_band_device(hass: HomeAssistant, setup_integration, reader_device) -> None:
+    await hass.services.async_call(DOMAIN, "add_person", {"name": "Nana"}, blocking=True)
+    hass.bus.async_fire("tag_scanned", {"tag_id": "0453652AC05F80", "device_id": reader_device.id})
+    await hass.async_block_till_done()
+    await hass.services.async_call(DOMAIN, "assign_band", {"band": "last", "person": "Nana", "label": "Nana's blue band"}, blocking=True)
+    band = _beacon(hass, BAND_X)
+    await hass.async_block_till_done()
+
+    devices = _band_devices(hass)
+    assert set(devices) == {"band_0453652AC05F80", f"bluetooth_{band.id}"}
+    assert len(_entities_on(hass, devices["band_0453652AC05F80"])) == 1  # Last tap
+
+    # Link: the Bluetooth entities join the NFC band's device; the Bluetooth-only device goes.
+    await hass.services.async_call(
+        DOMAIN, "link_bluetooth", {"bluetooth_band": band.id, "band": "0453652AC05F80"}, blocking=True
+    )
+    await hass.async_block_till_done()
+    devices = _band_devices(hass)
+    assert set(devices) == {"band_0453652AC05F80"}
+    device = devices["band_0453652AC05F80"]
+    assert device.name == "Nana's blue band" and device.model == "MagicBand+"
+    entities = _entities_on(hass, device)
+    assert len(entities) == 5
+    assert any(e.endswith("_nearby") for e in entities) and any(e.endswith("_last_tap") for e in entities)
+
+    result = await hass.services.async_call(DOMAIN, "list", {}, blocking=True, return_response=True)
+    assert result["bands"][0]["bluetooth"]["id"] == band.id
+
+    # Unlink: they split again.
+    await hass.services.async_call(DOMAIN, "unlink_bluetooth", {"bluetooth_band": band.id}, blocking=True)
+    await hass.async_block_till_done()
+    devices = _band_devices(hass)
+    assert set(devices) == {"band_0453652AC05F80", f"bluetooth_{band.id}"}
+    assert len(_entities_on(hass, devices[f"bluetooth_{band.id}"])) == 4
+    assert devices["band_0453652AC05F80"].model == "MagicBand"
+
+
+async def test_removing_the_nfc_band_keeps_the_bluetooth_side(hass: HomeAssistant, setup_integration, reader_device) -> None:
+    hass.bus.async_fire("tag_scanned", {"tag_id": "0453652AC05F80", "device_id": reader_device.id})
+    band = _beacon(hass, BAND_X)
+    await hass.async_block_till_done()
+    await hass.services.async_call(DOMAIN, "link_bluetooth", {"bluetooth_band": band.id, "band": "last"}, blocking=True)
+    await hass.async_block_till_done()
+
+    await hass.services.async_call(DOMAIN, "remove_band", {"band": "0453652AC05F80"}, blocking=True)
+    await hass.async_block_till_done()
+    devices = _band_devices(hass)
+    assert set(devices) == {f"bluetooth_{band.id}"}
+    assert len(_entities_on(hass, devices[f"bluetooth_{band.id}"])) == 4

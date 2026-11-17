@@ -113,6 +113,9 @@
       },
       "band_battery": {
         "name": "Battery (unconfirmed)"
+      },
+      "band_last_tap": {
+        "name": "Last tap"
       }
     },
     "binary_sensor": {

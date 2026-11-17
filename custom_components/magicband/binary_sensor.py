@@ -17,7 +17,7 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: MagicBandConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     async_setup_band_entities(
-        hass, entry.runtime_data.beacons, async_add_entities, [NearbySensor], entry.async_on_unload
+        hass, entry.runtime_data.beacons, async_add_entities, [NearbySensor], [], entry.async_on_unload
     )
 
 
