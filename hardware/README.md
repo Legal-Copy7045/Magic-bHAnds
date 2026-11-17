@@ -17,18 +17,13 @@ it to check each later build.
 | 1 | **Breadboard** | **[Build it](reader-breadboard/build.md)** | [Spec](reader-breadboard/README.md), [diagram](../docs/reader-breadboard.svg) | Large | The ring's wires only | Reviewed, first build |
 | 2 | **Lonely Binary terminal base** | **[Build it](reader-wired/build.md)** | [Spec](reader-wired/README.md), [diagram](../docs/reader-terminal-base.svg) | Medium | Interface board, amplifier power, two power wires | Reviewed, not built |
 | 3 | **Point-to-point wiring** | **[Build it](reader-wired/build.md)** | [Spec](reader-wired/README.md), [diagram](../docs/reader-point-to-point.svg) | Small | Interface board, every joint | Reviewed, not built |
-| 4 | **Custom PCB** (26 × 58 mm, ordered assembled) | — | [Spec](reader-pcb/README.md) | Smallest | None (factory-assembled) | **Parked**: not yet updated for the ring-only design and the review |
 
-Builds 1–3 install from the web installer's *Install the reader* button;
-build 4 has its own, *Reader on the custom PCB*.
+All three use a dev board (ESP32-S3-DevKitC-1 layout, such as the Lonely
+Binary N16R8) and install from the web installer's *Install the reader*
+button.
 
-Builds 1–3 use a dev board (ESP32-S3-DevKitC-1 layout, such as the Lonely
-Binary N16R8) and the same firmware. Build 4 has the ESP32-S3 module on the
-PCB, so it has its own firmware build,
-[`esphome/magicband-reader-pcb.yaml`](../esphome/magicband-reader-pcb.yaml):
-the same reader with logs and Wi-Fi setup on the native USB port. It gets
-updates on its own channel, so neither firmware can be installed over the
-other by an update.
+A custom PCB is planned for later, once these builds are proven. An early
+design is out of date and has been taken out of this repository for now.
 
 ## Checking a build works
 
@@ -67,8 +62,6 @@ sound volume, LED behaviour) and raise it as a GitHub issue.
   their Adafruit equivalents, wire and tools.
 - [`make_power_diagram.py`](make_power_diagram.py): draws the power
   diagram shared by every build.
-- [`reader-pcb/`](reader-pcb/README.md): KiCad project, Gerbers and JLCPCB
-  files for build 4, with the scripts that generate them.
 
 The bridge needs no extra hardware: any ESP32-S3 board works (see
 [docs/bridge.md](../docs/bridge.md)), as does a SCREEK BP2-POE.

@@ -2,8 +2,8 @@
 
 The reference build: one ESP32-S3 dev board, a PN532 NFC reader, one LED
 ring, a MAX98357A amplifier and speaker, on a single full-size breadboard,
-powered from a USB-C charger (20 W or more). Everything else (terminal base,
-point-to-point, PCB) should be checked against this build once it works.
+powered from a USB-C charger (20 W or more). The other builds (terminal base,
+point-to-point) should be checked against this build once it works.
 
 **Building it? Follow the [step-by-step build](build.md).** This page is the
 reference behind it: parts, power, the hole-by-hole wiring and the review.
