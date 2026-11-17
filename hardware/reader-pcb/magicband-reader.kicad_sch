@@ -1557,7 +1557,7 @@
     (uuid 4593d259-9e25-5e84-800e-dacaa1867393)
     (property "Reference" "U3" (at 139.7 147.32 0) (effects (font (size 1.27 1.27))))
     (property "Value" "MAX98357A" (at 139.7 157.48000000000002 0) (effects (font (size 1.27 1.27))))
-    (property "Footprint" "Package_DFN_QFN:TQFN-16-1EP_3x3mm_P0.5mm_EP1.23x1.23mm_ThermalVias" (at 139.7 152.4 0) (effects (font (size 1.27 1.27)) hide))
+    (property "Footprint" "Package_DFN_QFN:TQFN-16-1EP_3x3mm_P0.5mm_EP1.23x1.23mm" (at 139.7 152.4 0) (effects (font (size 1.27 1.27)) hide))
     (property "Datasheet" "" (at 139.7 152.4 0) (effects (font (size 1.27 1.27)) hide))
     (property "MPN" "MAX98357AETE+T" (at 139.7 152.4 0) (effects (font (size 1.27 1.27)) hide))
     (property "LCSC" "C910544" (at 139.7 152.4 0) (effects (font (size 1.27 1.27)) hide))

@@ -30,11 +30,11 @@ USB_EDGE = 3.67  # USB4105 footprint: PCB edge is 3.67 mm in front of its origin
 PLACE = {
     "U1": (13.0, 12.8, 0),
     # Beside the module: decoupling, EN, I2C pull-ups (left), IO0 pull-up (right)
-    "C2": (1.7, 7.9, 90), "C1": (1.9, 10.6, 90), "R1": (1.7, 13.4, 90), "C3": (1.7, 15.4, 90),
+    "C2": (1.7, 7.9, 90), "C1": (1.9, 10.6, 90), "R1": (1.7, 13.4, 90), "C3": (1.7, 15.4, 270),
     "R7": (1.7, 19.6, 90), "R8": (1.7, 21.6, 90), "R2": (24.3, 22.4, 90),
     # Row 1: speaker (left edge), amplifier (middle), LEDs (right edge)
     "J3": (4.95, 31.6, 270), "J4": (21.05, 32.0, 90),
-    "U3": (13.0, 29.0, 0), "R5": (13.0, 32.3, 0), "C7": (13.0, 33.5, 0), "C6": (13.0, 35.6, 0),
+    "U3": (13.0, 29.0, 0), "R5": (13.0, 32.3, 0), "C7": (13.0, 33.7, 180), "C6": (13.0, 35.8, 0),
     # Row 2: RESET, LED buffer, USB ESD + CC resistors, LED bulk cap, BOOT
     "SW1": (3.4, 39.9, 0), "U4": (8.6, 40.0, 0), "C8": (11.8, 39.1, 90), "R6": (11.8, 41.2, 90),
     "U5": (15.3, 40.0, 0), "R3": (18.6, 39.4, 90), "R4": (18.6, 41.4, 90),
@@ -42,7 +42,7 @@ PLACE = {
     # Regulator capacitors
     "C4": (20.0, 46.3, 0), "C5": (24.0, 46.3, 0),
     # Bottom: NFC (left edge), USB-C (bottom edge), regulator (right)
-    "J2": (3.1, 53.0, 270), "J1": (13.0, H - USB_EDGE, 0), "U2": (22.2, 53.3, 90),
+    "J2": (3.1, 53.0, 270), "J1": (13.0, H - USB_EDGE, 0), "U2": (22.2, 52.9, 90),
 }
 
 
@@ -94,9 +94,10 @@ def add_zone(board: pcbnew.BOARD, net: pcbnew.NETINFO_ITEM, layer: int) -> None:
         outline.Append(mm(X0 + x), mm(Y0 + y))
     zone.SetLocalClearance(mm(0.25))
     zone.SetMinThickness(mm(0.25))
-    zone.SetPadConnection(pcbnew.ZONE_CONNECTION_THERMAL)
+    zone.SetPadConnection(pcbnew.ZONE_CONNECTION_FULL)  # solid: machine-assembled
     zone.SetThermalReliefGap(mm(0.3))
     zone.SetThermalReliefSpokeWidth(mm(0.4))
+    zone.SetIslandRemovalMode(pcbnew.ISLAND_REMOVAL_MODE_ALWAYS)
     zone.SetIsFilled(False)
     board.Add(zone)
 
@@ -106,8 +107,9 @@ def add_text(board, text, x, y, size=0.8, layer=pcbnew.F_SilkS, angle=0):
     t.SetText(text)
     t.SetPosition(pt(x, y))
     t.SetLayer(layer)
+    size = max(size, 0.7)
     t.SetTextSize(pcbnew.VECTOR2I(mm(size), mm(size)))
-    t.SetTextThickness(mm(size * 0.15))
+    t.SetTextThickness(mm(max(size * 0.15, 0.12)))
     t.SetTextAngleDegrees(angle)
     if layer == pcbnew.B_SilkS:
         t.SetMirrored(True)
@@ -124,6 +126,9 @@ def main(out: Path) -> None:
     ds.m_MinThroughDrill = mm(0.3)
     ds.m_CopperEdgeClearance = mm(0.3)
     ds.m_HoleToHoleMin = mm(0.25)
+    ds.m_HoleClearance = mm(0.15)  # USB4105 pegs sit 0.19 mm from a pad in GCT's footprint
+    ds.m_MinSilkTextHeight = mm(0.7)
+    ds.m_MinSilkTextThickness = mm(0.12)
     ds.m_SolderMaskExpansion = mm(0.05)
 
     nets: dict[str, pcbnew.NETINFO_ITEM] = {}
@@ -159,9 +164,15 @@ def main(out: Path) -> None:
                 pad.SetNet(net(n))
         # Small, tidy reference text; hide values.
         refs = fp.Reference()
-        refs.SetTextSize(pcbnew.VECTOR2I(mm(0.6), mm(0.6)))
-        refs.SetTextThickness(mm(0.1))
-        refs.SetVisible(part["ref"][0] in "UJS")
+        refs.SetTextSize(pcbnew.VECTOR2I(mm(0.7), mm(0.7)))
+        refs.SetTextThickness(mm(0.12))
+        # JLCPCB's standard process drills 0.3 mm and up: widen thermal-via holes.
+        for pad in fp.Pads():
+            if pad.HasHole() and min(pad.GetDrillSize().x, pad.GetDrillSize().y) < mm(0.3):
+                pad.SetDrillSize(pcbnew.VECTOR2I(mm(0.3), mm(0.3)))
+                if pad.GetSize().x < mm(0.6):
+                    pad.SetSize(pcbnew.VECTOR2I(mm(0.6), mm(0.6)))
+        refs.SetVisible(part["ref"][0] in "UJS" and part["ref"] not in ("U2", "U3", "SW2"))  # those three would sit on copper
         fp.Value().SetVisible(False)
 
     add_outline(board)
@@ -170,11 +181,8 @@ def main(out: Path) -> None:
 
     # Connector labels (front) and board info (back).
     add_text(board, "SPK", 8.6, 26.6, 0.7)
-    add_text(board, "+  -", 9.0, 36.9, 0.6)
-    add_text(board, "LED", 17.6, 26.4, 0.7)
     add_text(board, "NFC", 7.4, 47.6, 0.7)
     add_text(board, "RST", 3.4, 42.4, 0.6)
-    add_text(board, "BOOT", 24.0, 37.2, 0.6)
     add_text(board, "MagicBand Reader", 13.0, 30.0, 1.0, pcbnew.B_SilkS)
     add_text(board, "Magic bHAnds v1.0", 13.0, 32.0, 0.8, pcbnew.B_SilkS)
     add_text(board, "NFC: GND 3V3 SDA SCL", 13.0, 35.0, 0.7, pcbnew.B_SilkS)
