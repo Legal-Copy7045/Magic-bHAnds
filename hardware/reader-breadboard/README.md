@@ -215,7 +215,7 @@ by the board's flash and PSRAM (GPIO35–37).
 | I²C pull-ups | None | CHANGE REQUIRED | 2 × 4.7 kΩ to 3.3 V | The module's header side has none; the ESP32's internal pull-ups are weak |
 | MAX98357A | Adafruit 3006 | PASS WITH CONDITIONS | Own supply wires; 100 µF at Vin | 2.5–5.5 V supply, 1.3 V logic threshold (datasheet); Adafruit budgets 650–800 mA |
 | Speaker | 3 W, 4–8 Ω | PASS | Adafruit 3351, 3 W 4 Ω | Rated for the amplifier's 3 W into 4 Ω; 0.65 A fits the budget |
-| Power supply | 5 V 3 A | PASS WITH CONDITIONS | USB-C charger ≥ 20 W; ring only; USB-C breakout with CC resistors | Worst case ≈ 2.6 A |
+| Power supply | 5 V 3 A | PASS WITH CONDITIONS | USB-C charger ≥ 20 W; ring only; HUSB238 USB-C PD breakout set to 5 V 3 A | Worst case ≈ 2.6 A |
 | Power distribution | Breadboard rails | CHANGE REQUIRED | Hubs; LED and amplifier wired directly | Breadboard contacts aren't meant for amps of LED current |
 | Firmware | `magicband-reader.yaml` | PASS | — | See below |
 
