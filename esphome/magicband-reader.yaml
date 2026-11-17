@@ -316,6 +316,40 @@ number:
     on_value:
       - script.execute: apply_ring_settings
       - script.execute: reader_idle
+  # Scales everything the ring shows (spin, welcome, deny, idle glow, and the
+  # Ring light in Home Assistant). On top of the automatic power cap.
+  - platform: template
+    id: ring_brightness
+    name: "LED brightness"
+    icon: mdi:brightness-6
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: 100
+    min_value: 5
+    max_value: 100
+    step: 5
+    unit_of_measurement: "%"
+    mode: slider
+    on_value:
+      - script.execute: apply_ring_settings
+      - script.execute: reader_idle
+  # The soft white glow while waiting for a band; 0 turns it off.
+  - platform: template
+    id: idle_glow
+    name: "Idle glow"
+    icon: mdi:lightbulb-on-30
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: 30
+    min_value: 0
+    max_value: 100
+    step: 5
+    unit_of_measurement: "%"
+    mode: slider
+    on_value:
+      - script.execute: reader_idle
 
 switch:
   - platform: template
@@ -381,20 +415,29 @@ script:
           out->set_channel_colors(rgb ? light::ChannelColors{0, 1, 2, light::ChannelColors::NO_WHITE}
                                       : light::ChannelColors{1, 0, 2, light::ChannelColors::NO_WHITE});
           const float cap = n > 24 ? 24.0f / n : 1.0f;
-          out->set_correction(cap, cap, cap);
-          ESP_LOGI("reader", "Ring: %d LEDs, %s, output capped at %d%%", n, rgb ? "RGB" : "GRB",
-                   static_cast<int>(cap * 100));
+          float level = id(ring_brightness).state / 100.0f;
+          if (!(level >= 0.05f && level <= 1.0f)) level = 1.0f;
+          out->set_correction(cap * level, cap * level, cap * level);
+          ESP_LOGI("reader", "Ring: %d LEDs, %s, brightness %d%% (power cap %d%%)", n, rgb ? "RGB" : "GRB",
+                   static_cast<int>(level * 100), static_cast<int>(cap * 100));
+          out->schedule_show();
 
   - id: reader_idle
     then:
-      # A soft white glow while waiting for a band.
-      - light.turn_on:
-          id: ring
-          effect: "None"
-          brightness: 30%
-          red: 100%
-          green: 100%
-          blue: 100%
+      # A soft white glow while waiting for a band ("Idle glow"; 0 = off).
+      - if:
+          condition:
+            lambda: 'return id(idle_glow).state > 0;'
+          then:
+            - light.turn_on:
+                id: ring
+                effect: "None"
+                brightness: !lambda 'return id(idle_glow).state / 100.0f;'
+                red: 100%
+                green: 100%
+                blue: 100%
+          else:
+            - light.turn_off: ring
 
   - id: band_tapped
     mode: single            # ignore taps while a sequence is playing
