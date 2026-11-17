@@ -4,7 +4,7 @@
 #   1. The ring spins while the band is read (NFC, both band types).
 #   2. Home Assistant gets the band's ID as a Tag scan, so any automation
 #      can react to it (lights, locks, music, ...).
-#   3. Welcome: ring and Mickey turn green, the tap-in sound plays, and a MagicBand+
+#   3. Welcome: the ring turns green, the tap-in sound plays, and a MagicBand+
 #      also lights up green and buzzes (Bluetooth, via the magicband add-on).
 #      Denied (in "Known bands only" or "Ask Home Assistant" mode): red flash
 #      and the error sound. Everything except "Ask Home Assistant" is decided
@@ -19,10 +19,9 @@
 substitutions:
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.8.0"
+  project_version: "0.8.1"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
-  ring_leds: 24       # LEDs in the ring
-  mickey_leds: 12     # LEDs in the Mickey head, wired after the ring
+  ring_leds: 24       # LEDs in the ring (e.g. 16 or 24, or a strip formed into a ring)
   # Sound files: downloaded from this repo at build time. To use your own,
   # point these at a URL or a path next to this config (e.g. sounds/my.wav).
   sound_startup: https://raw.githubusercontent.com/Legal-Copy7045/Magic-bHAnds/main/esphome/sounds/startup.wav
@@ -165,28 +164,18 @@ pn532_i2c:
           uid: !lambda 'return x;'
 
 # ---------------------------------------------------------------------------
-# LEDs: one WS2812B chain: ring first, then the Mickey head
+# LEDs: one WS2812B ring (data via the 74AHCT125 level shifter)
 # ---------------------------------------------------------------------------
 light:
   - platform: esp32_rmt_led_strip
-    id: led_chain
-    internal: true
+    id: ring
+    name: "Ring"
     pin: GPIO10   # LED data (via the 74AHCT125); on the Lonely Binary terminal base too
     chipset: WS2812
     channel_colors: GRB
-    num_leds: ${ring_leds + mickey_leds}
-    default_transition_length: 0s
-    restore_mode: ALWAYS_OFF
-
-  - platform: partition
-    id: ring
-    name: "Ring"
+    num_leds: ${ring_leds}
     default_transition_length: 300ms
     restore_mode: ALWAYS_OFF
-    segments:
-      - id: led_chain
-        from: 0
-        to: ${ring_leds - 1}
     effects:
       - addressable_lambda:
           name: "Spin"
@@ -219,16 +208,6 @@ light:
               duration: 150ms
             - state: false
               duration: 150ms
-
-  - platform: partition
-    id: mickey
-    name: "Mickey"
-    default_transition_length: 300ms
-    restore_mode: ALWAYS_OFF
-    segments:
-      - id: led_chain
-        from: ${ring_leds}
-        to: ${ring_leds + mickey_leds - 1}
 
 # ---------------------------------------------------------------------------
 # Sound: MAX98357A I2S amplifier + small speaker, playing your own sound files
@@ -346,10 +325,11 @@ text_sensor:
 script:
   - id: reader_idle
     then:
-      - light.turn_off: ring
+      # A soft white glow while waiting for a band.
       - light.turn_on:
-          id: mickey
-          brightness: 25%
+          id: ring
+          effect: "None"
+          brightness: 30%
           red: 100%
           green: 100%
           blue: 100%
@@ -419,7 +399,6 @@ script:
   - id: reader_welcome
     then:
       - light.turn_on: {id: ring, effect: "None", brightness: 100%, red: 0%, green: 100%, blue: 0%}
-      - light.turn_on: {id: mickey, brightness: 100%, red: 0%, green: 100%, blue: 0%}
       - if:
           condition:
             switch.is_on: sound_enabled
@@ -439,7 +418,6 @@ script:
   - id: reader_deny
     then:
       - light.turn_on: {id: ring, effect: "Deny flash", brightness: 100%, red: 100%, green: 0%, blue: 0%}
-      - light.turn_on: {id: mickey, brightness: 100%, red: 100%, green: 0%, blue: 0%}
       - if:
           condition:
             switch.is_on: sound_enabled

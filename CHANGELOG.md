@@ -3,6 +3,25 @@
 All notable changes to Magic bHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.8.1] - 2026-11-17
+
+### Changed
+- **The reader drives a single LED ring** (16 or 24 LEDs, set `ring_leds`).
+  The Mickey head is gone, which keeps a reader within a 5 V 3 A USB-C
+  supply. The ring glows white while waiting for a band.
+
+### Hardware
+- **Reviewed breadboard build** (`hardware/reader-breadboard/`), checked
+  against the Espressif, Elechouse, TI, Worldsemi, Analog Devices and
+  Adafruit documentation:
+  - Corrected diagram: the ESP32 board's orientation and header spacing were
+    wrong.
+  - PN532 on 5 V with 4.7 kΩ I²C pull-ups.
+  - LED and amplifier power straight from lever-connector hubs.
+  - 330 Ω resistor at the ring end.
+  - Rated capacitors, USB-C charger power, a current budget, and a staged
+    build-and-test plan.
+
 ## [0.8.0] - 2026-11-17
 
 ### Added
