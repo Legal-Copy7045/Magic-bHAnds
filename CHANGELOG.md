@@ -3,6 +3,13 @@
 All notable changes to Magic bHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [Unreleased]
+
+### Removed
+- The custom reader PCB (KiCad design, its firmware build and its web
+  installer button) is out of date, so it's been taken out for now. It's in
+  the git history and in release v0.9.3 and earlier, for when it's revisited.
+
 ## [0.9.3] - 2026-11-17
 
 ### Integration

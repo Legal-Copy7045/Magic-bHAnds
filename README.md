@@ -107,7 +107,6 @@ it on `main`. It tags `v<VERSION>` and publishes the GitHub Release.
 | `components/magicband/` | ESPHome component that broadcasts MagicBand+ commands |
 | `esphome/magicband-bridge.yaml` | Bridge firmware (web installer, "Take control") |
 | `esphome/magicband-reader.yaml` | Reader firmware (web installer, "Take control") |
-| `esphome/magicband-reader-pcb.yaml` | The reader firmware for the custom PCB (native USB) |
 | `esphome/magicband-addon.yaml` | The MagicBand parts as a package for any ESPHome board |
 | `esphome/screek-bp2-poe*.yaml` | SCREEK BP2-POE as a PoE proxy and bridge |
 | `esphome/sounds/` | The reader's sounds (the project owner's recordings) |
@@ -116,7 +115,6 @@ it on `main`. It tags `v<VERSION>` and publishes the GitHub Release.
 | `hardware/` | [Ways to build the reader](hardware/README.md), the [shopping list](hardware/shopping-list.md) (with generic alternatives), and the power diagram's generator |
 | `hardware/reader-breadboard/` | Breadboard build: step-by-step build, spec and wiring table, and the diagram's generator |
 | `hardware/reader-wired/` | Terminal base and point-to-point builds, with the interface board: step-by-step build and spec |
-| `hardware/reader-pcb/` | Custom reader PCB (KiCad), parked until the breadboard build is proven |
 | `web/` | The web installer page |
 | `docs/` | Guides: [bridge](docs/bridge.md), [reader](docs/reader.md), [integration](docs/integration.md), [commands](docs/commands.md), [protocol](docs/protocol.md), [SCREEK BP2-POE](docs/screek-bp2-poe.md); reader wiring diagrams |
 | `tests/` | Integration tests |

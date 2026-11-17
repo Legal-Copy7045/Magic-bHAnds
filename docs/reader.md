@@ -17,8 +17,8 @@ code from those projects is used.
 
 ## Ways to build it
 
-Breadboard (start here), Lonely Binary terminal base, point-to-point wiring,
-or a custom PCB. They share the parts, GPIOs and features. See
+Breadboard (start here), Lonely Binary terminal base or point-to-point
+wiring. They share the parts, GPIOs and features. See
 **[hardware/README.md](../hardware/README.md)** for a comparison and a
 step-by-step check that a build works.
 

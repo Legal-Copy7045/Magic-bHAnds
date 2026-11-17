@@ -70,13 +70,6 @@ jobs:
               magicband-reader.yaml > reader-ci.yaml
           esphome -s component_source ../components compile reader-ci.yaml
 
-      - name: Compile MagicBand Reader (custom PCB)
-        working-directory: esphome
-        run: |
-          sed 's#reader: github://.*magicband-reader.yaml@main#reader: !include reader-ci.yaml#' \
-            magicband-reader-pcb.yaml > reader-pcb-ci.yaml
-          esphome -s component_source ../components compile reader-pcb-ci.yaml
-
       - name: Compile SCREEK BP2-POE
         working-directory: esphome
         run: |
@@ -93,7 +86,6 @@ jobs:
           python3 .github/scripts/make_site.py _site \
             bridge=esphome/.esphome/build/magicband-bridge/build=esphome/magicband-bridge.yaml \
             reader=esphome/.esphome/build/magicband-reader/build=esphome/magicband-reader.yaml \
-            reader-pcb=esphome/.esphome/build/magicband-reader-pcb/build=esphome/magicband-reader.yaml \
             bp2=esphome/.esphome/build/screek-bp2-poe/build=esphome/screek-bp2-poe.yaml
 
       - name: Upload Pages artifact
@@ -109,7 +101,6 @@ jobs:
           path: |
             _site/firmware/*.bin
             _site/reader/firmware/*.bin
-            _site/reader-pcb/firmware/*.bin
             _site/bp2/firmware/*.bin
 
   # Tests for the Home Assistant integration (custom_components/magicband).
