@@ -112,7 +112,7 @@ it on `main`. It tags `v<VERSION>` and publishes the GitHub Release.
 | `esphome/sounds/` | The reader's sounds (the project owner's recordings) |
 | `custom_components/magicband/` | The MagicBand integration (HACS) |
 | `homeassistant/` | Blueprint and example scripts |
-| `hardware/` | [Ways to build the reader](hardware/README.md) and the [shopping list](hardware/shopping-list.md) |
+| `hardware/` | [Ways to build the reader](hardware/README.md), the [shopping list](hardware/shopping-list.md) (with generic alternatives), and the power diagram's generator |
 | `hardware/reader-breadboard/` | Breadboard build: spec, wiring table, tests, and the diagram's generator |
 | `hardware/reader-wired/` | Terminal base and point-to-point builds, with the interface board |
 | `hardware/reader-pcb/` | Custom reader PCB (KiCad), parked until the breadboard build is proven |
@@ -210,6 +210,8 @@ Hardware diagrams are generated, not drawn by hand:
 python3 hardware/reader-breadboard/make_diagram.py > docs/reader-breadboard.svg
 python3 hardware/reader-wired/make_diagrams.py terminal-base  > docs/reader-terminal-base.svg
 python3 hardware/reader-wired/make_diagrams.py point-to-point > docs/reader-point-to-point.svg
+python3 hardware/reader-wired/make_diagrams.py interface-board > docs/reader-interface-board.svg
+python3 hardware/make_power_diagram.py > docs/reader-power.svg
 ```
 
 Releases: see [Releases and versions](#releases-and-versions). Once a

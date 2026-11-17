@@ -71,6 +71,10 @@ with solder jumpers. Out of the box it asks for 5 V 1 A. For this reader:
 - Check with a meter before connecting anything: **4.75–5.25 V** across its
   terminal block.
 
+A generic **CH224K** PD board with a DIP switch also works, set to 5 V
+and taped down: see the [generic parts](../shopping-list.md#generic-alternatives)
+and the power diagram below.
+
 Avoid plain USB-C socket breakouts without CC resistors (such as Adafruit's
 "Simple USB C Socket Breakout", 5180): a standards-compliant charger won't
 switch on. Adafruit's "USB Type C Breakout Board - Downstream Connection"
@@ -99,14 +103,12 @@ switch on. Adafruit's "USB Type C Breakout Board - Downstream Connection"
 
 ### Distribution
 
-```
-USB-C charger ─ USB-C breakout ─(22 AWG)─┬─ 5 V hub ──┬─(22 AWG solid)─ breadboard L+ rail (row 24): ESP32 5V pin, PN532, 74AHCT125
-                                         │            ├─(22 AWG solid)─ amplifier Vin (f52)
-                                         │            └─(22 AWG)─────── LED ring 5V pad  (+1000 µF there)
-                                         └─ GND hub ──┬─(22 AWG solid)─ breadboard L− rail (row 25)
-                                                      ├─(22 AWG solid)─ amplifier GND (f51)
-                                                      └─(22 AWG)─────── LED ring GND pad
-```
+![Power distribution](../../docs/reader-power.svg)
+
+On the breadboard, the hubs feed the **L+/L− rails at rows 24/25**; the
+rails feed the ESP32 (through the a21/a22 jumpers), the PN532 and the
+74AHCT125. The amplifier (f51/f52) and the ring have their own wires from
+the hubs.
 
 - **One ground point:** every ground meets at the GND hub. The ring's and
   amplifier's currents never flow through the breadboard.

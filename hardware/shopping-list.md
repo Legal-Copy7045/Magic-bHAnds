@@ -33,6 +33,10 @@ tables list what each build adds.
 | 1 | **PN532 NFC module V3** | Elechouse V3 or clone (your AITRIP) | Adafruit's PN532 breakout (364) is a 3.3 V-only design needing different wiring and 1.5 kΩ pull-ups. The V3 module is what the build docs are written for |
 | 1 | **1000 µF electrolytic capacitor** | 10 V or 16 V, radial, 105 °C | Adafruit's closest is 4700 µF 10 V (1589), well above its own 500–1000 µF NeoPixel guidance |
 
+How it all connects: [power diagram](../docs/reader-power.svg).
+
+![Power distribution](../docs/reader-power.svg)
+
 ## Wire and consumables (every build)
 
 | Qty | Part | Adafruit | For |
@@ -127,6 +131,27 @@ lines, and wire to the end marked as the input (arrows point away from it).
 
 Not stated by Adafruit: the smallest safe bend for each strip. Try the
 loop size with the strip unpowered before you commit to the housing.
+
+## Generic alternatives
+
+Generic parts (from Amazon and similar) work for almost everything.
+What to check on the listing:
+
+| Adafruit part | Generic? | Check on the listing |
+|---|---|---|
+| NeoPixel Ring 24 (1586) | Yes | **WS2812B** or **SK6812**, **5 V**, pads for DIN, 5V and GND. Not WS2811 (usually 12 V) or APA102 (4 wires). Inside diameter **about 45 mm or more**, so the PN532 fits inside |
+| MAX98357A (3006) | Yes | Pins LRC, BCLK, DIN, GAIN, SD, GND, VIN. ⚠️ Adafruit's board has 1 MΩ from SD to Vin; without it the amplifier stays off. Stage 4 of the test plan catches this (SD should read about 0.45 V); if it reads near 0 V, add a 1 MΩ from SD to Vin |
+| Speaker 3 W 4 Ω (3351) | Yes | **4 Ω or more**, rated **3 W or more** |
+| 74AHCT125 (1787) | ⚠️ Only the right chip | **74AHCT125** or **74HCT125**, DIP-14. **Not 74HC125**: its input threshold at 5 V is too high for 3.3 V logic. **Not** "4-channel level shifter" modules (BSS138 MOSFET or TXS0108E types): unreliable at the LEDs' data rate |
+| Resistors, capacitors | Yes | Any assortment kit: 4.7 kΩ, 470 Ω; capacitors rated **10 V or more** |
+| HUSB238 PD breakout (5807) | ⚠️ With care | A **CH224K** PD board with a DIP switch works: set it to **5 V** from the board's own table, measure **4.75–5.25 V** with nothing connected, unplug and re-plug and measure again, then **cover the switch** with Kapton tape or hot glue. A bumped switch would send up to 20 V into everything. Avoid boards that can't select 5 V, and plain USB-C sockets without CC resistors. See the [power diagram](../docs/reader-power.svg) |
+| Raspberry Pi 27 W PD supply (5814) | Yes | Any USB-C charger of **20 W or more**, with a cable rated 3 A or more |
+| Snap-action connectors (874) | Yes | Genuine **Wago 221-415** (5-way) is the same job |
+| 22 AWG wire | Yes | **Pure copper**, not CCA (copper-clad aluminium) |
+| Breadboard 830 (239) | Yes | Cheap ones can have loose contacts or split rails; the build's rail bridges and continuity check cover that |
+| Jumpers, heat shrink, Kapton tape, solder | Yes | Any |
+| Perma-Proto half (1609) | Yes | A half-size solderable breadboard PCB with **30 rows, columns a–j and a rail pair down each side**; the interface board layout assumes that |
+| Flexible LED strips | Mostly | **5 V WS2812B or SK6812**. ⚠️ Many "silicone neon" strips are **12 V WS2811**. Colour order varies: set `ring_color_order` if colours come out swapped |
 
 ## Breadboard build adds
 
