@@ -45,7 +45,8 @@ Then:
 
 **MagicBand Bridge** ([guide](docs/bridge.md))
 - Palette colours, any RGB colour, two- and five-colour layouts, crossfades
-  and captured park animations
+  and 31 predefined park scenes, with one-press scene buttons
+- Fast mode: mixes in the park's "fast mode" ping so bands respond sooner
 - 11 vibration patterns, on-time, fade-out and stay-on control
 - A MagicBand light entity with a colour picker and animation effects
 - Several bridges for whole-house coverage, all addressed at once by default
@@ -66,6 +67,8 @@ Then:
 - Allowed lists synced to every reader
 - `magicband_tap` events and per-person "last tap" sensors
 - The `magicband.send` action and the bundled blueprint
+- Logs which MagicBand+ devices Home Assistant's Bluetooth hears, and when,
+  so you can see bands responding to a bridge
 
 ## Releases and versions
 
@@ -118,6 +121,11 @@ This project builds on other people's work.
   the packet layouts, timing byte, vibration patterns, LED masks, colour
   palette, RGB command and the captured show animations. See
   [docs/protocol.md](docs/protocol.md).
+- **[Haw8411/magic-band-plus-lights](https://github.com/Haw8411/magic-band-plus-lights)**
+  (MIT): a Flipper Zero MagicBand+ app. Its preset list filled out the
+  bridge's scenes, and its "Fast mode" (pre-warm and interleaved `CC 03 00 01 00`
+  pings) is the basis for the bridge's Fast mode. The payloads are protocol
+  data; no code was copied.
 - **[xxfunprojectsxx/esp32_magicband](https://github.com/xxfunprojectsxx/esp32_magicband)**:
   an ESP32-S3 MagicBand+ broadcaster that we used to cross-check the command
   byte layouts and colour codes. No code was copied (that repo has no

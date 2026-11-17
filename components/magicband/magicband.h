@@ -98,6 +98,16 @@ class MagicBand : public Component {
   void set_alternate_prefix(bool alternate) { this->prefix_mode_ = alternate ? PREFIX_ALTERNATE : PREFIX_OFF; }
   bool get_alternate_prefix() const { return this->prefix_mode_ != PREFIX_OFF; }
 
+  /// Fast mode: mix the CC 03 00 01 00 "fast mode ping" into every burst (1 slot in 5).
+  /// Believed to keep bands listening continuously, so they react sooner and repeats land.
+  void set_fast_mode(bool fast) { this->fast_mode_ = fast; }
+  bool get_fast_mode() const { return this->fast_mode_; }
+  /// Fast mode warm-up: if the bridge has been quiet for 30 s, broadcast the fast ping
+  /// on its own for this long before the next effect (0 = off).
+  void set_fast_warmup(uint32_t ms) { this->fast_warmup_ms_ = ms; }
+  /// Broadcast the fast ping on its own for `seconds` (wakes bands up ahead of a show).
+  void wake_bands(float seconds = 15.0f);
+
   void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
 
   // ---- Command builders. `duration_ms` is the broadcast length (0 = configured default). ----
@@ -118,7 +128,8 @@ class MagicBand : public Component {
   void send_crossfade(uint8_t color1, uint8_t color2, uint8_t vibration = 0, uint32_t duration_ms = 0);
   /// Spinning circle animation.
   void send_circle(uint8_t vibration = 0, uint32_t duration_ms = 0);
-  /// Captured park animation by name (see animation_names()). Returns false if unknown.
+  /// Predefined scene (captured park animation) by name or label, e.g. "rainbow",
+  /// "Spin & buzz 2" (see scene_name()/scene_label()). Returns false if unknown.
   bool send_animation(const std::string &name, uint32_t duration_ms = 0);
   /// Park "ping"; `fast` uses the variant believed to put bands in a quicker-response mode.
   void send_ping(bool fast = false, uint32_t duration_ms = 0);
@@ -151,8 +162,10 @@ class MagicBand : public Component {
   static uint8_t color_from_string(const std::string &name);
   /// "all", "top_left", "top_right", "bottom_left", "bottom_right" -> LED mask. Unknown -> all.
   static uint8_t leds_from_string(const std::string &name);
-  /// Names accepted by send_animation().
-  static const char *const *animation_names(size_t &count);
+  /// Number of predefined scenes, and each one's id ("spin_buzz_2") and label ("Spin & buzz 2").
+  static size_t scene_count();
+  static const char *scene_name(size_t index);
+  static const char *scene_label(size_t index);
 
   bool is_broadcasting() const { return this->state_ != State::IDLE; }
 
@@ -183,9 +196,17 @@ class MagicBand : public Component {
   size_t adv_len_{0};
   uint8_t adv_alt_[31]{};
   size_t adv_alt_len_{0};
+  uint8_t adv_ping_[31]{};
+  size_t adv_ping_len_{0};
   bool swap_in_burst_{false};
+  bool ping_in_burst_{false};
   bool showing_alt_{false};
   uint32_t last_swap_{0};
+  uint32_t slot_{0};
+  bool fast_mode_{true};
+  uint32_t fast_warmup_ms_{0};
+  uint32_t last_broadcast_end_{0};
+  bool ever_broadcast_{false};
   int tx_power_dbm_{9};
 
   // Light entity debounce

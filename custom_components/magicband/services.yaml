@@ -80,7 +80,7 @@ send:
       default: color
       selector:
         select:
-          options: [color, rgb, dual_color, five_color, crossfade, circle, animation, buzz, ping, "off", raw, stop]
+          options: [color, rgb, dual_color, five_color, crossfade, circle, animation, buzz, ping, wake, "off", raw, stop]
     color:
       example: red
       selector:
@@ -100,7 +100,38 @@ send:
     animation:
       selector:
         select:
-          options: [color_cycle, rainbow, lightning, orange_blink, circle, crossfade, spin_buzz, show_e913]
+          options:
+            - lightning
+            - orange_blink
+            - color_cycle
+            - rainbow
+            - circle
+            - alternating
+            - crossfade
+            - crossfade_2
+            - crossfade_3
+            - crossfade_4
+            - crossfade_5
+            - crossfade_6
+            - crossfade_7
+            - spin_buzz
+            - spin_buzz_2
+            - spin_buzz_3
+            - show_0e_1
+            - show_0e_2
+            - show_0e_3
+            - show_0e_4
+            - show_0e_5
+            - show_0f_1
+            - show_0f_2
+            - show_e913
+            - show_13_2
+            - show_13_3
+            - show_14_1
+            - show_14_2
+            - show_14_3
+            - show_07_1
+            - show_07_2
     vibration:
       default: 0
       selector:
@@ -124,6 +155,10 @@ send:
     fast:
       selector:
         boolean:
+    seconds:
+      example: 15
+      selector:
+        number: {min: 1, max: 60, step: 1, mode: slider, unit_of_measurement: s}
     hex:
       selector:
         text:
@@ -142,3 +177,5 @@ send:
               domain: text
 
 list_bridges:
+
+list_heard:

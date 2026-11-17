@@ -24,11 +24,45 @@ EFFECTS = [
     "animation",
     "buzz",
     "ping",
+    "wake",
     "off",
     "raw",
     "stop",
 ]
-ANIMATIONS = ["color_cycle", "rainbow", "lightning", "orange_blink", "circle", "crossfade", "spin_buzz", "show_e913"]
+# Predefined scenes built into the firmware (see docs/commands.md#scenes).
+ANIMATIONS = [
+    "lightning",
+    "orange_blink",
+    "color_cycle",
+    "rainbow",
+    "circle",
+    "alternating",
+    "crossfade",
+    "crossfade_2",
+    "crossfade_3",
+    "crossfade_4",
+    "crossfade_5",
+    "crossfade_6",
+    "crossfade_7",
+    "spin_buzz",
+    "spin_buzz_2",
+    "spin_buzz_3",
+    "show_0e_1",
+    "show_0e_2",
+    "show_0e_3",
+    "show_0e_4",
+    "show_0e_5",
+    "show_0f_1",
+    "show_0f_2",
+    "show_e913",
+    "show_13_2",
+    "show_13_3",
+    "show_14_1",
+    "show_14_2",
+    "show_14_3",
+    "show_07_1",
+    "show_07_2",
+]
 MAX_COMMAND_LEN = 255  # the Command text entity's max length
 
 
@@ -82,13 +116,15 @@ def build_command(data: dict[str, Any]) -> dict[str, Any]:
         put("name", "animation")
     if effect == "ping":
         put("fast")
+    if effect == "wake":
+        put("seconds")
     if effect == "raw":
         put("hex")
     if effect in ("color", "rgb", "dual_color", "five_color"):
         put("on_seconds")
         put("fade_seconds")
         put("always_on")
-    if effect not in ("ping", "off", "raw", "stop", "animation"):
+    if effect not in ("ping", "wake", "off", "raw", "stop", "animation"):
         put("vibration")
     put("duration_ms")
     return cmd

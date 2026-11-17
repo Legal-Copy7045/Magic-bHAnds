@@ -3,6 +3,27 @@
 All notable changes to Magic bHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.8.0] - 2026-11-17
+
+### Added
+- **31 predefined scenes** on every bridge, reader and BP2-POE: a **Scene**
+  select with **Play scene**, plus one-press buttons for Rainbow, Lightning,
+  Colour cycle, Crossfade, Spin & buzz and Alternating. Also available as
+  `magicband.send` with `effect: animation`. Sources: emcot.world and
+  Haw8411/magic-band-plus-lights.
+- **Fast mode** (on by default): every broadcast mixes in the park's
+  `CC 03 00 01 00` "fast mode" ping, which is believed to make bands listen
+  continuously, so effects start sooner and repeats land. Optional
+  **Fast mode warm-up**, and a **Wake bands** button (`effect: wake`).
+- **Hearing bands respond:** the integration listens through Home Assistant's
+  Bluetooth adapters and proxies for anything with Disney's Bluetooth ID. It
+  logs the device address, signal strength, which proxy heard it and how long
+  after the last send, and adds a `magicband_heard` event, a *Last band
+  heard* sensor and `magicband.list_heard`.
+
+### Changed
+- The integration's setup screen describes what it does.
+
 ## [0.7.1] - 2026-11-16
 
 ### Security

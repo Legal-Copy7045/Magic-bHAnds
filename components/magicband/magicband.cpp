@@ -25,8 +25,20 @@ static const char *const TAG = "magicband";
 static constexpr uint32_t GAP_TIMEOUT_MS = 1000;
 // Light entity changes are sent once the value has been stable this long.
 static constexpr uint32_t LIGHT_DEBOUNCE_MS = 250;
-// Prefix mode BOTH: how often to swap between the E1 and E2 versions in a burst.
-static constexpr uint32_t BOTH_SWAP_MS = 100;
+// A burst is split into slots; each slot can carry a different version of the
+// advertisement (E1/E2 prefix for prefix mode BOTH, the fast-mode ping).
+static constexpr uint32_t SLOT_MS = 100;
+// Fast mode: every FAST_EVERY-th slot carries the fast ping (20% of airtime).
+static constexpr uint32_t FAST_EVERY = 5;
+// Fast mode warm-up runs when the bridge has been quiet for this long.
+static constexpr uint32_t WARMUP_AFTER_IDLE_MS = 30000;
+static const uint8_t FAST_PING[] = {0xCC, 0x03, 0x00, 0x01, 0x00};
+
+static bool is_cc(const std::vector<uint8_t> &p) {
+  if (!p.empty() && p[0] == 0xCC)
+    return true;
+  return p.size() > 2 && (p[0] == 0xE1 || p[0] == 0xE2) && p[2] == 0xCC;
+}
 
 static inline uint8_t vib_byte(uint8_t v) { return 0xB0 | (v & 0x0F); }
 static inline uint8_t col(uint8_t mode, uint8_t c) { return mode | (c & 0x1F); }
@@ -61,8 +73,10 @@ void MagicBand::dump_config() {
 #endif
   ESP_LOGCONFIG(TAG,
                 "  Pause scanning while broadcasting: %s\n"
-                "  Prefix mode: %s",
-                YESNO(this->pause_scanning_), prefix_mode_name(this->prefix_mode_));
+                "  Prefix mode: %s\n"
+                "  Fast mode: %s (warm-up %ums)",
+                YESNO(this->pause_scanning_), prefix_mode_name(this->prefix_mode_), YESNO(this->fast_mode_),
+                (unsigned) this->fast_warmup_ms_);
 }
 
 void MagicBand::loop() {
@@ -96,12 +110,18 @@ void MagicBand::loop() {
     case State::ADVERTISING:
       if (this->stop_requested_ || now - this->state_since_ >= this->current_.duration_ms) {
         this->request_stop_();
-      } else if (this->swap_in_burst_ && now - this->last_swap_ >= BOTH_SWAP_MS) {
-        // Prefix mode BOTH: swap the advertisement data in place while advertising.
-        this->showing_alt_ = !this->showing_alt_;
+      } else if ((this->swap_in_burst_ || this->ping_in_burst_) && now - this->last_swap_ >= SLOT_MS) {
+        // Swap the advertisement data in place while advertising.
         this->last_swap_ = now;
-        esp_ble_gap_config_adv_data_raw(this->showing_alt_ ? this->adv_alt_ : this->adv_,
-                                        this->showing_alt_ ? this->adv_alt_len_ : this->adv_len_);
+        this->slot_++;
+        if (this->ping_in_burst_ && this->slot_ % FAST_EVERY == FAST_EVERY - 1) {
+          esp_ble_gap_config_adv_data_raw(this->adv_ping_, this->adv_ping_len_);
+        } else {
+          if (this->swap_in_burst_)
+            this->showing_alt_ = !this->showing_alt_;
+          esp_ble_gap_config_adv_data_raw(this->showing_alt_ ? this->adv_alt_ : this->adv_,
+                                          this->showing_alt_ ? this->adv_alt_len_ : this->adv_len_);
+        }
       }
       break;
     case State::STOPPING:
@@ -134,10 +154,22 @@ void MagicBand::start_next_() {
   this->stop_requested_ = false;
   this->pause_scan_();
 
+  // Fast mode warm-up: after a quiet spell, send the fast ping on its own first
+  // so bands are listening when the effect arrives.
+  const uint32_t now = millis();
+  if (this->fast_mode_ && this->fast_warmup_ms_ > 0 && !is_cc(this->current_.payload) &&
+      (!this->ever_broadcast_ || now - this->last_broadcast_end_ > WARMUP_AFTER_IDLE_MS)) {
+    ESP_LOGD(TAG, "Fast mode: waking bands for %ums first", (unsigned) this->fast_warmup_ms_);
+    this->queue_.push_front(std::move(this->current_));
+    this->current_ = Command{std::vector<uint8_t>(FAST_PING, FAST_PING + sizeof(FAST_PING)), this->fast_warmup_ms_};
+  }
+  this->ever_broadcast_ = true;
+
   // E1 00 / E2 00 prefix (seen in park captures). ALTERNATE flips it on each new
   // command, which in testing makes repeats more reliable. BOTH (experimental)
   // also flips between the two versions within one burst.
   this->swap_in_burst_ = false;
+  std::vector<uint8_t> ping(FAST_PING, FAST_PING + sizeof(FAST_PING));
   bool can_prefix = this->current_.payload.size() + 2 <= MAX_PAYLOAD_LEN && this->current_.payload[0] != 0xE1 &&
                     this->current_.payload[0] != 0xE2;
   if (this->prefix_mode_ != PREFIX_OFF && can_prefix) {
@@ -145,6 +177,7 @@ void MagicBand::start_next_() {
     this->next_prefix_e2_ = !this->next_prefix_e2_;
     std::vector<uint8_t> other = this->current_.payload;
     this->current_.payload.insert(this->current_.payload.begin(), {prefix, 0x00});
+    ping.insert(ping.begin(), {prefix, 0x00});
     if (this->prefix_mode_ == PREFIX_BOTH) {
       other.insert(other.begin(), {static_cast<uint8_t>(prefix == 0xE1 ? 0xE2 : 0xE1), 0x00});
       this->adv_alt_len_ = build_adv(this->adv_alt_, other);
@@ -153,11 +186,17 @@ void MagicBand::start_next_() {
   }
   this->adv_len_ = build_adv(this->adv_, this->current_.payload);
   this->showing_alt_ = false;
+  this->slot_ = 0;
+  // Fast mode: mix the fast ping into the burst (not into pings themselves).
+  this->ping_in_burst_ = this->fast_mode_ && !is_cc(this->current_.payload);
+  if (this->ping_in_burst_)
+    this->adv_ping_len_ = build_adv(this->adv_ping_, ping);
 
   char hex[MAX_PAYLOAD_LEN * 3 + 1];
   format_hex_pretty_to(hex, this->current_.payload.data(), this->current_.payload.size(), ' ');
-  ESP_LOGD(TAG, "Broadcasting 83 01 %s for %ums%s", hex, (unsigned) this->current_.duration_ms,
-           this->swap_in_burst_ ? " (switching E1/E2 within the burst)" : "");
+  ESP_LOGD(TAG, "Broadcasting 83 01 %s for %ums%s%s", hex, (unsigned) this->current_.duration_ms,
+           this->swap_in_burst_ ? " (switching E1/E2 within the burst)" : "",
+           this->ping_in_burst_ ? " (with fast-mode ping)" : "");
 
 #ifndef CONFIG_BT_CONTROLLER_DISABLED
   esp_err_t err = esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_ADV, this->tx_power_);
@@ -277,8 +316,10 @@ void MagicBand::gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_p
       this->last_swap_ = this->state_since_;
       break;
     case ESP_GAP_BLE_ADV_STOP_COMPLETE_EVT:
-      if (this->state_ == State::STOPPING)
+      if (this->state_ == State::STOPPING) {
         this->state_ = State::IDLE;
+        this->last_broadcast_end_ = millis();
+      }
       break;
     default:
       break;
@@ -415,50 +456,91 @@ void MagicBand::send_ping(bool fast, uint32_t duration_ms) {
   this->send_raw({0xCC, 0x03, 0x00, static_cast<uint8_t>(fast ? 0x01 : 0x00), 0x00}, duration_ms);
 }
 
+void MagicBand::wake_bands(float seconds) {
+  uint32_t ms = static_cast<uint32_t>(std::max(1.0f, std::min(seconds, 60.0f)) * 1000.0f);
+  this->send_raw(std::vector<uint8_t>(FAST_PING, FAST_PING + sizeof(FAST_PING)), ms);
+}
+
 void MagicBand::send_off(uint32_t duration_ms) {
   this->send_single_color(OFF, 0, TIMING_ALWAYS_ON, LEDS_ALL, duration_ms);
 }
 
-// Captured show packets (payload after 83 01). Names are descriptive guesses.
-struct Animation {
+// Predefined scenes: captured park packets (payload after 83 01, without the
+// E1/E2 prefix, which the prefix mode adds). Sources: emcot.world's MagicBand+
+// code list and Haw8411/magic-band-plus-lights. Names are descriptive guesses.
+struct Scene {
   const char *name;
+  const char *label;
   uint8_t len;
   uint8_t bytes[MAX_PAYLOAD_LEN];
 };
 
-static const Animation ANIMATIONS[] = {
-    {"lightning", 14, {0xE9, 0x0C, 0x00, 0x0F, 0x0F, 0x5D, 0x46, 0x5B, 0xF0, 0x05, 0x32, 0x37, 0x48, 0x95}},
-    {"orange_blink", 14, {0xE9, 0x0C, 0x00, 0xEF, 0x0F, 0x4F, 0x4F, 0x5B, 0xF0, 0xFB, 0x14, 0x37, 0x48, 0x95}},
-    {"color_cycle", 14, {0xE9, 0x0C, 0x00, 0x0F, 0x0F, 0xB1, 0xB9, 0xB5, 0xB1, 0xA2, 0x30, 0x7B, 0x7D, 0xB0}},
-    {"rainbow", 14, {0xE9, 0x0C, 0x00, 0x0F, 0x0F, 0x5D, 0x46, 0x5B, 0xF0, 0x05, 0x32, 0x37, 0x48, 0xB0}},
-    {"circle", 13, {0xE9, 0x0B, 0x0B, 0x0F, 0x0F, 0x5C, 0x5D, 0x48, 0xA5, 0xD1, 0x45, 0x32, 0xB0}},
-    {"crossfade", 21, {0xE1, 0x00, 0xE9, 0x11, 0x00, 0x6F, 0x0F, 0x56, 0x48, 0x58, 0xF4, 0x48, 0x82, 0xD1, 0x46, 0x02,
-                       0x08, 0xD0, 0x65, 0x00, 0xB0}},
-    {"spin_buzz", 20, {0xE9, 0x12, 0x00, 0x01, 0x0F, 0xBC, 0xBD, 0xBD, 0xBD, 0xBD, 0x30, 0xD0, 0x37, 0xF4, 0xD2, 0x46,
-                       0x00, 0x00, 0xFC, 0xBB}},
-    {"show_e913", 21, {0xE9, 0x13, 0x00, 0xB6, 0x0F, 0x40, 0x44, 0x58, 0xF4, 0x48, 0x82, 0xD0, 0x65, 0x19, 0xD1, 0x46,
-                       0x06, 0x0A, 0x30, 0x7B, 0xFF}},
+// clang-format off
+static const Scene SCENES[] = {
+    {"lightning", "Lightning", 14, {0xE9, 0x0C, 0x00, 0x0F, 0x0F, 0x5D, 0x46, 0x5B, 0xF0, 0x05, 0x32, 0x37, 0x48, 0x95}},
+    {"orange_blink", "Orange blink", 14, {0xE9, 0x0C, 0x00, 0xEF, 0x0F, 0x4F, 0x4F, 0x5B, 0xF0, 0xFB, 0x14, 0x37, 0x48, 0x95}},
+    {"color_cycle", "Color cycle", 14, {0xE9, 0x0C, 0x00, 0x0F, 0x0F, 0xB1, 0xB9, 0xB5, 0xB1, 0xA2, 0x30, 0x7B, 0x7D, 0xB0}},
+    {"rainbow", "Rainbow", 14, {0xE9, 0x0C, 0x00, 0x0F, 0x0F, 0x5D, 0x46, 0x5B, 0xF0, 0x05, 0x32, 0x37, 0x48, 0xB0}},
+    {"circle", "Circle", 13, {0xE9, 0x0B, 0x0B, 0x0F, 0x0F, 0x5C, 0x5D, 0x48, 0xA5, 0xD1, 0x45, 0x32, 0xB0}},
+    {"alternating", "Alternating", 18, {0xE9, 0x10, 0x00, 0x13, 0x48, 0x97, 0xD0, 0x0E, 0xA0, 0xD1, 0x46, 0x06, 0x0F, 0x30, 0xD0, 0x4E, 0x07, 0xB0}},
+    {"crossfade", "Crossfade", 19, {0xE9, 0x11, 0x00, 0x6F, 0x0F, 0x56, 0x48, 0x58, 0xF4, 0x48, 0x82, 0xD1, 0x46, 0x02, 0x08, 0xD0, 0x65, 0x00, 0xB0}},
+    {"crossfade_2", "Crossfade 2", 19, {0xE9, 0x11, 0x00, 0x4F, 0x0F, 0x44, 0x4F, 0x58, 0xF4, 0x48, 0x82, 0xD1, 0x46, 0x06, 0x07, 0xD0, 0x65, 0x43, 0xB0}},
+    {"crossfade_3", "Crossfade 3", 19, {0xE9, 0x11, 0x00, 0x0F, 0x0F, 0x48, 0x59, 0x58, 0xF4, 0x48, 0x82, 0xD1, 0x46, 0x02, 0x0D, 0xD0, 0x65, 0x05, 0xB0}},
+    {"crossfade_4", "Crossfade 4", 19, {0xE9, 0x11, 0x00, 0x4F, 0x0F, 0x4F, 0x55, 0x58, 0xF4, 0x48, 0x82, 0xD1, 0x46, 0x02, 0x2A, 0xD0, 0x65, 0x01, 0xB0}},
+    {"crossfade_5", "Crossfade 5", 19, {0xE9, 0x11, 0x00, 0x01, 0x0F, 0x5A, 0x47, 0x5B, 0xF0, 0x31, 0x34, 0x37, 0x48, 0x94, 0xD1, 0x3D, 0x05, 0x07, 0xB0}},
+    {"crossfade_6", "Crossfade 6", 19, {0xE9, 0x11, 0x00, 0x07, 0x0F, 0x55, 0x5D, 0x58, 0xF4, 0x48, 0x82, 0xD1, 0x46, 0x05, 0x08, 0xD0, 0x65, 0x00, 0xB0}},
+    {"crossfade_7", "Crossfade 7", 19, {0xE9, 0x11, 0x00, 0x44, 0x0F, 0x51, 0x42, 0x58, 0xF4, 0x48, 0x82, 0xD1, 0x46, 0x05, 0x0F, 0xD0, 0x65, 0x00, 0xB0}},
+    {"spin_buzz", "Spin & buzz", 20, {0xE9, 0x12, 0x00, 0x01, 0x0F, 0xBC, 0xBD, 0xBD, 0xBD, 0xBD, 0x30, 0xD0, 0x37, 0xF4, 0xD2, 0x46, 0x00, 0x00, 0xFC, 0xBB}},
+    {"spin_buzz_2", "Spin & buzz 2", 20, {0xE9, 0x12, 0x00, 0x01, 0x29, 0x04, 0x02, 0x02, 0x11, 0x11, 0x48, 0x96, 0xD0, 0x0E, 0xFF, 0xD1, 0x46, 0x07, 0x07, 0xB0}},
+    {"spin_buzz_3", "Spin & buzz 3", 20, {0xE9, 0x12, 0x00, 0x03, 0x0F, 0xA2, 0xA2, 0xA4, 0xA4, 0xA2, 0x30, 0xD0, 0x37, 0xF4, 0xD2, 0x46, 0x00, 0x64, 0xFC, 0xB0}},
+    {"show_0e_1", "Show 0E 1", 16, {0xE9, 0x0E, 0x00, 0x01, 0x0F, 0xBD, 0xA0, 0xA0, 0xBD, 0xA0, 0x59, 0x07, 0x00, 0x48, 0xAE, 0xB5}},
+    {"show_0e_2", "Show 0E 2", 16, {0xE9, 0x0E, 0x00, 0x02, 0x0F, 0xBC, 0xA0, 0xBC, 0xA0, 0xBC, 0x59, 0x17, 0xFB, 0x48, 0xAE, 0xBB}},
+    {"show_0e_3", "Show 0E 3", 16, {0xE9, 0x0E, 0x00, 0x11, 0x0F, 0xBC, 0xA7, 0xB9, 0xA7, 0xB9, 0x59, 0x19, 0x02, 0x48, 0xAE, 0xB0}},
+    {"show_0e_4", "Show 0E 4", 16, {0xE9, 0x0E, 0x00, 0x15, 0x0F, 0xBB, 0xBB, 0xBB, 0xBB, 0xBB, 0x59, 0x19, 0x02, 0x48, 0xAE, 0xB0}},
+    {"show_0e_5", "Show 0E 5", 16, {0xE9, 0x0E, 0x00, 0x83, 0x0F, 0xB5, 0xB9, 0xB2, 0xAD, 0xB6, 0x59, 0x19, 0x0B, 0x48, 0xAE, 0xB0}},
+    {"show_0f_1", "Show 0F 1", 17, {0xE9, 0x0F, 0x00, 0x11, 0x0F, 0x4F, 0x42, 0x58, 0x07, 0x48, 0x8D, 0xD2, 0x46, 0x2A, 0x07, 0x17, 0xB8}},
+    {"show_0f_2", "Show 0F 2", 17, {0xE9, 0x0F, 0x00, 0x2A, 0x0F, 0x46, 0x43, 0x58, 0x12, 0x48, 0x8D, 0xD2, 0x46, 0x02, 0x12, 0x00, 0xB0}},
+    {"show_e913", "Show 13 1", 21, {0xE9, 0x13, 0x00, 0xB6, 0x0F, 0x40, 0x44, 0x58, 0xF4, 0x48, 0x82, 0xD0, 0x65, 0x19, 0xD1, 0x46, 0x06, 0x0A, 0x30, 0x7B, 0xFF}},
+    {"show_13_2", "Show 13 2", 21, {0xE9, 0x13, 0x00, 0x02, 0xD0, 0x37, 0xF0, 0xD2, 0x3D, 0x05, 0x05, 0x00, 0x0E, 0xFA, 0x89, 0x83, 0x51, 0x0E, 0xE7, 0xA0, 0xB0}},
+    {"show_13_3", "Show 13 3", 21, {0xE9, 0x13, 0x00, 0x65, 0x0F, 0xBD, 0xB5, 0xBC, 0xB5, 0xBC, 0x7A, 0xEC, 0x5C, 0x0A, 0x29, 0x15, 0x29, 0x15, 0x48, 0xAB, 0xB0}},
+    {"show_14_1", "Show 14 1", 22, {0xE9, 0x14, 0x00, 0x0C, 0xD0, 0x37, 0xF0, 0xD2, 0x3D, 0x05, 0x0C, 0x0C, 0x0E, 0xEC, 0x89, 0x83, 0x51, 0x0E, 0xEE, 0x0C, 0x3D, 0xB0}},
+    {"show_14_2", "Show 14 2", 22, {0xE9, 0x14, 0x00, 0x2C, 0xD0, 0x37, 0xF0, 0xD2, 0x3D, 0x02, 0x12, 0x00, 0x0E, 0xEA, 0x89, 0x83, 0x51, 0x0E, 0xE3, 0x0C, 0x1E, 0xB0}},
+    {"show_14_3", "Show 14 3", 22, {0xE9, 0x14, 0x00, 0x42, 0x0F, 0x55, 0x5B, 0x58, 0xF4, 0x48, 0x82, 0xD0, 0x65, 0x1B, 0xD1, 0x46, 0x2A, 0x02, 0x30, 0x7B, 0x5D, 0xB0}},
+    {"show_07_1", "Show 07 1", 9, {0xE9, 0x07, 0x00, 0x22, 0x0F, 0x43, 0x43, 0x41, 0xB0}},
+    {"show_07_2", "Show 07 2", 9, {0xE9, 0x07, 0x00, 0x22, 0x0F, 0x44, 0x44, 0x41, 0xB0}},
 };
+// clang-format on
+static constexpr size_t SCENE_COUNT = sizeof(SCENES) / sizeof(SCENES[0]);
 
-const char *const *MagicBand::animation_names(size_t &count) {
-  static const char *const NAMES[] = {"lightning", "orange_blink", "color_cycle", "rainbow",
-                                      "circle",    "crossfade",    "spin_buzz",   "show_e913"};
-  count = sizeof(NAMES) / sizeof(NAMES[0]);
-  return NAMES;
+size_t MagicBand::scene_count() { return SCENE_COUNT; }
+const char *MagicBand::scene_name(size_t i) { return i < SCENE_COUNT ? SCENES[i].name : ""; }
+const char *MagicBand::scene_label(size_t i) { return i < SCENE_COUNT ? SCENES[i].label : ""; }
+
+// "Spin & buzz 2" / "spin-buzz-2" / "Colour cycle" -> "spin_buzz_2" / "color_cycle".
+static std::string scene_key(const std::string &input) {
+  std::string s;
+  for (char c : input) {
+    if (std::isalnum(static_cast<unsigned char>(c))) {
+      s.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+    } else if (!s.empty() && s.back() != '_') {
+      s.push_back('_');
+    }
+  }
+  while (!s.empty() && s.back() == '_')
+    s.pop_back();
+  size_t at = s.find("colour");
+  if (at != std::string::npos)
+    s.replace(at, 6, "color");
+  return s;
 }
 
 bool MagicBand::send_animation(const std::string &input, uint32_t duration_ms) {
-  std::string name;
-  for (char c : input) {
-    if (c == ' ' || c == '-')
-      c = '_';
-    name.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
-  }
-  for (const auto &a : ANIMATIONS) {
-    if (name == a.name)
+  std::string key = scene_key(input);
+  for (const auto &a : SCENES) {
+    if (key == a.name || key == scene_key(a.label))
       return this->send_raw(std::vector<uint8_t>(a.bytes, a.bytes + a.len), duration_ms);
   }
-  ESP_LOGW(TAG, "Unknown animation '%s'", input.c_str());
+  ESP_LOGW(TAG, "Unknown scene '%s'", input.c_str());
   return false;
 }
 
@@ -517,8 +599,10 @@ bool MagicBand::run_command_json(const std::string &input) {
     this->send_crossfade(color_from_string(c1), color_from_string(c2), vib, duration);
   } else if (effect == "circle") {
     this->send_circle(vib, duration);
-  } else if (effect == "animation") {
-    return this->send_animation(o["name"] | "color_cycle", duration);
+  } else if (effect == "animation" || effect == "scene") {
+    return this->send_animation(o["name"] | (o["scene"] | "color_cycle"), duration);
+  } else if (effect == "wake") {
+    this->wake_bands(o["seconds"] | 15.0f);
   } else if (effect == "buzz") {
     this->send_single_color(OFF, vib, TIMING_SINGLE_DEFAULT, LEDS_ALL, duration);
   } else if (effect == "ping") {

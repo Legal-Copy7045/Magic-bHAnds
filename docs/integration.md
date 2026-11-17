@@ -58,6 +58,7 @@ their bands but unassigns them, so they're denied.
 | `sensor.magicband_last_tap` | Time of the last tap; attributes: band, label, person, HA person, allowed, reader |
 | `sensor.magicband_<name>_last_tap` | One per person: when they last tapped any of their bands, plus their band list |
 | `sensor.magicband_unknown_bands` | How many bands don't belong to anyone yet, with the most recent in its attributes |
+| `sensor.magicband_last_band_heard` | When a MagicBand+ was last heard over Bluetooth; attributes: address, RSSI, which adapter/proxy heard it, payload, seconds after the last send |
 
 ## Sending effects from automations
 
@@ -154,6 +155,9 @@ actions:
 | `magicband.remove_band` | `band` |
 | `magicband.sync` | Push the allowed list to all readers now |
 | `magicband.list` | Returns all people and bands |
+| `magicband.send` | Sends an effect through the bridges (see above) |
+| `magicband.list_bridges` | Returns every bridge's Command entity |
+| `magicband.list_heard` | Returns recent MagicBand+ Bluetooth traffic heard (last 30) |
 
 For example, "allow whoever just tapped as Nana":
 
@@ -163,6 +167,40 @@ data:
   band: last
   person: Nana
 ```
+
+## Hearing bands respond
+
+The integration listens through Home Assistant's own Bluetooth: any
+Bluetooth adapter on the Home Assistant machine, and every Bluetooth proxy
+(the SCREEK BP2-POE, or a bridge with its **Bluetooth proxy** switch on). It
+picks up every advertisement carrying Disney's company ID (`0x0183`) and
+sorts it into:
+
+- **command:** an effect or ping, i.e. a bridge talking to bands. Shows which
+  proxies can hear which bridge, and how strongly.
+- **band:** anything else with Disney's ID, e.g. a band answering a ping.
+
+Each one fires a `magicband_heard` event with `address`, `name`, `rssi`,
+`source` (the adapter or proxy that heard it), `payload`, `kind`,
+`after_send` (seconds since the last `magicband.send`) and `likely_response`
+(a band heard within 15 s of a send). Bands are logged at info level, and
+commands at debug level:
+
+```yaml
+logger:
+  logs:
+    custom_components.magicband.listener: debug
+```
+
+To see it all, send **Ping** (or `magicband.send` with `effect: ping`), then
+run `magicband.list_heard` in Developer Tools → Actions.
+
+Things to know:
+- A bridge doesn't listen while it is broadcasting (scanning pauses for the
+  ~2 s burst), so another proxy or adapter hears replies better.
+- MagicBand+ may use private Bluetooth addresses that change over time, so one
+  band can appear under several addresses.
+- Nothing is logged if Home Assistant has no Bluetooth adapter or proxy.
 
 ## How it fits with the reader
 

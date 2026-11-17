@@ -13,9 +13,13 @@ READER_MODEL = "magicband-reader"
 READER_SET_SERVICE_SUFFIX = "_set_known_bands"
 
 EVENT_TAP = "magicband_tap"
+# A Bluetooth advertisement with Disney's company ID was heard (see listener.py).
+EVENT_HEARD = "magicband_heard"
+DISNEY_COMPANY_ID = 0x0183
 
 SIGNAL_UPDATED = f"{DOMAIN}_updated"
 SIGNAL_PEOPLE_CHANGED = f"{DOMAIN}_people_changed"
+SIGNAL_HEARD = f"{DOMAIN}_heard"
 
 SYNC_INTERVAL_MINUTES = 10
 
