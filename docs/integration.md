@@ -60,6 +60,16 @@ their bands but unassigns them, so they're denied.
 | `sensor.magicband_unknown_bands` | How many bands don't belong to anyone yet, with the most recent in its attributes |
 | `sensor.magicband_last_band_heard` | When a MagicBand+ was last heard over Bluetooth; attributes: address, RSSI, which adapter/proxy heard it, payload, seconds after the last send |
 
+Each MagicBand+ heard over Bluetooth also gets its own device (see
+[Bands over Bluetooth](#bands-over-bluetooth)):
+
+| Entity | |
+|---|---|
+| `binary_sensor.<band>_nearby` | On while its beacon is heard; off after 35 minutes without one (two missed beacons) |
+| `sensor.<band>_last_seen` | When its beacon was last heard; attributes: person, NFC band, which adapter heard it, beacon count, raw payload |
+| `sensor.<band>_signal` | Signal strength of the last beacon, and per adapter or proxy (diagnostic) |
+| `sensor.<band>_battery_unconfirmed` | The beacon byte that looks like the battery percentage (see [protocol.md](protocol.md#band-beacons)) |
+
 ## Sending effects from automations
 
 Use **`magicband.send`**. It finds every MagicBand bridge itself (any ESPHome
@@ -158,6 +168,10 @@ actions:
 | `magicband.send` | Sends an effect through the bridges (see above) |
 | `magicband.list_bridges` | Returns every bridge's Command entity |
 | `magicband.list_heard` | Returns recent MagicBand+ Bluetooth traffic heard (last 30) |
+| `magicband.list_bluetooth_bands` | Returns every MagicBand+ recognised over Bluetooth, with its battery history, signal per adapter, changing bits and last 50 raw beacons |
+| `magicband.link_bluetooth` | `bluetooth_band` (ID, first characters, name or `last`), and `band` (NFC ID or `last`) or `person` |
+| `magicband.unlink_bluetooth` | `bluetooth_band` |
+| `magicband.forget_bluetooth` | `bluetooth_band`: deletes it and its entities |
 
 For example, "allow whoever just tapped as Nana":
 
@@ -201,6 +215,40 @@ Things to know:
 - MagicBand+ may use private Bluetooth addresses that change over time, so one
   band can appear under several addresses.
 - Nothing is logged if Home Assistant has no Bluetooth adapter or proxy.
+
+## Bands over Bluetooth
+
+Every MagicBand+ sends a short Bluetooth status beacon about every 15
+minutes (details: [protocol.md](protocol.md#band-beacons)). Its Bluetooth
+address changes every time, but part of the beacon stays the same for each
+band, so the integration recognises each band and gives it a device:
+**Nearby**, **Last seen**, **Signal** and **Battery (unconfirmed)**.
+
+**Whose band is it?** Each Bluetooth band can be linked to the band's NFC ID
+(then it belongs to whoever owns that band), or given to a person directly:
+
+- **Automatically, by tapping:** tap a band on a reader. For the next 20
+  minutes (long enough for one beacon) the integration listens for unlinked
+  Bluetooth bands. If exactly one is heard, or only one is already given to
+  that band's owner, or one is at least 10 dB stronger than the rest, it's
+  linked. Otherwise a notification asks you to link it by hand.
+- **By hand:** **Configure → Link a band's Bluetooth**, or
+  `magicband.link_bluetooth`. To tell two bands apart, put one in a metal
+  tin (or out of range) for half an hour: the one still nearby is the other.
+
+The device is named after its owner ("Nana's MagicBand+") once it's linked.
+Each beacon also fires a `magicband_band_seen` event with `bluetooth_band`,
+`name`, `person`, `band`, `battery`, `level`, `rssi`, `heard_by` and `new`.
+
+**Range:** "nearby" means within range of a Bluetooth adapter or proxy that
+Home Assistant uses. Adding proxies (any bridge's **Bluetooth proxy**
+switch) extends it. Beacons are stored, so presence and history survive a
+restart.
+
+**Help work out the rest:** `magicband.list_bluetooth_bands` returns each
+band's last 50 raw beacons, the history of its level byte and which bits
+change. Charging a band fully and checking whether its **Battery** goes
+back to 100 would confirm the battery reading.
 
 ## How it fits with the reader
 

@@ -179,3 +179,35 @@ send:
 list_bridges:
 
 list_heard:
+
+list_bluetooth_bands:
+
+link_bluetooth:
+  fields:
+    bluetooth_band:
+      required: true
+      example: last
+      selector:
+        text:
+    band:
+      example: last
+      selector:
+        text:
+    person:
+      example: Nana
+      selector:
+        text:
+
+unlink_bluetooth:
+  fields:
+    bluetooth_band:
+      required: true
+      selector:
+        text:
+
+forget_bluetooth:
+  fields:
+    bluetooth_band:
+      required: true
+      selector:
+        text:

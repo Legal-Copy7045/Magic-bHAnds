@@ -137,9 +137,44 @@ ping, for 15 s.
 ### Band replies
 
 Bands are believed to answer the `CC 03` ping with a longer `CC` advertisement
-of their own, though its contents aren't understood. The MagicBand
-integration logs anything with Disney's company ID that Home Assistant's
-Bluetooth hears (see [integration.md](integration.md#hearing-bands-respond)).
+of their own, though its contents aren't understood, and none has been heard
+here yet. The MagicBand integration logs anything with Disney's company ID
+that Home Assistant's Bluetooth hears (see
+[integration.md](integration.md#hearing-bands-respond)).
+
+## Band beacons
+
+Worked out from 36 messages heard from two MagicBand+ bands over about
+15 hours (17 Nov 2026). Treat it as a working model, not a specification.
+
+Every band sends a **status beacon about every 15 minutes** on its own, not
+in reply to anything (`83 01` = Disney's company ID, then):
+
+```
+C0 0F 01 01  LL  B1 B2 B3 B4 B5 B6 B7 B8  00 35 33 00
+```
+
+| Part | What's known |
+|---|---|
+| `C0 0F 01 01` | Constant in every beacon |
+| `LL` | Only ever went **down**, in round decimal steps: band 1 `64` `62` `50` `48` (100, 98, 80, 72), band 2 `50` `48` `32` (80, 72, 50). **Probably the battery level in percent**: unconfirmed until a charged band is seen going back up |
+| `B1`–`B8` | Mostly fixed per band. The bits `83 42 40 C0 8C 04 10 4A` changed between beacons, **in the same positions for both bands**; every other bit never changed. Those fixed bits are the band's **signature**: the two bands differ in 16 of them, and each band's signature was identical in every beacon |
+| `00 35 33 00` | Constant in every beacon |
+
+- **Addresses:** a new random (private) Bluetooth address every beacon, so
+  the address can't identify a band. The signature can.
+- **Timing:** two bands kept their own 15-minute cycles about 1.5 minutes
+  apart. Identical beacons (same `LL` and body) sometimes repeat hours apart.
+- **A second type,** `0F 11 01` followed by 16 bytes that look random,
+  appeared three times in the bands' time slots: probably encrypted, not
+  decoded.
+- **Not a reply:** beacons kept their schedule regardless of the bridges'
+  commands.
+
+The integration uses this to recognise each band, show whether it's
+nearby, track the `LL` byte as an unconfirmed battery level, and pair each
+band's Bluetooth with its NFC ID (see
+[integration.md](integration.md#bands-over-bluetooth)).
 
 ## Not possible with broadcasts
 

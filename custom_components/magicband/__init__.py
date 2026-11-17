@@ -42,6 +42,7 @@ from .const import (
     SIGNAL_UPDATED,
     SYNC_INTERVAL_MINUTES,
 )
+from .beacons import BeaconTracker
 from .blueprint_installer import async_install_blueprints
 from .bridges import ANIMATIONS, EFFECTS, async_send, find_bridges
 from .listener import BandListener
@@ -49,7 +50,7 @@ from .registry import Band, MagicBandRegistry, display_uid
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [Platform.SENSOR]
+PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR]
 
 EVENT_TAG_SCANNED = "tag_scanned"
 
@@ -61,6 +62,7 @@ class MagicBandData:
     registry: MagicBandRegistry
     sync: Debouncer
     listener: BandListener
+    beacons: BeaconTracker
     unsubs: list = field(default_factory=list)
 
 
@@ -96,7 +98,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
         await async_sync_readers(hass, registry)
 
     debouncer = Debouncer(hass, _LOGGER, cooldown=2.0, immediate=False, function=_sync)
-    data = MagicBandData(registry=registry, sync=debouncer, listener=BandListener(hass))
+    beacons = BeaconTracker(hass, registry)
+    await beacons.async_load()
+    listener = BandListener(hass)
+    listener.on_band = beacons.async_beacon
+    data = MagicBandData(registry=registry, sync=debouncer, listener=listener, beacons=beacons)
     entry.runtime_data = data
 
     @callback
@@ -112,6 +118,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
         if not is_reader_device(hass, device_id):
             return
         _handle_scan(hass, registry, event.data["tag_id"], device_id)
+        beacons.async_start_pairing(event.data["tag_id"], _reader_name(hass, device_id))
 
     data.unsubs.append(hass.bus.async_listen(EVENT_TAG_SCANNED, _on_tag))
 
@@ -124,17 +131,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
             hass.async_create_task(debouncer.async_call())
 
     data.unsubs.append(hass.bus.async_listen(EVENT_SERVICE_REGISTERED, _on_service_registered))
-    data.unsubs.append(
-        async_track_time_interval(
-            hass, lambda _now: hass.async_create_task(debouncer.async_call()), timedelta(minutes=SYNC_INTERVAL_MINUTES)
-        )
-    )
+    @callback
+    def _periodic_sync(_now) -> None:
+        hass.async_create_task(debouncer.async_call())
+
+    data.unsubs.append(async_track_time_interval(hass, _periodic_sync, timedelta(minutes=SYNC_INTERVAL_MINUTES)))
 
     if hass.state is CoreState.running:
         hass.async_create_task(debouncer.async_call())
     else:
         data.unsubs.append(
-            hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, lambda _e: hass.async_create_task(debouncer.async_call()))
+            hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _periodic_sync)
         )
 
     if (unsub_bt := data.listener.async_start()) is not None:
@@ -150,6 +157,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) -
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         await entry.runtime_data.registry.async_flush()
+        await entry.runtime_data.beacons.async_shutdown()
         for unsub in entry.runtime_data.unsubs:
             unsub()
         entry.runtime_data.sync.async_shutdown()
@@ -377,6 +385,68 @@ def _register_services(hass: HomeAssistant) -> None:
             raise ServiceValidationError("MagicBand isn't set up")
         listener = entries[0].runtime_data.listener
         return {"listening": listener.active, "heard": listener.as_list(), "bands": listener.bands_list()}
+
+    def _beacons() -> tuple[MagicBandRegistry, BeaconTracker]:
+        entries = hass.config_entries.async_loaded_entries(DOMAIN)
+        if not entries:
+            raise ServiceValidationError("MagicBand isn't set up")
+        return entries[0].runtime_data.registry, entries[0].runtime_data.beacons
+
+    def _bluetooth_band(tracker: BeaconTracker, value: str):
+        band = tracker.find(value)
+        if band is None:
+            raise ServiceValidationError(f"No Bluetooth band matches {value}")
+        return band
+
+    async def list_bluetooth_bands(call: ServiceCall) -> dict[str, Any]:
+        return _beacons()[1].report()
+
+    async def link_bluetooth(call: ServiceCall) -> None:
+        registry, tracker = _beacons()
+        band = _bluetooth_band(tracker, call.data["bluetooth_band"])
+        if call.data.get(ATTR_BAND):
+            uid = _resolve_band(registry, call.data[ATTR_BAND])
+            if registry.get_band(uid) is None:
+                raise ServiceValidationError(f"No band {uid} has been tapped or added")
+            tracker.link(band, nfc_uid=uid)
+        elif call.data.get(ATTR_PERSON):
+            tracker.link(band, person_id=_resolve_person(registry, call.data[ATTR_PERSON]).id)
+        else:
+            raise ServiceValidationError("Give a band (NFC ID) or a person")
+
+    async def unlink_bluetooth(call: ServiceCall) -> None:
+        _, tracker = _beacons()
+        tracker.link(_bluetooth_band(tracker, call.data["bluetooth_band"]))
+
+    async def forget_bluetooth(call: ServiceCall) -> None:
+        _, tracker = _beacons()
+        band = _bluetooth_band(tracker, call.data["bluetooth_band"])
+        tracker.forget(band)
+        device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, f"bluetooth_{band.id}")})
+        if device is not None:
+            dr.async_get(hass).async_remove_device(device.id)
+
+    hass.services.async_register(
+        DOMAIN, "list_bluetooth_bands", list_bluetooth_bands, supports_response=SupportsResponse.ONLY
+    )
+    hass.services.async_register(
+        DOMAIN,
+        "link_bluetooth",
+        link_bluetooth,
+        vol.Schema(
+            {
+                vol.Required("bluetooth_band"): cv.string,
+                vol.Optional(ATTR_BAND): cv.string,
+                vol.Optional(ATTR_PERSON): cv.string,
+            }
+        ),
+    )
+    hass.services.async_register(
+        DOMAIN, "unlink_bluetooth", unlink_bluetooth, vol.Schema({vol.Required("bluetooth_band"): cv.string})
+    )
+    hass.services.async_register(
+        DOMAIN, "forget_bluetooth", forget_bluetooth, vol.Schema({vol.Required("bluetooth_band"): cv.string})
+    )
 
     async def list_bridges(call: ServiceCall) -> dict[str, Any]:
         return {"bridges": find_bridges(hass)}
