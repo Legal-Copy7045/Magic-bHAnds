@@ -64,7 +64,7 @@ without the breadboard and its jumpers, plus:
 | 2 | Lever connectors | **Snap-action 5-wire block connector** (Adafruit 874) | Power hubs |
 | 1 | Perfboard | **Adafruit Perma-Proto Half-sized Breadboard PCB (1609)**: laid out like a breadboard | Interface board |
 | 1 | IC socket (optional) | DIP-14, 2.54 mm (not sold by Adafruit) | Lets the 74AHCT125 plug in; or solder it directly |
-| — | Wire | 22 AWG **stranded** hook-up wire (red, black and signal colours) instead of solid | All the short runs |
+| — | Wire | 22 AWG **stranded** 10-colour set (Adafruit 3175) instead of solid | All the runs. Colours, lengths and how to finish each wire: [wiring guide](../shopping-list.md#wiring-guide) |
 
 ## Interface board
 
