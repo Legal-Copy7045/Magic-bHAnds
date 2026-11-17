@@ -19,8 +19,12 @@ Home Assistant integration share one version number.
   - PN532 on 5 V with 4.7 kΩ I²C pull-ups.
   - LED and amplifier power straight from lever-connector hubs.
   - 330 Ω resistor at the ring end.
-  - Rated capacitors, USB-C charger power, a current budget, and a staged
-    build-and-test plan.
+  - Rated capacitors, USB-C charger power (20 W or more), a current budget,
+    and a staged build-and-test plan.
+- **Terminal base and point-to-point builds** (`hardware/reader-wired/`)
+  brought in line with the review, around a small perfboard interface board
+  for the level shifter and I²C pull-ups.
+- The custom PCB is parked until the breadboard build is proven.
 
 ## [0.8.0] - 2026-11-17
 

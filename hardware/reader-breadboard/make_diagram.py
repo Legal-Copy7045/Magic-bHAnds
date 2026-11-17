@@ -292,7 +292,7 @@ def build() -> str:
     hp = hub(150, y(49), ("5 V hub", "Wago 221-414"), n=4, cls="hubp")
     hg = hub(150, y(54), ("GND hub", "Wago 221-414"), n=4, cls="hubg")
     psu = module(36, y(59.5), 230, 122, "USB-C breakout, 5 V", ["VBUS", "GND"],
-                 ["5.1 kΩ on CC1 and CC2", "Dell 65 W USB-C charger:", "5 V at up to 3 A"], side="right", cls="psu")
+                 ["5.1 kΩ on CC1 and CC2", "USB-C charger, 20 W or more:", "5 V at up to 3 A"], side="right", cls="psu")
     wire([psu["VBUS"], (300, psu["VBUS"][1]), (300, hp[0][1] + 14), (hp[0][0], hp[0][1] + 14), hp[0]], "p5 thick")
     wire([psu["GND"], (286, psu["GND"][1]), (286, hg[0][1] + 14), (hg[0][0], hg[0][1] + 14), hg[0]], "gnd thick")
     text(310, y(61), "18 AWG", "awg", "start")

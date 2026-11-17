@@ -2,7 +2,7 @@
 
 The reference build: one ESP32-S3 dev board, a PN532 NFC reader, one LED
 ring, a MAX98357A amplifier and speaker, on a single full-size breadboard,
-powered from a USB-C laptop charger. Everything else (terminal base,
+powered from a USB-C charger (20 W or more). Everything else (terminal base,
 point-to-point, PCB) should be checked against this build once it works.
 
 ![Breadboard layout](../../docs/reader-breadboard.svg)
@@ -46,7 +46,7 @@ replaces the earlier breadboard documentation, which had these problems:
 | 1 | Breadboard | Full-size **830-point**, 63 rows, power rails both sides | |
 | 2 | Lever connectors | **Wago 221-414** (4-way) | One for 5 V, one for GND |
 | 1 | USB-C breakout | **USB-C sink breakout with 5.1 kΩ resistors on CC1 and CC2**, screw terminals or pads for VBUS and GND, rated ≥ 3 A | See [Power](#power) |
-| 1 | Power supply | **USB-C laptop charger** (e.g. Dell 65 W) and a **5 A-rated (e-marked) USB-C cable** | At 5 V a USB-C charger gives at most 3 A |
+| 1 | Power supply | **USB-C charger, 20 W or more** (e.g. Apple 20 W or a laptop charger) and a USB-C cable rated **3 A or more** | At 5 V a USB-C charger gives at most 3 A |
 | — | Wire | 18 AWG stranded red/black (≈ 0.5 m each); 20 AWG stranded red/black (ring power, ≈ 1 m each); 22 AWG **solid** hook-up wire red/black (into the breadboard); 22 AWG stranded (LED data, speaker) | |
 | — | Jumpers | 22 AWG solid-core jumper kit; 4 × female-to-male Dupont jumpers (≤ 20 cm) for the PN532 | |
 | — | Misc | Heat-shrink, multimeter (DC volts, continuity) | |
@@ -55,11 +55,14 @@ replaces the earlier breadboard documentation, which had these problems:
 
 ### Supply
 
+Use a **USB-C charger of 20 W or more**. Any such charger supplies 3 A at
+5 V; more watts don't help, because at 5 V USB-C allows **at most 3 A**
+(15 W), and a charger's higher ratings only exist at 9–20 V. The budget
+below fits within 3 A.
+
 A USB-C charger only supplies 5 V if the device asks for it: the breakout's
 two **5.1 kΩ CC resistors** do that. A breakout without them gets no power
-from a standards-compliant charger such as Dell's. At 5 V, USB-C allows **at
-most 3 A** (15 W), however powerful the charger; its 65 W only exists at
-20 V. The budget below fits within 3 A.
+from a standards-compliant charger.
 
 ### Current budget
 
@@ -199,7 +202,7 @@ by the board's flash and PSRAM (GPIO35–37).
 | I²C pull-ups | None | CHANGE REQUIRED | 2 × 4.7 kΩ to 3.3 V | The module's header side has none; the ESP32's internal pull-ups are weak |
 | MAX98357A | Adafruit 3006 | PASS WITH CONDITIONS | Own supply wires; 100 µF at Vin | 2.5–5.5 V supply, 1.3 V logic threshold (datasheet); Adafruit budgets 650–800 mA |
 | Speaker | 3 W, 4–8 Ω | PASS WITH CONDITIONS | 8 Ω, 2–3 W | Lower current: 1.8 W max into 8 Ω at 5 V |
-| Power supply | 5 V 3 A | PASS WITH CONDITIONS | Ring only; USB-C breakout with CC resistors | Worst case ≈ 2.6 A |
+| Power supply | 5 V 3 A | PASS WITH CONDITIONS | USB-C charger ≥ 20 W; ring only; USB-C breakout with CC resistors | Worst case ≈ 2.6 A |
 | Power distribution | Breadboard rails | CHANGE REQUIRED | Hubs; LED and amplifier wired directly | Breadboard contacts aren't meant for amps of LED current |
 | Firmware | `magicband-reader.yaml` | PASS | — | See below |
 
