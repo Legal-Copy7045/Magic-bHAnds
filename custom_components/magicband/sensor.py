@@ -278,11 +278,11 @@ class BandSignalSensor(BluetoothBandEntity, SensorEntity):
 
 
 class BandBatterySensor(BluetoothBandEntity, SensorEntity):
-    """The beacon's level byte, which looks like the battery percentage (unconfirmed)."""
+    """Battery level, from the beacon's level byte (confirmed by charging bands)."""
 
+    _attr_device_class = SensorDeviceClass.BATTERY
     _attr_native_unit_of_measurement = PERCENTAGE
     _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_icon = "mdi:battery-unknown"
 
     def __init__(self, tracker: BeaconTracker, band_id: str) -> None:
         super().__init__(tracker, band_id, "battery")
@@ -300,7 +300,6 @@ class BandBatterySensor(BluetoothBandEntity, SensorEntity):
         return {
             "raw": f"0x{band.level:02X}" if band.level is not None else None,
             "changes": band.level_history[-10:],
-            "note": "Unconfirmed: the beacon byte that only goes down. A full charge returning it to 100 would confirm it.",
         }
 
 

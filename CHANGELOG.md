@@ -3,6 +3,14 @@
 All notable changes to Magic bHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.9.3] - 2026-11-17
+
+### Integration
+- **Battery confirmed.** Bands put on charge went from 50 and 72 to 98, so
+  the beacon's level byte is the battery percentage. Each band's
+  **Battery** sensor is now a real battery sensor (battery icon, battery
+  views, low-battery automations); existing entity IDs are kept.
+
 ## [0.9.2] - 2026-11-17
 
 ### Integration

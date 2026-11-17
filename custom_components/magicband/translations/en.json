@@ -112,7 +112,7 @@
         "name": "Signal"
       },
       "band_battery": {
-        "name": "Battery (unconfirmed)"
+        "name": "Battery"
       },
       "band_last_tap": {
         "name": "Last tap"
@@ -309,7 +309,7 @@
     },
     "list_bluetooth_bands": {
       "name": "List Bluetooth bands",
-      "description": "Every MagicBand+ recognised from its Bluetooth beacon: owner, linked NFC band, nearby, battery (unconfirmed), signal by adapter, the level byte's history, which bits change, and the last 50 raw beacons. Also the encrypted messages heard and any pairing in progress."
+      "description": "Every MagicBand+ recognised from its Bluetooth beacon: owner, linked NFC band, nearby, battery, signal by adapter, the level byte's history, which bits change, and the last 50 raw beacons. Also the encrypted messages heard and any pairing in progress."
     },
     "link_bluetooth": {
       "name": "Link Bluetooth band",

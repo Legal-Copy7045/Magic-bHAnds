@@ -101,7 +101,7 @@ async def test_real_beacons_make_two_bands(hass: HomeAssistant, setup_integratio
     nearby = [s for s in hass.states.async_all("binary_sensor") if s.entity_id.endswith("_nearby")]
     assert len(nearby) == 2 and all(s.state == "on" for s in nearby)
     batteries = sorted(
-        s.state for s in hass.states.async_all("sensor") if s.entity_id.endswith("_battery_unconfirmed")
+        s.state for s in hass.states.async_all("sensor") if s.entity_id.endswith("_battery")
     )
     assert batteries == ["50", "72"]
 
