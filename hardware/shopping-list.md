@@ -106,7 +106,8 @@ DIN, 5V and GND pads.
 installer's firmware fits any ring or strip. After installing, open the
 reader's device page in Home Assistant (Settings → Devices & services →
 ESPHome → the reader) and, under **Configuration**, set **LED count** (1–60;
-default 24) and **LED colour order** (GRB for most; RGB for the 4310 strip).
+default 24) and **LED colour order** (GRB for most; RGB for the 4310 strip),
+plus **LED brightness** and **Idle glow** to taste.
 They're kept through restarts and updates.
 
 **How many LEDs:** loop length (mm) × LEDs per metre ÷ 1000. A loop 60 mm

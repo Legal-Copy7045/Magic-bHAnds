@@ -10,6 +10,8 @@ Home Assistant integration share one version number.
   page (Configuration: *LED count* 1–60, *LED colour order* GRB/RGB), so the
   web installer's firmware works with any ring or strip; no "Take control"
   needed.
+- **LED brightness** (5–100 %) and **Idle glow** (0–100 %, 0 = off)
+  settings, so the ring can be tuned after installing.
 - **Automatic power cap:** above 24 LEDs the output is capped at
   24 ÷ count, so full white stays within the 20 W supply (e.g. a generic
   35-LED WS2812B ring runs at up to 68 %).

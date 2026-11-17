@@ -132,6 +132,11 @@ the reader's device page in Home Assistant, under **Configuration**, set:
 - **LED colour order:** GRB for most NeoPixels and generic WS2812B rings; RGB
   for Adafruit's silicone neon-like strip (4310). If green shows as red,
   switch it.
+- **LED brightness** (5–100 %, default 100 %): scales everything the ring
+  shows, including the Ring light in Home Assistant. It works on top of the
+  power cap, so it can only make the ring dimmer, never over budget.
+- **Idle glow** (0–100 %, default 30 %): the white glow while waiting for a
+  band; 0 turns the ring off between taps.
 
 **Customising further** (sounds, pins): in the ESPHome Device Builder the
 reader shows up with **Take control**, which imports
