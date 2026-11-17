@@ -21,7 +21,8 @@ substitutions:
   friendly_name: MagicBand Reader
   project_version: "0.8.2"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
-  ring_leds: 24       # LEDs in the ring (e.g. 16 or 24, or a strip formed into a ring)
+  ring_leds: 24       # LEDs in the ring or strip loop (24 or fewer: see hardware/shopping-list.md)
+  ring_color_order: GRB  # GRB for most NeoPixels; RGB for Adafruit's silicone neon-like strip (4310)
   # Sound files: downloaded from this repo at build time. To use your own,
   # point these at a URL or a path next to this config (e.g. sounds/my.wav).
   sound_startup: https://raw.githubusercontent.com/Legal-Copy7045/Magic-bHAnds/main/esphome/sounds/startup.wav
@@ -172,7 +173,7 @@ light:
     name: "Ring"
     pin: GPIO10   # LED data (via the 74AHCT125); on the Lonely Binary terminal base too
     chipset: WS2812
-    channel_colors: GRB
+    channel_colors: ${ring_color_order}
     num_leds: ${ring_leds}
     default_transition_length: 300ms
     restore_mode: ALWAYS_OFF

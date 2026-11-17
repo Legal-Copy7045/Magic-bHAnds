@@ -41,7 +41,14 @@ tables list what each build adds.
 For a ready-made housing, a short length of flexible NeoPixel strip can
 replace the ring. Every option below is 5 V, uses the same three wires
 (5V, DATA, GND), and needs the same 470 Ω and 1000 µF at its input end.
-Set `ring_leds` to the number of LEDs you use.
+Set `ring_leds` to the number of LEDs you use. The wiring and diagrams are
+the same as for the ring: a strip's input end takes the place of the ring's
+DIN, 5V and GND pads.
+
+**Changing `ring_leds` or `ring_color_order`:** the web installer's firmware
+is built for the NeoPixel Ring 24 (24 LEDs, GRB). For another count or
+colour order, adopt the reader in the ESPHome Device Builder (**Take
+control**) and set them in its `substitutions:`, then install from there.
 
 **How many LEDs:** loop length (mm) × LEDs per metre ÷ 1000. A loop 60 mm
 across is about 190 mm long. Keep it to **24 LEDs or fewer**: the current
@@ -51,7 +58,7 @@ lines, and wire to the end marked as the input (arrows point away from it).
 | Adafruit | Strip | Width | LEDs/m (60 mm loop) | Light comes out | Notes |
 |---|---|---|---|---|---|
 | [3634](https://www.adafruit.com/product/3634) | NeoPixel **Side Light** Strip, black, 120 LED | 10 mm | 120 (≈ 22) | **Edge** | **Best match.** Curled into a loop standing on its edge, it shines upward like a ring. Adafruit's own Magic Band Reader uses this strip. Also [3635](https://www.adafruit.com/product/3635) (90/m) and [3636](https://www.adafruit.com/product/3636) (60/m, 8 mm) |
-| [4310](https://www.adafruit.com/product/4310) | Flexible Silicone **Neon-like** Skinny NeoPixel | 12 × 6 mm | 96 (≈ 18) | Edge, through a silicone diffuser | Smoothest glow (side-light strip inside silicone). Arrives as 1 m sealed at one end, with a JST SM input. **Colour order is RGB, not GRB**: needs a one-line firmware setting |
+| [4310](https://www.adafruit.com/product/4310) | Flexible Silicone **Neon-like** Skinny NeoPixel | 12 × 6 mm | 96 (≈ 18) | Edge, through a silicone diffuser | Smoothest glow (side-light strip inside silicone). Arrives as 1 m sealed at one end, with a JST SM input. **Colour order is RGB, not GRB**: set `ring_color_order: RGB` (see below) |
 | [2963](https://www.adafruit.com/product/2963) / [2964](https://www.adafruit.com/product/2964) | **Mini Skinny** NeoPixel, 60 LED/m | 7.5 mm | 60 (≈ 11) | Face of the strip | Lines a housing wall, facing inward. Needs a diffuser to look continuous. 30/m ([2958](https://www.adafruit.com/product/2958)) is too sparse for a small loop |
 | [4368](https://www.adafruit.com/product/4368) | **Ultra Skinny** NeoPixel 1515, 4 mm | 4 mm | 150 (cut to ≤ 24) | Face of the strip | Tightest spaces; cut every 7 mm. Adafruit warns it shouldn't be flexed repeatedly: shape it once |
 

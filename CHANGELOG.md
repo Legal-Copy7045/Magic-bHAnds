@@ -28,6 +28,10 @@ Home Assistant integration share one version number.
   interface board drawn hole for hole on an Adafruit Perma-Proto.
 - Reader install steps: flash the bare ESP32 first; disconnect the ESP32's
   5 V before plugging in USB later.
+- Flexible LED strip options linked from every reader build guide, and a
+  new `ring_color_order` setting for strips that aren't GRB (Adafruit's
+  silicone neon-like strip is RGB). The published firmware is unchanged
+  (GRB).
 
 ## [0.8.1] - 2026-11-17
 
