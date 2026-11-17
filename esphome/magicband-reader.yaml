@@ -21,7 +21,11 @@ substitutions:
   friendly_name: MagicBand Reader
   project_version: "0.8.3"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
-  ring_leds: 24       # LEDs in the ring or strip loop (24 or fewer: see hardware/shopping-list.md)
+  ring_leds: 24       # LEDs in the ring or strip loop
+  # Caps the LEDs' output so full white stays within the 20 W budget (1.44 A,
+  # i.e. 24 LEDs at 60 mA). 100% for 24 LEDs or fewer; more than 24: 2400 / LEDs,
+  # rounded down to 5% (35 LEDs: 65%). See hardware/shopping-list.md.
+  ring_max_brightness: 100%
   ring_color_order: GRB  # GRB for most NeoPixels; RGB for Adafruit's silicone neon-like strip (4310)
   # Sound files: downloaded from this repo at build time. To use your own,
   # point these at a URL or a path next to this config (e.g. sounds/my.wav).
@@ -175,6 +179,10 @@ light:
     chipset: WS2812
     channel_colors: ${ring_color_order}
     num_leds: ${ring_leds}
+    color_correct:
+      - ${ring_max_brightness}
+      - ${ring_max_brightness}
+      - ${ring_max_brightness}
     default_transition_length: 300ms
     restore_mode: ALWAYS_OFF
     effects:

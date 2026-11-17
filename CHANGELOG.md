@@ -3,6 +3,13 @@
 All notable changes to Magic bHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [Unreleased]
+
+### Reader
+- **`ring_max_brightness` setting** (default 100 %) caps the LEDs' output,
+  so rings with more than 24 LEDs (e.g. a generic 35-LED WS2812B ring) stay
+  within the 20 W supply: 2400 ÷ LEDs, rounded down to 5 % (35 LEDs: 65 %).
+
 ## [0.8.3] - 2026-11-17
 
 ### Integration
