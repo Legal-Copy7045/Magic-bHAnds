@@ -3,6 +3,12 @@
 All notable changes to Magic bHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.9.2] - 2026-11-17
+
+### Integration
+- Bands sending the longer `C0 13` beacon (seen from a band just switched
+  on) are recognised too. Each band records which beacon forms it has sent.
+
 ## [0.9.1] - 2026-11-17
 
 ### Integration

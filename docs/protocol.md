@@ -147,19 +147,27 @@ that Home Assistant's Bluetooth hears (see
 Worked out from 36 messages heard from two MagicBand+ bands over about
 15 hours (17 Nov 2026). Treat it as a working model, not a specification.
 
-Every band sends a **status beacon about every 15 minutes** on its own, not
-in reply to anything (`83 01` = Disney's company ID, then):
+Every band sends a **status beacon** on its own, not in reply to anything:
+every 15 minutes overnight, every ~6 minutes while being handled
+(`83 01` = Disney's company ID, then):
 
 ```
 C0 0F 01 01  LL  B1 B2 B3 B4 B5 B6 B7 B8  00 35 33 00
+C0 13 01 01  LL  B1 B2 B3 B4 B5 B6 B7 B8  00 36 31 00 00 00 00 00
 ```
+
+The second byte is the length of what follows. The longer `C0 13` form came
+from a third band just after it was switched on; its signature (below) was
+stable across its beacons, and it is handled the same way. Its `LL` went
+`3C` → `32` (60 → 50) within 8 minutes, which a battery reading wouldn't
+normally do: one more reason the battery idea is unconfirmed.
 
 | Part | What's known |
 |---|---|
-| `C0 0F 01 01` | Constant in every beacon |
+| `C0 0F 01 01` / `C0 13 01 01` | Constant apart from the length byte |
 | `LL` | Only ever went **down**, in round decimal steps: band 1 `64` `62` `50` `48` (100, 98, 80, 72), band 2 `50` `48` `32` (80, 72, 50). **Probably the battery level in percent**: unconfirmed until a charged band is seen going back up |
 | `B1`–`B8` | Mostly fixed per band. The bits `83 42 40 C0 8C 04 10 4A` changed between beacons, **in the same positions for both bands**; every other bit never changed. Those fixed bits are the band's **signature**: the two bands differ in 16 of them, and each band's signature was identical in every beacon |
-| `00 35 33 00` | Constant in every beacon |
+| `00 35 33 00` / `00 36 31 00 00 00 00 00` | Constant for each form |
 
 - **Addresses:** a new random (private) Bluetooth address every beacon, so
   the address can't identify a band. The signature can.

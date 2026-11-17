@@ -53,6 +53,11 @@ REAL = [
     ("C0 0F 01 01 48 9E 24 36 F8 EF A8 42 C8 00 35 33 00", -78),]
 BAND_X = "C0 0F 01 01 48 9E 24 36 F8 EF A8 42 C8 00 35 33 00"
 BAND_Y = "C0 0F 01 01 32 C9 DC 75 19 67 8E 57 00 00 35 33 00"
+# A third band, just switched on: the longer C0 13 form.
+BAND_Z = [
+    "C0 13 01 01 3C 9A 2D B0 B9 6B 8E 16 94 00 36 31 00 00 00 00 00",
+    "C0 13 01 01 32 9B 6D F0 79 E7 8E 16 DC 00 36 31 00 00 00 00 00",
+]
 
 
 def _tracker(hass: HomeAssistant):
@@ -71,6 +76,9 @@ def test_parse() -> None:
     assert len(SIGNATURE_MASK) == 8
     assert parse(bytes.fromhex("E1 00 CC 03 00 01 00")) is None
     assert parse(bytes.fromhex("C0 0F 01 01 48")) is None
+    assert parse(bytes.fromhex("C0 0E 01 01 48 9E 24 36 F8 EF A8 42 C8 00 35 33 00")) is None  # wrong length byte
+    long = parse(bytes.fromhex(BAND_Z[0]))
+    assert long is not None and long.form == "C0 13" and long.level == 0x3C
     assert battery_from_level(0x48) == 72
     assert battery_from_level(0xC8) is None
 
@@ -267,3 +275,15 @@ async def test_removing_the_nfc_band_keeps_the_bluetooth_side(hass: HomeAssistan
     devices = _band_devices(hass)
     assert set(devices) == {f"bluetooth_{band.id}"}
     assert len(_entities_on(hass, devices[f"bluetooth_{band.id}"])) == 4
+
+
+async def test_longer_beacon_form_is_a_band_too(hass: HomeAssistant, setup_integration) -> None:
+    _beacon(hass, BAND_X)
+    _beacon(hass, BAND_Y)
+    for payload in BAND_Z:
+        _beacon(hass, payload)
+    await hass.async_block_till_done()
+    tracker = _tracker(hass)
+    assert len(tracker.bands) == 3
+    z = tracker.find("182d")
+    assert z is not None and z.beacons == 2 and z.forms == ["C0 13"] and z.level == 0x32
