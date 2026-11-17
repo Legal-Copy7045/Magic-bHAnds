@@ -3,6 +3,15 @@
 All notable changes to Magic bHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.9.4] - 2026-11-17
+
+### Integration
+- **Heard by** and **Closest** on every band's device page: which bridge,
+  proxy or adapter heard its latest beacon, and which heard it strongest in
+  the last 20 minutes (a rough "which room"). Shown by their Home Assistant
+  device names, so "Kitchen MagicBand Bridge" rather than a Bluetooth
+  address. The Signal and Last seen attributes use the same names.
+
 ## [0.9.3] - 2026-11-17
 
 ### Integration

@@ -10,7 +10,7 @@
 substitutions:
   name: magicband-bridge
   friendly_name: MagicBand Bridge
-  project_version: "0.9.3"
+  project_version: "0.9.4"
   # Where the magicband component is fetched from (default in the add-on).
   # CI and local development override it: `-s component_source ../components`.
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/manifest.json

@@ -248,7 +248,7 @@ async def test_linking_makes_one_band_device(hass: HomeAssistant, setup_integrat
     device = devices["band_0453652AC05F80"]
     assert device.name == "Nana's blue band" and device.model == "MagicBand+"
     entities = _entities_on(hass, device)
-    assert len(entities) == 5
+    assert len(entities) == 7
     assert any(e.endswith("_nearby") for e in entities) and any(e.endswith("_last_tap") for e in entities)
 
     result = await hass.services.async_call(DOMAIN, "list", {}, blocking=True, return_response=True)
@@ -259,7 +259,7 @@ async def test_linking_makes_one_band_device(hass: HomeAssistant, setup_integrat
     await hass.async_block_till_done()
     devices = _band_devices(hass)
     assert set(devices) == {"band_0453652AC05F80", f"bluetooth_{band.id}"}
-    assert len(_entities_on(hass, devices[f"bluetooth_{band.id}"])) == 4
+    assert len(_entities_on(hass, devices[f"bluetooth_{band.id}"])) == 6
     assert devices["band_0453652AC05F80"].model == "MagicBand"
 
 
@@ -274,7 +274,7 @@ async def test_removing_the_nfc_band_keeps_the_bluetooth_side(hass: HomeAssistan
     await hass.async_block_till_done()
     devices = _band_devices(hass)
     assert set(devices) == {f"bluetooth_{band.id}"}
-    assert len(_entities_on(hass, devices[f"bluetooth_{band.id}"])) == 4
+    assert len(_entities_on(hass, devices[f"bluetooth_{band.id}"])) == 6
 
 
 async def test_longer_beacon_form_is_a_band_too(hass: HomeAssistant, setup_integration) -> None:
@@ -287,3 +287,42 @@ async def test_longer_beacon_form_is_a_band_too(hass: HomeAssistant, setup_integ
     assert len(tracker.bands) == 3
     z = tracker.find("182d")
     assert z is not None and z.beacons == 2 and z.forms == ["C0 13"] and z.level == 0x32
+
+
+async def test_heard_by_and_closest_use_bridge_names(
+    hass: HomeAssistant, setup_integration, freezer: FrozenDateTimeFactory
+) -> None:
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    # A bridge (ESPHome device) whose Bluetooth proxy is a scanner in HA's bluetooth integration.
+    esphome = MockConfigEntry(domain="esphome", title="Kitchen")
+    esphome.add_to_hass(hass)
+    bridge = dr.async_get(hass).async_get_or_create(
+        config_entry_id=esphome.entry_id,
+        connections={(dr.CONNECTION_NETWORK_MAC, "aa:bb:cc:dd:ee:74")},
+        name="Kitchen MagicBand Bridge",
+    )
+    MockConfigEntry(
+        domain="bluetooth",
+        unique_id="AA:BB:CC:DD:EE:76",
+        title="magicband-bridge-d0b074 (AA:BB:CC:DD:EE:76)",
+        data={"source_device_id": bridge.id},
+    ).add_to_hass(hass)
+
+    band = _beacon(hass, BAND_X, rssi=-58, source="AA:BB:CC:DD:EE:76")
+    _beacon(hass, BAND_X.replace("C8 00 35", "C0 00 35"), rssi=-75, source="6C:4C:BC:F7:C5:D5")
+    await hass.async_block_till_done()
+
+    states = {s.entity_id: s for s in hass.states.async_all("sensor")}
+    heard_by = next(s for e, s in states.items() if e.endswith("_heard_by"))
+    closest = next(s for e, s in states.items() if e.endswith("_closest"))
+    assert heard_by.state == "6C:4C:BC:F7:C5:D5"  # unknown adapter: its address
+    assert closest.state == "Kitchen MagicBand Bridge"  # strongest in the last 20 minutes
+    assert closest.attributes["heard_in_last_20_minutes"]["Kitchen MagicBand Bridge"] == -58
+
+    # 20 minutes on, only beacons since then count.
+    freezer.tick(timedelta(minutes=21))
+    _beacon(hass, BAND_X, rssi=-80, source="6C:4C:BC:F7:C5:D5")
+    await hass.async_block_till_done()
+    assert hass.states.get(closest.entity_id).state == "6C:4C:BC:F7:C5:D5"
+    assert band.closest() == ("6C:4C:BC:F7:C5:D5", -80)

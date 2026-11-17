@@ -139,7 +139,7 @@ class BandListener:
             _LOGGER.debug("Command heard by %s from %s (RSSI %s): 83 01 %s", heard.source, address, rssi, hexed)
         self.hass.bus.async_fire(EVENT_HEARD, {**asdict(heard), "likely_response": recent and heard.kind == "band"})
         if heard.kind == "band" and self.on_band is not None:
-            self.on_band(address, rssi, heard.source, payload)
+            self.on_band(address, rssi, source, payload)
         async_dispatcher_send(self.hass, SIGNAL_HEARD)
         return heard
 
