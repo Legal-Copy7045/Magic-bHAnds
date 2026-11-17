@@ -15,6 +15,13 @@ identifies bands by their NFC ID. Unlike them, it runs on one ESP32 with
 ESPHome and connects to Home Assistant natively (Tags, entities, actions). No
 code from those projects is used.
 
+## Ways to build it
+
+Breadboard (start here), Lonely Binary terminal base, point-to-point wiring,
+or a custom PCB. They share the parts, GPIOs and features. See
+**[hardware/README.md](../hardware/README.md)** for a comparison and a
+step-by-step check that a build works.
+
 ## How bands are read
 
 Both band types contain a standard 13.56 MHz NFC chip (ISO 14443-A) with a

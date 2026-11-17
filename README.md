@@ -53,7 +53,7 @@ Then:
 - An optional Bluetooth proxy on the same board
 - Also runs on other ESPHome boards, such as the SCREEK BP2-POE
 
-**MagicBand Reader** ([guide](docs/reader.md), [wiring diagram](docs/reader-breadboard.svg))
+**MagicBand Reader** ([guide](docs/reader.md), [wiring diagram](docs/reader-breadboard.svg), [ways to build it](hardware/README.md))
 - Reads original MagicBands and MagicBand+ by their NFC ID
 - LED ring and Mickey head, start-up, tap-in and error sounds
 - Decides green or red on the device, instantly, even with Home Assistant
@@ -94,11 +94,13 @@ it on `main`. It tags `v<VERSION>` and publishes the GitHub Release.
 | `components/magicband/` | ESPHome component that broadcasts MagicBand+ commands |
 | `esphome/magicband-bridge.yaml` | Bridge firmware (web installer, "Take control") |
 | `esphome/magicband-reader.yaml` | Reader firmware (web installer, "Take control") |
+| `esphome/magicband-reader-pcb.yaml` | The reader firmware for the custom PCB (native USB) |
 | `esphome/magicband-addon.yaml` | The MagicBand parts as a package for any ESPHome board |
 | `esphome/screek-bp2-poe*.yaml` | SCREEK BP2-POE as a PoE proxy and bridge |
 | `esphome/sounds/` | The reader's sounds (the project owner's recordings) |
 | `custom_components/magicband/` | The MagicBand integration (HACS) |
 | `homeassistant/` | Blueprint and example scripts |
+| `hardware/` | [Ways to build the reader](hardware/README.md) and the [reader PCB](hardware/reader-pcb/README.md) (KiCad) |
 | `web/` | The web installer page |
 | `docs/` | Guides: [bridge](docs/bridge.md), [reader](docs/reader.md), [integration](docs/integration.md), [commands](docs/commands.md), [protocol](docs/protocol.md), [SCREEK BP2-POE](docs/screek-bp2-poe.md) |
 | `tests/` | Integration tests |
