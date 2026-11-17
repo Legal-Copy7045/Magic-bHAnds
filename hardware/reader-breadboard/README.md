@@ -229,12 +229,11 @@ Checked against `esphome/magicband-reader.yaml` and ESPHome's source:
   on (default; they sit in parallel with the 4.7 kΩ), bus scan on.
 - **PN532:** `pn532_i2c`, address 0x24 (ESPHome default), polled every 250 ms.
 - **LEDs:** `esp32_rmt_led_strip` on GPIO10, WS2812, **GRB** (the WS2812B
-  datasheet's order; `ring_color_order` changes it), `ring_leds` LEDs
-  (default 24), off at boot, gamma 2.8.
-  `ring_max_brightness` (default 100 %) caps the output; with 24 LEDs
-  there's no cap, which is why the supply is sized for full white. A ring
-  with more LEDs needs the cap (see the
-  [shopping list](../shopping-list.md#if-a-ring-wont-fit-flexible-led-options)).
+  datasheet's order), 24 LEDs by default, off at boot, gamma 2.8. **LED
+  count** (1–60) and **LED colour order** (GRB/RGB) are settings on the
+  device page. Up to 24 LEDs there's no brightness cap, which is why the
+  supply is sized for full white; above 24 the reader caps the output at
+  24 ÷ count, so full white stays at 1.44 A.
 - **I²S:** LRCLK GPIO5, BCLK GPIO6, DOUT GPIO7, external DAC, mono. The
   MAX98357A needs no MCLK. *Not verified:* whether ESPHome's mono mode fills
   one I²S slot or both. If only one, the (L+R)/2 mix halves the level, which
@@ -288,7 +287,7 @@ fix it. Fit them anyway.
 3. Power up. Measure: IC pin 14 to pin 7 = 4.75–5.25 V.
 4. In Home Assistant, turn on **Ring**: white 30 %, then red, green and
    blue 100 % each. All LEDs light; colours are correct.
-5. **Stop if:** wrong colours (check `ring_leds`, and `ring_color_order`:
+5. **Stop if:** wrong colours (check the **LED count** and **LED colour order** settings:
    GRB for most NeoPixels, RGB for the 4310 strip), flicker or random
    colours (check the shifter wiring, the 470 Ω and the common ground), or
    the rail drops below 4.75 V.
