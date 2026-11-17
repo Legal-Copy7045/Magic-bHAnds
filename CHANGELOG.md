@@ -3,6 +3,15 @@
 All notable changes to Magic bHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [Unreleased]
+
+### Bridges
+- **Colour** select: pick a colour for nearby bands, **Off** to stop. It
+  isn't a light, so "turn off all lights" automations and voice commands
+  don't touch it.
+- The **MagicBand** light is now disabled by default on new installs, for
+  the same reason. Existing installs keep it as it is.
+
 ## [0.9.3] - 2026-11-17
 
 ### Integration
