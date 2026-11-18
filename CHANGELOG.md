@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Magic bHAnds. The bridge firmware, reader firmware and
+All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
 ## [0.9.12] - 2026-11-18

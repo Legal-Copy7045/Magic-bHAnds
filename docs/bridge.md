@@ -1,6 +1,6 @@
 # MagicBand Bridge
 
-Part 1 of [Magic bHAnds](../README.md). An ESP32-S3 running ESPHome that
+Part 1 of [MagicbHAnds](../README.md). An ESP32-S3 running ESPHome that
 broadcasts the Bluetooth messages MagicBand+ bands respond to, so Home
 Assistant can light them up and make them vibrate. The bridge doesn't pair
 with bands: any MagicBand+ in range reacts, so think of it as a room-wide
