@@ -493,9 +493,9 @@ class BeaconTracker:
                 f"After **{display}** was tapped, more than one unlinked MagicBand+ was heard over "
                 f"Bluetooth ({names}), so it couldn't tell which is this band.\n\n"
                 "Tap it again with the other bands out of range (or in a metal tin), or link it by hand: "
-                "**Settings → Devices & services → MagicBand → Configure → Link a band's Bluetooth**."
+                "**Settings → Devices & services → MagicbHAnds → Configure → Link a band's Bluetooth**."
             ),
-            title="MagicBand: which Bluetooth band?",
+            title="MagicbHAnds: which Bluetooth band?",
             notification_id=f"{DOMAIN}_pair_{key}",
         )
 

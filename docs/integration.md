@@ -1,4 +1,4 @@
-# MagicBand integration (HACS)
+# MagicbHAnds integration (HACS)
 
 Manages **people** and their **bands** for your MagicBand readers:
 
@@ -22,7 +22,7 @@ Morgan is linked to `person.morgan` and has two bands, "blue" and "plus".
 
 1. In **HACS**, open the **⋮** menu, choose **Custom repositories**, add
    `https://github.com/Legal-Copy7045/Magic-bHAnds` with type **Integration**,
-   then install **MagicBand** and restart Home Assistant.
+   then install **MagicbHAnds** and restart Home Assistant.
 2. **Settings → Devices & services → Add integration → MagicBand.**
 3. **For each MagicBand reader:** go to **Settings → Devices & services →
    ESPHome**, find the reader, click **Configure**, and turn on **Allow the
@@ -36,7 +36,7 @@ Readers are found automatically: any ESPHome device built from
 
 1. **Tap the band** on any reader. It's denied, and a notification says an
    unknown band was tapped.
-2. Open **Settings → Devices & services → MagicBand → Configure → Add or
+2. Open **Settings → Devices & services → MagicbHAnds → Configure → Add or
    assign a band.**
 3. Choose the band (the latest unknown one is preselected), choose who it
    belongs to, or **➕ New person…**, and optionally label it ("blue band").

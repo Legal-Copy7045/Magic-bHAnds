@@ -285,11 +285,11 @@ On the device page, under **Configuration**:
 
 ### Step 20. Bands and people
 
-1. Install the [MagicBand integration](../../docs/integration.md) from
-   HACS, restart Home Assistant, and add **MagicBand** under **Settings →
+1. Install the [MagicbHAnds integration](../../docs/integration.md) from
+   HACS, restart Home Assistant, and add **MagicbHAnds** under **Settings →
    Devices & services**.
 2. Tap each band once. Under **Settings → Tags**, give each one a name.
-3. Allow your bands, either in the MagicBand integration (people and their
+3. Allow your bands, either in the MagicbHAnds integration (people and their
    bands) or on the reader: tap a band, then press **Allow last band**.
 4. **Response mode** chooses who's welcomed: *Known bands only* (default),
    *Welcome every band*, or *Ask Home Assistant*.

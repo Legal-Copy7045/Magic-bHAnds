@@ -1,12 +1,12 @@
-# MagicBand management dashboard: bands, people, readers and bridges.
+# MagicbHAnds management dashboard: bands, people, readers and bridges.
 # Built-in cards only; the tables find every band, person, reader and
 # bridge by themselves, so nothing needs editing as you add more.
 # Install: Settings -> Dashboards -> Add dashboard -> New dashboard from
 # scratch -> open it -> pencil -> three dots -> Raw configuration editor ->
 # replace everything with this file -> Save.
-title: MagicBand
+title: MagicbHAnds
 views:
-- title: MagicBand
+- title: MagicbHAnds
   path: magicband
   icon: mdi:watch-variant
   type: sections
@@ -15,7 +15,7 @@ views:
   - type: grid
     cards:
     - type: heading
-      heading: MagicBand
+      heading: MagicbHAnds
       icon: mdi:watch-variant
       grid_options:
         columns: full
@@ -119,7 +119,7 @@ views:
         {%- set svc = device_id('sensor.magicband_last_tap') -%}
         {%- set ns = namespace(rows=[]) -%}
         {%- for e in device_entities(svc) if state_attr(e, 'bands') is not none and state_attr(e, 'allowed') is not none -%}
-          {%- set ns.rows = ns.rows + [[state_attr(e, 'friendly_name') | replace(' last tap', '') | replace('MagicBand ', ''), e]] -%}
+          {%- set ns.rows = ns.rows + [[state_attr(e, 'friendly_name') | replace(' last tap', '') | replace('MagicbHAnds ', '') | replace('MagicBand ', ''), e]] -%}
         {%- endfor -%}
         {%- if ns.rows | count == 0 -%}
         No people yet: **Configure → Add a person**.

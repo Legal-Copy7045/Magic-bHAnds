@@ -1,6 +1,6 @@
 {
   "domain": "magicband",
-  "name": "MagicBand",
+  "name": "MagicbHAnds",
   "after_dependencies": [
     "bluetooth",
     "esphome"
@@ -17,5 +17,5 @@
   "issue_tracker": "https://github.com/Legal-Copy7045/Magic-bHAnds/issues",
   "requirements": [],
   "single_config_entry": true,
-  "version": "0.9.11"
+  "version": "0.9.12"
 }

@@ -1,6 +1,6 @@
 # Example Home Assistant scripts for MagicBand bridges.
 #
-# Optional: with the MagicBand integration (HACS) installed you can call
+# Optional: with the MagicbHAnds integration (HACS) installed you can call
 # magicband.send directly. These examples wrap it for convenience; paste them
 # into scripts.yaml if you want them.
 #
@@ -25,7 +25,7 @@ magicband_send:
           multiple: true
           filter: [{integration: esphome, domain: text}]
   sequence:
-    # Needs the MagicBand integration (HACS). You can also call
+    # Needs the MagicbHAnds integration (HACS). You can also call
     # magicband.send directly instead of using this script.
     - action: magicband.send
       data:
