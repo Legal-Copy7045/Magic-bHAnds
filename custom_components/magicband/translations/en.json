@@ -2,12 +2,12 @@
   "config": {
     "step": {
       "user": {
-        "title": "MagicBand",
-        "description": "Home Assistant side of Magic bHAnds. Sends light and vibration effects to MagicBand+ bands through your MagicBand bridges (the Send MagicBand effect action), and runs your MagicBand readers: it logs every band tapped, lets you give bands to people (Home Assistant users or not) and keeps each reader's allowed list in sync."
+        "title": "MagicbHAnds",
+        "description": "MagicbHAnds for Home Assistant. Sends light and vibration effects to MagicBand+ bands through your MagicBand bridges (the Send MagicBand effect action), and runs your MagicBand readers: it logs every band tapped, lets you give bands to people (Home Assistant users or not) and keeps each reader's allowed list in sync."
       }
     },
     "abort": {
-      "single_instance_allowed": "MagicBand is already set up."
+      "single_instance_allowed": "MagicbHAnds is already set up."
     }
   },
   "options": {

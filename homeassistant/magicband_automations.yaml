@@ -21,7 +21,7 @@
 
 # A known (allowed) band tapped on the front-door reader unlocks the door;
 # it locks again if the door isn't opened within 2 minutes. Uses the
-# magicband_tap event from the MagicBand integration. Only the reader whose
+# magicband_tap event from the MagicbHAnds integration. Only the reader whose
 # device is named below counts, so a reader on the bench can't open the door.
 # Note: a band's NFC ID isn't secret (a phone can read it and copy it to a
 # blank tag), so this is about as secure as a basic RFID fob.

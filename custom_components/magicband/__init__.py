@@ -1,4 +1,4 @@
-"""MagicBand: the Home Assistant side of Magic bHAnds.
+"""MagicbHAnds: the Home Assistant integration (domain ``magicband``).
 
 Sends light and vibration effects to MagicBand+ bands through MagicBand
 bridges (``magicband.send``), and hears what bands send back over Bluetooth.
@@ -92,6 +92,8 @@ def _reader_name(hass: HomeAssistant, device_id: str | None) -> str | None:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) -> bool:
+    if entry.title == "MagicBand":  # the integration's old name
+        hass.config_entries.async_update_entry(entry, title="MagicbHAnds")
     registry = MagicBandRegistry(hass)
     await registry.async_load()
 
@@ -203,10 +205,10 @@ def _handle_scan(hass: HomeAssistant, registry: MagicBandRegistry, tag_id: str, 
             (
                 f"{'A new' if is_new else 'An unassigned'} band **{band.display}** was tapped on "
                 f"**{reader or 'a reader'}**.\n\n"
-                "To let it in, open **Settings → Devices & services → MagicBand → Configure → "
+                "To let it in, open **Settings → Devices & services → MagicbHAnds → Configure → "
                 "Add or assign a band**, then pick this band and who it belongs to."
             ),
-            title="MagicBand: unknown band",
+            title="MagicbHAnds: unknown band",
             notification_id=f"{DOMAIN}_unknown_{band.uid}",
         )
 
@@ -241,7 +243,7 @@ async def async_sync_readers(hass: HomeAssistant, registry: MagicBandRegistry) -
 def _get_registry(hass: HomeAssistant) -> MagicBandRegistry:
     entries = hass.config_entries.async_loaded_entries(DOMAIN)
     if not entries:
-        raise ServiceValidationError("MagicBand isn't set up")
+        raise ServiceValidationError("MagicbHAnds isn't set up")
     return entries[0].runtime_data.registry
 
 
@@ -385,14 +387,14 @@ def _register_services(hass: HomeAssistant) -> None:
     async def list_heard(call: ServiceCall) -> dict[str, Any]:
         entries = hass.config_entries.async_loaded_entries(DOMAIN)
         if not entries:
-            raise ServiceValidationError("MagicBand isn't set up")
+            raise ServiceValidationError("MagicbHAnds isn't set up")
         listener = entries[0].runtime_data.listener
         return {"listening": listener.active, "heard": listener.as_list(), "bands": listener.bands_list()}
 
     def _beacons() -> tuple[MagicBandRegistry, BeaconTracker]:
         entries = hass.config_entries.async_loaded_entries(DOMAIN)
         if not entries:
-            raise ServiceValidationError("MagicBand isn't set up")
+            raise ServiceValidationError("MagicbHAnds isn't set up")
         return entries[0].runtime_data.registry, entries[0].runtime_data.beacons
 
     def _bluetooth_band(tracker: BeaconTracker, value: str):

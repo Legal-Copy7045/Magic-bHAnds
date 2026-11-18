@@ -12,7 +12,7 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.util import dt as dt_util
+from homeassistant.util import dt as dt_util, slugify
 
 from . import MagicBandConfigEntry, is_reader_device
 from .const import DOMAIN, SIGNAL_BEACON, SIGNAL_HEARD, SIGNAL_READER_TAP, SIGNAL_UPDATED
@@ -24,7 +24,7 @@ from .registry import MagicBandRegistry
 def _device(entry: MagicBandConfigEntry) -> DeviceInfo:
     return DeviceInfo(
         identifiers={(DOMAIN, entry.entry_id)},
-        name="MagicBand",
+        name="MagicbHAnds",
         manufacturer="Magic bHAnds",
         entry_type=DeviceEntryType.SERVICE,
     )
@@ -117,6 +117,7 @@ class LastTapSensor(_Base):
     def __init__(self, entry, registry) -> None:
         super().__init__(entry, registry)
         self._attr_unique_id = f"{entry.entry_id}_last_tap"
+        self.entity_id = "sensor.magicband_last_tap"  # stable, whatever the hub device is called
 
     @property
     def native_value(self) -> datetime | None:
@@ -149,6 +150,7 @@ class UnknownBandsSensor(_Base):
     def __init__(self, entry, registry) -> None:
         super().__init__(entry, registry)
         self._attr_unique_id = f"{entry.entry_id}_unknown_bands"
+        self.entity_id = "sensor.magicband_unknown_bands"
 
     @property
     def native_value(self) -> int:
@@ -174,6 +176,9 @@ class PersonLastTapSensor(_Base):
         super().__init__(entry, registry)
         self.person_id = person_id
         self._attr_unique_id = f"{entry.entry_id}_person_{person_id}_last_tap"
+        person = registry.get_person(person_id)
+        if person is not None:
+            self.entity_id = f"sensor.magicband_{slugify(person.name)}_last_tap"
 
     @property
     def name(self) -> str:
@@ -221,6 +226,7 @@ class LastHeardSensor(_Base):
         super().__init__(entry, registry)
         self._listener = entry.runtime_data.listener
         self._attr_unique_id = f"{entry.entry_id}_last_heard"
+        self.entity_id = "sensor.magicband_last_band_heard"
 
     async def async_added_to_hass(self) -> None:
         self.async_on_remove(async_dispatcher_connect(self.hass, SIGNAL_HEARD, self.async_write_ha_state))

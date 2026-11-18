@@ -116,7 +116,7 @@ Install the firmware **before wiring anything else to the ESP32**, as step
    **Settings → Devices & services → ESPHome → the reader → Configure**, and
    turn on **Allow the device to perform Home Assistant actions**. That's
    needed for tag scans to reach Home Assistant.
-4. Install the [MagicBand integration](integration.md) to manage people and
+4. Install the [MagicbHAnds integration](integration.md) to manage people and
    bands.
 
 Firmware updates then appear in Home Assistant as an update on the reader,
@@ -175,12 +175,12 @@ MagicBand+**, for example to turn on the lounge lights.
 | Entity | What it does |
 |---|---|
 | **Ring** | The LED ring as a normal HA light, so you can use it as a night light too. It glows white while idle |
-| **Last band name** | Whose band was last tapped ("Jackie's MagicBand", or your name for the band), from the MagicBand integration; attributes: NFC ID, person, allowed, time |
+| **Last band name** | Whose band was last tapped ("Jackie's MagicBand", or your name for the band), from the MagicbHAnds integration; attributes: NFC ID, person, allowed, time |
 | **Last band ID** (diagnostic) | The raw NFC ID of the last band read |
 | **Response mode** | *Known bands only* (default: decided on the reader; new bands are denied), *Welcome every band*, or *Ask Home Assistant* (see below) |
 | **Band scan** | Event entity: every scan appears in the logbook as *welcomed* or *denied* |
 | **Known bands** | How many bands are on the reader's allowed list |
-| **Allow last band**, **Forget last band**, **Forget all bands** | Manage the reader's list by hand, if you don't use the MagicBand integration |
+| **Allow last band**, **Forget last band**, **Forget all bands** | Manage the reader's list by hand, if you don't use the MagicbHAnds integration |
 | **Speaker** | Media player: Home Assistant can also play announcements and TTS through the reader |
 | **Light up MagicBand+** | Send green + buzz to a MagicBand+ on a successful read (default on) |
 | **Sound** | Chimes on/off |
@@ -201,7 +201,7 @@ list itself, with room for about 100 bands, so it answers instantly and keeps
 working when Home Assistant is offline.
 
 **Recommended:** manage people and bands with the
-[MagicBand integration](integration.md). It logs scans, alerts you about new
+[MagicbHAnds integration](integration.md). It logs scans, alerts you about new
 bands, lets you give bands to people, including people who aren't HA users and
 people with several bands, and keeps every reader's list in sync.
 

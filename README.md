@@ -19,7 +19,7 @@ integration that ties them up.
 |---|---|---|---|
 | **Part 1: [MagicBand Bridge](docs/bridge.md)** | Lights up and buzzes bands from automations: any colour, animations, vibration patterns | MagicBand+ (Bluetooth) | An ESP32-S3 board, nothing else |
 | **Part 2: [MagicBand Reader](docs/reader.md)** | A park-style tap point. Two white circles chase round the ring, Home Assistant knows whose band it is, one green pulse (welcome) or two red (denied) with sound, and a MagicBand+ lights up too | Original MagicBands and MagicBand+ (NFC) | ESP32-S3, PN532 NFC reader, LED ring (or strip), amplifier and speaker, powered by a USB-C charger. [Shopping list](hardware/shopping-list.md) |
-| **[MagicBand integration](docs/integration.md)** (HACS) | People and their bands (with or without a Home Assistant user), a log of every tap, the *Send MagicBand effect* action and the automation blueprint | Both | None |
+| **[MagicbHAnds integration](docs/integration.md)** (HACS) | People and their bands (with or without a Home Assistant user), a log of every tap, the *Send MagicBand effect* action and the automation blueprint | Both | None |
 
 ## Quick start
 
@@ -35,9 +35,9 @@ bridge needs no extra hardware.
    bridge* or *Install the reader*, then enter your Wi-Fi details. No YAML is
    needed.
 2. **Add the device** in Home Assistant when it's discovered (ESPHome).
-3. **Install the MagicBand integration** from HACS:
+3. **Install the MagicbHAnds integration** from HACS:
    [![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Legal-Copy7045&repository=Magic-bHAnds&category=integration)
-   Restart Home Assistant, then add **MagicBand** under Settings → Devices &
+   Restart Home Assistant, then add **MagicbHAnds** under Settings → Devices &
    services.
 4. **Readers only:** on the reader's ESPHome entry, choose **Configure** and
    turn on **Allow the device to perform Home Assistant actions**.
@@ -45,7 +45,7 @@ bridge needs no extra hardware.
 Then:
 - **Bridge:** call `magicband.send` from any automation, or use the
   *MagicBand+ notification* blueprint the integration installs.
-- **Reader:** tap a band, then add it under **MagicBand → Configure → Add or
+- **Reader:** tap a band, then add it under **MagicbHAnds → Configure → Add or
   assign a band** and give it to a person.
 
 ## Features
@@ -73,7 +73,7 @@ Then:
   offline
 - Lights up and buzzes a MagicBand+ on a successful tap
 
-**MagicBand integration** ([guide](docs/integration.md))
+**MagicbHAnds integration** ([guide](docs/integration.md))
 - People with any number of bands, optionally linked to a Home Assistant
   person
 - New bands are denied and announced; add them in a couple of clicks
@@ -110,7 +110,7 @@ it on `main`. It tags `v<VERSION>` and publishes the GitHub Release.
 | `esphome/magicband-addon.yaml` | The MagicBand parts as a package for any ESPHome board |
 | `esphome/screek-bp2-poe*.yaml` | SCREEK BP2-POE as a PoE proxy and bridge |
 | `esphome/sounds/` | The reader's sounds (the project owner's recordings) |
-| `custom_components/magicband/` | The MagicBand integration (HACS) |
+| `custom_components/magicband/` | The MagicbHAnds integration (HACS) |
 | `homeassistant/` | Blueprint, example scripts and automations, and the [management dashboard](homeassistant/dashboards/magicband.yaml) |
 | `hardware/` | [Ways to build the reader](hardware/README.md), the [shopping list](hardware/shopping-list.md) (with generic alternatives), and the power diagram's generator |
 | `hardware/reader-breadboard/` | Breadboard build: step-by-step build, spec and wiring table, and the diagram's generator |

@@ -2,7 +2,7 @@ blueprint:
   name: MagicBand+ notification
   description: >-
     Light up and/or buzz nearby MagicBand+ bands when something happens.
-    Requires the MagicBand integration (HACS) and one or more MagicBand bridges
+    Requires the MagicbHAnds integration (HACS) and one or more MagicBand bridges
     added through ESPHome. Sends through every bridge unless you pick
     specific ones.
   domain: automation

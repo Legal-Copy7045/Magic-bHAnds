@@ -138,7 +138,7 @@ ping, for 15 s.
 
 Bands are believed to answer the `CC 03` ping with a longer `CC` advertisement
 of their own, though its contents aren't understood, and none has been heard
-here yet. The MagicBand integration logs anything with Disney's company ID
+here yet. The MagicbHAnds integration logs anything with Disney's company ID
 that Home Assistant's Bluetooth hears (see
 [integration.md](integration.md#hearing-bands-respond)).
 

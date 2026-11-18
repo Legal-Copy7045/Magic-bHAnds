@@ -3,6 +3,16 @@
 All notable changes to Magic bHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.9.12] - 2026-11-18
+
+### Integration
+- **Renamed to MagicbHAnds** everywhere you see the integration: its name in
+  Home Assistant and HACS, the set-up screen, its hub device, notifications
+  and messages, the docs and the dashboard. Existing installs are renamed
+  on the next start. Unchanged: the `magicband` domain and actions,
+  entity IDs (the hub's sensors keep `sensor.magicband_…`), and the names
+  of the bands, bridges and readers themselves.
+
 ## [0.9.11] - 2026-11-18
 
 ### SCREEK BP2-POE

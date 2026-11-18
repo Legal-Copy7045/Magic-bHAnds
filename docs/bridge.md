@@ -24,7 +24,7 @@ effect. Use more bridges for more coverage.
    enter the board's IP address from your router.
 4. **Test it.** Open the device page, hold the band nearby (a shake wakes it),
    and press **Test red buzz**.
-5. **Automate it.** Install the [MagicBand integration](integration.md) from
+5. **Automate it.** Install the [MagicbHAnds integration](integration.md) from
    HACS. It adds the **Send MagicBand effect** action (`magicband.send`) and
    installs the *MagicBand+ notification* blueprint, so you can build "flash
    my band when…" automations from the UI.

@@ -42,10 +42,10 @@ async def async_install_blueprints(hass: HomeAssistant) -> list[Path]:
     try:
         written = await hass.async_add_executor_job(_sync, Path(hass.config.config_dir), bundled)
     except OSError:
-        _LOGGER.warning("Couldn't install the MagicBand blueprint", exc_info=True)
+        _LOGGER.warning("Couldn't install the MagicbHAnds blueprint", exc_info=True)
         return []
     for path in written:
-        _LOGGER.info("Installed MagicBand blueprint at %s", path)
+        _LOGGER.info("Installed MagicbHAnds blueprint at %s", path)
     if written and hass.state is CoreState.running and hass.services.has_service("automation", "reload"):
         await hass.services.async_call("automation", "reload", blocking=False)
     return written
