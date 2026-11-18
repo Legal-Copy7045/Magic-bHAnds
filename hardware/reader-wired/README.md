@@ -171,7 +171,7 @@ What changes from point-to-point:
 | Connection | Holes |
 |---|---|
 | ESP32 → board, **female-to-male jumpers** on the J1 pins | 3V3 (J1-1) → **c2**, GPIO8 (J1-12) → **d6**, GPIO9 (J1-15) → **d7**, GPIO10 (J1-16) → **d11** |
-| ESP32 power, onto the board's rails | 5V (J1-21) → **L+28** (pull it before using USB), GND (J1-22) → **L−29** |
+| ESP32 power, onto the board's rails | 5V (J1-21) → **L+28** (pull it before using USB), GND (J1-22) → **L−29**. On hub power, the 5 V can come from the hub instead, but **keep the GND → L− jumper**: without it the amplifier crackles |
 | ESP32 I²S → the amplifier's rows | GPIO5 (J1-5) → **f17**, GPIO6 (J1-6) → **f18**, GPIO7 (J1-7) → **f19** |
 | Amplifier's cable | LRC **h17**, BCLK **h18**, DIN **h19**, GND **h23**, VIN **h24** (by the labels on the amplifier) |
 | 100 µF for the amplifier | **g23** (stripe, −) to **g24** (+) |

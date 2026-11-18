@@ -223,12 +223,25 @@ Leave the amplifier's 5 V (**L+ → f24**) off for now.
   across its pads ([breadboard step 5](../reader-breadboard/build.md#step-5-wire-the-led-ring)),
   then connect its data to **c12** through the 470 Ω, and its power to the
   hubs.
-- **Power:** set the PD trigger to 5 V, then make up the two lever-connector
-  hubs. Then:
-  - Move the amplifier's **f23/f24** feeds onto the hubs.
-  - Feed the rails from the hubs: **5 V hub → L+25**, **GND hub → L−26**.
-  - Remove the ESP32's USB, then run the full-volume load test (Part 5,
-    stage 4).
+- **Power** (tested 18 Nov 2026): set the PD trigger to 5 V (it read
+  5.1 V), then make up the two 5-way lever-connector hubs:
+
+  | Port | 5 V hub | GND hub |
+  |---|---|---|
+  | 1 | PD trigger **+** | PD trigger **−** |
+  | 2 | **L+** rail (near row 25) | **L−** rail (near row 26) |
+  | 3 | Amplifier **f24** (remove the L+ → f24 jumper) | Amplifier **f23** (remove the L− → f23 jumper) |
+  | 4 | Ring 5V | Ring GND |
+  | 5 | ESP32 5V (a wire soldered to the holder's 5V pad; remove its 5V → L+ jumper) | ESP32 GND (soldered to the holder's GND pad) |
+
+  - **Keep a short ground jumper from the ESP32 to the breadboard**
+    (the holder's GND terminal → **L−**), and add **L− → f23** for the
+    amplifier, as well as their hub wires. Without them the sound
+    signals' only ground return runs through the hub, and the sound
+    **crackles at any volume** on the PD supply.
+  - The ESP32's 5 V wire in the hub is now the one to unclip before
+    using USB.
+  - Then run the full-volume load test (Part 5, stage 4).
 
 ### Other tag automations
 
@@ -386,6 +399,11 @@ Each hub has five ports. Port 1 is the PD trigger (Part 1).
 | 5 | ESP32 5V | ESP32 GND |
 
 Connect **ground before 5 V** on each part.
+
+**Also keep the ESP32's ground on the interface board:** a short wire from
+the ESP32's GND (point-to-point: another J1-22 lead; terminal base: a GND
+terminal) to the interface board's **L−**. The sound and LED signals
+reference it; with ground only through the hub, the amplifier crackles.
 
 ### Step 7. Amplifier
 
