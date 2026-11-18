@@ -78,6 +78,15 @@ class BandEntity(Entity):
         device = dev_reg.async_get_or_create(config_entry_id=self.platform.config_entry.entry_id, **info)
         old = self.registry_entry.device_id
         if old != device.id:
+            old_device = dev_reg.async_get(old) if old else None
+            # Linking a renamed Bluetooth band to its NFC band: keep the name you gave it.
+            if (
+                old_device is not None
+                and old_device.name_by_user
+                and not device.name_by_user
+                and any(i[0] == DOMAIN and i[1].startswith("bluetooth_") for i in old_device.identifiers)
+            ):
+                device = dev_reg.async_update_device(device.id, name_by_user=old_device.name_by_user) or device
             er.async_get(self.hass).async_update_entity(self.entity_id, device_id=device.id)
             if old:
                 remove_device_if_empty(self.hass, old)

@@ -326,3 +326,27 @@ async def test_heard_by_and_closest_use_bridge_names(
     await hass.async_block_till_done()
     assert hass.states.get(closest.entity_id).state == "6C:4C:BC:F7:C5:D5"
     assert band.closest() == ("6C:4C:BC:F7:C5:D5", -80)
+
+
+async def test_renamed_bluetooth_band_keeps_its_name(hass: HomeAssistant, setup_integration, reader_device) -> None:
+    hass.bus.async_fire("tag_scanned", {"tag_id": "0453652AC05F80", "device_id": reader_device.id})
+    band = _beacon(hass, BAND_X)
+    await hass.async_block_till_done()
+    dev_reg = dr.async_get(hass)
+    ble_device = dev_reg.async_get_device(identifiers={(DOMAIN, f"bluetooth_{band.id}")})
+    dev_reg.async_update_device(ble_device.id, name_by_user="Morgan's purple band")
+    tracker = _tracker(hass)
+
+    # The rename is what the link screen, events and lookups use.
+    assert tracker.display_name(band) == "Morgan's purple band"
+    assert tracker.find("morgan's purple band") is band
+
+    # Linking to the NFC band carries the name over to the merged device.
+    await hass.services.async_call(
+        DOMAIN, "link_bluetooth", {"bluetooth_band": "Morgan's purple band", "band": "0453652AC05F80"}, blocking=True
+    )
+    await hass.async_block_till_done()
+    merged = dev_reg.async_get_device(identifiers={(DOMAIN, "band_0453652AC05F80")})
+    assert merged is not None and merged.name_by_user == "Morgan's purple band"
+    assert dev_reg.async_get_device(identifiers={(DOMAIN, f"bluetooth_{band.id}")}) is None
+    assert tracker.display_name(band) == "Morgan's purple band"
