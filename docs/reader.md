@@ -183,6 +183,7 @@ MagicBand+**, for example to turn on the lounge lights.
 | **Allow last band**, **Forget last band**, **Forget all bands** | Manage the reader's list by hand, if you don't use the MagicbHAnds integration |
 | **Speaker** | Media player: Home Assistant can also play announcements and TTS through the reader |
 | **Light up MagicBand+** | Send green + buzz to a MagicBand+ on a successful read (default on) |
+| **Band light-up power** | How far that light-up reaches, −24 to 0 dBm (default −12). A broadcast can't be addressed to one band, so every MagicBand+ in range reacts: lower it until only the band on the reader lights up. Each −6 dB roughly halves the reach |
 | **Sound** | Chimes on/off |
 | **Test welcome** | Plays the welcome sequence without a band |
 | plus the MagicBand bridge entities | MagicBand light, Buzz, Command, Prefix mode and so on |

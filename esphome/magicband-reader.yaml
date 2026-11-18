@@ -20,7 +20,7 @@
 substitutions:
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.9.12"
+  project_version: "0.9.13"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -154,8 +154,10 @@ improv_serial:
 
 # Feedback to MagicBand+ is meant for the band on the reader, so keep the
 # Bluetooth power low (the add-on defaults to max for whole-room bridges).
+# Every band in range reacts to a broadcast (it can't be addressed to one),
+# so the "Band light-up power" setting below sets how far it reaches.
 magicband:
-  tx_power: 0dBm
+  tx_power: -12dBm
 
 # ---------------------------------------------------------------------------
 # NFC reader: PN532 on I2C (set the module's switches to I2C mode)
@@ -309,6 +311,34 @@ globals:
     update_interval: 5s
 
 select:
+  # How far the welcome's light-up reaches. Every MagicBand+ in range reacts,
+  # so lower it until only the band on the reader lights up. Each -6 dB
+  # roughly halves the reach; -24 dBm is about arm's length or less.
+  - platform: template
+    id: band_power
+    name: "Band light-up power"
+    icon: mdi:signal-distance-variant
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_option: "-12 dBm"
+    options:
+      - "-24 dBm"
+      - "-21 dBm"
+      - "-18 dBm"
+      - "-15 dBm"
+      - "-12 dBm"
+      - "-9 dBm"
+      - "-6 dBm"
+      - "-3 dBm"
+      - "0 dBm"
+    on_value:
+      - lambda: |-
+          int dbm = atoi(x.c_str());
+          if (dbm < -24 || dbm > 0) dbm = -12;
+          // ESP32-S3 power levels: index 0 = -24 dBm, in 3 dB steps.
+          id(band).set_tx_power(static_cast<esp_power_level_t>((dbm + 24) / 3), dbm);
+          ESP_LOGI("reader", "Band light-up power: %d dBm", dbm);
   # The ring's tap sequence: checking colour, then the welcome or denied
   # colour (see the "Chase" and "Pulse" effects and the number settings).
   - platform: template

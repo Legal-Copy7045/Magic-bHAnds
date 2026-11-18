@@ -3,7 +3,14 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
-## [Unreleased]
+## [0.9.13] - 2026-11-18
+
+### Reader
+- **Band light-up power** setting (Configuration, −24 to 0 dBm, default
+  −12 dBm, was a fixed 0 dBm). Every MagicBand+ in range reacts to the
+  welcome's light-up, because a broadcast can't be addressed to one band;
+  turning this down limits it to the band on the reader.
+
 
 ### Hardware
 - **Compact build tested on the USB-C PD supply** with the Wago hubs. The
