@@ -111,7 +111,7 @@ it on `main`. It tags `v<VERSION>` and publishes the GitHub Release.
 | `esphome/screek-bp2-poe*.yaml` | SCREEK BP2-POE as a PoE proxy and bridge |
 | `esphome/sounds/` | The reader's sounds (the project owner's recordings) |
 | `custom_components/magicband/` | The MagicBand integration (HACS) |
-| `homeassistant/` | Blueprint and example scripts |
+| `homeassistant/` | Blueprint, example scripts and automations, and the [management dashboard](homeassistant/dashboards/magicband.yaml) |
 | `hardware/` | [Ways to build the reader](hardware/README.md), the [shopping list](hardware/shopping-list.md) (with generic alternatives), and the power diagram's generator |
 | `hardware/reader-breadboard/` | Breadboard build: step-by-step build, spec and wiring table, and the diagram's generator |
 | `hardware/reader-wired/` | Terminal base and point-to-point builds, with the interface board: step-by-step build and spec |

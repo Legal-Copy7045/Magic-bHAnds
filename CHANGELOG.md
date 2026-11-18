@@ -3,6 +3,24 @@
 All notable changes to Magic bHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.9.10] - 2026-11-18
+
+### Integration
+- **Last band name on every reader's page:** whose band was last tapped
+  ("Morgan's MagicBand+ (Villains)", or your name for it), with the NFC ID,
+  person and whether it was let in as attributes. It's the integration's
+  own sensor, attached to the reader's device.
+
+### Reader
+- The firmware's own sensor is now **Last band ID** (diagnostic): the raw
+  NFC ID. Its entity ID is unchanged.
+
+### Home Assistant
+- **Management dashboard** (`homeassistant/dashboards/magicband.yaml`):
+  bands, people, readers and bridges on one page, with buttons to manage
+  people and bands, sync readers, and wake or ping bands. Built-in cards
+  only; it finds everything by itself.
+
 ## [0.9.9] - 2026-11-18
 
 ### Reader

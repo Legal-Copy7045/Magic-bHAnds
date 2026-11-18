@@ -5,17 +5,17 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
+from homeassistant.components.sensor import RestoreSensor, SensorDeviceClass, SensorEntity, SensorStateClass
 from homeassistant.const import PERCENTAGE, SIGNAL_STRENGTH_DECIBELS_MILLIWATT, EntityCategory
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
-from . import MagicBandConfigEntry
-from .const import DOMAIN, SIGNAL_HEARD, SIGNAL_UPDATED
+from . import MagicBandConfigEntry, is_reader_device
+from .const import DOMAIN, SIGNAL_BEACON, SIGNAL_HEARD, SIGNAL_READER_TAP, SIGNAL_UPDATED
 from .band_entity import BluetoothBandEntity, NfcBandEntity, async_setup_band_entities
 from .beacons import CLOSEST_WINDOW, BeaconTracker, adapter_name
 from .registry import MagicBandRegistry
@@ -60,6 +60,30 @@ async def async_setup_entry(
 
     _sync_people()
     entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_UPDATED, _sync_people))
+
+    # "Last band name" on every reader's own device page.
+    readers: dict[str, ReaderLastBandSensor] = {}
+
+    @callback
+    def _add_reader(device_id: str) -> None:
+        if device_id in readers or not is_reader_device(hass, device_id):
+            return
+        device = dr.async_get(hass).async_get(device_id)
+        if device is None or not device.connections:
+            return
+        readers[device_id] = ReaderLastBandSensor(entry, device)
+        async_add_entities([readers[device_id]])
+
+    for device in list(dr.async_get(hass).devices.values()):
+        _add_reader(device.id)
+
+    @callback
+    def _on_tap(device_id: str, uid: str, allowed: bool) -> None:
+        _add_reader(device_id)
+        if (sensor := readers.get(device_id)) is not None:
+            sensor.tapped(uid, allowed)
+
+    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_READER_TAP, _on_tap))
 
     async_setup_band_entities(
         hass,
@@ -386,4 +410,57 @@ class BandLastTapSensor(NfcBandEntity, SensorEntity):
             "scans": nfc.scans,
             "first_seen": nfc.first_seen,
             "bluetooth_band": ble.id if ble else None,
+        }
+
+
+class ReaderLastBandSensor(RestoreSensor):
+    """The name of the last band tapped on this reader, on the reader's own device page."""
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+    _attr_translation_key = "reader_last_band"
+    _attr_icon = "mdi:account-badge"
+
+    def __init__(self, entry: MagicBandConfigEntry, device: dr.DeviceEntry) -> None:
+        self._entry = entry
+        self._attr_unique_id = f"reader_{device.id}_last_band"
+        # Matching the reader's connections puts this entity on the reader's device.
+        self._attr_device_info = DeviceInfo(connections=set(device.connections))
+        self._uid: str | None = None
+        self._allowed: bool | None = None
+        self._at: str | None = None
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        if (last := await self.async_get_last_state()) is not None:
+            self._uid = last.attributes.get("band_id")
+            self._allowed = last.attributes.get("allowed")
+            self._at = last.attributes.get("at")
+        for signal in (SIGNAL_UPDATED, SIGNAL_BEACON):
+            self.async_on_remove(async_dispatcher_connect(self.hass, signal, self.async_write_ha_state))
+
+    @callback
+    def tapped(self, uid: str, allowed: bool) -> None:
+        self._uid, self._allowed, self._at = uid, allowed, dt_util.utcnow().isoformat()
+        self.async_write_ha_state()
+
+    @property
+    def native_value(self) -> str | None:
+        if self._uid is None:
+            return None
+        return self._entry.runtime_data.beacons.band_display_name(self._uid)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        if self._uid is None:
+            return {}
+        registry = self._entry.runtime_data.registry
+        band = registry.get_band(self._uid)
+        person = registry.get_person(band.person_id) if band else None
+        return {
+            "band_id": self._uid,
+            "band": band.display if band else self._uid,
+            "person": person.name if person else None,
+            "allowed": self._allowed,
+            "at": self._at,
         }

@@ -20,6 +20,8 @@ DISNEY_COMPANY_ID = 0x0183
 SIGNAL_UPDATED = f"{DOMAIN}_updated"
 SIGNAL_PEOPLE_CHANGED = f"{DOMAIN}_people_changed"
 SIGNAL_HEARD = f"{DOMAIN}_heard"
+# A band was tapped on a reader: (reader device ID, band UID, allowed).
+SIGNAL_READER_TAP = f"{DOMAIN}_reader_tap"
 # A MagicBand+ status beacon was recognised (see beacons.py).
 EVENT_BEACON = "magicband_band_seen"
 SIGNAL_BEACON = f"{DOMAIN}_beacon"

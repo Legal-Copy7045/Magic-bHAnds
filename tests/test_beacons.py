@@ -389,3 +389,21 @@ async def test_linking_keeps_the_nfc_bands_existing_owner(
         DOMAIN, "link_bluetooth", {"bluetooth_band": band.id, "band": "04A1B2C3D4E590"}, blocking=True
     )
     assert _tracker(hass).owner(band)[0].name == "Morgan"
+
+
+async def test_reader_shows_the_band_name(hass: HomeAssistant, setup_integration, reader_device) -> None:
+    from homeassistant.helpers import entity_registry as er
+
+    await hass.services.async_call(DOMAIN, "add_person", {"name": "Morgan"}, blocking=True)
+    hass.bus.async_fire("tag_scanned", {"tag_id": "04C1D2E3F40590", "device_id": reader_device.id})
+    await hass.async_block_till_done()
+    entity = next(
+        e for e in er.async_entries_for_device(er.async_get(hass), reader_device.id) if e.unique_id.endswith("_last_band")
+    )
+    assert hass.states.get(entity.entity_id).state == "MagicBand 0590"   # unassigned: its default name
+
+    await hass.services.async_call(DOMAIN, "assign_band", {"band": "last", "person": "Morgan"}, blocking=True)
+    await hass.async_block_till_done()
+    state = hass.states.get(entity.entity_id)
+    assert state.state == "Morgan's MagicBand"
+    assert state.attributes["band"] == "04-C1-D2-E3-F4-05-90" and state.attributes["allowed"] is False
