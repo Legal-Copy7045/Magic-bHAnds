@@ -271,7 +271,25 @@ class BeaconTracker:
         return self.registry.get_person(person_id), nfc
 
     def name(self, band: BluetoothBand) -> str:
+        """The name the integration gives the band's device (before any rename)."""
         return self.band_name(self.linked_nfc(band), band)
+
+    def device_key(self, band: BluetoothBand) -> str:
+        """Identifier of the device the band's entities are on (see band_entity.py)."""
+        nfc = self.linked_nfc(band)
+        return f"band_{nfc.uid}" if nfc is not None else f"bluetooth_{band.id}"
+
+    def display_name(self, band: BluetoothBand) -> str:
+        """The band's name as shown in Home Assistant, including a rename of its device."""
+        device = dr.async_get(self.hass).async_get_device(identifiers={(DOMAIN, self.device_key(band))})
+        if device is not None and device.name_by_user:
+            return device.name_by_user
+        return self.name(band)
+
+    def nfc_display_name(self, nfc) -> str | None:
+        """A renamed NFC band device's name, if it has one."""
+        device = dr.async_get(self.hass).async_get_device(identifiers={(DOMAIN, f"band_{nfc.uid}")})
+        return device.name_by_user if device is not None and device.name_by_user else None
 
     def band_name(self, nfc, ble: BluetoothBand | None) -> str:
         """The name of one physical band: its NFC side, its Bluetooth side, or both."""
@@ -295,7 +313,7 @@ class BeaconTracker:
             return max(self.bands.values(), key=lambda b: b.last_seen, default=None)
         lower = value.lower()
         for band in self.bands.values():
-            if band.id == lower or self.name(band).lower() == lower:
+            if band.id == lower or lower in (self.name(band).lower(), self.display_name(band).lower()):
                 return band
         matches = [b for b in self.bands.values() if b.id.startswith(lower)] if len(lower) >= 4 else []
         return matches[0] if len(matches) == 1 else None
@@ -350,7 +368,7 @@ class BeaconTracker:
             EVENT_BEACON,
             {
                 "bluetooth_band": band.id,
-                "name": self.name(band),
+                "name": self.display_name(band),
                 "person": person.name if person else None,
                 "band": nfc.display if nfc else None,
                 "battery": band.battery,
@@ -440,7 +458,7 @@ class BeaconTracker:
         if not window.candidates:
             _LOGGER.info("No unlinked Bluetooth band heard within %s of tapping %s", PAIRING_WINDOW, display)
             return
-        names = ", ".join(self.name(self.bands[i]) for i in window.candidates if i in self.bands)
+        names = ", ".join(self.display_name(self.bands[i]) for i in window.candidates if i in self.bands)
         persistent_notification.async_create(
             self.hass,
             (
@@ -478,7 +496,7 @@ class BeaconTracker:
         person, nfc = self.owner(band)
         return {
             "id": band.id,
-            "name": self.name(band),
+            "name": self.display_name(band),
             "person": person.name if person else None,
             "band": nfc.display if nfc else None,
             "nearby": band.nearby(),

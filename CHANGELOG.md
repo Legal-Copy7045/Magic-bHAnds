@@ -3,7 +3,15 @@
 All notable changes to Magic bHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
-## [Unreleased]
+## [0.9.6] - 2026-11-18
+
+### Integration
+- **Your names for bands are used everywhere.** If you rename a band's
+  device in Home Assistant, that name now shows in **Link a band's
+  Bluetooth**, the pairing notification, `list_bluetooth_bands` and the
+  `magicband_band_seen` event, and works as `bluetooth_band` in actions.
+- **Linking keeps the name.** Linking a renamed Bluetooth band to its NFC
+  band gives the merged device the name you chose.
 
 ### Hardware
 - **Compact (solderless) build:** the point-to-point layout on a 400-point

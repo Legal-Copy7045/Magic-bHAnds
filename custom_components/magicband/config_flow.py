@@ -78,7 +78,7 @@ class MagicBandOptionsFlow(OptionsFlow):
         tracker = self.config_entry.runtime_data.beacons
         for band in tracker.bands.values():
             where = "nearby" if band.nearby() else f"last heard {_ago(band.last_seen)}"
-            lines.append(f"- Bluetooth: **{tracker.name(band)}**, {where}")
+            lines.append(f"- Bluetooth: **{tracker.display_name(band)}**, {where}")
         unknown = len(reg.unassigned_bands)
         if unknown:
             lines.append(f"\n{unknown} band(s) not assigned to anyone yet.")
@@ -89,7 +89,8 @@ class MagicBandOptionsFlow(OptionsFlow):
         for band in self._registry.bands:
             person = self._registry.get_person(band.person_id)
             owner = f"{person.name}'s" if person else "unassigned"
-            label = f" '{band.label}'" if band.label else ""
+            renamed = self.config_entry.runtime_data.beacons.nfc_display_name(band)
+            label = f" '{renamed or band.label}'" if (renamed or band.label) else ""
             where = f" on {band.last_reader}" if band.last_reader else ""
             options.append(
                 selector.SelectOptionDict(
@@ -232,7 +233,7 @@ class MagicBandOptionsFlow(OptionsFlow):
             owner = f"{person.name}'s" if person else ("linked" if nfc else "unlinked")
             battery = f", battery {b.battery} %?" if b.battery is not None else ""
             signal = f", {b.last_rssi} dBm via {b.last_source}" if b.last_rssi is not None else ""
-            return f"{tracker.name(b)} ({owner}): {_ago(b.last_seen)}{signal}{battery}"
+            return f"{tracker.display_name(b)} ({owner}): {_ago(b.last_seen)}{signal}{battery}"
 
         bands = sorted(tracker.bands.values(), key=lambda b: (b.band_uid is not None, b.first_seen))
         owners = [
