@@ -294,20 +294,26 @@ async def test_heard_by_and_closest_use_bridge_names(
 ) -> None:
     from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-    # A bridge (ESPHome device) whose Bluetooth proxy is a scanner in HA's bluetooth integration.
+    # A bridge (ESPHome device): registered by its Wi-Fi MAC; its Bluetooth
+    # address (the scanner's source) is that + 2.
     esphome = MockConfigEntry(domain="esphome", title="Kitchen")
     esphome.add_to_hass(hass)
-    bridge = dr.async_get(hass).async_get_or_create(
+    dr.async_get(hass).async_get_or_create(
         config_entry_id=esphome.entry_id,
         connections={(dr.CONNECTION_NETWORK_MAC, "aa:bb:cc:dd:ee:74")},
         name="Kitchen MagicBand Bridge",
     )
-    MockConfigEntry(
-        domain="bluetooth",
-        unique_id="AA:BB:CC:DD:EE:76",
-        title="magicband-bridge-d0b074 (AA:BB:CC:DD:EE:76)",
-        data={"source_device_id": bridge.id},
-    ).add_to_hass(hass)
+    # A USB adapter: registered with its Bluetooth address.
+    adapter = MockConfigEntry(domain="bluetooth", title="hci1")
+    adapter.add_to_hass(hass)
+    dr.async_get(hass).async_get_or_create(
+        config_entry_id=adapter.entry_id,
+        connections={(dr.CONNECTION_BLUETOOTH, "AA:BB:CC:00:11:22")},
+        name="TP-Link UB500 Adapter (AA:BB:CC:00:11:22)",
+    )
+    from custom_components.magicband.beacons import adapter_name
+
+    assert adapter_name(hass, "AA:BB:CC:00:11:22") == "TP-Link UB500 Adapter"
 
     band = _beacon(hass, BAND_X, rssi=-58, source="AA:BB:CC:DD:EE:76")
     _beacon(hass, BAND_X.replace("C8 00 35", "C0 00 35"), rssi=-75, source="6C:4C:BC:F7:C5:D5")

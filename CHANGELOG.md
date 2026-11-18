@@ -3,7 +3,21 @@
 All notable changes to Magic bHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
-## [Unreleased]
+## [0.9.8] - 2026-11-18
+
+### Reader
+- **New tap sequence on the ring:** two quick white circles chase round it
+  while the band is checked (one circle every 0.5 s, whatever the LED
+  count), then **one green pulse** for a welcome or **two red pulses** for
+  a denied band. Replaces the spin, the 3-second solid green and the red
+  strobe.
+
+### Integration
+- **Security:** adapter names (**Heard by**, **Closest**) no longer read
+  other integrations' stored settings. They come from the device registry
+  only: a USB adapter's device by its Bluetooth address, an ESPHome proxy's
+  by its Wi-Fi MAC (an ESP32's Bluetooth address is its base MAC + 2).
+
 
 ### Hardware
 - **Compact build tested** up to sound: power, NFC (bands read, known
