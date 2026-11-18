@@ -1,9 +1,10 @@
 # MagicBand Reader
 
 A park-style touch point for Home Assistant. Tap an **original MagicBand** or a
-**MagicBand+** on it: the ring spins, Home Assistant gets the band's ID, the
-ring turns green with a chime, and a MagicBand+ also lights up green
-and buzzes.
+**MagicBand+** on it: two quick white circles chase round the ring while
+it's checked, Home Assistant gets the band's ID, then the ring pulses green
+once with a chime (a MagicBand+ also lights up green and buzzes), or red
+twice with the error sound for a band it doesn't let in.
 
 Config: [`esphome/magicband-reader.yaml`](../esphome/magicband-reader.yaml).
 
@@ -194,8 +195,8 @@ all bands** remove entries.
 ### "Ask Home Assistant" mode: let an automation decide
 
 Use this only if HA needs to decide, for example based on time of day or who's
-home. The ring spins until HA answers, and with no answer within 3 seconds it
-shows red. Add an automation that answers:
+home. The white circles keep chasing until HA answers, and with no answer within 3 seconds it
+pulses red twice. Add an automation that answers:
 
 ```yaml
 alias: "MagicBand reader: allow known bands"

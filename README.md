@@ -18,7 +18,7 @@ integration that ties them up.
 | | What it does | Bands | Hardware |
 |---|---|---|---|
 | **Part 1: [MagicBand Bridge](docs/bridge.md)** | Lights up and buzzes bands from automations: any colour, animations, vibration patterns | MagicBand+ (Bluetooth) | An ESP32-S3 board, nothing else |
-| **Part 2: [MagicBand Reader](docs/reader.md)** | A park-style tap point. The ring spins, Home Assistant knows whose band it is, green or red with sound, and a MagicBand+ lights up too | Original MagicBands and MagicBand+ (NFC) | ESP32-S3, PN532 NFC reader, LED ring (or strip), amplifier and speaker, powered by a USB-C charger. [Shopping list](hardware/shopping-list.md) |
+| **Part 2: [MagicBand Reader](docs/reader.md)** | A park-style tap point. Two white circles chase round the ring, Home Assistant knows whose band it is, one green pulse (welcome) or two red (denied) with sound, and a MagicBand+ lights up too | Original MagicBands and MagicBand+ (NFC) | ESP32-S3, PN532 NFC reader, LED ring (or strip), amplifier and speaker, powered by a USB-C charger. [Shopping list](hardware/shopping-list.md) |
 | **[MagicBand integration](docs/integration.md)** (HACS) | People and their bands (with or without a Home Assistant user), a log of every tap, the *Send MagicBand effect* action and the automation blueprint | Both | None |
 
 ## Quick start

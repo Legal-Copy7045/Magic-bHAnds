@@ -245,7 +245,7 @@ unplugged)
 **Step 17. Test the sound**
 1. Plug in the charger. Measure VIN to GND at h52/h51: **4.75–5.25 V**.
 2. The **start-up sound** plays.
-3. On the device page, press **Test welcome**: the ring spins, turns green,
+3. On the device page, press **Test welcome**: white circles chase round the ring, it pulses green,
    and the tap-in sound plays.
 
 ⛔ **Stop if** there's no sound: check LRC, BCLK and DIN aren't swapped,

@@ -105,29 +105,41 @@ def parse(payload: bytes) -> Beacon | None:
 _MAC_IN_NAME = re.compile(r"\s*\(([0-9A-Fa-f:]{17})\)\s*$")
 
 
+def _shift_mac(address: str, offset: int) -> str | None:
+    try:
+        value = int(address.replace(":", ""), 16) + offset
+    except ValueError:
+        return None
+    if not 0 <= value < 1 << 48:
+        return None
+    raw = f"{value:012x}"
+    return ":".join(raw[i : i + 2] for i in range(0, 12, 2))
+
+
 def adapter_name(hass: HomeAssistant, source: str | None) -> str | None:
     """A friendly name for a Bluetooth adapter or proxy ("Kitchen MagicBand Bridge").
 
     `source` is the scanner's address (or an older "name (address)" string).
-    Uses the name of its device in Home Assistant, including any rename.
+    Uses the name of its device in Home Assistant, including any rename,
+    looked up in the device registry only (never other integrations'
+    settings):
+
+    - a local adapter (USB dongle) has a device with its Bluetooth address;
+    - an ESPHome proxy's device carries its Wi-Fi MAC, and an ESP32's
+      Bluetooth address is its base MAC + 2 (Ethernet boards: + 3), so the
+      device is found by stepping the address back.
     """
     if not source:
         return None
     m = _MAC_IN_NAME.search(source)
     address = (m.group(1) if m else source).upper()
     dev_reg = dr.async_get(hass)
-    device = None
-    for entry in hass.config_entries.async_entries("bluetooth"):
-        if (entry.unique_id or "").upper() == address:
-            if device_id := entry.data.get("source_device_id"):
-                device = dev_reg.async_get(device_id)
-            if device is None:
-                device = next(iter(dr.async_entries_for_config_entry(dev_reg, entry.entry_id)), None)
-            if device is None:
-                return _MAC_IN_NAME.sub("", entry.title).removeprefix("Unknown ").strip() or source
-            break
+    device = dev_reg.async_get_device(connections={(dr.CONNECTION_BLUETOOTH, address)})
     if device is None:
-        device = dev_reg.async_get_device(connections={(dr.CONNECTION_BLUETOOTH, address)})
+        for offset in (-2, -3, -1):
+            mac = _shift_mac(address, offset)
+            if mac and (device := dev_reg.async_get_device(connections={(dr.CONNECTION_NETWORK_MAC, mac)})):
+                break
     if device is not None:
         name = device.name_by_user or device.name or source
         return _MAC_IN_NAME.sub("", name).removeprefix("Unknown ").strip()
