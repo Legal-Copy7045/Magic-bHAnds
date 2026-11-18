@@ -116,7 +116,7 @@ it on `main`. It tags `v<VERSION>` and publishes the GitHub Release.
 | `hardware/reader-breadboard/` | Breadboard build: step-by-step build, spec and wiring table, and the diagram's generator |
 | `hardware/reader-wired/` | Terminal base and point-to-point builds, with the interface board: step-by-step build and spec |
 | `web/` | The web installer page |
-| `docs/` | Guides: [bridge](docs/bridge.md), [reader](docs/reader.md), [integration](docs/integration.md), [commands](docs/commands.md), [protocol](docs/protocol.md), [SCREEK BP2-POE](docs/screek-bp2-poe.md); reader wiring diagrams |
+| `docs/` | Guides: [bridge](docs/bridge.md), [reader](docs/reader.md), [integration](docs/integration.md), [commands](docs/commands.md), [protocol](docs/protocol.md), [SCREEK BP2-POE](docs/screek-bp2-poe.md); reader wiring diagrams; [ideas for later](docs/ideas.md) |
 | `tests/` | Integration tests |
 
 ## Caveats
