@@ -39,6 +39,28 @@ The breadboard build's parts, without the breadboard and its jumpers, plus:
 If you're reusing the breadboard's parts: the PD trigger (already at
 5 V), the hubs and the ring (already wired) carry straight over.
 
+## Compact (solderless) version
+
+To build the point-to-point version **without soldering** (see the
+[compact diagram](../../docs/reader-compact.svg)):
+
+- **Part 2:** put the parts and links into a **400-point half breadboard**
+  instead of soldering them, at the same holes. Use male-to-male jumpers for
+  the links. Do the continuity check in step 3 the same way.
+- **Step 4:** instead of soldered wires, use jumpers from those holes; the
+  PN532 gets male-to-female jumpers from c6, c7, L+4 and L−3.
+- **Step 3B:** female-to-male jumpers from the ESP32's pins straight into the
+  board: 3V3 → c2, GPIO8 → d6, GPIO9 → d7, GPIO10 → d11, **5V → L+28,
+  GND → L−29** (the 5V one is the jumper to pull before using USB).
+- **Step 7, the amplifier:** no soldering. GPIO5/6/7 → **f17/f18/f19**; its
+  cable into **h17** LRC, **h18** BCLK, **h19** DIN, **h23** GND, **h24** VIN;
+  the 100 µF stripe in **g23**, other leg in **g24**; 5 V hub → **f24**,
+  GND hub → **f23**.
+- **Step 6, the hubs:** port 5 (the ESP32's power) is free: the ESP32 takes
+  its power from the board's rails.
+
+Everything else, including the staged tests, is the same.
+
 ## Part 1: parts shared with the breadboard
 
 Do these as in the breadboard guide, if you haven't already:

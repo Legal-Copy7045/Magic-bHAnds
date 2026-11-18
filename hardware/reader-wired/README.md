@@ -155,6 +155,39 @@ c6 and c7 each to c2 read 4.7 kΩ.
 - Insulate every joint with heat-shrink, and fix the modules in the case so
   the joints don't flex.
 
+## Compact (solderless) version
+
+The point-to-point build with nothing soldered except the ring's wires: the
+interface board is a **400-point half-size breadboard**, which has the same
+holes as the Perma-Proto (rows 1–30, columns a–j, a rail pair each side), so
+the [layout above](#perma-proto-layout) goes in hole for hole with jumpers.
+It's about a third of the full breadboard's size, and moves to a soldered
+Perma-Proto later without changing a single hole.
+
+![Compact solderless wiring](../../docs/reader-compact.svg)
+
+What changes from point-to-point:
+
+| Connection | Holes |
+|---|---|
+| ESP32 → board, **female-to-male jumpers** on the J1 pins | 3V3 (J1-1) → **c2**, GPIO8 (J1-12) → **d6**, GPIO9 (J1-15) → **d7**, GPIO10 (J1-16) → **d11** |
+| ESP32 power, onto the board's rails | 5V (J1-21) → **L+28** (pull it before using USB), GND (J1-22) → **L−29** |
+| ESP32 I²S → the amplifier's rows | GPIO5 (J1-5) → **f17**, GPIO6 (J1-6) → **f18**, GPIO7 (J1-7) → **f19** |
+| Amplifier's cable | LRC **h17**, BCLK **h18**, DIN **h19**, GND **h23**, VIN **h24** (by the labels on the amplifier) |
+| 100 µF for the amplifier | **g23** (stripe, −) to **g24** (+) |
+| Amplifier power from the hubs | 5 V hub → **f24**, GND hub → **f23** (not via the rails) |
+| PN532 | Male-to-female jumpers: SDA **c6**, SCL **c7**, VCC **L+4**, GND **L−3** |
+
+Everything else (the hubs, the ring, the PD trigger) is as above. The rails
+carry the ESP32, PN532 and level shifter (≤ 0.7 A, as on the full
+breadboard); the amplifier and ring get their own wires from the hubs.
+
+**On a 170-point mini breadboard instead:** possible, but not
+recommended. It has no power rails and only 17 rows, so 5 V and ground
+have to be built from spare rows with extra jumpers, and there's no room
+for the amplifier's rows or capacitor. The 400-point board is the
+smallest that keeps the documented layout.
+
 ## Build and test
 
 The staged build, with checks after each stage, is in the

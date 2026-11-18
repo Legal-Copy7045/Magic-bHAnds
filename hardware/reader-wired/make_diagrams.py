@@ -1,8 +1,15 @@
 #!/usr/bin/env python3
-"""Draw the terminal-base and point-to-point wiring diagrams.
+"""Draw the terminal-base, point-to-point and compact-breadboard wiring diagrams.
 
     python3 make_diagrams.py terminal-base  > ../../docs/reader-terminal-base.svg
     python3 make_diagrams.py point-to-point > ../../docs/reader-point-to-point.svg
+    python3 make_diagrams.py compact        > ../../docs/reader-compact.svg
+    python3 make_diagrams.py interface-board > ../../docs/reader-interface-board.svg
+
+The compact build is the point-to-point build with nothing soldered: the
+interface board is a 400-point half-size breadboard (the same hole layout as
+the Perma-Proto), the ESP32 is wired with female-to-male jumpers, and the
+amplifier's cable and its 100 uF plug into the same breadboard.
 
 Both share the interface board (an Adafruit Perma-Proto half-sized PCB,
 drawn hole for hole: rows 1-30, columns a-j, a rail pair on each side), the
@@ -20,7 +27,7 @@ ROWS = 30
 BX, BY = 640, 150              # interface board: x of column "L-", y of row 1
 COL = {"L-": 0, "L+": 1, "a": 3, "b": 4, "c": 5, "d": 6, "e": 7,
        "f": 10, "g": 11, "h": 12, "i": 13, "j": 14, "R+": 16, "R-": 17}
-W, H = 1340, 1080
+W, H = 1340, 1100
 IC = 10                        # 74AHCT125 pin 1 row (column e)
 
 out: list[str] = []
@@ -108,22 +115,27 @@ def lying_res(a, b, bands):
 
 
 # ---------------------------------------------------------------- interface board
-def interface_board():
+def interface_board(solderless: bool = False):
     l, r = bx("L-") - 16, bx("R-") + 16
-    add(f'<rect x="{l}" y="{by(1) - 34}" width="{r - l}" height="{(ROWS - 1) * P + 70}" rx="8" class="perma"/>')
+    add(f'<rect x="{l}" y="{by(1) - 34}" width="{r - l}" height="{(ROWS - 1) * P + 70}" rx="8" class="{'bboard' if solderless else 'perma'}"/>')
     gx = (bx("e") + bx("f")) / 2
-    add(f'<rect x="{gx - 9}" y="{by(1) - 12}" width="18" height="{(ROWS - 1) * P + 24}" class="pchan"/>')
+    add(f'<rect x="{gx - 9}" y="{by(1) - 12}" width="18" height="{(ROWS - 1) * P + 24}" class="{'bchan' if solderless else 'pchan'}"/>')
+    lbl = " dark" if solderless else ""
     for c, kind in (("L-", "neg"), ("L+", "pos"), ("R+", "pos"), ("R-", "neg")):
         add(f'<line x1="{bx(c)}" y1="{by(1) - 14}" x2="{bx(c)}" y2="{by(ROWS) + 14}" class="rail {kind}"/>')
-        text(bx(c), by(1) - 20, "+" if "+" in c else "−", "railsym", "middle")
+        text(bx(c), by(1) - 20, "+" if "+" in c else "−", "railsym" + lbl, "middle")
     for c in "abcdefghij":
-        text(bx(c), by(1) - 20, c, "collbl", "middle")
+        text(bx(c), by(1) - 20, c, "collbl" + lbl, "middle")
     for rr in range(1, ROWS + 1):
         if rr == 1 or rr % 5 == 0:
-            text(bx("R-") + 20, by(rr) + 4, str(rr), "rowlbl")
+            text(bx("R-") + 20, by(rr) + 4, str(rr), "rowlbl" + lbl)
         for c in COL:
-            add(f'<circle cx="{bx(c)}" cy="{by(rr)}" r="3.6" class="pad"/>')
-    text((l + r) / 2, by(ROWS) + 26, "Interface board: Adafruit Perma-Proto half (1609)", "pcap", "middle")
+            if solderless:
+                add(f'<rect x="{bx(c) - 3}" y="{by(rr) - 3}" width="6" height="6" rx="1.3" class="bhole"/>')
+            else:
+                add(f'<circle cx="{bx(c)}" cy="{by(rr)}" r="3.6" class="pad"/>')
+    text((l + r) / 2, by(ROWS) + 26, "400-point half-size breadboard" if solderless else "Interface board: Adafruit Perma-Proto half (1609)",
+         "bcap" if solderless else "pcap", "middle")
     # 74AHCT125
     il, ir = bx("e") - 7, bx("f") + 7
     add(f'<rect x="{il}" y="{by(IC) - 9}" width="{ir - il}" height="{6 * P + 18}" rx="3" class="ic"/>')
@@ -218,18 +230,31 @@ def esp_terminal_base():
     return pins, y0 + h + 30
 
 
+NOTES_COMPACT = [
+    "ESP32 5 V (J1-21 → L+28): pull this jumper before plugging USB into the ESP32.",
+    "Two 4.7 kΩ I²C pull-ups to the ESP32's 3.3 V (a2–a6 SDA, b2–b7 SCL).",
+    "0.1 µF across the 74AHCT125 supply (h9–h10); row 9 grounded by j9.",
+    "Unused 74AHCT125 channels tied off: enables to 5 V, inputs to ground.",
+    "Rail bridges (rows 20 and 21): the right-hand rails get 5 V and ground.",
+    "Amplifier: its cable plugs into h17–h19 (LRC, BCLK, DIN) and h23–h24 (GND, VIN); 100 µF g23 (−) to g24 (+); its power comes from the hubs into f23/f24, not the rails.",
+    "470 Ω at the ring end of the data wire; 1000 µF across the ring's 5V/GND pads.",
+]
+
+
 def build(kind: str) -> str:
     out.clear()
     add(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" role="img" '
         f'aria-label="MagicBand Reader {kind} wiring">')
     add(f"<style>{CSS}</style>")
     add(f'<rect width="{W}" height="{H}" class="bg"/>')
-    title = "terminal base" if kind == "terminal-base" else "point-to-point"
+    compact = kind == "compact"
+    title = {"terminal-base": "terminal base", "point-to-point": "point-to-point", "compact": "compact (solderless)"}[kind]
     text(24, 34, f"MagicBand Reader: {title} build (ring only)", "title")
-    text(24, 54, "Hole names (c2, L+25 …) match hardware/reader-wired/README.md. Adafruit product numbers in brackets.", "sub")
+    text(24, 54, ("Nothing soldered: a 400-point half breadboard, female-to-male jumpers on the ESP32. Same holes as the interface board."
+                  if compact else "Hole names (c2, L+25 …) match hardware/reader-wired/README.md. Adafruit product numbers in brackets."), "sub")
 
-    interface_board()
-    pins, esp_bottom = esp_point_to_point() if kind == "point-to-point" else esp_terminal_base()
+    interface_board(solderless=compact)
+    pins, esp_bottom = esp_point_to_point() if kind in ("point-to-point", "compact") else esp_terminal_base()
 
     # ---------------------------------------------------------------- modules (right column)
     pn = module(1000, 110, 240, 140, "PN532 NFC module V3", ["GND", "VCC", "SDA", "SCL"],
@@ -246,7 +271,12 @@ def build(kind: str) -> str:
     text(sx, sy + 62, "(PH2.0 plug)", "partlbl", "middle")
     wire([(tx + 14, amp["LRC"][1] + 2), (1262, amp["LRC"][1] + 2), (1262, sy - 32)], "spkw")
     wire([(tx + 14, amp["LRC"][1] + 16), (1280, amp["LRC"][1] + 16), (1280, sy - 31)], "spkw")
-    elec(amp["GND"][0] - 22, (amp["GND"][1] + amp["VIN"][1]) / 2)
+    if compact:
+        # 100 uF on the breadboard: stripe (-) g23, + g24
+        (cx_, cy1), (_, cy2) = hole("g23"), hole("g24")
+        elec(cx_, (cy1 + cy2) / 2)
+    else:
+        elec(amp["GND"][0] - 22, (amp["GND"][1] + amp["VIN"][1]) / 2)
     elec(ring["5V"][0] - 22, (ring["5V"][1] + ring["GND"][1]) / 2)
 
     # ---------------------------------------------------------------- power (below the interface board)
@@ -264,16 +294,33 @@ def build(kind: str) -> str:
     wire([hp[1], (hp[1][0], 730), (bx("L+") - 22, 730), (bx("L+") - 22, by(25)), hole("L+25")], "p5")
     wire([hg[1], (hg[1][0], 722), (bx("L-") - 30, 722), (bx("L-") - 30, by(26)), hole("L-26")], "gnd")
     # hubs -> amplifier
-    wire([hp[2], (hp[2][0], 714), (968, 714), (968, amp["VIN"][1]), amp["VIN"]], "p5")
-    wire([hg[2], (hg[2][0], 706), (958, 706), (958, amp["GND"][1]), amp["GND"]], "gnd")
+    if compact:
+        # into the breadboard rows the amplifier's cable plugs into (f24 VIN, f23 GND)
+        ch = (bx("e") + bx("f")) / 2          # up the centre channel, clear of the holes
+        wire([hp[2], (hp[2][0], 682), (ch - 4, 682), (ch - 4, by(24)), hole("f24")], "p5")
+        wire([hg[2], (hg[2][0], 674), (ch + 4, 674), (ch + 4, by(23) - 5), (bx("f"), by(23) - 5), hole("f23")], "gnd")
+        # the amplifier's own cable: breadboard column h -> amplifier
+        for k, (row, pin_, cls) in enumerate(((17, "LRC", "i2s1"), (18, "BCLK", "i2s2"), (19, "DIN", "i2s3"),
+                                              (23, "GND", "gnd"), (24, "VIN", "p5"))):
+            hx, hy = hole(f"h{row}")
+            lane = bx("R-") + 30 + k * 8
+            wire([(hx, hy), (lane, hy), (lane, amp[pin_][1]), amp[pin_]], cls)
+    else:
+        wire([hp[2], (hp[2][0], 714), (968, 714), (968, amp["VIN"][1]), amp["VIN"]], "p5")
+        wire([hg[2], (hg[2][0], 706), (958, 706), (958, amp["GND"][1]), amp["GND"]], "gnd")
     # hubs -> ring
     wire([hp[3], (hp[3][0], 698), (988, 698), (988, ring["5V"][1]), ring["5V"]], "p5 thick")
     wire([hg[3], (hg[3][0], 690), (998, 690), (998, ring["GND"][1]), ring["GND"]], "gnd thick")
     # hubs -> ESP32 5V / GND
     p5x, p5y = pins["5V"]
     gx_, gy_ = pins["GND"]
-    wire([(p5x, p5y), (p5x, 376), (560, 376), (560, 744), (hp[4][0], 744), (hp[4][0], hp[4][1])], "p5")
-    wire([(gx_, gy_), (gx_, 384), (570, 384), (570, 752), (hg[4][0], 752), (hg[4][0], hg[4][1])], "gnd")
+    if compact:
+        # ESP32 5V / GND onto the breadboard rails (L+28 / L-29)
+        wire([(p5x, p5y), (p5x, 376), (560, 376), (560, by(28)), hole("L+28")], "p5")
+        wire([(gx_, gy_), (gx_, 384), (570, 384), (570, by(29)), hole("L-29")], "gnd")
+    else:
+        wire([(p5x, p5y), (p5x, 376), (560, 376), (560, 744), (hp[4][0], 744), (hp[4][0], hp[4][1])], "p5")
+        wire([(gx_, gy_), (gx_, 384), (570, 384), (570, 752), (hg[4][0], 752), (hg[4][0], hg[4][1])], "gnd")
 
     # ---------------------------------------------------------------- ESP32 signals
     def to_board(sig, dest, cls, lane_y):
@@ -295,9 +342,14 @@ def build(kind: str) -> str:
     to_board("8", "d6", "sda", 338)
     to_board("9", "d7", "scl", 346)
     to_board("10", "d11", "led", 354)
-    to_amp("5", amp["LRC"], "i2s1", 662, 920)
-    to_amp("6", amp["BCLK"], "i2s2", 670, 930)
-    to_amp("7", amp["DIN"], "i2s3", 678, 940)
+    if compact:
+        to_board("5", "f17", "i2s1", 362)
+        to_board("6", "f18", "i2s2", 370)
+        to_board("7", "f19", "i2s3", 378)
+    else:
+        to_amp("5", amp["LRC"], "i2s1", 662, 920)
+        to_amp("6", amp["BCLK"], "i2s2", 670, 930)
+        to_amp("7", amp["DIN"], "i2s3", 678, 940)
 
     # ---------------------------------------------------------------- interface board -> PN532 and ring
     wire([hole("c6"), (bx("c") + 4, by(6) - 7), (bx("R-") + 40, by(6) - 7), (bx("R-") + 40, pn["SDA"][1]), pn["SDA"]], "sda")
@@ -321,7 +373,10 @@ def build(kind: str) -> str:
     marker(3, bx("i") + 4, by(8.3))
     marker(4, bx("R-") + 22, by(13))
     marker(5, bx("R-") + 22, by(20.5))
-    marker(6, amp["GND"][0] - 22, amp["VIN"][1] + 22)
+    if compact:
+        marker(6, bx("g") + 20, by(25) + 4)
+    else:
+        marker(6, amp["GND"][0] - 22, amp["VIN"][1] + 22)
     marker(7, rx - 32, ring["DIN"][1] - 14)
 
     # ---------------------------------------------------------------- notes + legend (bottom left)
@@ -329,7 +384,7 @@ def build(kind: str) -> str:
     add(f'<rect x="{nx}" y="{ny}" width="{nw}" height="{H - ny - 16}" rx="10" class="notes"/>')
     text(nx + 14, ny + 24, "Numbered points", "modname2")
     yy = ny + 48
-    for k, note in enumerate(NOTES):
+    for k, note in enumerate(NOTES_COMPACT if compact else NOTES):
         marker(k + 1, nx + 24, yy - 4)
         words, line, lines = note.split(), "", []
         for wd in words:
@@ -431,7 +486,7 @@ def build_interface_board() -> str:
 
 CSS = """
 .bg{fill:#ffffff} .title{font:700 22px Inter,system-ui,sans-serif;fill:#1d1b16} .sub{font:500 13px Inter,system-ui,sans-serif;fill:#5c5a52}
-.perma{fill:#1d3f86;stroke:#122a5c;stroke-width:1.5} .pchan{fill:#173570} .pad{fill:#e3c167;stroke:#9d7f2c;stroke-width:.8}
+.perma{fill:#1d3f86;stroke:#122a5c;stroke-width:1.5} .bboard{fill:#f2f1ea;stroke:#cfccbf;stroke-width:1.5} .bcap{font:600 11px Inter,system-ui,sans-serif;fill:#5c5a52} .bchan{fill:#e2e0d4} .bhole{fill:#a7a497} .dark{fill:#6b695f} .pchan{fill:#173570} .pad{fill:#e3c167;stroke:#9d7f2c;stroke-width:.8}
 .rail{stroke-width:2.4;opacity:.8} .rail.pos{stroke:#ff6b6b} .rail.neg{stroke:#9fb8ff}
 .railsym,.collbl,.rowlbl,.pinno{font:600 10px ui-monospace,Menlo,Consolas,monospace;fill:#cfdcff}
 .tag{stroke-width:1.5} .p5tag{fill:#fdecec;stroke:#d62f2f} .gndtag{fill:#ececee;stroke:#222} .p33tag{fill:#fff1df;stroke:#ef8a17} .sdatag{fill:#e6f3fb;stroke:#1f8fd6} .scltag{fill:#e8f5ec;stroke:#2e9a4f} .ledtag{fill:#fff8d6;stroke:#d6a900}
