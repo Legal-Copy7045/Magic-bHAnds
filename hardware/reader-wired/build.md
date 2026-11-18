@@ -180,7 +180,7 @@ with male-to-female jumpers. Go by the printed labels:
 3. **c6** and **c7** read 3.2–3.4 V to L−.
 4. Logs: **Found i2c device at address 0x24**, and no `Error sending version
    command`.
-5. Tap a band flat on the PN532's antenna. **Last band** shows its ID, and a
+5. Tap a band flat on the PN532's antenna. **Last band ID** shows its ID (and **Last band name** its name, once the MagicBand integration is set up), and a
    band nobody owns is **denied** (error sound).
 
 ### 12. Let a band in

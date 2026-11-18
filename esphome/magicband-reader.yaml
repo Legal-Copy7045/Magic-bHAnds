@@ -20,7 +20,7 @@
 substitutions:
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.9.9"
+  project_version: "0.9.10"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -571,10 +571,13 @@ sensor:
       return n;
 
 text_sensor:
+  # The raw NFC ID. With the MagicBand integration, "Last band name" (from
+  # the integration, on this device's page) shows whose band it was.
   - platform: template
     id: last_band
-    name: "Last band"
+    name: "Last band ID"
     icon: mdi:nfc-variant
+    entity_category: diagnostic
 
 script:
   # Applies "LED count" and "LED colour order", and caps the output so full

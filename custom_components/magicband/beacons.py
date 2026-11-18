@@ -298,6 +298,13 @@ class BeaconTracker:
             return device.name_by_user
         return self.name(band)
 
+    def band_display_name(self, uid: str) -> str:
+        """A band's name as shown in Home Assistant, by its NFC ID."""
+        nfc = self.registry.get_band(uid)
+        if nfc is None:
+            return uid
+        return self.nfc_display_name(nfc) or self.band_name(nfc, self.for_nfc(nfc.uid))
+
     def nfc_display_name(self, nfc) -> str | None:
         """A renamed NFC band device's name, if it has one."""
         device = dr.async_get(self.hass).async_get_device(identifiers={(DOMAIN, f"band_{nfc.uid}")})

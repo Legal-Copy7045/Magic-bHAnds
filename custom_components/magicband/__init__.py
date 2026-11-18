@@ -39,6 +39,7 @@ from .const import (
     EVENT_TAP,
     READER_MODEL,
     READER_SET_SERVICE_SUFFIX,
+    SIGNAL_READER_TAP,
     SIGNAL_UPDATED,
     SYNC_INTERVAL_MINUTES,
 )
@@ -193,6 +194,8 @@ def _handle_scan(hass: HomeAssistant, registry: MagicBandRegistry, tag_id: str, 
         },
     )
     async_dispatcher_send(hass, SIGNAL_UPDATED)
+    if device_id:
+        async_dispatcher_send(hass, SIGNAL_READER_TAP, device_id, band.uid, allowed)
 
     if person is None:
         persistent_notification.async_create(

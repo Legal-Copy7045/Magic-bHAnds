@@ -175,7 +175,8 @@ MagicBand+**, for example to turn on the lounge lights.
 | Entity | What it does |
 |---|---|
 | **Ring** | The LED ring as a normal HA light, so you can use it as a night light too. It glows white while idle |
-| **Last band** | ID of the last band read |
+| **Last band name** | Whose band was last tapped ("Jackie's MagicBand", or your name for the band), from the MagicBand integration; attributes: NFC ID, person, allowed, time |
+| **Last band ID** (diagnostic) | The raw NFC ID of the last band read |
 | **Response mode** | *Known bands only* (default: decided on the reader; new bands are denied), *Welcome every band*, or *Ask Home Assistant* (see below) |
 | **Band scan** | Event entity: every scan appears in the logbook as *welcomed* or *denied* |
 | **Known bands** | How many bands are on the reader's allowed list |

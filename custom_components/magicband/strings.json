@@ -122,6 +122,9 @@
       },
       "band_closest": {
         "name": "Closest"
+      },
+      "reader_last_band": {
+        "name": "Last band name"
       }
     },
     "binary_sensor": {

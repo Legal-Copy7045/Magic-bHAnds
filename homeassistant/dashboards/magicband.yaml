@@ -1,0 +1,189 @@
+# MagicBand management dashboard: bands, people, readers and bridges.
+# Built-in cards only; the tables find every band, person, reader and
+# bridge by themselves, so nothing needs editing as you add more.
+# Install: Settings -> Dashboards -> Add dashboard -> New dashboard from
+# scratch -> open it -> pencil -> three dots -> Raw configuration editor ->
+# replace everything with this file -> Save.
+title: MagicBand
+views:
+- title: MagicBand
+  path: magicband
+  icon: mdi:watch-variant
+  type: sections
+  max_columns: 3
+  sections:
+  - type: grid
+    cards:
+    - type: heading
+      heading: MagicBand
+      icon: mdi:watch-variant
+    - type: tile
+      entity: sensor.magicband_last_tap
+      name: Last tap
+    - type: tile
+      entity: sensor.magicband_unknown_bands
+      name: Unknown bands
+    - type: button
+      name: People & bands
+      icon: mdi:account-group
+      tap_action:
+        action: navigate
+        navigation_path: /config/integrations/integration/magicband
+    - type: button
+      name: Sync readers
+      icon: mdi:sync
+      tap_action:
+        action: perform-action
+        perform_action: magicband.sync
+        confirmation:
+          text: Send the allowed bands to every reader now?
+    - type: button
+      name: Wake bands
+      icon: mdi:bell-ring
+      tap_action:
+        action: perform-action
+        perform_action: magicband.send
+        data:
+          effect: wake
+          seconds: 10
+    - type: button
+      name: Ping bands
+      icon: mdi:access-point
+      tap_action:
+        action: perform-action
+        perform_action: magicband.send
+        data:
+          effect: ping
+    - type: button
+      name: Bluetooth
+      icon: mdi:bluetooth
+      tap_action:
+        action: navigate
+        navigation_path: /config/bluetooth
+    - type: markdown
+      content: |-
+        **Assign a band, add a person, link a band's Bluetooth:** *People & bands* → **Configure**.
+
+        Rename a band: open it below → ✏️ (the new name shows everywhere).
+  - type: grid
+    column_span: 2
+    cards:
+    - type: heading
+      heading: Bands
+      icon: mdi:watch
+    - type: markdown
+      content: |
+        {%- set svc = device_id('sensor.magicband_last_tap') -%}
+        {%- set ns = namespace(devs=[]) -%}
+        {%- for e in integration_entities('magicband') -%}
+          {%- set d = device_id(e) -%}
+          {%- if d and d != svc and d not in (ns.devs | map(attribute=1) | list) -%}{%- set ns.devs = ns.devs + [[device_attr(d, 'name_by_user') or device_attr(d, 'name'), d]] -%}{%- endif -%}
+        {%- endfor -%}
+        {%- if ns.devs | count == 0 -%}
+        No bands yet: tap one on a reader, or wait for a MagicBand+ beacon.
+        {%- else -%}
+        | Band | Owner | Last tap | Nearby | Battery | Closest |
+        |---|---|---|---|---|---|
+        {% for pair in ns.devs | sort(attribute=0) -%}
+          {%- set d = pair[1] -%}
+          {%- set b = namespace(tap=none, near=none, batt=none, close=none, owner=none, nfc=none) -%}
+          {%- for e in device_entities(d) -%}
+            {%- if state_attr(e, 'scans') is not none -%}{%- set b.tap = e -%}{%- set b.nfc = state_attr(e, 'band') -%}{%- set b.owner = b.owner or state_attr(e, 'person') -%}
+            {%- elif e.startswith('binary_sensor.') and state_attr(e, 'away_after_minutes') is not none -%}{%- set b.near = e -%}{%- set b.owner = b.owner or state_attr(e, 'person') -%}
+            {%- elif state_attr(e, 'raw') is not none and state_attr(e, 'changes') is not none -%}{%- set b.batt = e -%}
+            {%- elif state_attr(e, 'heard_in_last_20_minutes') is not none -%}{%- set b.close = e -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {%- set name = device_attr(d, 'name_by_user') or device_attr(d, 'name') -%}
+          {%- set tap = states(b.tap) if b.tap else '' -%}
+        [{{ name }}](/config/devices/device/{{ d }}){{ '<br><small>' ~ b.nfc ~ '</small>' if b.nfc else '' }} | {{ b.owner or '—' }} | {{ (relative_time(as_datetime(tap)) ~ ' ago') if tap not in ['', 'unknown', 'unavailable'] else ('never' if b.tap else '—') }} | {{ ('🟢 yes' if is_state(b.near, 'on') else '⚪ no') if b.near else 'no Bluetooth' }} | {{ (states(b.batt) ~ ' %') if b.batt and states(b.batt) not in ['unknown', 'unavailable'] else '—' }} | {{ states(b.close) if b.close and states(b.close) not in ['unknown', 'unavailable'] else '—' }}
+        {% endfor -%}
+        {%- endif -%}
+  - type: grid
+    cards:
+    - type: heading
+      heading: People
+      icon: mdi:account-multiple
+    - type: markdown
+      content: |
+        {%- set svc = device_id('sensor.magicband_last_tap') -%}
+        {%- set ns = namespace(rows=[]) -%}
+        {%- for e in device_entities(svc) if state_attr(e, 'bands') is not none and state_attr(e, 'allowed') is not none -%}
+          {%- set ns.rows = ns.rows + [[state_attr(e, 'friendly_name') | replace(' last tap', '') | replace('MagicBand ', ''), e]] -%}
+        {%- endfor -%}
+        {%- if ns.rows | count == 0 -%}
+        No people yet: **Configure → Add a person**.
+        {%- else -%}
+        | Person | Allowed in | Bands | Last tap |
+        |---|---|---|---|
+        {% for row in ns.rows | sort(attribute=0) -%}
+          {%- set e = row[1] -%}
+          {%- set bands = state_attr(e, 'bands') | map(attribute='band') | list -%}
+        {{ row[0] }}{{ ' (' ~ state_attr(e, 'ha_person') ~ ')' if state_attr(e, 'ha_person') else '' }} | {{ '✅' if state_attr(e, 'allowed') else '🚫' }} | {{ bands | count }} | {{ (relative_time(as_datetime(states(e))) ~ ' ago') if states(e) not in ['unknown', 'unavailable'] else 'never' }}
+        {% endfor -%}
+        {%- endif -%}
+  - type: grid
+    column_span: 2
+    cards:
+    - type: heading
+      heading: Readers
+      icon: mdi:nfc-variant
+    - type: markdown
+      content: |
+        {%- set ns = namespace(devs=[]) -%}
+        {%- for e in integration_entities('esphome') -%}
+          {%- set d = device_id(e) -%}
+          {%- if d and (device_attr(d, 'model') or '') == 'magicband-reader' and d not in (ns.devs | map(attribute=1) | list) -%}
+            {%- set ns.devs = ns.devs + [[device_attr(d, 'name_by_user') or device_attr(d, 'name'), d]] -%}
+          {%- endif -%}
+        {%- endfor -%}
+        {%- if ns.devs | count == 0 -%}
+        No readers yet: install one from the web installer and add it in Home Assistant.
+        {%- else -%}
+        | Reader | Status | Mode | Known bands | Last band | Firmware |
+        |---|---|---|---|---|---|
+        {% for pair in ns.devs | sort(attribute=0) -%}
+          {%- set d = pair[1] -%}
+          {%- set r = namespace(on=false, mode='—', known='—', last='—', raw='—', fw='—') -%}
+          {%- for e in device_entities(d) -%}
+            {%- if states(e) not in ['unavailable', 'unknown'] -%}{%- set r.on = true -%}{%- endif -%}
+            {%- if e.startswith('select.') and e.endswith('response_mode') -%}{%- set r.mode = states(e) -%}
+            {%- elif e.startswith('sensor.') and e.endswith('known_bands') -%}{%- set r.known = states(e) | int(0) -%}
+            {%- elif state_attr(e, 'band_id') is not none and states(e) not in ['unknown', 'unavailable'] -%}{%- set r.last = states(e) -%}
+            {%- elif e.startswith('sensor.') and (e.endswith('last_band') or e.endswith('last_band_id')) and states(e) not in ['unknown', 'unavailable'] -%}{%- set r.raw = states(e) -%}
+            {%- elif e.startswith('update.') and state_attr(e, 'installed_version') and not (state_attr(e, 'installed_version') | string).startswith('20') -%}{%- set r.fw = state_attr(e, 'installed_version') ~ (' ⬆️' if is_state(e, 'on') else '') -%}
+            {%- endif -%}
+          {%- endfor -%}
+        [{{ pair[0] }}](/config/devices/device/{{ d }}) | {{ '🟢 online' if r.on else '🔴 offline' }} | {{ r.mode }} | {{ r.known }} | {{ r.last if r.last != '—' else r.raw }} | {{ r.fw }}
+        {% endfor -%}
+        {%- endif -%}
+    - type: heading
+      heading: Bridges
+      icon: mdi:access-point-network
+    - type: markdown
+      content: |
+        {%- set ns = namespace(devs=[]) -%}
+        {%- for e in integration_entities('esphome') -%}
+          {%- set d = device_id(e) -%}
+          {%- if d and (device_attr(d, 'model') or '') in ['magicband-bridge', 'magicband-bp2-poe'] and d not in (ns.devs | map(attribute=1) | list) -%}
+            {%- set ns.devs = ns.devs + [[device_attr(d, 'name_by_user') or device_attr(d, 'name'), d]] -%}
+          {%- endif -%}
+        {%- endfor -%}
+        {%- if ns.devs | count == 0 -%}
+        No bridges yet: install one from the web installer and add it in Home Assistant.
+        {%- else -%}
+        | Bridge | Area | Status | Fast mode | Bluetooth proxy | Firmware |
+        |---|---|---|---|---|---|
+        {% for pair in ns.devs | sort(attribute=0) -%}
+          {%- set d = pair[1] -%}
+          {%- set r = namespace(on=false, fast='—', proxy='—', fw='—') -%}
+          {%- for e in device_entities(d) -%}
+            {%- if states(e) not in ['unavailable', 'unknown'] -%}{%- set r.on = true -%}{%- endif -%}
+            {%- if e.startswith('switch.') and e.endswith('fast_mode') -%}{%- set r.fast = '✅' if is_state(e, 'on') else '—' -%}
+            {%- elif e.startswith('switch.') and e.endswith('bluetooth_proxy') -%}{%- set r.proxy = '✅' if is_state(e, 'on') else 'off' -%}
+            {%- elif e.startswith('update.') and state_attr(e, 'installed_version') and not (state_attr(e, 'installed_version') | string).startswith('20') -%}{%- set r.fw = state_attr(e, 'installed_version') ~ (' ⬆️' if is_state(e, 'on') else '') -%}
+            {%- endif -%}
+          {%- endfor -%}
+        [{{ pair[0] }}](/config/devices/device/{{ d }}) | {{ area_name(d) or '—' }} | {{ '🟢 online' if r.on else '🔴 offline' }} | {{ r.fast }} | {{ r.proxy }} | {{ r.fw }}
+        {% endfor -%}
+        {%- endif -%}

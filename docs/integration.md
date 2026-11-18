@@ -77,6 +77,26 @@ model shows *MagicBand+* once Bluetooth is linked, *MagicBand* before.
 | `sensor.<band>_signal` | Signal strength of the last beacon, and per adapter or proxy (diagnostic) |
 | `sensor.<band>_battery` | Battery level in %, from its beacon, in steps (5, 15, 50, 60, 72, 80, 98, 100). A battery sensor, so it works in battery views and low-battery automations |
 
+## Management dashboard
+
+[`homeassistant/dashboards/magicband.yaml`](../homeassistant/dashboards/magicband.yaml)
+is a ready-made dashboard for everything MagicBand, in one page:
+
+- **Bands:** every band with its NFC ID, owner, last tap, nearby, battery and
+  closest bridge, linked to its device page.
+- **People:** who's allowed in, how many bands, last tap.
+- **Readers:** online, response mode, known bands, last band (by name) and
+  firmware.
+- **Bridges:** area, online, fast mode, Bluetooth proxy and firmware.
+- **Buttons:** *People & bands* (the integration's Configure screens),
+  *Sync readers*, *Wake bands*, *Ping bands*, *Bluetooth*.
+
+It uses only built-in cards, and finds every band, person, reader and bridge
+itself, so it needs no editing as you add more. To install: **Settings →
+Dashboards → Add dashboard → New dashboard from scratch**. Open it, then
+**✏️ → ⋮ → Raw configuration editor**. Replace everything with the file, and
+**Save**.
+
 ## Sending effects from automations
 
 Use **`magicband.send`**. It finds every MagicBand bridge itself (any ESPHome
