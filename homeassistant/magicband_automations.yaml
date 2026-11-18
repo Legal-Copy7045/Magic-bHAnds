@@ -18,3 +18,41 @@
     - action: script.magicband_send
       data:
         command: {effect: dual_color, inner: cyan, outer: white, vibration: 2}
+
+# A known (allowed) band tapped on the front-door reader unlocks the door;
+# it locks again if the door isn't opened within 2 minutes. Uses the
+# magicband_tap event from the MagicBand integration. Only the reader whose
+# device is named below counts, so a reader on the bench can't open the door.
+# Note: a band's NFC ID isn't secret (a phone can read it and copy it to a
+# blank tag), so this is about as secure as a basic RFID fob.
+- alias: "MagicBand: unlock the front door for a known band"
+  mode: single
+  triggers:
+    - trigger: event
+      event_type: magicband_tap
+      event_data:
+        allowed: true
+  conditions:
+    - condition: template                        # <- your reader's device name
+      value_template: "{{ trigger.event.data.reader == 'Front Door MagicBand Reader' }}"
+    - condition: state
+      entity_id: binary_sensor.front_door        # <- your door contact
+      state: "off"
+  actions:
+    - action: lock.unlock
+      target:
+        entity_id: lock.front_door               # <- your lock
+    - action: notify.notify
+      data:
+        message: "🔓 Front door unlocked by {{ trigger.event.data.person }}'s MagicBand"
+    - wait_for_trigger:
+        - trigger: state
+          entity_id: binary_sensor.front_door
+          to: "on"
+      timeout: "00:02:00"
+      continue_on_timeout: true
+    - if: "{{ wait.trigger is none }}"
+      then:
+        - action: lock.lock
+          target:
+            entity_id: lock.front_door
