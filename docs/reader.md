@@ -141,6 +141,22 @@ the reader's device page in Home Assistant, under **Configuration**, set:
 - **Idle glow** (0–100 %, default 30 %): the white glow while waiting for a
   band; 0 turns the ring off between taps.
 
+**The tap sequence** is set the same way, under **Configuration**:
+
+| Setting | Default | What it does |
+|---|---|---|
+| **Checking colour** | White | Colour of the circles that chase round the ring while a band is checked |
+| **Checking circles** | 2 | How many circles before the result shows |
+| **Circle time** | 0.5 s | How long one circle takes (0.2–2 s) |
+| **Welcome colour** | Green | Colour of the welcome pulse |
+| **Welcome pulses** | 1 | How many times it pulses for a welcomed band |
+| **Denied colour** | Red | Colour of the denied pulse |
+| **Denied pulses** | 2 | How many times it pulses for a band it doesn't let in |
+| **Pulse time** | 0.45 s | How long one pulse (fade up and down) takes; pulses are a third of that apart |
+
+Colours: White, Warm white, Red, Orange, Yellow, Green, Cyan, Blue,
+Purple, Pink, Magenta. **LED brightness** scales them all.
+
 **Customising further** (sounds, pins): in the ESPHome Device Builder the
 reader shows up with **Take control**, which imports
 `esphome/magicband-reader.yaml` as a package; change its substitutions

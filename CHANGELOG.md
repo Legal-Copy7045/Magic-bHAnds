@@ -3,6 +3,15 @@
 All notable changes to Magic bHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.9.9] - 2026-11-18
+
+### Reader
+- **The tap sequence is configurable** on the reader's device page
+  (Configuration): **Checking colour**, **Checking circles**, **Circle
+  time**, **Welcome colour**, **Welcome pulses**, **Denied colour**,
+  **Denied pulses** and **Pulse time**. Defaults match 0.9.8: two white
+  circles, one green pulse, two red pulses.
+
 ## [0.9.8] - 2026-11-18
 
 ### Reader
