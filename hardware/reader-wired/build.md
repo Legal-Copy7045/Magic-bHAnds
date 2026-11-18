@@ -46,9 +46,10 @@ interface board is a **400-point half breadboard** at the same holes, and the
 ESP32 stays in its **screwless terminal holder** (or uses female-to-male
 jumpers on its pins). See the [compact diagram](../../docs/reader-compact.svg).
 
-**Tested** (18 Nov 2026) up to sound: power, the NFC reader (bands read,
-known bands welcomed, unknown denied) and the amplifier at 100 %, all on
-USB power. The ring and the USB-C PD supply are still to be tested.
+**Tested** (18 Nov 2026): power, the NFC reader (bands read, known bands
+welcomed, unknown denied) and the amplifier at 100 %, first on USB, then on
+the USB-C PD supply with the hubs (lowest reading under load: 4.95 V). Only
+the ring is still to be tested.
 
 ### What you need
 
@@ -241,7 +242,9 @@ Leave the amplifier's 5 V (**L+ → f24**) off for now.
     **crackles at any volume** on the PD supply.
   - The ESP32's 5 V wire in the hub is now the one to unclip before
     using USB.
-  - Then run the full-volume load test (Part 5, stage 4).
+  - Then run the full-volume load test (Part 5, stage 4). Tested: repeated
+    taps at 100 % volume, the 5 V hub never fell below **4.95 V**, the sound
+    stayed clean, and nothing restarted or got warm.
 
 ### Other tag automations
 

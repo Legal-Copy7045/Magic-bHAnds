@@ -128,8 +128,8 @@ it on `main`. It tags `v<VERSION>` and publishes the GitHub Release.
 - This is for home tinkering. Don't run it anywhere near the parks.
 - The reader builds have been reviewed against the parts' datasheets. The
   [compact build](hardware/reader-wired/build.md#compact-solderless-version)
-  has been built and tested up to sound (power, NFC, amplifier); the ring
-  and the USB-C PD supply are next. The other builds are not yet built.
+  has been built and tested on the USB-C PD supply (power, NFC, sound, load
+  test); the ring is next. The other builds are not yet built.
   Follow each build's staged tests, which check voltages before anything is
   connected to the ESP32.
 
