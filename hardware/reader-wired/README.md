@@ -176,7 +176,7 @@ What changes from point-to-point:
 | Amplifier's cable | LRC **h17**, BCLK **h18**, DIN **h19**, GND **h23**, VIN **h24** (by the labels on the amplifier) |
 | 100 µF for the amplifier | **g23** (stripe, −) to **g24** (+) |
 | Amplifier power from the hubs | 5 V hub → **f24**, GND hub → **f23** (not via the rails) |
-| PN532 | Male-to-female jumpers: SDA **c6**, SCL **c7**, VCC **L+4**, GND **L−3** |
+| PN532 | Male-to-female jumpers: SDA **c6**, SCL **c7**, VCC **L+4**, GND **L−3**. Or, as on the tested build, its soldered right-angle header straight into **a24–a27** (GND, VCC, SDA, SCL), then jumpers from those rows to L−, L+, c6 and c7 |
 
 Everything else (the hubs, the ring, the PD trigger) is as above. The rails
 carry the ESP32, PN532 and level shifter (≤ 0.7 A, as on the full

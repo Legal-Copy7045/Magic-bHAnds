@@ -17,7 +17,7 @@ it to check each later build.
 | 1 | **Breadboard** | **[Build it](reader-breadboard/build.md)** | [Spec](reader-breadboard/README.md), [diagram](../docs/reader-breadboard.svg) | Large | The ring's wires only | Reviewed, first build |
 | 2 | **Lonely Binary terminal base** | **[Build it](reader-wired/build.md)** | [Spec](reader-wired/README.md), [diagram](../docs/reader-terminal-base.svg) | Medium | Interface board, amplifier power, two power wires | Reviewed, not built |
 | 3 | **Point-to-point wiring** | **[Build it](reader-wired/build.md)** | [Spec](reader-wired/README.md), [diagram](../docs/reader-point-to-point.svg) | Small | Interface board, every joint | Reviewed, not built |
-| 3a | **Compact (solderless)**: point-to-point on a 400-point half breadboard | **[Build it](reader-wired/build.md#compact-solderless-version)** | [Spec](reader-wired/README.md#compact-solderless-version), [diagram](../docs/reader-compact.svg) | Small | The ring's wires only | Reviewed, not built |
+| 3a | **Compact (solderless)**: point-to-point on a 400-point half breadboard | **[Build it](reader-wired/build.md#compact-solderless-version)** | [Spec](reader-wired/README.md#compact-solderless-version), [diagram](../docs/reader-compact.svg) | Small | The PN532 header and the ring's wires only | **Built and tested up to sound** (power, NFC, amplifier); ring and PD supply next |
 
 All of them use a dev board (ESP32-S3-DevKitC-1 layout, such as the Lonely
 Binary N16R8) and install from the web installer's *Install the reader*

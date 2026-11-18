@@ -3,6 +3,15 @@
 All notable changes to Magic bHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [Unreleased]
+
+### Hardware
+- **Compact build tested** up to sound: power, NFC (bands read, known
+  welcomed, unknown denied) and the amplifier at 100 %, on USB power. Its
+  section in the wired build guide is now the tested step-by-step, with
+  the checks and readings from the build, and a note on other tag
+  automations reacting to band taps.
+
 ## [0.9.7] - 2026-11-18
 
 ### Fixed

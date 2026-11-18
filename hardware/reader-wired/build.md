@@ -41,25 +41,211 @@ If you're reusing the breadboard's parts: the PD trigger (already at
 
 ## Compact (solderless) version
 
-To build the point-to-point version **without soldering** (see the
-[compact diagram](../../docs/reader-compact.svg)):
+The point-to-point build with **nothing soldered on the breadboard**: the
+interface board is a **400-point half breadboard** at the same holes, and the
+ESP32 stays in its **screwless terminal holder** (or uses female-to-male
+jumpers on its pins). See the [compact diagram](../../docs/reader-compact.svg).
 
-- **Part 2:** put the parts and links into a **400-point half breadboard**
-  instead of soldering them, at the same holes. Use male-to-male jumpers for
-  the links. Do the continuity check in step 3 the same way.
-- **Step 4:** instead of soldered wires, use jumpers from those holes; the
-  PN532 gets male-to-female jumpers from c6, c7, L+4 and L−3.
-- **Step 3B:** female-to-male jumpers from the ESP32's pins straight into the
-  board: 3V3 → c2, GPIO8 → d6, GPIO9 → d7, GPIO10 → d11, **5V → L+28,
-  GND → L−29** (the 5V one is the jumper to pull before using USB).
-- **Step 7, the amplifier:** no soldering. GPIO5/6/7 → **f17/f18/f19**; its
-  cable into **h17** LRC, **h18** BCLK, **h19** DIN, **h23** GND, **h24** VIN;
-  the 100 µF stripe in **g23**, other leg in **g24**; 5 V hub → **f24**,
-  GND hub → **f23**.
-- **Step 6, the hubs:** port 5 (the ESP32's power) is free: the ESP32 takes
-  its power from the board's rails.
+**Tested** (18 Nov 2026) up to sound: power, the NFC reader (bands read,
+known bands welcomed, unknown denied) and the amplifier at 100 %, all on
+USB power. The ring and the USB-C PD supply are still to be tested.
 
-Everything else, including the staged tests, is the same.
+### What you need
+
+The parts in [Before you start](#before-you-start), minus the Perma-Proto,
+plus:
+
+- a **400-point half breadboard**;
+- **male-to-male** jumpers;
+- **male-to-female** jumpers. If you only have male-to-male and
+  female-to-female, push one into the other to make one;
+- a soldering iron, for the PN532's header only;
+- a multimeter.
+
+Until the ring, the PD trigger and the lever connectors are fitted, it runs
+from the **ESP32's own USB port**. On USB alone the board's 5V pin feeds the
+breadboard's rails (about 4.6–4.9 V). Never connect the USB-C charger or PD
+trigger at the same time.
+
+### 1. Flash the ESP32
+
+Install from the [web installer](https://legal-copy7045.github.io/Magic-bHAnds/)
+over the **UART** port, enter Wi-Fi, add the reader in Home Assistant, and
+turn on **Allow the device to perform Home Assistant actions** (ESPHome →
+the reader → Configure). Set **LED count** under the reader's
+**Configuration** once it's online.
+
+### 2. Solder the PN532's header
+
+1. Use the **4-pin** right-angle header in the holes marked **GND, VCC,
+   SDA, SCL**. Leave the 8-pin row (SPI) empty.
+2. Push the short legs in from the **top** (the side with the labels and the
+   chip). The plastic strip sits on top; the long legs point straight out
+   past the board's edge.
+3. Solder on the **bottom**: one pin first, check the header sits square,
+   then the other three.
+4. Check with the meter on continuity: **GND–VCC, VCC–SDA, SDA–SCL** must
+   not beep.
+5. Set the mode switches: **1 ON, 2 OFF** (I²C).
+
+### 3. Check the breadboard
+
+- Row 1 at the top, columns **a–e** left and **f–j** right.
+- **L+ / L−** are the left-hand **+** and **−** rails, **R+ / R−** the
+  right-hand ones (go by the colour markings).
+- Each rail beeps from top to bottom.
+- **a5–e5** beeps; **e5–f5** (across the middle gap) doesn't.
+- A 400-point board's rails have 25 holes in groups of 5, so they don't line
+  up with the row numbers. Any hole on the right rail will do: "L−10" means
+  the left − rail, near row 10.
+
+### 4. Pull-up resistors
+
+- 4.7 kΩ (yellow, violet, red) from **a2 to a6**, and another from
+  **b2 to b7**, lying flat.
+- Check: **c2–c6** and **c2–c7** read about **4.7 kΩ**, **c6–c7** about
+  **9.4 kΩ**.
+
+### 5. Level-shifter links (chip not fitted yet)
+
+| Left side | Right side | Rails |
+|---|---|---|
+| a10 → L− | j9 → R− | **L+20 → R+20** |
+| a13 → L+ | j10 → R+ | **L−21 → R−21** |
+| a14 → L− | j11 → R+ | |
+| a16 → L− | j12 → R− | |
+| | j14 → R+ | |
+| | j15 → R− | |
+
+Fit **0.1 µF** across **h9–h10**: a ceramic "104" either way round, or a
+0.1 µF electrolytic with its **stripe in h9**.
+
+### 6. Check the links
+
+Meter on continuity:
+
+- **To L−** (beep): e10, e14, e16, f12, f15, h9.
+- **To L+** (beep): e13, f10, f11, f14, h10.
+- **L+–R+** and **L−–R−** beep (the rail bridges).
+- **L+–L−** gives no steady beep (a short chirp from the capacitor is fine).
+
+If the right-hand ground holes (f12, f15, h9) don't beep, the **L−21 → R−21**
+bridge is missing.
+
+### 7. Fit the 74AHCT125
+
+- Straighten its legs against the table first.
+- Fit it **notch towards row 1** with **pin 1 in e10**: pins 1–7 down
+  column e (rows 10–16), pins 14–8 down column f.
+- Press it in evenly, and check no leg has folded under.
+
+### 8. Connect the ESP32 (USB unplugged)
+
+From the holder's terminals with male-to-male jumpers (press the terminal's
+release, push the pin in, let go, tug to check), or from the ESP32's pins
+with male-to-female jumpers. Go by the printed labels:
+
+| ESP32 | Breadboard |
+|---|---|
+| **3V3** | **c2** (any of a2–e2 is the same connection) |
+| **8** | **d6** |
+| **9** | **d7** |
+| **10** | **d11** |
+| **5V** | **L+**, near row 28 |
+| **GND** (any) | **L−**, near row 29 |
+
+### 9. Power up
+
+1. With USB unplugged, check: **L+–L−** gives no steady beep; **c2–L+**
+   doesn't beep; **c2–L−** gives no steady beep.
+2. Plug USB into the ESP32's **UART** port.
+3. Measure: **L+–L−** about 4.6–4.9 V; **c2–L−** 3.2–3.4 V.
+4. The reader shows **online** in Home Assistant.
+
+### 10. PN532: check it before connecting its data lines
+
+1. USB unplugged. Plug the PN532's header legs into **a24–a27**, one per
+   row; it stands on its edge. Note which row each pin landed in (here
+   **GND 24, VCC 25, SDA 26, SCL 27**).
+2. Jumpers: **GND row → L−**, **VCC row → L+**. Leave SDA and SCL loose.
+3. Plug USB in and measure to L−: VCC about 4.6–4.9 V, **SDA and SCL below
+   3.6 V** (2.3 V and 1.1 V on the tested board).
+   - **Near 5 V: stop.** That module would damage the ESP32.
+
+### 11. PN532: data lines
+
+1. USB unplugged. Jumpers: **SDA row → c6**, **SCL row → c7**.
+2. Plug USB in. This restarts the reader, which only looks for the PN532 at
+   start-up.
+3. **c6** and **c7** read 3.2–3.4 V to L−.
+4. Logs: **Found i2c device at address 0x24**, and no `Error sending version
+   command`.
+5. Tap a band flat on the PN532's antenna. **Last band** shows its ID, and a
+   band nobody owns is **denied** (error sound).
+
+### 12. Let a band in
+
+1. **Settings → Devices & services → MagicBand → Configure → Add or assign
+   a band**: pick the band, choose its owner, submit.
+2. The reader's **Known bands** goes up by one within seconds.
+3. Tap again: **welcomed**.
+
+Linking the band's Bluetooth side (**Configure → Link a band's Bluetooth**)
+passes ownership across if the NFC band has no owner yet. Linking alone
+used to drop it, before 0.9.7.
+
+### 13. Amplifier (USB unplugged)
+
+| Connection | Holes |
+|---|---|
+| ESP32 **5** / **6** / **7** | **f17** / **f18** / **f19** |
+| 100 µF | **stripe in g23**, other leg **g24** |
+| Ground | **L− → f23** |
+| Amplifier cable (by the labels on the amplifier) | **LRC h17**, **BCLK h18**, **DIN h19**, **GND h23**, **VIN h24** |
+| Speaker | into the amplifier's 2-pin socket |
+
+Leave the amplifier's 5 V (**L+ → f24**) off for now.
+
+### 14. Power up the amplifier
+
+1. With USB unplugged, check: **f23–L−** beeps; **f24–L−** gives no steady
+   beep; **f17, f18, f19** don't beep to L−.
+2. Plug USB in. Set the reader's **Speaker** volume to about 30 %.
+3. Fit **L+ → f24** with it running. **f24–L−** reads about 4.6–4.9 V.
+4. Tap a band: tap-in sound (known) or error sound (unknown).
+5. Raise the volume a step at a time. On the tested build, 100 % ran from a
+   USB supply without the reader restarting. If yours restarts, step back
+   down until the PD supply is fitted.
+
+### Still to come
+
+- **The ring:** solder its wires with the 470 Ω at DIN and the 1000 µF
+  across its pads ([breadboard step 5](../reader-breadboard/build.md#step-5-wire-the-led-ring)),
+  then connect its data to **c12** through the 470 Ω, and its power to the
+  hubs.
+- **Power:** set the PD trigger to 5 V, then make up the two lever-connector
+  hubs. Then:
+  - Move the amplifier's **f23/f24** feeds onto the hubs.
+  - Feed the rails from the hubs: **5 V hub → L+25**, **GND hub → L−26**.
+  - Remove the ESP32's USB, then run the full-volume load test (Part 5,
+    stage 4).
+
+### Other tag automations
+
+Every tap is a Home Assistant **tag scan**, so any automation that triggers
+on *any* `tag_scanned` event (for example, one that logs NFC tags around the
+house) will run for band taps too. Make it ignore readers with this
+condition:
+
+```yaml
+conditions:
+  - condition: template
+    value_template: >-
+      {% set d = trigger.event.data.device_id %}{{ not d or 'magicband' not in (device_attr(d, 'model') or '') }}
+```
+
+The `not d` part matters: `device_attr` raises an error when a scan has no
+device.
 
 ## Part 1: parts shared with the breadboard
 
