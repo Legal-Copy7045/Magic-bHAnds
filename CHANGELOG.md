@@ -12,6 +12,9 @@ Home Assistant integration share one version number.
   on the next start. Unchanged: the `magicband` domain and actions,
   entity IDs (the hub's sensors keep `sensor.magicband_…`), and the names
   of the bands, bridges and readers themselves.
+- The project itself is **MagicbHAnds** too: README, docs, web installer,
+  release titles, and a new logo (light and dark, and the integration's
+  brand images). The repository name and its URLs are unchanged.
 
 ## [0.9.11] - 2026-11-18
 
