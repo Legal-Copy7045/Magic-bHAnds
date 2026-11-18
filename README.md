@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/images/logo-dark.png">
-    <img src="docs/images/logo.png" alt="Magic bHAnds" width="520">
+    <img src="docs/images/logo.png" alt="MagicbHAnds" width="520">
   </picture>
 </p>
 
@@ -11,7 +11,7 @@
   <a href="https://hacs.xyz"><img alt="HACS" src="https://img.shields.io/badge/HACS-custom-blue"></a>
 </p>
 
-Magic bHAnds brings Disney MagicBands into **Home Assistant**. It has two
+MagicbHAnds brings Disney MagicBands into **Home Assistant**. It has two
 parts, which you can use separately or together, plus a Home Assistant
 integration that ties them up.
 

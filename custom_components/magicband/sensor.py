@@ -25,7 +25,7 @@ def _device(entry: MagicBandConfigEntry) -> DeviceInfo:
     return DeviceInfo(
         identifiers={(DOMAIN, entry.entry_id)},
         name="MagicbHAnds",
-        manufacturer="Magic bHAnds",
+        manufacturer="MagicbHAnds",
         entry_type=DeviceEntryType.SERVICE,
     )
 

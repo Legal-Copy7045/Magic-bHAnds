@@ -160,5 +160,5 @@ jobs:
           find firmware -name '*.bin' | while read -r f; do
             cp "$f" "./$(basename "${f%.bin}")-$V.bin"
           done
-          gh release create "$TAG" --target "$GITHUB_SHA" --title "Magic bHAnds $V" --notes-file notes.md \
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "MagicbHAnds $V" --notes-file notes.md \
             magicband-integration-$V.zip ./*-$V.bin
