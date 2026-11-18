@@ -11,6 +11,9 @@ What changes compared with the factory firmware:
 - **Kept:** Ethernet, the Bluetooth proxy (active, 4 connections,
   1100 ms continuous scanning), the Identify LED, the diagnostic sensors, and
   the Reboot, Safe Mode Boot and Factory Reset buttons.
+- **Added:** a **Bluetooth proxy** switch (under Configuration), the same as
+  the MagicBand Bridge's. It's on by default, so the board stays a proxy unless
+  you turn it off.
 - **Re-created:** the Scan Interval and Scan Window numbers, with the same
   names and defaults (1100 ms, 1100 ms). The code behind them is ours,
   because SCREEK's isn't published. Changing one briefly restarts scanning.
