@@ -194,7 +194,7 @@ views:
         |---|---|---|---|---|---|
         {% for pair in ns.devs | sort(attribute=0) -%}
           {%- set d = pair[1] -%}
-          {%- set r = namespace(on=false, fast='—', proxy='—', fw='—') -%}
+          {%- set r = namespace(on=false, fast='—', proxy=('✅ always' if device_attr(d, 'model') == 'magicband-bp2-poe' else 'off'), fw='—') -%}
           {%- for e in device_entities(d) -%}
             {%- if states(e) not in ['unavailable', 'unknown'] -%}{%- set r.on = true -%}{%- endif -%}
             {%- if e.startswith('switch.') and e.endswith('fast_mode') -%}{%- set r.fast = '✅' if is_state(e, 'on') else '—' -%}
