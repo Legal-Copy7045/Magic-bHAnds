@@ -3,6 +3,15 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [Unreleased]
+
+### Hardware
+- **Compact build tested on the USB-C PD supply** with the Wago hubs. The
+  guide's hub port table is the tested one, and a fix is added: keep a short
+  ground jumper from the ESP32 to the breadboard (and from L− to the
+  amplifier's ground row) as well as the hub wires, or the sound crackles.
+  The wired builds' guide says the same.
+
 ## [0.9.12] - 2026-11-18
 
 ### Integration
