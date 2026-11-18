@@ -19,7 +19,7 @@
 substitutions:
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.9.4"
+  project_version: "0.9.5"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -52,6 +52,8 @@ esphome:
   on_boot:
     priority: -100
     then:
+      # Everything is set up now, so the ring's settings can be applied.
+      - globals.set: {id: ring_ready, value: "true"}
       - script.execute: apply_ring_settings
       - script.execute: reader_idle
       - if:
@@ -259,6 +261,11 @@ media_player:
 # Behaviour
 # ---------------------------------------------------------------------------
 globals:
+  # False until boot has finished. The LED settings restore their values during
+  # set-up, before the ring's driver is ready; touching the ring then crashes.
+  - id: ring_ready
+    type: bool
+    initial_value: "false"
   - id: decision          # 0 = waiting, 1 = accept, 2 = deny
     type: int
     initial_value: "0"
@@ -297,8 +304,12 @@ select:
       - "GRB"
       - "RGB"
     on_value:
-      - script.execute: apply_ring_settings
-      - script.execute: reader_idle
+      - if:
+          condition:
+            lambda: 'return id(ring_ready);'
+          then:
+            - script.execute: apply_ring_settings
+            - script.execute: reader_idle
 
 number:
   - platform: template
@@ -314,8 +325,12 @@ number:
     step: 1
     mode: box
     on_value:
-      - script.execute: apply_ring_settings
-      - script.execute: reader_idle
+      - if:
+          condition:
+            lambda: 'return id(ring_ready);'
+          then:
+            - script.execute: apply_ring_settings
+            - script.execute: reader_idle
   # Scales everything the ring shows (spin, welcome, deny, idle glow, and the
   # Ring light in Home Assistant). On top of the automatic power cap.
   - platform: template
@@ -332,8 +347,12 @@ number:
     unit_of_measurement: "%"
     mode: slider
     on_value:
-      - script.execute: apply_ring_settings
-      - script.execute: reader_idle
+      - if:
+          condition:
+            lambda: 'return id(ring_ready);'
+          then:
+            - script.execute: apply_ring_settings
+            - script.execute: reader_idle
   # The soft white glow while waiting for a band; 0 turns it off.
   - platform: template
     id: idle_glow
@@ -349,7 +368,11 @@ number:
     unit_of_measurement: "%"
     mode: slider
     on_value:
-      - script.execute: reader_idle
+      - if:
+          condition:
+            lambda: 'return id(ring_ready);'
+          then:
+            - script.execute: reader_idle
 
 switch:
   - platform: template
@@ -403,6 +426,7 @@ script:
   - id: apply_ring_settings
     then:
       - lambda: |-
+          if (!id(ring_ready)) return;  // not before boot has finished (see ring_ready)
           auto *out = static_cast<esp32_rmt_led_strip::ESP32RMTLEDStripLightOutput *>(id(ring).get_output());
           int n = static_cast<int>(id(ring_count).state);
           if (n < 1 || n > ${ring_max_leds}) n = ${ring_leds};
