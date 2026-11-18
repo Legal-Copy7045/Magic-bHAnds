@@ -17,6 +17,8 @@ views:
     - type: heading
       heading: MagicBand
       icon: mdi:watch-variant
+      grid_options:
+        columns: full
     - type: tile
       entity: sensor.magicband_last_tap
       name: Last tap
@@ -65,12 +67,16 @@ views:
         **Assign a band, add a person, link a band's Bluetooth:** *People & bands* → **Configure**.
 
         Rename a band: open it below → ✏️ (the new name shows everywhere).
+      grid_options:
+        columns: full
   - type: grid
     column_span: 2
     cards:
     - type: heading
       heading: Bands
       icon: mdi:watch
+      grid_options:
+        columns: full
     - type: markdown
       content: |
         {%- set svc = device_id('sensor.magicband_last_tap') -%}
@@ -99,11 +105,15 @@ views:
         [{{ name }}](/config/devices/device/{{ d }}){{ '<br><small>' ~ b.nfc ~ '</small>' if b.nfc else '' }} | {{ b.owner or '—' }} | {{ (relative_time(as_datetime(tap)) ~ ' ago') if tap not in ['', 'unknown', 'unavailable'] else ('never' if b.tap else '—') }} | {{ ('🟢 yes' if is_state(b.near, 'on') else '⚪ no') if b.near else 'no Bluetooth' }} | {{ (states(b.batt) ~ ' %') if b.batt and states(b.batt) not in ['unknown', 'unavailable'] else '—' }} | {{ states(b.close) if b.close and states(b.close) not in ['unknown', 'unavailable'] else '—' }}
         {% endfor -%}
         {%- endif -%}
+      grid_options:
+        columns: full
   - type: grid
     cards:
     - type: heading
       heading: People
       icon: mdi:account-multiple
+      grid_options:
+        columns: full
     - type: markdown
       content: |
         {%- set svc = device_id('sensor.magicband_last_tap') -%}
@@ -122,12 +132,16 @@ views:
         {{ row[0] }}{{ ' (' ~ state_attr(e, 'ha_person') ~ ')' if state_attr(e, 'ha_person') else '' }} | {{ '✅' if state_attr(e, 'allowed') else '🚫' }} | {{ bands | count }} | {{ (relative_time(as_datetime(states(e))) ~ ' ago') if states(e) not in ['unknown', 'unavailable'] else 'never' }}
         {% endfor -%}
         {%- endif -%}
+      grid_options:
+        columns: full
   - type: grid
     column_span: 2
     cards:
     - type: heading
       heading: Readers
       icon: mdi:nfc-variant
+      grid_options:
+        columns: full
     - type: markdown
       content: |
         {%- set ns = namespace(devs=[]) -%}
@@ -157,9 +171,13 @@ views:
         [{{ pair[0] }}](/config/devices/device/{{ d }}) | {{ '🟢 online' if r.on else '🔴 offline' }} | {{ r.mode }} | {{ r.known }} | {{ r.last if r.last != '—' else r.raw }} | {{ r.fw }}
         {% endfor -%}
         {%- endif -%}
+      grid_options:
+        columns: full
     - type: heading
       heading: Bridges
       icon: mdi:access-point-network
+      grid_options:
+        columns: full
     - type: markdown
       content: |
         {%- set ns = namespace(devs=[]) -%}
@@ -187,3 +205,5 @@ views:
         [{{ pair[0] }}](/config/devices/device/{{ d }}) | {{ area_name(d) or '—' }} | {{ '🟢 online' if r.on else '🔴 offline' }} | {{ r.fast }} | {{ r.proxy }} | {{ r.fw }}
         {% endfor -%}
         {%- endif -%}
+      grid_options:
+        columns: full
