@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1340 1080" width="1340" height="1080" role="img" aria-label="MagicBand Reader point-to-point wiring">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1340 1100" width="1340" height="1100" role="img" aria-label="MagicBand Reader point-to-point wiring">
 <style>
 .bg{fill:#ffffff} .title{font:700 22px Inter,system-ui,sans-serif;fill:#1d1b16} .sub{font:500 13px Inter,system-ui,sans-serif;fill:#5c5a52}
-.perma{fill:#1d3f86;stroke:#122a5c;stroke-width:1.5} .pchan{fill:#173570} .pad{fill:#e3c167;stroke:#9d7f2c;stroke-width:.8}
+.perma{fill:#1d3f86;stroke:#122a5c;stroke-width:1.5} .bboard{fill:#f2f1ea;stroke:#cfccbf;stroke-width:1.5} .bcap{font:600 11px Inter,system-ui,sans-serif;fill:#5c5a52} .bchan{fill:#e2e0d4} .bhole{fill:#a7a497} .dark{fill:#6b695f} .pchan{fill:#173570} .pad{fill:#e3c167;stroke:#9d7f2c;stroke-width:.8}
 .rail{stroke-width:2.4;opacity:.8} .rail.pos{stroke:#ff6b6b} .rail.neg{stroke:#9fb8ff}
 .railsym,.collbl,.rowlbl,.pinno{font:600 10px ui-monospace,Menlo,Consolas,monospace;fill:#cfdcff}
 .tag{stroke-width:1.5} .p5tag{fill:#fdecec;stroke:#d62f2f} .gndtag{fill:#ececee;stroke:#222} .p33tag{fill:#fff1df;stroke:#ef8a17} .sdatag{fill:#e6f3fb;stroke:#1f8fd6} .scltag{fill:#e8f5ec;stroke:#2e9a4f} .ledtag{fill:#fff8d6;stroke:#d6a900}
@@ -38,7 +38,7 @@
 .led{stroke:#d6a900;fill:#d6a900} .spkw{stroke:#8a8a8a;fill:#8a8a8a}
 polyline.w{fill:none}
 </style>
-<rect width="1340" height="1080" class="bg"/>
+<rect width="1340" height="1100" class="bg"/>
 <text x="24.0" y="34.0" class="title" text-anchor="start" >MagicBand Reader: point-to-point build (ring only)</text>
 <text x="24.0" y="54.0" class="sub" text-anchor="start" >Hole names (c2, L+25 …) match hardware/reader-wired/README.md. Adafruit product numbers in brackets.</text>
 <rect x="624" y="116" width="304" height="534" rx="8" class="perma"/>
@@ -805,7 +805,7 @@ polyline.w{fill:none}
 <text x="978.0" y="650.0" class="markno" text-anchor="middle" >6</text>
 <circle cx="962.0" cy="352.0" r="9" class="mark"/>
 <text x="962.0" y="356.0" class="markno" text-anchor="middle" >7</text>
-<rect x="24" y="690" width="520" height="374" rx="10" class="notes"/>
+<rect x="24" y="690" width="520" height="394" rx="10" class="notes"/>
 <text x="38.0" y="714.0" class="modname2" text-anchor="start" >Numbered points</text>
 <circle cx="48.0" cy="734.0" r="9" class="mark"/>
 <text x="48.0" y="738.0" class="markno" text-anchor="middle" >1</text>

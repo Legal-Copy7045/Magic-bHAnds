@@ -3,6 +3,13 @@
 All notable changes to Magic bHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [Unreleased]
+
+### Hardware
+- **Compact (solderless) build:** the point-to-point layout on a 400-point
+  half breadboard with jumpers, with its own diagram
+  (`docs/reader-compact.svg`) and steps in the wired build guide.
+
 ## [0.9.5] - 2026-11-18
 
 ### Fixed
