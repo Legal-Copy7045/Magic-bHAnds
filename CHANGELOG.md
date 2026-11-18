@@ -3,6 +3,15 @@
 All notable changes to Magic bHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.9.5] - 2026-11-18
+
+### Fixed
+- **Reader boot loop** (crash at start-up, then safe mode after 10 tries).
+  The LED count, colour order, brightness and idle glow settings restore
+  their values during set-up and then touched the ring before its driver
+  was ready. They now wait until boot has finished. Readers in safe mode
+  need reinstalling once over USB from the web installer.
+
 ## [0.9.4] - 2026-11-17
 
 ### Integration
