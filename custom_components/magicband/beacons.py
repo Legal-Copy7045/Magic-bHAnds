@@ -395,9 +395,18 @@ class BeaconTracker:
 
     @callback
     def link(self, band: BluetoothBand, *, nfc_uid: str | None = None, person_id: str | None = None) -> None:
-        """Link to an NFC band (taking its owner) or give to a person; both None = unlink."""
+        """Link to an NFC band (taking its owner) or give to a person; both None = unlink.
+
+        Linking: the NFC band's owner wins. If the NFC band has no owner yet,
+        the Bluetooth band's person becomes its owner, so linking never drops
+        who a band belongs to (and the readers' allowed list follows).
+        """
         if nfc_uid is not None:
             key = normalize_uid(nfc_uid)
+            nfc = self.registry.get_band(key)
+            if nfc is not None and nfc.person_id is None and band.person_id is not None:
+                self.registry.assign_band(key, band.person_id)
+                persistent_notification.async_dismiss(self.hass, f"{DOMAIN}_unknown_{key}")
             for other in self.bands.values():
                 if other is not band and other.band_uid == key:
                     other.band_uid = None

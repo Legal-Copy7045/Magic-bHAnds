@@ -3,6 +3,15 @@
 All notable changes to Magic bHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.9.7] - 2026-11-18
+
+### Fixed
+- **Linking dropped the owner.** Linking a Bluetooth band that belonged to
+  someone to an NFC band that didn't yet belong to anyone left the band with
+  no owner, so readers denied it. The NFC band now takes the Bluetooth
+  band's owner (if it already has an owner, that one is kept), and readers
+  get the updated allowed list straight away.
+
 ## [0.9.6] - 2026-11-18
 
 ### Integration
