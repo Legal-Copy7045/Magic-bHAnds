@@ -11,7 +11,7 @@
 substitutions:
   name: screek-bp2-poe
   friendly_name: SCREEK BP2-POE
-  project_version: "0.9.10"
+  project_version: "0.9.11"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/bp2/manifest.json
 
 packages:
@@ -81,8 +81,9 @@ ethernet:
   reset_pin: GPIO9
   clock_speed: 25MHz
 
-# Bluetooth proxy: always on, as on the factory firmware (continuous active
-# scanning, 1100 ms interval and window, 4 connection slots). Band broadcasts
+# Bluetooth proxy: on by default, as on the factory firmware (active
+# scanning, 1100 ms interval and window, 4 connection slots), with the same
+# "Bluetooth proxy" switch as the MagicBand Bridge to turn it off. Band broadcasts
 # share the radio with this scanning. The Scan Interval / Scan Window entities
 # below adjust it at runtime. Active or passive scanning is set by Home
 # Assistant: ESPHome integration -> this device -> Configure -> Bluetooth
@@ -94,7 +95,7 @@ esp32_ble_tracker:
     interval: 1100ms
     window: 1100ms
     active: true
-    continuous: true
+    continuous: false   # started by the "Bluetooth proxy" switch (on by default)
 
 bluetooth_proxy:
   active: true
@@ -136,10 +137,15 @@ script:
           // Active or passive scanning is Home Assistant's choice: ESPHome
           // integration -> this device -> Configure -> Bluetooth scanning mode.
           ESP_LOGI("scan", "Apply BLE scan: interval=%.0fms window=%.0fms", interval, window);
-      - esp32_ble_tracker.stop_scan:
-      - delay: 500ms
-      - esp32_ble_tracker.start_scan:
-          continuous: true
+      # Restart scanning to apply, unless the proxy is switched off.
+      - if:
+          condition:
+            switch.is_on: proxy_switch
+          then:
+            - esp32_ble_tracker.stop_scan:
+            - delay: 500ms
+            - esp32_ble_tracker.start_scan:
+                continuous: true
 
 number:
   - platform: template
@@ -172,6 +178,22 @@ number:
     restore_value: true
     on_value:
       - script.execute: apply_scan_settings
+
+switch:
+  # Same as the MagicBand Bridge's: turns the Bluetooth proxy (scanning) on
+  # or off. On by default here, as on the factory firmware.
+  - platform: template
+    id: proxy_switch
+    name: "Bluetooth proxy"
+    icon: mdi:bluetooth-connect
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    turn_on_action:
+      - esp32_ble_tracker.start_scan:
+          continuous: true
+    turn_off_action:
+      - esp32_ble_tracker.stop_scan:
 
 sensor:
   - platform: internal_temperature

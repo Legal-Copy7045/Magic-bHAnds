@@ -3,6 +3,14 @@
 All notable changes to Magic bHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.9.11] - 2026-11-18
+
+### SCREEK BP2-POE
+- **Bluetooth proxy switch**, the same as the MagicBand Bridge's, so the
+  proxy can be turned off on either kind of bridge. It defaults to on, so
+  nothing changes until you turn it off. Scan Interval and Scan Window only
+  restart scanning while the proxy is on.
+
 ## [0.9.10] - 2026-11-18
 
 ### Integration
