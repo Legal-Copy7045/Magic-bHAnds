@@ -243,7 +243,7 @@ band, so the integration recognises each band and gives it a device:
   `magicband.link_bluetooth`. To tell two bands apart, put one in a metal
   tin (or out of range) for half an hour: the one still nearby is the other.
 
-Linking merges the two sides into one device: the Bluetooth entities move
+Linking passes ownership across: if the NFC band doesn't belong to anyone yet, it takes the Bluetooth band's owner (and is allowed in if they are); if it already has an owner, that owner is kept. Linking merges the two sides into one device: the Bluetooth entities move
 onto the band's device, and the Bluetooth-only device disappears.
 Unlinking splits them again. `magicband.list` also shows each band's
 Bluetooth side (nearby, battery, signal).

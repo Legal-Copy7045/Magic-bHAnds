@@ -350,3 +350,36 @@ async def test_renamed_bluetooth_band_keeps_its_name(hass: HomeAssistant, setup_
     assert merged is not None and merged.name_by_user == "Jackie's purple band"
     assert dev_reg.async_get_device(identifiers={(DOMAIN, f"bluetooth_{band.id}")}) is None
     assert tracker.display_name(band) == "Jackie's purple band"
+
+
+async def test_linking_passes_the_owner_to_an_unowned_nfc_band(
+    hass: HomeAssistant, setup_integration, reader_device
+) -> None:
+    await hass.services.async_call(DOMAIN, "add_person", {"name": "Andrew"}, blocking=True)
+    band = _beacon(hass, BAND_Z[0])
+    await hass.services.async_call(DOMAIN, "link_bluetooth", {"bluetooth_band": band.id, "person": "Andrew"}, blocking=True)
+    hass.bus.async_fire("tag_scanned", {"tag_id": "04A99C52BE2290", "device_id": reader_device.id})
+    await hass.async_block_till_done()
+
+    await hass.services.async_call(
+        DOMAIN, "link_bluetooth", {"bluetooth_band": band.id, "band": "04A99C52BE2290"}, blocking=True
+    )
+    await hass.async_block_till_done()
+    registry = hass.config_entries.async_entries(DOMAIN)[0].runtime_data.registry
+    assert registry.get_person(registry.get_band("04A99C52BE2290").person_id).name == "Andrew"
+    assert "04A99C52BE2290" in registry.allowed_uids()
+    assert _tracker(hass).owner(band)[0].name == "Andrew"
+
+
+async def test_linking_keeps_the_nfc_bands_existing_owner(
+    hass: HomeAssistant, setup_integration, reader_device
+) -> None:
+    for name in ("Andrew", "Jackie"):
+        await hass.services.async_call(DOMAIN, "add_person", {"name": name}, blocking=True)
+    await hass.services.async_call(DOMAIN, "assign_band", {"band": "04A99C52BE2290", "person": "Jackie"}, blocking=True)
+    band = _beacon(hass, BAND_Z[0])
+    await hass.services.async_call(DOMAIN, "link_bluetooth", {"bluetooth_band": band.id, "person": "Andrew"}, blocking=True)
+    await hass.services.async_call(
+        DOMAIN, "link_bluetooth", {"bluetooth_band": band.id, "band": "04A99C52BE2290"}, blocking=True
+    )
+    assert _tracker(hass).owner(band)[0].name == "Jackie"
