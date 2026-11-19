@@ -21,7 +21,7 @@
 substitutions:
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.10.8"
+  project_version: "0.10.9"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -285,6 +285,13 @@ light:
     default_transition_length: 300ms
     restore_mode: ALWAYS_OFF
     effects:
+      # Home Assistant not connected: a slow amber breathing (see reader_idle).
+      - pulse:
+          name: "Offline"
+          transition_length: 1.5s
+          update_interval: 1.5s
+          min_brightness: 15%
+          max_brightness: 100%
       # Band presented: a head with a fading tail chasing round the ring, one
       # circle per "Circle time" whatever the LED count.
       - addressable_lambda:
@@ -297,7 +304,10 @@ light:
             const float ct = id(circle_time).state;
             const uint32_t circle_ms = std::isnan(ct) || ct < 0.1f ? 500 : static_cast<uint32_t>(ct * 1000.0f);
             const int head = static_cast<int>(((millis() - start) % circle_ms) * n / circle_ms);
-            const int tail = n / 5 > 3 ? n / 5 : 3;
+            // "Circle tail": the trail's length in LEDs; 0 = a fifth of the ring (at least 3)
+            const float ts = id(circle_tail).state;
+            int tail = std::isnan(ts) || ts < 1 ? (n / 5 > 3 ? n / 5 : 3) : static_cast<int>(ts);
+            if (tail > n) tail = n;
             it.all() = Color::BLACK;
             for (int t = 0; t < tail; t++) {
               int i = ((head - t) % n + n) % n;
@@ -465,6 +475,33 @@ select:
       - "Pink"
       - "Magenta"
   - platform: template
+    id: idle_colour
+    name: "Idle colour"
+    icon: mdi:palette-outline
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_option: "White"
+    options:
+      - "White"
+      - "Warm white"
+      - "Red"
+      - "Orange"
+      - "Yellow"
+      - "Green"
+      - "Cyan"
+      - "Blue"
+      - "Purple"
+      - "Pink"
+      - "Magenta"
+    on_value:
+      - if:
+          condition:
+            not:
+              script.is_running: band_tapped
+          then:
+            - script.execute: reader_idle
+  - platform: template
     id: welcome_colour
     name: "Welcome colour"
     icon: mdi:palette
@@ -565,6 +602,19 @@ number:
     unit_of_measurement: "s"
     mode: box
   - platform: template
+    id: circle_tail
+    name: "Circle tail"
+    icon: mdi:ray-start-arrow
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: 0        # 0 = automatic: a fifth of the ring
+    min_value: 0
+    max_value: ${ring_max_leds}
+    step: 1
+    unit_of_measurement: "LEDs"
+    mode: box
+  - platform: template
     id: welcome_pulses
     name: "Welcome pulses"
     icon: mdi:pulse
@@ -642,7 +692,7 @@ number:
           then:
             - script.execute: apply_ring_settings
             - script.execute: reader_idle
-  # The soft white glow while waiting for a band; 0 turns it off.
+  # How bright the glow is while waiting for a band (in "Idle colour"); 0 turns it off.
   - platform: template
     id: idle_glow
     name: "Idle glow"
@@ -818,8 +868,8 @@ script:
 
   - id: reader_idle
     then:
-      # A soft white glow while waiting for a band ("Idle glow"; 0 = off),
-      # amber (at least 10%) while Home Assistant isn't connected, so a reader
+      # A soft glow in "Idle colour" while waiting for a band ("Idle glow"; 0 = off),
+      # a slow amber pulse while Home Assistant isn't connected, so a reader
       # that can't get changes to its allowed list shows it.
       - if:
           condition:
@@ -828,8 +878,8 @@ script:
           then:
             - light.turn_on:
                 id: ring
-                effect: "None"
-                brightness: !lambda 'return std::max(10.0f, id(idle_glow).state) / 100.0f;'
+                effect: "Offline"
+                brightness: !lambda 'return std::max(30.0f, id(idle_glow).state) / 100.0f;'
                 red: 100%
                 green: 45%
                 blue: 0%
@@ -841,13 +891,17 @@ script:
           condition:
             lambda: 'return id(idle_glow).state > 0;'
           then:
+            # "Idle colour" at "Idle glow" brightness
+            - script.execute:
+                id: set_ring_colour
+                name: !lambda 'return id(idle_colour).current_option().str();'
             - light.turn_on:
                 id: ring
                 effect: "None"
                 brightness: !lambda 'return id(idle_glow).state / 100.0f;'
-                red: 100%
-                green: 100%
-                blue: 100%
+                red: !lambda 'return id(rgb)[0];'
+                green: !lambda 'return id(rgb)[1];'
+                blue: !lambda 'return id(rgb)[2];'
           else:
             - light.turn_off: ring
 

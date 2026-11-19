@@ -150,16 +150,18 @@ the reader's device page in Home Assistant, under **Configuration**, set:
 - **LED brightness** (5–100 %, default 100 %): scales everything the ring
   shows, including the Ring light in Home Assistant. It works on top of the
   power cap, so it can only make the ring dimmer, never over budget.
-- **Idle glow** (0–100 %, default 30 %): the white glow while waiting for a
+- **Idle glow** (0–100 %, default 30 %): the glow (in **Idle colour**, default White) while waiting for a
   band; 0 turns the ring off between taps.
 
 **The tap sequence** is set the same way, under **Configuration**:
 
 | Setting | Default | What it does |
 |---|---|---|
+| **Idle colour** | White | Colour of the glow while waiting for a band (its brightness is **Idle glow**) |
 | **Checking colour** | White | Colour of the circles that chase round the ring while a band is checked |
 | **Checking circles** | 2 | How many circles before the result shows |
 | **Circle time** | 0.5 s | How long one circle takes (0.2–2 s) |
+| **Circle tail** | 0 (automatic) | How many LEDs long the chasing trail is (1 up to the LED count). 0 = a fifth of the ring, at least 3 (7 on a 35-LED ring) |
 | **Welcome colour** | Green | Colour of the welcome pulse. A person's welcome colour set in MagicbHAnds overrides it for their bands |
 | **Welcome pulses** | 1 | How many times it pulses for a welcomed band |
 | **Denied colour** | Red | Colour of the denied pulse |
@@ -186,7 +188,7 @@ MagicBand+**, for example to turn on the lounge lights.
 
 | Entity | What it does |
 |---|---|
-| **Ring** | The LED ring as a normal HA light, so you can use it as a night light too. It glows white while idle (**Idle glow**), and amber while Home Assistant isn't connected |
+| **Ring** | The LED ring as a normal HA light, so you can use it as a night light too. It glows in **Idle colour** while idle (brightness: **Idle glow**), and pulses slowly in amber while Home Assistant isn't connected |
 | **Last band name** | Whose band was last tapped ("Morgan's MagicBand", or your name for the band), from the MagicbHAnds integration; attributes: NFC ID, person, allowed, time |
 | **Last band ID** (diagnostic) | The raw NFC ID of the last band read |
 | **Response mode** | *Known bands only* (default: decided on the reader; new bands are denied), *Welcome every band*, or *Ask Home Assistant* (see below) |
