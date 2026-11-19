@@ -6,7 +6,9 @@
   <title>MagicbHAnds Installer</title>
   <meta name="description" content="Install the MagicBand Bridge and MagicBand Reader firmware on an ESP32-S3 from your browser.">
   <link rel="icon" type="image/png" href="icon.png">
-  <script type="module" src="https://unpkg.com/esp-web-tools@10.4.0/dist/web/install-button.js?module"></script>
+  <!-- ESP Web Tools, served from this site: make_site.py downloads the pinned
+       release from npm and checks it against a fixed hash before publishing. -->
+  <script type="module" src="esp-web-tools/install-button.js"></script>
   <style>
     :root {
       --bg: #f6f5fb; --card: #ffffff; --text: #1e1b4b; --muted: #5f5b78;
@@ -108,8 +110,8 @@
     <h3>Then, in Home Assistant</h3>
     <ol>
       <li><strong>Add the device:</strong> a <em>Discovered</em> notification appears for “MagicBand Bridge” or “MagicBand Reader”, with a short code unique to the board. Click <strong>Add</strong>.</li>
-      <li><strong>Install the MagicbHAnds integration</strong> from HACS: <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=Legal-Copy7045&amp;repository=Magic-bHAnds&amp;category=integration">open in HACS</a>, install it, restart, then add <strong>MagicBand</strong> under Settings → Devices &amp; services. It adds the <em>Send MagicBand effect</em> action and the automation blueprint, and manages people and bands for readers.</li>
-      <li><strong>Readers only:</strong> on the reader's ESPHome entry, choose <strong>Configure</strong> and turn on <strong>Allow the device to perform Home Assistant actions</strong>, so taps reach Home Assistant.</li>
+      <li><strong>Install the MagicbHAnds integration</strong> from HACS: <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=Legal-Copy7045&amp;repository=Magic-bHAnds&amp;category=integration">open in HACS</a>, install it, restart, then add <strong>MagicbHAnds</strong> under Settings → Devices &amp; services. It adds the <em>Send MagicBand effect</em> action, the blueprints and the MagicbHAnds sidebar page, and manages people and bands for readers.</li>
+      <li><strong>Leave <em>Allow the device to perform Home Assistant actions</em> off</strong> (the device's ESPHome entry → Configure). Taps reach Home Assistant without it, and a reader outside your door shouldn't be able to call any action.</li>
     </ol>
   </section>
 

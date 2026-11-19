@@ -12,7 +12,7 @@ from homeassistant.core import callback
 from homeassistant.helpers import selector
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN
+from .const import CONF_BATTERY_LEVEL, DEFAULT_BATTERY_LEVEL, DOMAIN
 from .registry import MagicBandRegistry
 
 NEW_PERSON = "__new__"
@@ -115,9 +115,13 @@ class MagicBandOptionsFlow(OptionsFlow):
             choice = user_input["person"]
             if choice == NEW_PERSON:
                 return await self.async_step_new_person()
-            self._registry.assign_band(self._band, None if choice == UNASSIGN else choice, self._label)
-            persistent_notification.async_dismiss(self.hass, f"{DOMAIN}_unknown_{self._band}")
-            return self.async_create_entry(data=dict(self.config_entry.options))
+            try:
+                self._registry.assign_band(self._band, None if choice == UNASSIGN else choice, self._label)
+            except ValueError:
+                errors["band"] = "invalid_band"
+            else:
+                persistent_notification.async_dismiss(self.hass, f"{DOMAIN}_unknown_{self._band}")
+                return self.async_create_entry(data=dict(self.config_entry.options))
 
         bands = self._band_options()
         # Default to the most recently seen unassigned band.
@@ -152,7 +156,10 @@ class MagicBandOptionsFlow(OptionsFlow):
                 errors["name"] = "name_taken"
             else:
                 if self._band:
-                    self._registry.assign_band(self._band, person.id, self._label)
+                    try:
+                        self._registry.assign_band(self._band, person.id, self._label)
+                    except ValueError:
+                        return self.async_abort(reason="invalid_band")
                     persistent_notification.async_dismiss(self.hass, f"{DOMAIN}_unknown_{self._band}")
                 return self.async_create_entry(data=dict(self.config_entry.options))
         return self.async_show_form(step_id="new_person", data_schema=_person_schema(), errors=errors)
@@ -264,10 +271,20 @@ class MagicBandOptionsFlow(OptionsFlow):
     async def async_step_settings(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
             return self.async_create_entry(data={**self.config_entry.options, **user_input})
-        current = self.config_entry.options.get("show_in_sidebar", True)
+        options = self.config_entry.options
         return self.async_show_form(
             step_id="settings",
-            data_schema=vol.Schema({vol.Required("show_in_sidebar", default=current): selector.BooleanSelector()}),
+            data_schema=vol.Schema(
+                {
+                    vol.Required("show_in_sidebar", default=options.get("show_in_sidebar", True)): selector.BooleanSelector(),
+                    vol.Required(
+                        CONF_BATTERY_LEVEL, default=options.get(CONF_BATTERY_LEVEL, DEFAULT_BATTERY_LEVEL)
+                    ): selector.NumberSelector(
+                        selector.NumberSelectorConfig(min=0, max=100, step=5, unit_of_measurement="%",
+                                                      mode=selector.NumberSelectorMode.SLIDER)
+                    ),
+                }
+            ),
         )
 
     # ------------------------------------------------------------------ bands

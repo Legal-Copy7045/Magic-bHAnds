@@ -3,16 +3,17 @@
 #
 # Most people never need to touch this file:
 #   1. Flash from the web installer (see README), enter Wi-Fi in the browser.
-#   2. Home Assistant discovers the device. Click Configure.
+#   2. Home Assistant discovers the device. Click Add.
 #   3. Optional: "Take control" in the ESPHome dashboard. That imports this
 #      file as a package so you can customise it.
 
 substitutions:
   name: magicband-bridge
   friendly_name: MagicBand Bridge
-  project_version: "0.10.3"
-  # Where the magicband component is fetched from (default in the add-on).
-  # CI and local development override it: `-s component_source ../components`.
+  project_version: "0.10.4"
+  # (The magicband component's source is the add-on's `component_source`
+  # substitution; CI and local builds override it with
+  # `-s component_source ../components`.)
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/manifest.json
 
 packages:
@@ -76,12 +77,13 @@ update:
     update_interval: 6h
 
 wifi:
-  # No credentials here: they're entered in the web installer (Improv) or via
-  # the fallback hotspot's captive portal.
-  ap:
-    ssid: "MagicBand Bridge Setup"
-
-captive_portal:
+  # No credentials here: they're entered in the web installer (Improv over
+  # USB). There's deliberately no fallback hotspot: ESPHome's captive portal
+  # accepts a firmware upload from anyone who joins it, and an open hotspot
+  # can be forced on by knocking the board off Wi-Fi for 90 seconds. To change
+  # Wi-Fi later, plug the board into a computer and use the web installer.
+  # (Building your own? You can add "ap:" with a strong password and
+  # "captive_portal:" back.)
 
 improv_serial:
 

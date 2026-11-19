@@ -8,12 +8,15 @@ Parked until the reader build is finished. Not started.
   "New band 04-A9-…: whose is it?" with a button for each person (and
   *Ignore*); one press assigns it. The same for "which Bluetooth band is
   this?" when pairing can't tell.
-- **A ready-made MagicBand dashboard.** One page: every band with its
-  owner, NFC/Bluetooth link, battery, nearby, closest bridge and last tap;
-  the reader's controls; the people.
-- **A MagicBand sidebar panel** (bigger): a proper management screen inside
-  Home Assistant for bands and people, linking NFC and Bluetooth, renaming.
-  Only if a dashboard isn't enough.
+- *Done:* the ready-made dashboard (`homeassistant/dashboards/magicband.yaml`),
+  the MagicbHAnds sidebar page, and enrolment (which covers adding a
+  person's bands quickly).
+- **Hide band IDs from users who aren't administrators** (the page would read
+  full IDs from the admin-only `list`; Home Assistant's own tag entities
+  would still show them).
+- **Per-reader access:** choose which readers each person's band opens.
+- **A built-in second check for doors** ("only if someone's home", "only in
+  daylight", "confirm on my phone") on the tap event.
 
 ## Bluetooth
 

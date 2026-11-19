@@ -3,6 +3,116 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.4] - 2026-11-19
+
+New features, plus security fixes from a review of the whole project.
+
+### New
+- **Band schedules and expiry.** Each band can have a daily time window
+  (overnight windows work), days of the week and an expiry date
+  (`magicband.set_band_access`, or the band's **Manage** on the page).
+  Outside them the band is denied, the readers' lists follow within a
+  minute, and `magicband_tap` reports `allowed: false`.
+- **Enrolment.** `magicband.enrol` (or **Enrol bands** next to a person):
+  for up to 15 minutes, every band tapped that nobody owns is given to that
+  person, numbered if you give a nickname. Bands that belong to someone are
+  never taken.
+- **Personal welcome.** Each person can have a welcome colour; readers
+  (0.10.4 firmware) welcome their bands in it, on the ring and on their
+  MagicBand+.
+- **Tap history.** The management page lists recent taps (`magicband.history`,
+  admins), taps appear in Home Assistant's logbook ("welcomed at Front
+  Door"), and each MagicBand+ shows a 7-day battery sparkline.
+- **Charge me reminders.** When a MagicBand+ drops to the reminder level
+  (Configure → Settings, default 20 %), it shows in Repairs and fires
+  `magicband_battery_low`; the new **MagicbHAnds: charge me reminder**
+  blueprint sends a phone notification. It resets once the band is charged.
+- **Repairs.** A reader that rejects the allowed list, a list too long for
+  the readers, a reader offline for 15 minutes and low batteries show in
+  Settings → Repairs and clear themselves.
+- **Reader health.** Each reader has an **Allowed list** sensor (up to date,
+  not applied, sent but unconfirmed on older firmware, offline); the page
+  shows it with firmware updates; the reader's idle glow turns amber while
+  Home Assistant isn't connected.
+- **Diagnostics download** with band IDs shortened and names replaced.
+- **CI** builds and tests every branch, not just `main`.
+
+See [docs/security.md](docs/security.md) for the security model and what's
+left.
+
+### Breaking changes and things to do
+- **Bridge and reader firmware: no fallback setup hotspot.** ESPHome's captive
+  portal accepts a firmware upload from anyone who joins it, and the open
+  hotspot could be forced on by knocking a board off Wi-Fi for 90 seconds.
+  Wi-Fi is now set and changed over USB with the web installer.
+- **Admins only:** the actions that change who's allowed in (`add_person`,
+  `update_person`, `remove_person`, `assign_band`, `unassign_band`,
+  `remove_band`, `link_bluetooth`, `unlink_bluetooth`, `forget_bluetooth`)
+  and those that list band IDs (`list`, `list_bluetooth_bands`,
+  `list_heard`), and the MagicbHAnds sidebar page. The new `set_band_access`,
+  `enrol`, `stop_enrolment` and `history` are admin-only too.
+- **Turn off "Allow the device to perform Home Assistant actions"** on
+  readers (ESPHome → the reader → Configure). The setup guides used to ask for
+  it, but tag scans don't need it, and it would let a tampered reader call any
+  action.
+- `magicband.send` only accepts MagicBand bridges in `bridges`.
+- `magicband.sync` returns `readers`, `applied` and `failed` (was `readers`).
+
+### Integration
+- Automatic Bluetooth pairing no longer gives an NFC tag the Bluetooth band's
+  owner. Before, tapping any tag while the only unlinked band heard belonged
+  to someone made that tag theirs and let it in. That case now asks for a
+  manual link; other automatic links show a notification.
+- Only real NFC IDs (4, 7 or 10 bytes of hex) are recorded, assigned or
+  allowed. The reader's "Test welcome" button (`TEST`) and malformed or
+  non-ASCII IDs are ignored; older stored IDs that aren't valid stay but are
+  never allowed.
+- `magicband.send` writes the bridges' Command entities with the caller's
+  context, so Home Assistant's permissions and logbook apply.
+- Readers that reject the allowed list are reported (notification and the
+  `sync` result), and so is a list too long for the readers to store.
+- Limits against made-up radio traffic: at most 25 unclaimed Bluetooth bands
+  (long-unheard ones are dropped, linked or owned bands never), 60
+  `magicband_heard` events a minute, and 100 unassigned NFC bands.
+- A damaged storage file no longer stops the integration loading; damaged
+  entries are skipped.
+- The management page escapes everything it shows from entity attributes.
+- The sidebar panel loads the page only through Home Assistant's own
+  authenticated fetch and never reads the login token itself.
+
+- Taps only count from MagicBand readers that are ESPHome devices, and only
+  those get the allowed list. Before, any device with the reader's model
+  counted, and other integrations (a phone registered with the mobile app)
+  let any user choose a model and name, so a user could fake a tap from a
+  "reader" with your front-door reader's name; and any ESPHome device that
+  declared a `set_known_bands` action got every allowed ID.
+- A band's beacon counts at most once every 30 seconds per adapter, so a
+  replayed beacon can't flood events and history or fake the battery level.
+- Bluetooth bands linked automatically to a tag nobody owns count towards the
+  cap; links to NFC bands that are dropped are removed; a band's type no
+  longer keeps an unassigned band from being dropped (any user can set it).
+- `magicband.send`: at most 30 commands a minute per bridge, and raw
+  `command:` dicts get the same time limits as the normal fields.
+
+### Firmware
+- Reader: holds 213 allowed bands (7-byte IDs), up from 106. Updating
+  clears the reader's stored list once; Home Assistant sends it again as soon
+  as the reader reconnects.
+- Reader: logs at INFO and never logs band IDs (it used to print the
+  allowed list on its USB port at every sync, and every tag read).
+- Reader: a new allowed list is checked in full. A malformed list, or one too
+  long to store, empties the reader's list (everyone is
+  denied) instead of leaving the old one in place, so a revoked band can't
+  stay allowed, and the reader tells Home Assistant whether it applied it.
+- Reader: "Allow last band" only accepts real NFC IDs.
+- All boards: one command broadcasts for at most 60 seconds.
+
+### Build and release
+- GitHub Actions pinned to commit SHAs; checkouts don't keep credentials; the
+  release adds signed build-provenance attestations.
+- The web installer serves its own copy of ESP Web Tools, checked against a
+  fixed hash, instead of loading it from unpkg.
+
 ## [0.10.3] - 2026-11-19
 
 ### Integration
