@@ -296,6 +296,38 @@ light:
           update_interval: 1.5s
           min_brightness: 15%
           max_brightness: 100%
+      # The idle glow in "Warm white". Dimmed the normal way, each colour
+      # channel keeps at least one step, so a dim warm white (lots of red,
+      # some green, a little blue) turned into one step of each: a cool white.
+      # Here the mix is set in the ring's own output steps, after its
+      # brightness curve, so it stays warm at any "Idle glow". The light runs
+      # at 100 % while this effect is on; the effect does the dimming.
+      - addressable_lambda:
+          name: "Warm glow"
+          update_interval: 1s
+          lambda: |-
+            if (it.size() == 0) return;
+            const float pct = id(night) ? id(idle_glow_night).state : id(idle_glow).state;
+            const float p = std::isnan(pct) ? 0.3f : std::max(0.0f, std::min(100.0f, pct)) / 100.0f;
+            // The output steps one channel gives for value v (brightness curve, power cap, LED brightness).
+            auto out = [&](uint8_t v, int ch) -> int {
+              it[0] = Color(ch == 0 ? v : 0, ch == 1 ? v : 0, ch == 2 ? v : 0);
+              return ch == 0 ? it[0].get_red_raw() : ch == 1 ? it[0].get_green_raw() : it[0].get_blue_raw();
+            };
+            // The smallest value giving at least `target` steps (0 = off).
+            auto value_for = [&](int target, int ch) -> uint8_t {
+              if (target <= 0) return 0;
+              int lo = 1, hi = 255;
+              while (lo < hi) { int mid = (lo + hi) / 2; if (out(mid, ch) >= target) hi = mid; else lo = mid + 1; }
+              return lo;
+            };
+            // Red as bright as the other colours' brightest channel at this setting,
+            // at least 5 steps so green can keep its share (2 of 5).
+            int red = p > 0 ? out(static_cast<uint8_t>(lroundf(255.0f * p)), 0) : 0;
+            if (red > 0) red = std::min(std::max(red, 5), out(255, 0));
+            // The same mix as "Warm white" at full brightness: green 37 %, blue 5 % of red.
+            const int green = lroundf(red * 0.37f), blue = lroundf(red * 0.053f);
+            it.all() = Color(value_for(red, 0), value_for(green, 1), value_for(blue, 2));
       # Band presented: a head with a fading tail chasing round the ring, one
       # circle per "Circle time" whatever the LED count.
       - addressable_lambda:
@@ -983,13 +1015,26 @@ script:
             - script.execute:
                 id: set_ring_colour
                 name: !lambda 'return id(idle_colour).current_option().str();'
-            - light.turn_on:
-                id: ring
-                effect: "None"
-                brightness: !lambda 'return (id(night) ? id(idle_glow_night).state : id(idle_glow).state) / 100.0f;'
-                red: !lambda 'return id(rgb)[0];'
-                green: !lambda 'return id(rgb)[1];'
-                blue: !lambda 'return id(rgb)[2];'
+            - if:
+                condition:
+                  lambda: 'return id(idle_colour).current_option() == "Warm white";'
+                then:
+                  # Mixed in the ring's output steps so it stays warm when dim (see "Warm glow").
+                  - light.turn_on:
+                      id: ring
+                      effect: "Warm glow"
+                      brightness: 100%
+                      red: 100%
+                      green: 100%
+                      blue: 100%
+                else:
+                  - light.turn_on:
+                      id: ring
+                      effect: "None"
+                      brightness: !lambda 'return (id(night) ? id(idle_glow_night).state : id(idle_glow).state) / 100.0f;'
+                      red: !lambda 'return id(rgb)[0];'
+                      green: !lambda 'return id(rgb)[1];'
+                      blue: !lambda 'return id(rgb)[2];'
           else:
             - light.turn_off: ring
 
