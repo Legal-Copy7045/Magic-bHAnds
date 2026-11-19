@@ -3,6 +3,19 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.7] - 2026-11-19
+
+### Fixed
+- **Health tiles tidied:** five short tiles in one row (Wi-Fi, up for, CPU,
+  memory, slowest loop) with the network and IP address on one line
+  underneath; the restart reason is shortened ("updated", "power on",
+  "crashed"), with the full text on hover; the SCREEK BP2-POE's uptime shows in
+  the same format.
+- **Recent taps** no longer says "Only administrators can see the tap
+  history" when the page's host (such as a dashboards site with its own
+  allowlist) refuses the action; it says what actually went wrong.
+- No firmware changes.
+
 ## [0.10.6] - 2026-11-19
 
 ### Fixed
