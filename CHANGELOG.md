@@ -3,6 +3,16 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.10] - 2026-11-19
+
+### Fixed
+- **Reader 0.10.9 crashed at start-up**, so its update rolled itself back to
+  the previous firmware. Restoring the new **Idle colour** setting at boot
+  tried to light the ring before it was set up (the same cause as the 0.9.5
+  boot loop). It now waits for the ring like the other settings; so do the
+  "Home Assistant connected / disconnected" handlers. A new test fails if any
+  setting can touch the ring before boot has finished.
+
 ## [0.10.9] - 2026-11-19
 
 ### Reader
