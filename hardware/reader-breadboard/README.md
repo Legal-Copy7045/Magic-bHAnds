@@ -236,7 +236,7 @@ Checked against `esphome/magicband-reader.yaml` and ESPHome's source:
 - **PN532:** `pn532_i2c`, address 0x24 (ESPHome default), polled every 250 ms.
 - **LEDs:** `esp32_rmt_led_strip` on GPIO10, WS2812, **GRB** (the WS2812B
   datasheet's order), 24 LEDs by default, off at boot, gamma 2.8. **LED
-  count** (1–60) and **LED colour order** (GRB/RGB) are settings on the
+  count** (1–100) and **LED colour order** (GRB/RGB) are settings on the
   device page. Up to 24 LEDs there's no brightness cap, which is why the
   supply is sized for full white; above 24 the reader caps the output at
   24 ÷ count, so full white stays at 1.44 A.

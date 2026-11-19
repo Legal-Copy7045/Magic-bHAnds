@@ -125,6 +125,12 @@ def main() -> None:
     page = (REPO / "web" / "index.html").read_text().replace("{{VERSION}}", version)
     (out / "index.html").write_text(page)
     shutil.copy(REPO / "docs" / "images" / "icon.png", out / "icon.png")
+    # The Waltograph font for the headings, with its readme and licence (its licence
+    # asks for both to go with every copy).
+    fonts = out / "fonts"
+    fonts.mkdir(exist_ok=True)
+    for name in ("waltograph42-light.otf", "waltograph.txt", "license.txt"):
+        shutil.copy(REPO / "custom_components" / "magicband" / "frontend" / "fonts" / name, fonts / name)
     vendor_esp_web_tools(out)
     (out / ".nojekyll").write_text("")
 
