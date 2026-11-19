@@ -143,8 +143,20 @@ installer's firmware fits any ring or strip. After installing, open the
 reader's device page in Home Assistant (Settings → Devices & services →
 ESPHome → the reader) and, under **Configuration**, set **LED count** (1–100;
 default 24) and **LED colour order** (GRB for most; RGB for the 4310 strip),
-plus **LED brightness** and **Idle glow** to taste.
+plus **LED brightness** and **Idle glow** to taste. For an RGBW ring set
+**Ring type** as well (below).
 They're kept through restarts and updates.
+
+**RGBW rings (optional upgrade).** RGB rings make white by mixing red,
+green and blue, which looks slightly blue, and a warm white only by mixing.
+SK6812 **RGBW** rings add a white LED to every pixel, sold as **WW** (warm,
+about 3000 K), **NW** (neutral, about 4000-4500 K) or **CW** (cool, about
+6500 K). The same firmware drives them: set **Ring type** to RGBW warm,
+neutral or cool white to match, and **LED count** to the ring's size (they
+come in 8, 16, 24, 35 and 45 LEDs, among others). Wiring is identical (5V,
+DIN, GND, with the same 470 Ω and 1000 µF). Check the inside diameter fits
+round the PN532 (43 × 41 mm). RGBW LEDs draw up to about 80 mA each with
+everything on, so the reader caps them at 18 LEDs' worth.
 
 **How many LEDs:** loop length (mm) × LEDs per metre ÷ 1000. A loop 60 mm
 across is about 190 mm long. The current budget assumes **24 LEDs (1.44 A

@@ -21,7 +21,7 @@
 substitutions:
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.10.11"
+  project_version: "0.10.12"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -30,6 +30,7 @@ substitutions:
   # 20 W budget (1.44 A, i.e. 24 LEDs at 60 mA). See hardware/shopping-list.md.
   ring_leds: "24"
   ring_color_order: GRB  # GRB for most NeoPixels; RGB for Adafruit's silicone neon-like strip (4310)
+  ring_type: RGB         # first-boot default for "Ring type": RGB, or RGBW warm/neutral/cool white
   ring_max_leds: "100"   # the most LEDs the "LED count" setting allows
   # Sound files: downloaded from this repo at build time. To use your own,
   # point these at a URL or a path next to this config (e.g. sounds/my.wav).
@@ -284,7 +285,9 @@ light:
     chipset: WS2812
     # Sized for the largest ring; apply_ring_settings sets the real count,
     # colour order and power cap from the settings at boot.
-    channel_colors: ${ring_color_order}
+    # Four bytes per LED, so the buffer also fits RGBW rings; apply_ring_settings
+    # switches to three for RGB rings ("Ring type").
+    channel_colors: ${ring_color_order}W
     num_leds: ${ring_max_leds}
     default_transition_length: 300ms
     restore_mode: ALWAYS_OFF
@@ -435,9 +438,9 @@ globals:
   - id: pulse_count       # how many times the "Pulse" effect fades up and down
     type: int
     initial_value: "1"
-  - id: rgb               # the colour chosen by set_ring_colour: r, g, b (0-1)
-    type: std::array<float, 3>
-    initial_value: "{1.0f, 1.0f, 1.0f}"
+  - id: rgb               # the colour chosen by set_ring_colour: r, g, b, white (0-1)
+    type: std::array<float, 4>
+    initial_value: "{1.0f, 1.0f, 1.0f, 0.0f}"
   - id: decision          # 0 = waiting, 1 = accept, 2 = deny
     type: int
     initial_value: "0"
@@ -598,6 +601,34 @@ select:
       - "Known bands only"
       - "Welcome every band"
       - "Ask Home Assistant"
+  # What the ring's LEDs are. RGBW rings (SK6812 RGBW) have a white LED in
+  # each pixel, warm, neutral or cool; White and Warm white use it. Changing
+  # this restarts the reader, so Home Assistant sees the Ring light's new
+  # colour modes.
+  - platform: template
+    id: ring_type
+    name: "Ring type"
+    icon: mdi:led-on
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_option: ${ring_type}
+    options:
+      - "RGB"
+      - "RGBW warm white"
+      - "RGBW neutral white"
+      - "RGBW cool white"
+    on_value:
+      - if:
+          condition:
+            lambda: 'return id(ring_ready);'
+          then:
+            - logger.log:
+                format: "Ring type is now %s: restarting"
+                args: ['x.c_str()']
+                level: INFO
+            - delay: 1s
+            - lambda: 'App.safe_reboot();'
   - platform: template
     id: ring_order
     name: "LED colour order"
@@ -928,8 +959,9 @@ text_sensor:
     entity_category: diagnostic
 
 script:
-  # Applies "LED count" and "LED colour order", and caps the output so full
-  # white never draws more than 24 LEDs' worth (1.44 A).
+  # Applies "LED count", "LED colour order" and "Ring type", and caps the
+  # output so the ring never draws more than about 1.44 A: 24 LEDs' worth of
+  # full RGB white (60 mA each), or 18 of an RGBW ring with everything on (80 mA).
   - id: apply_ring_settings
     then:
       - lambda: |-
@@ -937,21 +969,39 @@ script:
           auto *out = static_cast<esp32_rmt_led_strip::ESP32RMTLEDStripLightOutput *>(id(ring).get_output());
           int n = static_cast<int>(id(ring_count).state);
           if (n < 1 || n > ${ring_max_leds}) n = ${ring_leds};
+          const bool rgb = id(ring_order).current_option() == "RGB";
+          const bool rgbw = id(ring_type).current_option() != "RGB";
+          const uint8_t w = rgbw ? 3 : light::ChannelColors::NO_WHITE;
+          out->set_channel_colors(rgb ? light::ChannelColors{0, 1, 2, w} : light::ChannelColors{1, 0, 2, w});
           // Blank every LED the buffer holds first, so LEDs beyond a reduced count go dark.
           out->set_num_leds(${ring_max_leds});
           for (int i = 0; i < ${ring_max_leds}; i++) (*out)[i] = Color::BLACK;
           out->write_state(id(ring));   // sends now (copied into the RMT buffer)
           out->set_num_leds(n);
-          const bool rgb = id(ring_order).current_option() == "RGB";
-          out->set_channel_colors(rgb ? light::ChannelColors{0, 1, 2, light::ChannelColors::NO_WHITE}
-                                      : light::ChannelColors{1, 0, 2, light::ChannelColors::NO_WHITE});
-          const float cap = n > 24 ? 24.0f / n : 1.0f;
+          const int budget = rgbw ? 18 : 24;
+          const float cap = n > budget ? static_cast<float>(budget) / n : 1.0f;
           float level = id(ring_brightness).state / 100.0f;
           if (!(level >= 0.05f && level <= 1.0f)) level = 1.0f;
-          out->set_correction(cap * level, cap * level, cap * level);
-          ESP_LOGI("reader", "Ring: %d LEDs, %s, brightness %d%% (power cap %d%%)", n, rgb ? "RGB" : "GRB",
+          out->set_correction(cap * level, cap * level, cap * level, cap * level);
+          ESP_LOGI("reader", "Ring: %d LEDs, %s%s, brightness %d%% (power cap %d%%)", n, rgb ? "RGB" : "GRB", rgbw ? "W" : "",
                    static_cast<int>(level * 100), static_cast<int>(cap * 100));
           out->schedule_show();
+
+  # Turns the ring on in id(rgb) (and its white LED on RGBW rings) with an effect.
+  - id: ring_on
+    mode: queued
+    parameters:
+      effect: string
+      level: float
+    then:
+      - lambda: |-
+          auto call = id(ring).turn_on();
+          call.set_effect(effect);
+          call.set_brightness(level);
+          call.set_rgb(id(rgb)[0], id(rgb)[1], id(rgb)[2]);
+          if (id(ring).get_traits().supports_color_capability(light::ColorCapability::WHITE))
+            call.set_white(id(rgb)[3]);
+          call.perform();
 
   # Looks up a colour name from the colour settings into id(rgb).
   - id: set_ring_colour
@@ -967,9 +1017,22 @@ script:
               {"Cyan", 0.0f, 1.0f, 1.0f},    {"Blue", 0.0f, 0.0f, 1.0f},       {"Purple", 0.5f, 0.0f, 1.0f},
               {"Pink", 1.0f, 0.2f, 0.5f},    {"Magenta", 1.0f, 0.0f, 1.0f},
           };
-          id(rgb) = {1.0f, 1.0f, 1.0f};
+          id(rgb) = {1.0f, 1.0f, 1.0f, 0.0f};
           for (const auto &e : TABLE)
-            if (name == e.name) id(rgb) = {e.r, e.g, e.b};
+            if (name == e.name) id(rgb) = {e.r, e.g, e.b, 0.0f};
+          // RGBW rings: White and Warm white come from the white LED, with a
+          // little colour added to move it warmer or cooler. First guesses,
+          // to be tuned on real rings.
+          const std::string &type = id(ring_type).current_option();
+          const bool warm = name == "Warm white";
+          if (type != "RGB" && (warm || name == "White")) {
+            if (type == "RGBW warm white") id(rgb) = warm ? std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}
+                                                          : std::array<float, 4>{0.0f, 0.15f, 0.35f, 1.0f};
+            else if (type == "RGBW neutral white") id(rgb) = warm ? std::array<float, 4>{0.6f, 0.2f, 0.0f, 0.8f}
+                                                                  : std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f};
+            else id(rgb) = warm ? std::array<float, 4>{1.0f, 0.35f, 0.0f, 0.6f}
+                                : std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f};
+          }
 
   - id: reader_idle
     then:
@@ -981,13 +1044,11 @@ script:
             not:
               api.connected:
           then:
-            - light.turn_on:
-                id: ring
+            - lambda: 'id(rgb) = {1.0f, 0.45f, 0.0f, 0.0f};'
+            - script.execute:
+                id: ring_on
                 effect: "Offline"
-                brightness: !lambda 'return std::max(30.0f, id(night) ? id(idle_glow_night).state : id(idle_glow).state) / 100.0f;'
-                red: 100%
-                green: 45%
-                blue: 0%
+                level: !lambda 'return std::max(30.0f, id(night) ? id(idle_glow_night).state : id(idle_glow).state) / 100.0f;'
           else:
             - script.execute: reader_idle_glow
   # Works out whether it's night ("Night from" until "Night until") and, when
@@ -1017,7 +1078,7 @@ script:
                 name: !lambda 'return id(idle_colour).current_option().str();'
             - if:
                 condition:
-                  lambda: 'return id(idle_colour).current_option() == "Warm white";'
+                  lambda: 'return id(idle_colour).current_option() == "Warm white" && id(ring_type).current_option() == "RGB";'
                 then:
                   # Mixed in the ring's output steps so it stays warm when dim (see "Warm glow").
                   - light.turn_on:
@@ -1028,13 +1089,10 @@ script:
                       green: 100%
                       blue: 100%
                 else:
-                  - light.turn_on:
-                      id: ring
+                  - script.execute:
+                      id: ring_on
                       effect: "None"
-                      brightness: !lambda 'return (id(night) ? id(idle_glow_night).state : id(idle_glow).state) / 100.0f;'
-                      red: !lambda 'return id(rgb)[0];'
-                      green: !lambda 'return id(rgb)[1];'
-                      blue: !lambda 'return id(rgb)[2];'
+                      level: !lambda 'return (id(night) ? id(idle_glow_night).state : id(idle_glow).state) / 100.0f;'
           else:
             - light.turn_off: ring
 
@@ -1066,13 +1124,10 @@ script:
       - script.execute:
           id: set_ring_colour
           name: !lambda 'return id(checking_colour).current_option().str();'
-      - light.turn_on:
-          id: ring
+      - script.execute:
+          id: ring_on
           effect: "Chase"
-          brightness: 100%
-          red: !lambda 'return id(rgb)[0];'
-          green: !lambda 'return id(rgb)[1];'
-          blue: !lambda 'return id(rgb)[2];'
+          level: 1.0
       - delay: !lambda |-
           float n = id(checking_circles).state, t = id(circle_time).state;
           if (std::isnan(n) || n < 1) n = 2;
@@ -1131,13 +1186,10 @@ script:
       - script.execute:
           id: set_ring_colour
           name: !lambda 'return id(welcome_name).empty() ? id(welcome_colour).current_option().str() : id(welcome_name);'
-      - light.turn_on:
-          id: ring
+      - script.execute:
+          id: ring_on
           effect: "Pulse"
-          brightness: 100%
-          red: !lambda 'return id(rgb)[0];'
-          green: !lambda 'return id(rgb)[1];'
-          blue: !lambda 'return id(rgb)[2];'
+          level: 1.0
       - if:
           condition:
             switch.is_on: sound_enabled
@@ -1177,13 +1229,10 @@ script:
       - script.execute:
           id: set_ring_colour
           name: !lambda 'return id(denied_colour).current_option().str();'
-      - light.turn_on:
-          id: ring
+      - script.execute:
+          id: ring_on
           effect: "Pulse"
-          brightness: 100%
-          red: !lambda 'return id(rgb)[0];'
-          green: !lambda 'return id(rgb)[1];'
-          blue: !lambda 'return id(rgb)[2];'
+          level: 1.0
       - if:
           condition:
             switch.is_on: sound_enabled

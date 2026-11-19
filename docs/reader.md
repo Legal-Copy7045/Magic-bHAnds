@@ -152,6 +152,10 @@ the reader's device page in Home Assistant, under **Configuration**, set:
   power cap, so it can only make the ring dimmer, never over budget.
 - **Idle glow** (0–100 %, default 30 %): the glow (in **Idle colour**, default White) while waiting for a
   band; 0 turns the ring off between taps.
+- **Ring type** (default RGB): RGB for a normal WS2812B ring, or **RGBW
+  warm white / neutral white / cool white** for an SK6812 RGBW ring (pick the
+  one matching its white LEDs). White and Warm white then use the white LED.
+  The reader restarts when you change it. Set **LED count** too (35, 32, ...).
 - **Idle glow at night** (0–100 %, default 10 %) with **Night from** (default
   22) and **Night until** (default 6), whole hours in the reader's local time
   (from Home Assistant): the idle glow used at night. Set both hours the same
