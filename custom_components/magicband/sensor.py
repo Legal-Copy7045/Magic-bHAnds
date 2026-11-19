@@ -63,15 +63,15 @@ async def async_setup_entry(
 
     # "Last band name" on every reader's own device page.
     readers: dict[str, ReaderLastBandSensor] = {}
+    _remove_stray_reader_devices(hass, entry)
 
     @callback
     def _add_reader(device_id: str) -> None:
         if device_id in readers or not is_reader_device(hass, device_id):
             return
-        device = dr.async_get(hass).async_get(device_id)
-        if device is None or not device.connections:
+        if dr.async_get(hass).async_get(device_id) is None:
             return
-        readers[device_id] = ReaderLastBandSensor(entry, device)
+        readers[device_id] = ReaderLastBandSensor(entry, device_id)
         async_add_entities([readers[device_id]])
 
     for device in list(dr.async_get(hass).devices.values()):
@@ -419,6 +419,30 @@ class BandLastTapSensor(NfcBandEntity, SensorEntity):
         }
 
 
+@callback
+def _remove_stray_reader_devices(hass: HomeAssistant, entry: MagicBandConfigEntry) -> None:
+    """Undo 0.9.10-0.9.13: "Last band name" could land on a new device of its own.
+
+    Those devices belong only to this integration and have no identifiers
+    (every device this integration makes on purpose has one). Their entities
+    move back to the reader they belong to, and the empty device is removed.
+    """
+    dev_reg, ent_reg = dr.async_get(hass), er.async_get(hass)
+    for device in dr.async_entries_for_config_entry(dev_reg, entry.entry_id):
+        if device.identifiers:
+            continue
+        entities = er.async_entries_for_device(ent_reg, device.id, include_disabled_entities=True)
+        for ent in entities:
+            if not ent.unique_id.startswith("reader_") or not ent.unique_id.endswith("_last_band"):
+                continue
+            reader_id = ent.unique_id.removeprefix("reader_").removesuffix("_last_band")
+            if dev_reg.async_get(reader_id) is not None and reader_id != device.id:
+                dev_reg.async_update_device(reader_id, add_config_entry_id=entry.entry_id)
+                ent_reg.async_update_entity(ent.entity_id, device_id=reader_id)
+        if not er.async_entries_for_device(ent_reg, device.id, include_disabled_entities=True):
+            dev_reg.async_update_device(device.id, remove_config_entry_id=entry.entry_id)
+
+
 class ReaderLastBandSensor(RestoreSensor):
     """The name of the last band tapped on this reader, on the reader's own device page."""
 
@@ -427,17 +451,22 @@ class ReaderLastBandSensor(RestoreSensor):
     _attr_translation_key = "reader_last_band"
     _attr_icon = "mdi:account-badge"
 
-    def __init__(self, entry: MagicBandConfigEntry, device: dr.DeviceEntry) -> None:
+    def __init__(self, entry: MagicBandConfigEntry, device_id: str) -> None:
         self._entry = entry
-        self._attr_unique_id = f"reader_{device.id}_last_band"
-        # Matching the reader's connections puts this entity on the reader's device.
-        self._attr_device_info = DeviceInfo(connections=set(device.connections))
+        self._reader_id = device_id
+        self._attr_unique_id = f"reader_{device_id}_last_band"
+        # No device_info: the entity is put on the reader's own device by its
+        # ID once added (matching by connections could create a second device).
         self._uid: str | None = None
         self._allowed: bool | None = None
         self._at: str | None = None
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
+        if self.registry_entry is not None and self.registry_entry.device_id != self._reader_id:
+            # Share the reader's device (as ESPHome's and this integration's).
+            dr.async_get(self.hass).async_update_device(self._reader_id, add_config_entry_id=self._entry.entry_id)
+            er.async_get(self.hass).async_update_entity(self.entity_id, device_id=self._reader_id)
         if (last := await self.async_get_last_state()) is not None:
             self._uid = last.attributes.get("band_id")
             self._allowed = last.attributes.get("allowed")
