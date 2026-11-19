@@ -25,7 +25,7 @@ def isolated_config_dir(hass: HomeAssistant, tmp_path):
 @pytest.fixture
 async def reader_device(hass: HomeAssistant) -> dr.DeviceEntry:
     """A device that looks like a MagicBand reader added through ESPHome."""
-    esphome_entry = MockConfigEntry(domain="esphome", title="MagicBand Reader")
+    esphome_entry = MockConfigEntry(domain="esphome", title="MagicBand Reader", data={"device_name": "lounge-reader"})
     esphome_entry.add_to_hass(hass)
     return dr.async_get(hass).async_get_or_create(
         config_entry_id=esphome_entry.entry_id,

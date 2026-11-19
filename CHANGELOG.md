@@ -40,16 +40,35 @@ Security fixes from a review of the whole project. See
   `sync` result), and so is a list too long for the readers to store.
 - Limits against made-up radio traffic: at most 25 unclaimed Bluetooth bands
   (long-unheard ones are dropped, linked or owned bands never), 60
-  `magicband_heard` events a minute, and 50 unassigned NFC bands.
+  `magicband_heard` events a minute, and 100 unassigned NFC bands.
 - A damaged storage file no longer stops the integration loading; damaged
   entries are skipped.
 - The management page escapes everything it shows from entity attributes.
 - The sidebar panel loads the page only through Home Assistant's own
   authenticated fetch and never reads the login token itself.
 
+- Taps only count from MagicBand readers that are ESPHome devices, and only
+  those get the allowed list. Before, any device with the reader's model
+  counted, and other integrations (a phone registered with the mobile app)
+  let any user choose a model and name, so a user could fake a tap from a
+  "reader" with your front-door reader's name; and any ESPHome device that
+  declared a `set_known_bands` action got every allowed ID.
+- A band's beacon counts at most once every 30 seconds per adapter, so a
+  replayed beacon can't flood events and history or fake the battery level.
+- Bluetooth bands linked automatically to a tag nobody owns count towards the
+  cap; links to NFC bands that are dropped are removed; a band's type no
+  longer keeps an unassigned band from being dropped (any user can set it).
+- `magicband.send`: at most 30 commands a minute per bridge, and raw
+  `command:` dicts get the same time limits as the normal fields.
+
 ### Firmware
+- Reader: holds 213 allowed bands (7-byte IDs), up from 106. Updating
+  clears the reader's stored list once; Home Assistant sends it again as soon
+  as the reader reconnects.
+- Reader: logs at INFO and never logs band IDs (it used to print the allowed
+  list on its USB port at every sync).
 - Reader: a new allowed list is checked in full. A malformed list, or one too
-  long to store (about 106 bands), empties the reader's list (everyone is
+  long to store, empties the reader's list (everyone is
   denied) instead of leaving the old one in place, so a revoked band can't
   stay allowed, and the reader tells Home Assistant whether it applied it.
 - Reader: "Allow last band" only accepts real NFC IDs.

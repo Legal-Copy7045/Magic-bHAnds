@@ -107,7 +107,7 @@ async def test_people_with_and_without_ha_users_and_multiple_bands(
     assert len(calls[-1].data["bands"].split(",")) == 2
 
 
-async def test_changes_sync_automatically(hass, setup_integration) -> None:
+async def test_changes_sync_automatically(hass, setup_integration, reader_device) -> None:
     calls = async_mock_service(hass, "esphome", "lounge_reader_set_known_bands")
     await hass.services.async_call(DOMAIN, "add_person", {"name": "Nana"}, blocking=True)
     await hass.services.async_call(DOMAIN, "assign_band", {"band": NANA_BAND, "person": "Nana"}, blocking=True)

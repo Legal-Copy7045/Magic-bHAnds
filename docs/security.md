@@ -29,20 +29,38 @@ on the reader is real*.
   encryption turned on, so they could read its Wi-Fi password and its
   Home Assistant key and pretend to be the reader. Keep the electronics
   where they can't be reached (inside the wall or door, with only the antenna
-  and ring outside), and decide in Home Assistant, not on the reader.
+  and ring outside), and decide in Home Assistant, not on the reader. Its
+  firmware logs at INFO and never logs band IDs, so the USB port doesn't
+  print them, but anyone with the USB port can change its Wi-Fi (Improv),
+  which takes it offline.
+- **Only MagicBand readers count.** A tap is only accepted from an ESPHome
+  device built from the reader firmware, and only those get the allowed list.
+  Other integrations (a phone registered with the mobile app, for one) let any
+  logged-in user choose a device's model and name, so they can't pose as a
+  reader. An ESPHome device you've added that is compromised still could.
 
 ## Who can change who's allowed in
 
 Everything that changes access (people, assigning bands, linking Bluetooth)
-or lists band IDs (`list`, `list_bluetooth_bands`, `list_heard`) needs an
-**administrator** in Home Assistant, and so does the MagicbHAnds sidebar
-page. Other users can still use the bands (`magicband.send`) and see the
-entities.
+and the actions that return everything at once (`list`,
+`list_bluetooth_bands`, `list_heard`) need an **administrator** in Home
+Assistant, and so does the MagicbHAnds sidebar page. Other users can still use
+the bands (`magicband.send`, at most 30 commands a minute per bridge).
+
+**Band IDs are not hidden from other users**, though: entity attributes (the
+last-tap sensors, the reader's "Last band ID" and "Last band name"), history,
+notifications and Home Assistant's own tag entities show them to every
+logged-in user. Only give Home Assistant accounts to people you'd trust with
+a copy of the bands.
 
 Home Assistant users who aren't administrators can still use the readers'
-and bridges' own controls (response mode, "Allow last band", the Command
-entity). The reader's own decision only drives its lights and sound; the
-`magicband_tap` event's `allowed` comes from Home Assistant.
+and bridges' own controls: response mode, "Allow last band", the Command
+entity, and the readers' ESPHome actions (`set_known_bands`, `accept`,
+`deny`), which change the reader's own list until the next sync (at most 10
+minutes). The reader's own decision only drives its lights, sound and its
+"Band scan" event entity, so **don't open a lock from the reader's event
+entity**; use the `magicband_tap` event, whose `allowed` comes from Home
+Assistant.
 
 **Automatic Bluetooth pairing never changes access.** If linking a band would
 give an NFC tag a new owner (and so let it in), it's left for an
@@ -52,7 +70,7 @@ administrator to confirm.
 
 The integration sends the allowed list to every reader and each reader
 replies whether it applied it. If a reader can't store the whole list (about
-106 bands of 7 bytes) or the list is malformed, the reader **empties** its
+213 bands of 7 bytes) or the list is malformed, the reader **empties** its
 list (denies everyone) rather than keep an old one, and Home Assistant shows
 a "reader not updated" notification. A reader that's offline keeps its last
 list until it reconnects.
@@ -81,19 +99,29 @@ list until it reconnects.
 
 ## Limits on what nearby radios can do
 
-- At most 25 unclaimed Bluetooth bands are kept; beyond that, long-unheard
-  ones are dropped and new ones ignored, so made-up beacons can't flood
-  Home Assistant. Bands linked or given to someone are never dropped.
+- At most 25 Bluetooth bands that nobody owns are kept (including ones
+  linked automatically to a tag nobody owns); beyond that, long-unheard ones
+  are dropped and new ones ignored, so made-up beacons can't flood
+  Home Assistant. Bands that belong to someone are never dropped.
+- A band's beacon counts at most once every 30 seconds per adapter or proxy,
+  so replaying a beacon can't flood events or history (real bands beacon
+  every few minutes).
 - At most 60 `magicband_heard` events a minute are fired.
-- At most 50 unassigned NFC bands are kept.
+- At most 100 unassigned, unnamed NFC bands are kept. Bands given to
+  people are never dropped and have no limit of their own.
 - Only real NFC IDs (4, 7 or 10 bytes of hex) are recorded or allowed.
-- A bridge broadcasts one command for at most 60 seconds.
+- A bridge broadcasts one command for at most 60 seconds, and
+  `magicband.send` sends at most 30 commands a minute to each bridge (raw
+  `command:` dicts have the same time limits as the normal fields). Writing
+  a bridge's Command entity directly is limited only by the firmware's
+  60-second cap.
 
 ## Privacy
 
 Band IDs, who owns them, and Bluetooth beacon data (including from other
 people's MagicBand+ passing by) are stored in Home Assistant, appear in
-entity attributes and history, and are in backups. Anyone with a band's NFC ID
+entity attributes and history (visible to every Home Assistant user), and
+are in backups. The management page loads its fonts from Google Fonts. Anyone with a band's NFC ID
 can copy the band, so treat Home Assistant backups and exports accordingly.
 
 ## Reporting a problem

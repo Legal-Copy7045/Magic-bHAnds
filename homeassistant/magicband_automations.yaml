@@ -22,7 +22,8 @@
 # A known (allowed) band tapped on the front-door reader unlocks the door;
 # it locks again if the door isn't opened within 2 minutes. Uses the
 # magicband_tap event from the MagicbHAnds integration. Only the reader whose
-# device is named below counts, so a reader on the bench can't open the door.
+# device ID is given below counts (not its name, which another device could
+# copy), so a reader on the bench can't open the door.
 # SECURITY: a band's NFC ID isn't secret (a phone can read it and copy it to
 # a blank tag), so on its own this is about as secure as a basic RFID fob.
 # The second condition below (someone is home) is a simple extra check;
@@ -35,8 +36,8 @@
       event_data:
         allowed: true
   conditions:
-    - condition: template                        # <- your reader's device name
-      value_template: "{{ trigger.event.data.reader == 'Front Door MagicBand Reader' }}"
+    - condition: template                        # <- your reader's device ID (its device page URL)
+      value_template: "{{ trigger.event.data.reader_device_id == 'YOUR_READER_DEVICE_ID' }}"
     - condition: state
       entity_id: binary_sensor.front_door        # <- your door contact
       state: "off"

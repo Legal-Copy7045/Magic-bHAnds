@@ -56,9 +56,10 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.SELECT, Platform.SENSOR]
 
 EVENT_TAG_SCANNED = "tag_scanned"
-# The reader stores its allowed list as ",UID,UID," in 1,600 characters
-# including the terminator (esphome/magicband-reader.yaml, known_list).
-READER_LIST_CAPACITY = 1599
+# The reader stores its allowed list as ",UID,UID," in 3,200 characters
+# including the terminator (esphome/magicband-reader.yaml, known_list): 213
+# bands with 7-byte IDs. Readers on 0.10.3 or earlier hold 1,600 (106 bands).
+READER_LIST_CAPACITY = 3199
 SYNC_NOTIFICATION_ID = f"{DOMAIN}_reader_sync"
 
 
@@ -76,20 +77,47 @@ class MagicBandData:
 type MagicBandConfigEntry = ConfigEntry[MagicBandData]
 
 
+def _esphome_entries(hass: HomeAssistant, device: dr.DeviceEntry) -> list[ConfigEntry]:
+    entries = (hass.config_entries.async_get_entry(entry_id) for entry_id in device.config_entries)
+    return [entry for entry in entries if entry is not None and entry.domain == "esphome"]
+
+
 def is_reader_device(hass: HomeAssistant, device_id: str | None) -> bool:
-    """True if the device is a MagicBand reader."""
+    """True if the device is a MagicBand reader: an ESPHome device built from the reader firmware.
+
+    The model alone isn't enough: other integrations (a phone registered with
+    the mobile app, for example) let any logged-in user pick a device's model
+    and name, and send tag scans from it.
+    """
     if not device_id:
         return False
     device = dr.async_get(hass).async_get(device_id)
-    if device is None:
+    if device is None or not _esphome_entries(hass, device):
         return False
     if (device.model or "").lower() == READER_MODEL:
         return True
-    # Fallback: a device that exposes the reader's "Known bands" sensor.
+    # Fallback (a reader built with another project name): an ESPHome device with the reader's "Known bands" sensor.
     return any(
-        entity.entity_id.endswith("_known_bands") and entity.domain == "sensor"
+        entity.entity_id.endswith("_known_bands") and entity.domain == "sensor" and entity.platform == "esphome"
         for entity in er.async_entries_for_device(er.async_get(hass), device_id)
     )
+
+
+def reader_set_services(hass: HomeAssistant) -> list[str]:
+    """The esphome.<node>_set_known_bands actions of the MagicBand readers, and no other device's.
+
+    Any ESPHome device can declare an action with that name; only readers get the allowed list.
+    """
+    names: set[str] = set()
+    for device in dr.async_get(hass).devices.values():
+        if not is_reader_device(hass, device.id):
+            continue
+        for entry in _esphome_entries(hass, device):
+            info = getattr(getattr(entry, "runtime_data", None), "device_info", None)
+            node = getattr(info, "name", None) or entry.data.get("device_name")
+            if node:
+                names.add(f"{node.replace('-', '_')}{READER_SET_SERVICE_SUFFIX}")
+    return sorted(name for name in names if hass.services.has_service("esphome", name))
 
 
 def _reader_name(hass: HomeAssistant, device_id: str | None) -> str | None:
@@ -202,6 +230,8 @@ def _handle_scan(hass: HomeAssistant, registry: MagicBandRegistry, tag_id: str, 
     if registry.get_band(tag_id) is None:
         for old in registry.prune_unassigned():
             persistent_notification.async_dismiss(hass, f"{DOMAIN}_unknown_{old}")
+            for entry in hass.config_entries.async_loaded_entries(DOMAIN):
+                entry.runtime_data.beacons.unlink_nfc(old)
     band, is_new = registry.record_scan(tag_id, reader)
     person = registry.get_person(band.person_id)
     allowed = registry.band_allowed(band.uid)
@@ -254,11 +284,14 @@ async def async_sync_readers(hass: HomeAssistant, registry: MagicBandRegistry) -
     uids = registry.allowed_uids()
     bands = ",".join(uids)
     stored = 1 + sum(len(u) + 1 for u in uids)  # ",UID,UID," as the reader keeps it
-    services = [
+    services = reader_set_services(hass)
+    ignored = sorted(
         name
         for name in hass.services.async_services_for_domain("esphome")
-        if name.endswith(READER_SET_SERVICE_SUFFIX)
-    ]
+        if name.endswith(READER_SET_SERVICE_SUFFIX) and name not in services
+    )
+    if ignored:
+        _LOGGER.warning("Not sending the allowed list to %s: not a MagicBand reader", ", ".join(ignored))
     failed: dict[str, str] = {}
     for service in services:
         try:
