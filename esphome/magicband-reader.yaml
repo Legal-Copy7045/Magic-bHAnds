@@ -30,7 +30,7 @@ substitutions:
   # 20 W budget (1.44 A, i.e. 24 LEDs at 60 mA). See hardware/shopping-list.md.
   ring_leds: "24"
   ring_color_order: GRB  # GRB for most NeoPixels; RGB for Adafruit's silicone neon-like strip (4310)
-  ring_max_leds: "60"    # the most LEDs the "LED count" setting allows
+  ring_max_leds: "100"   # the most LEDs the "LED count" setting allows
   # Sound files: downloaded from this repo at build time. To use your own,
   # point these at a URL or a path next to this config (e.g. sounds/my.wav).
   sound_startup: https://raw.githubusercontent.com/Legal-Copy7045/Magic-bHAnds/main/esphome/sounds/startup.wav

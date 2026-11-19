@@ -141,7 +141,7 @@ it first connects.
 **Your ring or strip:** the web installer's firmware fits any of them. On
 the reader's device page in Home Assistant, under **Configuration**, set:
 
-- **LED count** (1–60, default 24): the number of LEDs in your ring or
+- **LED count** (1–100, default 24): the number of LEDs in your ring or
   strip. Above 24 the reader caps their output at 24 ÷ count (35 LEDs: 68 %)
   so full white stays within the 20 W supply.
 - **LED colour order:** GRB for most NeoPixels and generic WS2812B rings; RGB
