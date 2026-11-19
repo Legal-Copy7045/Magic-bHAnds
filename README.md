@@ -184,6 +184,18 @@ This project builds on other people's work.
 - [Espressif ESP-IDF](https://github.com/espressif/esp-idf): the ESP32
   Bluetooth stack.
 
+**Font**
+- **Waltograph** v4.2 by Justin Callaghan ([mickeyavenue.com](http://mickeyavenue.com/)),
+  with Bill Shelly, Joshua Jones, Robert Johnson, John Hornbuckle, John Hansen,
+  John Yaglenski and Erwin Denissen. It's used for the logo wordmark and the
+  management page's headings. It's released under the
+  [Creative Commons NonCommercial-ShareAlike licence](http://creativecommons.org/licenses/nc-sa/1.0/)
+  for personal, noncommercial use. The font is in
+  `custom_components/magicband/frontend/fonts/` with its own readme
+  (`waltograph.txt`) and licence (`license.txt`), unchanged. The logo images made
+  with it (`docs/images/logo*.png`, `custom_components/magicband/brand/*logo.png`)
+  are shared under the same NonCommercial-ShareAlike licence.
+
 **Hardware**
 - Developed for the Lonely Binary ESP32-S3 N16R8 IPEX board, which uses the
   ESP32-S3-DevKitC-1 layout.
@@ -193,7 +205,8 @@ This project builds on other people's work.
   and Adafruit's product pages and guides (NeoPixel Überguide, MAX98357A,
   HUSB238, PN532).
 
-MagicBand and MagicBand+ are trademarks of Disney. This is an unofficial hobby
+MagicBand and MagicBand+ are trademarks of Disney. The Waltograph font is a
+fan-made lettering inspired by Disney's; it is not Disney's own typeface. This is an unofficial hobby
 project with no affiliation to, or endorsement from, Disney, Adafruit or any of
 the projects above.
 

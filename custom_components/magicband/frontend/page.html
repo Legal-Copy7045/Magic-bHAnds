@@ -48,15 +48,17 @@ h3.grp{font:700 14px "Bricolage Grotesque",sans-serif;margin:16px 0 8px;display:
 .tag{font:600 10.5px "Instrument Sans",sans-serif;padding:1px 7px;border-radius:999px;background:var(--grid);color:var(--ink-2);margin-left:6px;vertical-align:1px}
 .tag.no{background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad)}.tag.yes{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
 @media (max-width:600px){.kv{grid-template-columns:1fr}.kv dt{margin-top:4px}}
-html:root{--page:#7c3aed;--mbh-ha:#3b82f6}
+@font-face{font-family:"Waltograph";src:url("/magicbhands_static/fonts/waltograph42.otf") format("opentype");font-display:swap}
+html:root{--page:#7c3aed;--mbh-ha:#3b82f6;--mbh-display:"Waltograph","Bricolage Grotesque",sans-serif}
 @media (prefers-color-scheme:dark){html:root:not([data-theme="light"]){--page:#a78bfa;--mbh-ha:#60a5fa}}
 html:root[data-theme="dark"]{--page:#a78bfa;--mbh-ha:#60a5fa}
 .hero{position:relative;overflow:hidden}
 .hero::before{content:"";position:absolute;inset:0 0 auto 0;height:4px;background:linear-gradient(90deg,#8b5cf6,#3b82f6,#14b8a6)}
 .brand{display:flex;align-items:center;gap:14px;margin:4px 0 6px}
 .mbh-logo{width:clamp(52px,8vw,72px);height:auto;flex:none}
-.brand h1{margin:0;font-weight:800;letter-spacing:-.02em}
-.brand h1 .ha{color:var(--mbh-ha)}
+.brand h1{margin:0;font:400 clamp(50px,8vw,78px)/1 var(--mbh-display);letter-spacing:0}
+h2.sec{font:400 34px/1.1 var(--mbh-display)!important}h3.grp{font:400 25px var(--mbh-display)!important}.job h3{font:400 26px/1.15 var(--mbh-display)!important}
+.brand h1 .ha{color:var(--mbh-ha);margin:0 .03em 0 .07em}
 </style></head><body>
 <div class="wrap">
 <header class="hero"><div>
