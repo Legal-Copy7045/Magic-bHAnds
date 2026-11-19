@@ -3,6 +3,18 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.12] - 2026-11-19
+
+### Reader
+- **Ring type:** a new setting for what the ring's LEDs are: **RGB** (as
+  before, the default) or an SK6812 **RGBW** ring with **warm**, **neutral**
+  or **cool white** LEDs. On an RGBW ring, White and Warm white come from the
+  white LED (with a little colour added to make it warmer or cooler), and the
+  power cap allows for its higher draw (18 LEDs' worth of everything on).
+  One firmware fits every ring; changing the setting restarts the reader.
+  The white mixes are first guesses, to be tuned on real rings.
+- Also on the MagicbHAnds page, in the reader's **Tap sequence** fold-out.
+
 ## [0.10.11] - 2026-11-19
 
 ### Reader
