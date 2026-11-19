@@ -10,7 +10,7 @@
 substitutions:
   name: magicband-bridge
   friendly_name: MagicBand Bridge
-  project_version: "0.10.4"
+  project_version: "0.10.5"
   # (The magicband component's source is the add-on's `component_source`
   # substitution; CI and local builds override it with
   # `-s component_source ../components`.)
@@ -112,6 +112,62 @@ switch:
           continuous: true
     turn_off_action:
       - esp32_ble_tracker.stop_scan:
+
+# Memory, loop time and reset reason for the health sensors below.
+debug:
+  update_interval: 300s
+
+# The time, from Home Assistant: needed for "Last restart".
+time:
+  - platform: homeassistant
+    id: ha_time
+
+sensor:
+  # Health (diagnostic). Throttled so Home Assistant's history stays small:
+  # each is sent when it changes noticeably, and at most every 5 minutes otherwise.
+  - platform: wifi_signal
+    name: "Wi-Fi signal"
+    entity_category: diagnostic
+    update_interval: 60s
+    filters:
+      - or:
+          - delta: 3
+          - throttle: 300s
+  - platform: internal_temperature
+    name: "CPU temperature"
+    entity_category: diagnostic
+    update_interval: 60s
+    filters:
+      - or:
+          - delta: 1
+          - throttle: 300s
+  - platform: uptime
+    type: timestamp          # the time it started: changes only on a restart
+    name: "Last restart"
+    entity_category: diagnostic
+  - platform: debug
+    free:
+      name: "Free memory"
+      entity_category: diagnostic
+    block:
+      name: "Largest free block"
+      entity_category: diagnostic
+    loop_time:
+      name: "Loop time"
+      entity_category: diagnostic
+
+text_sensor:
+  - platform: debug
+    reset_reason:
+      name: "Reset reason"
+      entity_category: diagnostic
+  - platform: wifi_info
+    ip_address:
+      name: "IP address"
+      entity_category: diagnostic
+    ssid:
+      name: "Wi-Fi network"
+      entity_category: diagnostic
 
 button:
   - platform: restart
