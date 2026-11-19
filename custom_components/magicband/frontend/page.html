@@ -49,6 +49,11 @@ details.more{margin-top:8px}details.more summary{cursor:pointer;font-size:13px;c
 .hlf{display:flex;flex-wrap:wrap;gap:2px 14px;margin:6px 0 0;font-size:12px;color:var(--muted)}.hlf b{font:500 12px "JetBrains Mono",monospace;color:var(--ink-2)}
 .hl .ok b{color:var(--ok)}.hl .w b{color:var(--warn)}.hl .b b{color:var(--bad)}
 .hl b .wbars{display:inline-flex;gap:2px;align-items:flex-end;height:12px;margin:0 6px 0 0;vertical-align:-1px;color:inherit;text-transform:none;letter-spacing:0}.wbars i{width:3px;background:var(--line);border-radius:1px;display:inline-block}.wbars i.on{background:currentColor}
+.sparkbtn{border:0;background:none;padding:2px;margin-left:6px;cursor:pointer;border-radius:5px;vertical-align:middle}.sparkbtn:hover{background:var(--sunk)}.sparkbtn .spark{margin:0}
+#battpop{position:fixed;inset:0;background:color-mix(in srgb,#000 45%,transparent);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+#battpop .bp{background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:14px;padding:14px 16px;width:min(620px,100%);box-shadow:0 10px 40px rgba(0,0,0,.3)}
+#battpop .bp-h{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}#battpop .bp-h b{font:700 16px "Bricolage Grotesque",sans-serif}
+.bp-c{width:100%;height:auto;display:block}.bp-c path{fill:none;stroke:var(--page);stroke-width:2}.bp-c circle{fill:var(--page)}.bp-c .g{stroke:var(--grid);stroke-width:1}.bp-c text{font:11px "Instrument Sans",sans-serif;fill:var(--muted)}
 .spark{vertical-align:middle;margin-left:8px}.spark path{fill:none;stroke:var(--page);stroke-width:1.5}
 .days{display:flex;flex-wrap:wrap;gap:4px}.days label{font-size:12px;display:flex;gap:2px;align-items:center}
 .access input[type=time],.access input[type=datetime-local]{font:500 13px "Instrument Sans",sans-serif;padding:4px 6px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink)}
@@ -294,7 +299,7 @@ function bandCard(b,P){ { const s=b.s, nearOn=s.near&&S(s.near).state==='on', ba
       <dl class="kv"><dt>Owner</dt><dd>${esc(b.person||'nobody yet')}${b.label?' · '+esc(b.label):''}${t.allowed===false?' <span class="tag no">not allowed</span>':''}</dd>
       <dt>NFC ID</dt><dd>${b.nfc?esc(b.nfc):'<span class="muted">not tapped yet (Bluetooth only)</span>'}</dd>
       <dt>Last tap</dt><dd>${s.tap?esc(rel(S(s.tap).state))+(t.reader?' · '+esc(t.reader):'')+(t.scans?' · '+t.scans+' taps':''):'<span class="muted">–</span>'}</dd>
-      <dt>Battery</dt><dd>${bat!=null?`<span class="bat"><i style="width:${Math.max(0,Math.min(100,bat))}%;background:${batC}"></i></span>${Math.round(bat)}%${spark(s.bat)}`:'<span class="muted">–</span>'}</dd>
+      <dt>Battery</dt><dd>${bat!=null?`<span class="bat"><i style="width:${Math.max(0,Math.min(100,bat))}%;background:${batC}"></i></span>${Math.round(bat)}%${spark(s.bat,b.name)}`:'<span class="muted">–</span>'}</dd>
       <dt>Closest</dt><dd>${cl?esc(cl):hb&&!/unknown|unavailable/.test(hb)?esc(hb)+' <span class="muted">(last heard)</span>':b.hasBt?'<span class="muted">not heard lately</span>':b.type==='classic'?'<span class="muted">no Bluetooth (standard MagicBand)</span>':'<span class="muted">no Bluetooth yet</span>'}${s.seen?' · '+esc(rel(S(s.seen).state)):''}</dd>
       <dt>Bluetooth</dt><dd>${b.btid?esc(b.btid):'<span class="muted">not linked</span>'}</dd>
       ${b.nfc?`<dt>Access</dt><dd>${esc(accessText(listBand(b.nfc)))}</dd>`:''}
@@ -319,6 +324,7 @@ function accessForm(key,nfc,lb){ lb=lb||{}; const exp=lb.expires?new Date(lb.exp
     <span>Until</span><input type="datetime-local" data-ax="${key}" value="${expV}"></div>
     <div class="btns"><button class="btn sm" data-acc-go="${key}" data-band="${esc(nfc)}">Save access</button><button class="btn sm" data-acc-clear="${key}" data-band="${esc(nfc)}">Always allowed</button></div>`; }
 function wireBands(){
+  document.querySelectorAll('[data-batt]').forEach(x=>x.onclick=()=>openBatt(x.dataset.batt,x.dataset.name));
   document.querySelectorAll('[data-acc-go]').forEach(x=>x.onclick=()=>{ const k=x.dataset.accGo, q=a=>document.querySelector(`[${a}="${k}"]`);
     const days=[...document.querySelectorAll(`[data-ad="${k}"]:checked`)].map(c=>c.value), ex=q('data-ax').value;
     act(mb('set_band_access',{band:x.dataset.band,from:q('data-af').value||null,until:q('data-au').value||null,days:days.length?days:null,expires:ex?new Date(ex).toISOString():null}),k,$('msg-'+k),'Saved. The readers follow within a minute.').then(load); });
@@ -436,9 +442,39 @@ async function loadBattery(){ if(Date.now()-BATT_AT<15*60000||!H().ws) return; B
   try{ const r=await H().ws({type:'history/history_during_period',start_time:new Date(Date.now()-7*864e5).toISOString(),entity_ids:ids,minimal_response:true,no_attributes:true});
     BATT={}; Object.entries(r||{}).forEach(([e,L])=>{ BATT[e]=(L||[]).map(x=>[x.lu!=null?x.lu*1000:Date.parse(x.last_updated||x.last_changed),parseFloat(x.s!=null?x.s:x.state)]).filter(x=>!isNaN(x[1])&&!isNaN(x[0])); }); render(); }
   catch(e){ console.error('battery history',e); } }
-function spark(e){ const L=BATT[e]; if(!L||L.length<2) return ''; const t0=Date.now()-7*864e5, W=70, Hh=16;
+function spark(e,name){ const L=BATT[e]; if(!L||!L.length) return ''; const t0=Date.now()-7*864e5, W=70, Hh=16;
   const pts=L.map(([t,v])=>[Math.max(0,(t-t0)/(7*864e5))*W, Hh-Math.max(0,Math.min(100,v))/100*Hh]); pts.push([W,pts[pts.length-1][1]]);
-  return `<svg class="spark" width="${W}" height="${Hh}" viewBox="0 0 ${W} ${Hh}" aria-label="battery, last 7 days"><path d="M${pts.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' L')}"/></svg>`; }
+  return `<button class="sparkbtn" data-batt="${esc(e)}" data-name="${esc(name||'')}" title="Battery history" aria-label="Battery history"><svg class="spark" width="${W}" height="${Hh}" viewBox="0 0 ${W} ${Hh}"><path d="M${pts.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join(' L')}"/></svg></button>`; }
+// The pop-out battery chart: 7 or 30 days for one band
+async function openBatt(e,name,days){ days=days||7; let pop=$('battpop');
+  if(!pop){ pop=document.createElement('div'); pop.id='battpop'; document.body.appendChild(pop);
+    pop.onclick=ev=>{ if(ev.target===pop) pop.remove(); }; }
+  const head=`<div class="bp-h"><b>${esc(name||'Battery')}</b><span class="btns" style="margin:0">${[7,30].map(n=>`<button class="btn sm${n===days?' pri':''}" data-bpd="${n}">${n} days</button>`).join('')}<button class="btn sm" id="bp-x" aria-label="Close">✕</button></span></div>`;
+  pop.innerHTML=`<div class="bp" role="dialog" aria-label="Battery history">${head}<p class="sub2">Loading…</p></div>`;
+  const wireHead=()=>{ $('bp-x').onclick=()=>pop.remove(); pop.querySelectorAll('[data-bpd]').forEach(x=>x.onclick=()=>openBatt(e,name,+x.dataset.bpd)); };
+  wireHead();
+  let L=[];
+  try{ const r=await H().ws({type:'history/history_during_period',start_time:new Date(Date.now()-days*864e5).toISOString(),entity_ids:[e],minimal_response:true,no_attributes:true});
+    L=((r||{})[e]||[]).map(x=>[x.lu!=null?x.lu*1000:Date.parse(x.last_updated||x.last_changed),parseFloat(x.s!=null?x.s:x.state)]).filter(x=>!isNaN(x[0])&&!isNaN(x[1])); }
+  catch(err){ pop.querySelector('.bp').innerHTML=head+`<p class="sub2">Couldn’t load the history: ${esc(String(err.message||err))}</p>`; wireHead(); return; }
+  if(!$('battpop')) return;   // closed while loading
+  if(!L.length){ pop.querySelector('.bp').innerHTML=head+'<p class="sub2">No battery readings in this period.</p>'; wireHead(); return; }
+  // drawn at the width it's shown at, so the labels stay readable on a phone
+  const W=Math.round(Math.max(280,Math.min(588,(window.innerWidth||600)-64))), Hh=W<420?170:200, pl=36, pr=10, pt=10, pb=26, t1=Date.now(), t0=t1-days*864e5;
+  const x=t=>pl+Math.max(0,(t-t0)/(t1-t0))*(W-pl-pr), y=v=>pt+(1-Math.max(0,Math.min(100,v))/100)*(Hh-pt-pb);
+  let d=`M${x(L[0][0]).toFixed(1)} ${y(L[0][1]).toFixed(1)}`;   // battery levels are steps: draw as steps
+  for(let i=1;i<L.length;i++) d+=` H${x(L[i][0]).toFixed(1)} V${y(L[i][1]).toFixed(1)}`;
+  d+=` H${x(t1).toFixed(1)}`;
+  const grid=[0,25,50,75,100].map(v=>`<line x1="${pl}" x2="${W-pr}" y1="${y(v)}" y2="${y(v)}" class="g"/><text x="${pl-6}" y="${y(v)+4}" text-anchor="end">${v}%</text>`).join('');
+  const step=days<=7?(W<420?2*864e5:864e5):(W<420?14*864e5:7*864e5), ticks=[]; for(let t=new Date(new Date(t0).toDateString()).getTime()+864e5;t<t1;t+=step) ticks.push(t);
+  const xl=ticks.map(t=>`<line x1="${x(t)}" x2="${x(t)}" y1="${pt}" y2="${Hh-pb}" class="g"/><text x="${x(t)}" y="${Hh-8}" text-anchor="middle">${esc(new Date(t).toLocaleDateString([], days<=7?{weekday:'short'}:{day:'numeric',month:'short'}))}</text>`).join('');
+  const now=L[L.length-1][1], low=Math.min(...L.map(p=>p[1]));
+  let charged=null; for(let i=1;i<L.length;i++) if(L[i][1]-L[i-1][1]>=10) charged=L[i][0];
+  const dots=L.map(p=>`<circle cx="${x(p[0]).toFixed(1)}" cy="${y(p[1]).toFixed(1)}" r="2.5"><title>${esc(new Date(p[0]).toLocaleString())}: ${Math.round(p[1])}%</title></circle>`).join('');
+  pop.querySelector('.bp').innerHTML=head+`<svg class="bp-c" viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Battery level, last ${days} days">${grid}${xl}<path d="${d}"/>${dots}</svg>
+    <div class="hlf"><span>Now <b>${Math.round(now)}%</b></span><span>Lowest <b>${Math.round(low)}%</b></span><span>Last charged <b>${charged?esc(rel(new Date(charged).toISOString())):'not in this period'}</b></span><span>Readings <b>${L.length}</b></span></div>`;
+  wireHead(); }
+document.addEventListener('keydown',ev=>{ if(ev.key==='Escape'&&$('battpop')) $('battpop').remove(); });
 (()=>{ const save=()=>{ try{ localStorage.setItem('mbh-bands',JSON.stringify({group:BV.group,sort:BV.sort})); }catch(e){} }, redraw=()=>{ if(BLAST){ bandCards(...BLAST); try{ wire(); }catch(e){ console.error(e); } } };
   const g=$('b-group'), so=$('b-sort'), f=$('b-find'); if(!g) return; g.value=BV.group; so.value=BV.sort;
   g.onchange=()=>{ BV.group=g.value; save(); redraw(); }; so.onchange=()=>{ BV.sort=so.value; save(); redraw(); }; f.oninput=()=>{ BV.find=f.value; redraw(); }; })();

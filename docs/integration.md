@@ -122,7 +122,7 @@ everything, read live from Home Assistant.
   Each band's **Manage** also sets its **access**: a daily time window
   (an end earlier than the start means overnight), days of the week and an
   expiry date; the card shows the rule ("07:00–21:00, Mo Tu We Th Fr, until
-  24 Dec"). Each MagicBand+ shows a 7-day battery sparkline.
+  24 Dec"). Each MagicBand+ shows a 7-day battery sparkline; click it for a larger 7- or 30-day chart (current level, lowest, last charged).
 - **People:** who the readers let in, each person's **welcome colour** (the
   readers welcome their bands in it, on the ring and on their MagicBand+),
   and **Enrol bands** (the next bands tapped that nobody owns become theirs;

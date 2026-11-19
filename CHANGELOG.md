@@ -3,6 +3,17 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.8] - 2026-11-19
+
+### New
+- **Battery chart pop-out:** click a MagicBand+'s battery sparkline on the
+  management page for a larger chart of its battery level over 7 or 30 days,
+  with the current level, the lowest, when it was last charged and each
+  reading (hover a point for its time). Esc, ✕ or a click outside closes it.
+  A band whose battery hasn't changed in a week now shows a flat sparkline
+  too, so there's always something to click.
+- No firmware changes.
+
 ## [0.10.7] - 2026-11-19
 
 ### Fixed
