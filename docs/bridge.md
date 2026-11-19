@@ -43,8 +43,10 @@ up.
 up there with **Take control**. That imports `esphome/magicband-bridge.yaml` as
 a package so you can edit it and build your own firmware.
 
-**If Wi-Fi setup fails,** the board starts a hotspot called
-"MagicBand Bridge Setup". Join it and pick your network.
+**If Wi-Fi setup fails, or your Wi-Fi changes later,** plug the board into a
+computer and use the web installer's **Change Wi-Fi** (Improv over USB). There's
+no fallback hotspot: an open setup hotspot would let anyone nearby upload their
+own firmware (see [security.md](security.md)).
 
 ## Hardware
 

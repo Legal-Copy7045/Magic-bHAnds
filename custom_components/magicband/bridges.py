@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Context, HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 
@@ -130,9 +130,25 @@ def build_command(data: dict[str, Any]) -> dict[str, Any]:
     return cmd
 
 
-async def async_send(hass: HomeAssistant, data: dict[str, Any]) -> list[str]:
-    """Send one command to the chosen bridges (default: all). Returns the bridges used."""
-    bridges = list(data.get("bridges") or []) or find_bridges(hass)
+async def async_send(hass: HomeAssistant, data: dict[str, Any], context: Context | None = None) -> list[str]:
+    """Send one command to the chosen bridges (default: all). Returns the bridges used.
+
+    Only MagicBand bridges' Command entities can be targeted: anything else in
+    `bridges` is refused, so this can't be used to write other text entities.
+    The write runs with the caller's context, so Home Assistant's own
+    permissions and logbook see who sent it.
+    """
+    known = find_bridges(hass)
+    wanted = list(dict.fromkeys(data.get("bridges") or []))
+    if wanted:
+        if unknown := [entity_id for entity_id in wanted if entity_id not in known]:
+            raise ServiceValidationError(
+                f"Not a MagicBand bridge's Command entity: {', '.join(unknown)}. "
+                "magicband.list_bridges shows the bridges."
+            )
+        bridges = wanted
+    else:
+        bridges = known
     if not bridges:
         raise ServiceValidationError(
             "No MagicBand bridges found. Add a bridge (an ESPHome device with the magicband "
@@ -141,5 +157,7 @@ async def async_send(hass: HomeAssistant, data: dict[str, Any]) -> list[str]:
     value = json.dumps(build_command(data), separators=(",", ":"))
     if len(value) > MAX_COMMAND_LEN:
         raise ServiceValidationError(f"Command is {len(value)} characters; the limit is {MAX_COMMAND_LEN}")
-    await hass.services.async_call("text", "set_value", {"entity_id": bridges, "value": value}, blocking=True)
+    await hass.services.async_call(
+        "text", "set_value", {"entity_id": bridges, "value": value}, blocking=True, context=context
+    )
     return bridges

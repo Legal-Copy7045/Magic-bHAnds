@@ -22,6 +22,11 @@ static constexpr uint16_t DISNEY_COMPANY_ID = 0x0183;
 /// Max payload after the company ID: 31 (legacy adv) - 3 (flags AD) - 2 (mfg AD header) - 2 (company ID).
 static constexpr size_t MAX_PAYLOAD_LEN = 24;
 
+/// Longest one command may broadcast. Commands come from Home Assistant (any
+/// user can write the Command entity), and while broadcasting the Bluetooth
+/// proxy may be paused, so a huge duration_ms must not tie the radio up.
+static constexpr uint32_t MAX_DURATION_MS = 60000;
+
 /// Palette indexes (5-bit). Community-sourced; see docs/protocol.md.
 enum Color : uint8_t {
   CYAN = 0x00,

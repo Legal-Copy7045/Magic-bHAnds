@@ -42,6 +42,11 @@ BAND_HISTORY = 200
 REPEAT_SECONDS = 5.0
 # A band heard this soon after a send is reported as a likely response.
 RESPONSE_WINDOW_SECONDS = 15.0
+# magicband_heard events go into Home Assistant's history. Anyone nearby can
+# broadcast Disney-ID advertisements with ever-changing addresses, so at most
+# this many events are fired per minute (everything is still logged and kept
+# in the bounded histories above).
+EVENTS_PER_MINUTE = 60
 
 
 def classify(payload: bytes) -> str:
@@ -78,6 +83,8 @@ class BandListener:
         self.last_band: Heard | None = None
         self._last_send: float | None = None
         self._last_fired: dict[tuple[str, str], float] = {}
+        self._event_times: deque[float] = deque()
+        self.events_dropped = 0
         self.active = False
         # Called with (address, rssi, source, payload) for every band message.
         self.on_band: Callable[[str, int, str, bytes], Any] | None = None
@@ -137,11 +144,28 @@ class BandListener:
             )
         else:
             _LOGGER.debug("Command heard by %s from %s (RSSI %s): 83 01 %s", heard.source, address, rssi, hexed)
-        self.hass.bus.async_fire(EVENT_HEARD, {**asdict(heard), "likely_response": recent and heard.kind == "band"})
+        if self._event_allowed(now):
+            self.hass.bus.async_fire(EVENT_HEARD, {**asdict(heard), "likely_response": recent and heard.kind == "band"})
         if heard.kind == "band" and self.on_band is not None:
             self.on_band(address, rssi, source, payload)
         async_dispatcher_send(self.hass, SIGNAL_HEARD)
         return heard
+
+    def _event_allowed(self, now: float) -> bool:
+        """Rate limit for magicband_heard events (EVENTS_PER_MINUTE)."""
+        while self._event_times and now - self._event_times[0] >= 60:
+            self._event_times.popleft()
+        if len(self._event_times) >= EVENTS_PER_MINUTE:
+            self.events_dropped += 1
+            if self.events_dropped in (1, 100) or self.events_dropped % 1000 == 0:
+                _LOGGER.warning(
+                    "More than %d Disney-ID Bluetooth messages a minute; not firing events for the rest (%d so far)",
+                    EVENTS_PER_MINUTE,
+                    self.events_dropped,
+                )
+            return False
+        self._event_times.append(now)
+        return True
 
     def async_start(self) -> callable | None:
         """Start listening if Home Assistant's Bluetooth is set up."""

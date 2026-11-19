@@ -339,6 +339,10 @@ bool MagicBand::send_raw(const std::vector<uint8_t> &payload, uint32_t duration_
     ESP_LOGW(TAG, "Queue full, dropping oldest command");
     this->queue_.pop_front();
   }
+  if (duration_ms > MAX_DURATION_MS) {
+    ESP_LOGW(TAG, "Duration %ums capped at %ums", (unsigned) duration_ms, (unsigned) MAX_DURATION_MS);
+    duration_ms = MAX_DURATION_MS;
+  }
   this->queue_.push_back(Command{payload, duration_ms == 0 ? this->duration_ms_ : duration_ms});
   return true;
 }

@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
+import logging
 import uuid
 
 from homeassistant.core import HomeAssistant, callback
@@ -14,9 +15,38 @@ from homeassistant.util import dt as dt_util
 from .const import STORAGE_KEY, STORAGE_VERSION
 
 
+_LOGGER = logging.getLogger(__name__)
+
+# NFC IDs (ISO 14443-3) are 4, 7 or 10 bytes: 8, 14 or 20 hex digits.
+UID_HEX_LENGTHS = (8, 14, 20)
+_HEX = frozenset("0123456789ABCDEF")
+_SEPARATORS = "-: "
+# Bands nobody owns are kept for assigning later; beyond this many, the
+# longest-unseen ones are dropped so a stream of made-up tags can't fill the
+# registry (and the device list, and the notifications).
+MAX_UNASSIGNED_BANDS = 50
+
+
 def normalize_uid(uid: str) -> str:
-    """Canonical band ID: uppercase hex digits, no separators (04-53-65 -> 045365)."""
-    return "".join(c for c in uid.upper() if c.isalnum())
+    """Lookup key for a band ID: uppercase, separators and anything but ASCII letters/digits removed.
+
+    Use parse_uid to check that a value is a real NFC ID before adding it.
+    """
+    return "".join(c for c in str(uid).upper() if c.isascii() and c.isalnum())
+
+
+def parse_uid(value: object) -> str | None:
+    """A valid NFC ID in canonical form (04-53-65-2A-C0-5F-80 -> 0453652AC05F80), or None.
+
+    Only hex digits and the separators - : and space are accepted, and the ID
+    must be 4, 7 or 10 bytes long, the same rules the reader firmware applies.
+    """
+    if not isinstance(value, str):
+        return None
+    key = "".join(c for c in value.strip() if c not in _SEPARATORS).upper()
+    if len(key) not in UID_HEX_LENGTHS or not set(key) <= _HEX:
+        return None
+    return key
 
 
 def display_uid(uid: str) -> str:
@@ -64,6 +94,7 @@ class _Data:
 
 
 _BAND_FIELDS = set(Band.__dataclass_fields__)
+_PERSON_FIELDS = set(Person.__dataclass_fields__)
 
 
 class MagicBandRegistry:
@@ -79,10 +110,31 @@ class MagicBandRegistry:
 
     async def async_load(self) -> None:
         raw = await self._store.async_load() or {}
-        self._data = _Data(
-            people={p["id"]: Person(**p) for p in raw.get("people", [])},
-            bands={b["uid"]: Band(**{k: v for k, v in b.items() if k in _BAND_FIELDS}) for b in raw.get("bands", [])},
-        )
+        if not isinstance(raw, dict):
+            raw = {}
+        people: dict[str, Person] = {}
+        for item in raw.get("people", []) or []:
+            try:
+                person = Person(**{k: v for k, v in item.items() if k in _PERSON_FIELDS})
+                if not isinstance(person.id, str) or not isinstance(person.name, str):
+                    raise TypeError("id and name must be text")
+            except (AttributeError, TypeError) as err:
+                _LOGGER.warning("Skipping a damaged person in the MagicbHAnds store: %s", err)
+                continue
+            people[person.id] = person
+        bands: dict[str, Band] = {}
+        for item in raw.get("bands", []) or []:
+            try:
+                band = Band(**{k: v for k, v in item.items() if k in _BAND_FIELDS})
+                if not isinstance(band.uid, str):
+                    raise TypeError("uid must be text")
+            except (AttributeError, TypeError) as err:
+                _LOGGER.warning("Skipping a damaged band in the MagicbHAnds store: %s", err)
+                continue
+            if parse_uid(band.uid) is None:
+                _LOGGER.warning("Band %r isn't a valid NFC ID; it's kept but never allowed in", band.uid)
+            bands[band.uid] = band
+        self._data = _Data(people=people, bands=bands)
 
     def _serialize(self) -> dict:
         return {
@@ -142,6 +194,8 @@ class MagicBandRegistry:
 
     def band_allowed(self, uid: str) -> bool:
         band = self.get_band(uid)
+        if band is None or parse_uid(band.uid) is None:
+            return False  # only real NFC IDs are ever allowed
         person = self.get_person(band.person_id) if band else None
         return bool(person and person.allowed)
 
@@ -161,8 +215,10 @@ class MagicBandRegistry:
 
     @callback
     def record_scan(self, uid: str, reader: str | None, when: datetime | None = None) -> tuple[Band, bool]:
-        """Log a scan. Returns (band, is_new)."""
-        key = normalize_uid(uid)
+        """Log a scan of a valid NFC ID (see parse_uid). Returns (band, is_new)."""
+        key = parse_uid(uid)
+        if key is None:
+            raise ValueError(f"{uid!r} isn't a valid band ID")
         now = (when or dt_util.utcnow()).isoformat()
         band = self._data.bands.get(key)
         is_new = band is None
@@ -214,6 +270,25 @@ class MagicBandRegistry:
         self._changed()
 
     @callback
+    def prune_unassigned(self, limit: int = MAX_UNASSIGNED_BANDS - 1) -> list[str]:
+        """Drop the longest-unseen untouched unassigned bands beyond `limit`. Returns their IDs."""
+        spare = sorted(
+            (
+                b
+                for b in self._data.bands.values()
+                if b.person_id is None and not b.label and b.band_type == "auto"
+            ),
+            key=lambda b: b.last_seen or b.first_seen or "",
+        )
+        removed = [b.uid for b in spare[: max(0, len(spare) - limit)]]
+        for uid in removed:
+            self._data.bands.pop(uid, None)
+        if removed:
+            _LOGGER.info("Dropped %d old unassigned band(s) to stay under %d", len(removed), MAX_UNASSIGNED_BANDS)
+            self._changed(allowed_changed=False)
+        return removed
+
+    @callback
     def assign_band(self, uid: str, person_id: str | None, label: str | None = None) -> Band:
         """Give a band to a person (or unassign with person_id=None). Unseen bands are added."""
         key = normalize_uid(uid)
@@ -221,6 +296,10 @@ class MagicBandRegistry:
             raise ValueError("Band ID is empty")
         if person_id is not None and person_id not in self._data.people:
             raise ValueError("Unknown person")
+        if parse_uid(key) is None and (person_id is not None or key not in self._data.bands):
+            raise ValueError(
+                f"{uid} isn't a valid band ID (4, 7 or 10 bytes of hex, e.g. 04-53-65-2A-C0-5F-80)"
+            )
         band = self._data.bands.setdefault(key, Band(uid=key))
         band.person_id = person_id
         if label is not None:

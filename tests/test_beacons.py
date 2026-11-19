@@ -473,6 +473,7 @@ async def test_management_page_and_sidebar(hass: HomeAssistant, setup_integratio
         hass.config_entries.async_update_entry(entry, options={"show_in_sidebar": True})
         await hass.async_block_till_done()
         assert panels["magicbhands"]["sidebar_title"] == "MagicbHAnds"
+        assert panels["magicbhands"]["require_admin"] is True  # it manages who the readers let in
         hass.config_entries.async_update_entry(entry, options={"show_in_sidebar": False})
         await hass.async_block_till_done()
         assert "magicbhands" not in panels

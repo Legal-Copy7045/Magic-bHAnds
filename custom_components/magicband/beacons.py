@@ -70,6 +70,13 @@ PAIRING_WINDOW = timedelta(minutes=20)  # covers at least one beacon
 CLEAR_WINNER_DB = 10
 SAMPLES = 50
 LEVEL_HISTORY = 100
+# Bluetooth bands nobody has claimed (not linked to an NFC band, not given to
+# a person). Anyone can broadcast made-up beacons, so these are capped: when
+# full, the longest-unheard one is dropped if it's been away a while, and
+# otherwise new signatures are ignored until there's room.
+MAX_UNCLAIMED = 25
+MAX_FORMS = 8
+MAX_PAIRING_WINDOWS = 10
 
 
 @dataclass
@@ -240,6 +247,9 @@ class BluetoothBand:
         return acc.hex(" ").upper()
 
 
+_BAND_FIELDS = set(BluetoothBand.__dataclass_fields__)
+
+
 @dataclass
 class _Window:
     uid: str
@@ -259,13 +269,25 @@ class BeaconTracker:
         self.encrypted: list[list] = []  # [iso time, payload hex, rssi, source]
         self._windows: dict[str, _Window] = {}
         self._unsubs: list[Callable[[], None]] = []
+        self._full_warned: datetime | None = None
 
     # ------------------------------------------------------------------ storage
 
     async def async_load(self) -> None:
         raw = await self._store.async_load() or {}
-        self.bands = {b["id"]: BluetoothBand(**b) for b in raw.get("bands", [])}
-        self.encrypted = raw.get("encrypted", [])
+        if not isinstance(raw, dict):
+            raw = {}
+        self.bands = {}
+        for item in raw.get("bands", []) or []:
+            try:
+                band = BluetoothBand(**{k: v for k, v in item.items() if k in _BAND_FIELDS})
+                bytes.fromhex(band.id)
+            except (AttributeError, TypeError, ValueError) as err:
+                _LOGGER.warning("Skipping a damaged Bluetooth band in the MagicbHAnds store: %s", err)
+                continue
+            self.bands[band.id] = band
+        encrypted = raw.get("encrypted", [])
+        self.encrypted = encrypted[:SAMPLES] if isinstance(encrypted, list) else []
         # Presence goes stale without beacons: re-check every minute.
         @callback
         def _tick(_now: datetime) -> None:
@@ -377,6 +399,8 @@ class BeaconTracker:
         band = self._match(beacon.signature)
         is_new = band is None
         if band is None:
+            if not self._make_room():
+                return None
             band = BluetoothBand(id=beacon.signature.hex(), first_seen=now, last_seen=now)
             self.bands[band.id] = band
             _LOGGER.info("New MagicBand+ heard over Bluetooth: %s", band.short)
@@ -390,7 +414,7 @@ class BeaconTracker:
         band.rssi_by_source[source] = rssi
         band.heard[source] = [rssi, now]
         if beacon.form not in band.forms:
-            band.forms = [*band.forms, beacon.form]
+            band.forms = [*band.forms, beacon.form][-MAX_FORMS:]
         if beacon.level != band.level:
             band.level_history = [*band.level_history, [now, beacon.level]][-LEVEL_HISTORY:]
             band.level = beacon.level
@@ -420,6 +444,29 @@ class BeaconTracker:
             async_dispatcher_send(self.hass, SIGNAL_BEACON_NEW)
         async_dispatcher_send(self.hass, SIGNAL_BEACON)
         return band
+
+    def _unclaimed(self) -> list[BluetoothBand]:
+        return [b for b in self.bands.values() if b.band_uid is None and b.person_id is None]
+
+    def _make_room(self) -> bool:
+        """Whether a new Bluetooth band may be added (dropping a long-unheard unclaimed one if needed)."""
+        unclaimed = self._unclaimed()
+        if len(unclaimed) < MAX_UNCLAIMED:
+            return True
+        stalest = min(unclaimed, key=lambda b: b.last_seen)
+        if stalest.nearby():
+            now = dt_util.utcnow()
+            if self._full_warned is None or now - self._full_warned > timedelta(hours=1):
+                self._full_warned = now
+                _LOGGER.warning(
+                    "%d unclaimed Bluetooth bands are being heard; ignoring new ones until one goes away. "
+                    "Link or give them to people, or forget ones that aren't yours",
+                    MAX_UNCLAIMED,
+                )
+            return False
+        _LOGGER.info("Forgetting unclaimed Bluetooth band %s (not heard since %s) to make room", stalest.short, stalest.last_seen)
+        self.forget(stalest)
+        return True
 
     def _match(self, signature: bytes) -> BluetoothBand | None:
         best, best_d = None, MATCH_BITS + 1
@@ -479,6 +526,10 @@ class BeaconTracker:
         old = self._windows.pop(key, None)
         if old and old.cancel:
             old.cancel()
+        while len(self._windows) >= MAX_PAIRING_WINDOWS:  # oldest tap first
+            stale = self._windows.pop(next(iter(self._windows)))
+            if stale.cancel:
+                stale.cancel()
         window = _Window(uid=key, reader=reader)
         @callback
         def _done(_now: datetime) -> None:
@@ -507,9 +558,38 @@ class BeaconTracker:
         chosen = self.choose(key, window.candidates)
         nfc = self.registry.get_band(key)
         display = nfc.display if nfc else key
+        if chosen is not None and chosen.person_id is not None and (nfc is None or nfc.person_id != chosen.person_id):
+            # Linking would give the NFC band the Bluetooth band's owner, i.e. let a tag in that nobody
+            # approved. Anyone can tap a tag and broadcast a beacon, so that's never done automatically.
+            owner = self.registry.get_person(chosen.person_id)
+            persistent_notification.async_create(
+                self.hass,
+                (
+                    f"After **{display}** was tapped, only **{self.display_name(chosen)}** was heard over "
+                    f"Bluetooth. It belongs to {owner.name if owner else 'someone'}, so linking it would "
+                    "let this NFC band in as theirs. It wasn't linked automatically.\n\n"
+                    "If it is the same band, link it by hand: **Settings → Devices & services → MagicbHAnds → "
+                    "Configure → Link a band's Bluetooth**."
+                ),
+                title="MagicbHAnds: confirm this band",
+                notification_id=f"{DOMAIN}_pair_{key}",
+            )
+            _LOGGER.warning("Not linking band %s to %s's Bluetooth band %s automatically", display,
+                            owner.name if owner else "someone", chosen.short)
+            return
         if chosen is not None:
             self.link(chosen, nfc_uid=key)
             _LOGGER.info("Linked band %s to Bluetooth band %s", display, chosen.short)
+            persistent_notification.async_create(
+                self.hass,
+                (
+                    f"**{display}** was linked to the MagicBand+ heard over Bluetooth "
+                    f"(**{self.display_name(chosen)}**) after it was tapped. If that's the wrong band, "
+                    "unlink it under **Settings → Devices & services → MagicbHAnds → Configure**."
+                ),
+                title="MagicbHAnds: band linked",
+                notification_id=f"{DOMAIN}_pair_{key}",
+            )
             return
         if not window.candidates:
             _LOGGER.info("No unlinked Bluetooth band heard within %s of tapping %s", PAIRING_WINDOW, display)

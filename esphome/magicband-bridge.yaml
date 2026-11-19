@@ -10,7 +10,7 @@
 substitutions:
   name: magicband-bridge
   friendly_name: MagicBand Bridge
-  project_version: "0.10.3"
+  project_version: "0.10.4"
   # Where the magicband component is fetched from (default in the add-on).
   # CI and local development override it: `-s component_source ../components`.
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/manifest.json
@@ -76,12 +76,13 @@ update:
     update_interval: 6h
 
 wifi:
-  # No credentials here: they're entered in the web installer (Improv) or via
-  # the fallback hotspot's captive portal.
-  ap:
-    ssid: "MagicBand Bridge Setup"
-
-captive_portal:
+  # No credentials here: they're entered in the web installer (Improv over
+  # USB). There's deliberately no fallback hotspot: ESPHome's captive portal
+  # accepts a firmware upload from anyone who joins it, and an open hotspot
+  # can be forced on by knocking the board off Wi-Fi for 90 seconds. To change
+  # Wi-Fi later, plug the board into a computer and use the web installer.
+  # (Building your own? You can add "ap:" with a strong password and
+  # "captive_portal:" back.)
 
 improv_serial:
 

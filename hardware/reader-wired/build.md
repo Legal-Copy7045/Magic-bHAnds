@@ -71,10 +71,11 @@ trigger at the same time.
 ### 1. Flash the ESP32
 
 Install from the [web installer](https://legal-copy7045.github.io/Magic-bHAnds/)
-over the **UART** port, enter Wi-Fi, add the reader in Home Assistant, and
-turn on **Allow the device to perform Home Assistant actions** (ESPHome →
-the reader → Configure). Set **LED count** under the reader's
-**Configuration** once it's online.
+over the **UART** port, enter Wi-Fi, and add the reader in Home Assistant.
+Leave **Allow the device to perform Home Assistant actions** (ESPHome → the
+reader → Configure) **off**: tag scans don't need it (see
+[docs/security.md](../../docs/security.md)). Set **LED count** under the
+reader's **Configuration** once it's online.
 
 ### 2. Solder the PN532's header
 
