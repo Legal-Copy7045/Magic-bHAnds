@@ -442,6 +442,8 @@ class BeaconTracker:
         if nfc_uid is not None:
             key = normalize_uid(nfc_uid)
             nfc = self.registry.get_band(key)
+            if nfc is not None and nfc.band_type == "classic":
+                self.registry.set_band_type(key, "plus")  # it's been heard over Bluetooth, so it is one
             if nfc is not None and nfc.person_id is None and band.person_id is not None:
                 self.registry.assign_band(key, band.person_id)
                 persistent_notification.async_dismiss(self.hass, f"{DOMAIN}_unknown_{key}")
@@ -472,7 +474,7 @@ class BeaconTracker:
     def async_start_pairing(self, uid: str, reader: str | None) -> bool:
         """A band was tapped: watch for its beacon if it isn't linked yet."""
         key = normalize_uid(uid)
-        if self.for_nfc(key) is not None or not self._unlinked():
+        if self.for_nfc(key) is not None or not self._unlinked() or self.band_type(key) == "classic":
             return False
         old = self._windows.pop(key, None)
         if old and old.cancel:
@@ -486,6 +488,13 @@ class BeaconTracker:
         self._windows[key] = window
         _LOGGER.debug("Watching for the Bluetooth beacon of band %s", key)
         return True
+
+    def band_type(self, uid: str) -> str:
+        """What a tapped band is: plus, classic, or unknown (not said and never heard over Bluetooth)."""
+        nfc = self.registry.get_band(uid)
+        if nfc is not None and nfc.band_type in ("plus", "classic"):
+            return nfc.band_type
+        return "plus" if self.for_nfc(uid) is not None else "unknown"
 
     def _unlinked(self) -> list[BluetoothBand]:
         return [b for b in self.bands.values() if b.band_uid is None]

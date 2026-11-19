@@ -236,7 +236,7 @@ async def test_linking_makes_one_band_device(hass: HomeAssistant, setup_integrat
 
     devices = _band_devices(hass)
     assert set(devices) == {"band_0453652AC05F80", f"bluetooth_{band.id}"}
-    assert len(_entities_on(hass, devices["band_0453652AC05F80"])) == 1  # Last tap
+    assert len(_entities_on(hass, devices["band_0453652AC05F80"])) == 2  # Last tap, Band type
 
     # Link: the Bluetooth entities join the NFC band's device; the Bluetooth-only device goes.
     await hass.services.async_call(
@@ -248,7 +248,7 @@ async def test_linking_makes_one_band_device(hass: HomeAssistant, setup_integrat
     device = devices["band_0453652AC05F80"]
     assert device.name == "Nana's blue band" and device.model == "MagicBand+"
     entities = _entities_on(hass, device)
-    assert len(entities) == 7
+    assert len(entities) == 8
     assert any(e.endswith("_nearby") for e in entities) and any(e.endswith("_last_tap") for e in entities)
 
     result = await hass.services.async_call(DOMAIN, "list", {}, blocking=True, return_response=True)
@@ -476,3 +476,55 @@ async def test_management_page_and_sidebar(hass: HomeAssistant, setup_integratio
         hass.config_entries.async_update_entry(entry, options={"show_in_sidebar": False})
         await hass.async_block_till_done()
         assert "magicbhands" not in panels
+
+
+def _type_select(hass: HomeAssistant, uid: str) -> str:
+    from homeassistant.helpers import entity_registry as er
+
+    return er.async_get(hass).async_get_entity_id("select", DOMAIN, f"nfc_{uid}_type")
+
+
+async def test_standard_band_is_never_paired_over_bluetooth(
+    hass: HomeAssistant, setup_integration, reader_device, freezer: FrozenDateTimeFactory
+) -> None:
+    hass.bus.async_fire("tag_scanned", {"tag_id": "04-53-65-2A-C0-5F-80", "device_id": reader_device.id})
+    await hass.async_block_till_done()
+    entity_id = _type_select(hass, "0453652AC05F80")
+    assert hass.states.get(entity_id).state == "unknown"
+
+    await hass.services.async_call(
+        "select", "select_option", {"entity_id": entity_id, "option": "classic"}, blocking=True
+    )
+    await hass.async_block_till_done()
+    assert hass.states.get(entity_id).state == "classic"
+    assert hass.states.get(entity_id).attributes["band_type_set_by"] == "you"
+
+    # an unlinked MagicBand+ is around when the standard band is tapped: it must not be linked to it
+    band = _beacon(hass, BAND_X)
+    hass.bus.async_fire("tag_scanned", {"tag_id": "04-53-65-2A-C0-5F-80", "device_id": reader_device.id})
+    await hass.async_block_till_done()
+    freezer.tick(timedelta(minutes=10))
+    _beacon(hass, BAND_X, rssi=-45)
+    freezer.tick(timedelta(minutes=11))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert band.band_uid is None
+
+    result = await hass.services.async_call(DOMAIN, "list", {}, blocking=True, return_response=True)
+    assert result["bands"][0]["band_type"] == "classic"
+
+
+async def test_linked_band_is_a_magicband_plus(hass: HomeAssistant, setup_integration, reader_device) -> None:
+    hass.bus.async_fire("tag_scanned", {"tag_id": "04A99C52BE2290", "device_id": reader_device.id})
+    await hass.async_block_till_done()
+    entity_id = _type_select(hass, "04A99C52BE2290")
+    await hass.services.async_call(
+        "select", "select_option", {"entity_id": entity_id, "option": "classic"}, blocking=True
+    )
+    band = _beacon(hass, BAND_Z[0])
+    await hass.services.async_call(
+        DOMAIN, "link_bluetooth", {"bluetooth_band": band.id, "band": "04A99C52BE2290"}, blocking=True
+    )
+    await hass.async_block_till_done()
+    # linking proves it has Bluetooth, so the wrong "standard" is corrected
+    assert hass.states.get(entity_id).state == "plus"

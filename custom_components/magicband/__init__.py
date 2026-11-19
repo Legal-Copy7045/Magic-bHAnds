@@ -52,7 +52,7 @@ from .registry import Band, MagicBandRegistry, display_uid
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR]
+PLATFORMS = [Platform.BINARY_SENSOR, Platform.SELECT, Platform.SENSOR]
 
 EVENT_TAG_SCANNED = "tag_scanned"
 
@@ -513,4 +513,5 @@ def _band_dict(registry: MagicBandRegistry, band: Band, tracker: BeaconTracker |
         "last_seen": band.last_seen,
         "last_reader": band.last_reader,
         "scans": band.scans,
+        "band_type": tracker.band_type(band.uid) if tracker else band.band_type,
     }

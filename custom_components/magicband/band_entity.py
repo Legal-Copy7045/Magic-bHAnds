@@ -31,7 +31,7 @@ def band_device_info(tracker: BeaconTracker, nfc: Band | None, ble: BluetoothBan
         identifiers={(DOMAIN, key)},
         name=tracker.band_name(nfc, ble),
         manufacturer="Disney",
-        model="MagicBand+" if ble is not None else "MagicBand",
+        model="MagicBand+" if ble is not None or (nfc is not None and nfc.band_type == "plus") else "MagicBand",
         serial_number=nfc.display if nfc is not None else ble.id.upper(),
     )
 

@@ -416,6 +416,7 @@ class BandLastTapSensor(NfcBandEntity, SensorEntity):
             "scans": nfc.scans,
             "first_seen": nfc.first_seen,
             "bluetooth_band": ble.id if ble else None,
+            "band_type": self._tracker.band_type(nfc.uid),
         }
 
 

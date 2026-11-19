@@ -10,6 +10,14 @@ Home Assistant integration share one version number.
   wordmark (the "HA" in blue), the brand's purple accent and a
   purple-blue-teal strip across the header, in light and dark mode. The logo
   is inline, so it shows wherever the page is served.
+- **Band type: MagicBand+ or standard MagicBand.** Each tapped band has a
+  **Band type** select. A band linked to its Bluetooth is a MagicBand+
+  automatically. Mark the original NFC-only bands as *Standard MagicBand*
+  and they're no longer listed as "haven't been heard over Bluetooth yet"
+  (they never will be), and tapping them no longer starts the Bluetooth
+  pairing window, so they can't be paired by mistake with a MagicBand+
+  that's nearby. The management page asks about bands whose type isn't
+  known yet, with one-tap buttons, and shows the type on each band card.
 
 ## [0.10.0] - 2026-11-19
 

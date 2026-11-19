@@ -141,6 +141,16 @@
       "band_nearby": {
         "name": "Nearby"
       }
+    },
+    "select": {
+      "band_type": {
+        "name": "Band type",
+        "state": {
+          "unknown": "Not known yet",
+          "plus": "MagicBand+ (Bluetooth)",
+          "classic": "Standard MagicBand (NFC only)"
+        }
+      }
     }
   },
   "services": {
