@@ -25,6 +25,9 @@ def display_uid(uid: str) -> str:
     return "-".join(uid[i : i + 2] for i in range(0, len(uid), 2))
 
 
+BAND_TYPES = ("auto", "plus", "classic")
+
+
 @dataclass
 class Person:
     """Someone who can be given bands. Optionally linked to an HA person."""
@@ -46,6 +49,7 @@ class Band:
     last_seen: str | None = None
     last_reader: str | None = None
     scans: int = 0
+    band_type: str = "auto"  # BAND_TYPES: auto (not said), plus (MagicBand+), classic (NFC only)
 
     @property
     def display(self) -> str:
@@ -57,6 +61,9 @@ class Band:
 class _Data:
     people: dict[str, Person] = field(default_factory=dict)
     bands: dict[str, Band] = field(default_factory=dict)
+
+
+_BAND_FIELDS = set(Band.__dataclass_fields__)
 
 
 class MagicBandRegistry:
@@ -74,7 +81,7 @@ class MagicBandRegistry:
         raw = await self._store.async_load() or {}
         self._data = _Data(
             people={p["id"]: Person(**p) for p in raw.get("people", [])},
-            bands={b["uid"]: Band(**b) for b in raw.get("bands", [])},
+            bands={b["uid"]: Band(**{k: v for k, v in b.items() if k in _BAND_FIELDS}) for b in raw.get("bands", [])},
         )
 
     def _serialize(self) -> dict:
@@ -219,6 +226,18 @@ class MagicBandRegistry:
         if label is not None:
             band.label = label.strip()
         self._changed()
+        return band
+
+    @callback
+    def set_band_type(self, uid: str, band_type: str) -> Band:
+        """Say whether a band is a MagicBand+ (Bluetooth) or a standard MagicBand (NFC only)."""
+        if band_type not in BAND_TYPES:
+            raise ValueError(f"Band type must be one of {', '.join(BAND_TYPES)}")
+        band = self._data.bands.get(normalize_uid(uid))
+        if band is None:
+            raise ValueError("Unknown band")
+        band.band_type = band_type
+        self._changed(allowed_changed=False)
         return band
 
     @callback

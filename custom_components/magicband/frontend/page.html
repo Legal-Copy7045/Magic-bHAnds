@@ -107,7 +107,8 @@ function bandDevices(I){ return mbDevices(I).filter(d=>isBandDev(I,d)); }
 function serviceDevices(I){ return mbDevices(I).filter(d=>!isBandDev(I,d)); }
 // a band's sensors, told apart by attributes
 function bandSensors(I,d){ const L=I.byDev[d.id]||[], has=(e,...k)=>k.every(x=>x in A(e)), o={};
-  L.forEach(e=>{ if(e.startsWith('sensor.')&&has(e,'scans','band','person','allowed')) o.tap=e;
+  L.forEach(e=>{ if(e.startsWith('select.')&&has(e,'linked_to_bluetooth')) o.type=e;
+    else if(e.startsWith('sensor.')&&has(e,'scans','band','person','allowed')) o.tap=e;
     else if(e.startsWith('binary_sensor.')&&has(e,'away_after_minutes')) o.near=e;
     else if(has(e,'raw','changes')||(has(e,'raw')&&A(e).device_class==='battery')) o.bat=e;   // changes is left out when it's empty
     else if(has(e,'heard_in_last_20_minutes')) o.closest=e;
@@ -119,7 +120,7 @@ function bands(I){ const btBy={}; ((BT&&BT.bluetooth_bands)||[]).forEach(b=>{ bt
   return bandDevices(I).map(d=>{ const s=bandSensors(I,d), t=s.tap?A(s.tap):{}, nb=s.near?A(s.near):{}, sn=s.seen?A(s.seen):{}, bt=btBy[dname(d)]||btBy[d.name]||null;
     const nfc=t.band||nb.band||sn.band||(bt&&bt.band)||null;
     return {d, s, name:dname(d), nfc, person:t.person||nb.person||sn.person||(bt&&bt.person)||null, label:t.label||null,
-      btid:t.bluetooth_band||(bt&&bt.id)||null, hasNfc:!!s.tap, hasBt:!!(s.seen||s.near||s.signal||bt), allowed:t.allowed}; }); }
+      btid:t.bluetooth_band||(bt&&bt.id)||null, hasNfc:!!s.tap, type:s.type&&avail(s.type)?S(s.type).state:(t.band_type||null), hasBt:!!(s.seen||s.near||s.signal||bt), allowed:t.allowed}; }); }
 function people(I){ return serviceDevices(I).flatMap(d=>(I.byDev[d.id]||[]).filter(e=>e.startsWith('sensor.')&&'bands' in A(e)&&'allowed' in A(e)))
   .map(e=>{ const a=A(e), dn=String((H().meta(e)||{}).device||''), fn=String(a.friendly_name||e), n=(dn&&fn.startsWith(dn)?fn.slice(dn.length):fn.replace(/^MagicBand\s+/i,'')).trim().replace(/\s+last tap$/i,''); const L=((LIST&&LIST.people)||[]).find(p=>p.name===n);
     return {e, name:n, id:L?L.id:null, ha:a.ha_person||null, allowed:a.allowed!==false, bands:(a.bands||[]).map(b=>typeof b==='string'?{band:b}:b), last:S(e).state, last_reader:a.last_reader}; })
@@ -166,8 +167,19 @@ function unknownJob(I,P,unk){ const lt=svcSensor(I,e=>e.startsWith('sensor.')&&'
     act(go,k,msg,`Assigned to ${person}. Push to readers so they let it in.`); }); }
 
 // Bluetooth halves with no NFC side, and NFC bands with no Bluetooth: link one to the other
-function linkJob(I,B,P){ const btOnly=((BT&&BT.bluetooth_bands)||[]).filter(b=>!b.band), nfcOnly=B.filter(b=>b.hasNfc&&!b.btid);
-  if(!btOnly.length){ $('link').innerHTML=`<p class="muted" style="margin:10px 0 0">Every band heard over Bluetooth is linked${nfcOnly.length?`; ${nfcOnly.length} NFC band${nfcOnly.length>1?'s haven’t':' hasn’t'} been heard over Bluetooth yet (${esc(nfcOnly.map(b=>b.name).join(', '))}). Wake bands from a bridge to make them advertise.`:'.'}</p>`; return; }
+// NFC bands nobody has said are a MagicBand+ or a standard band: ask (a standard band has no Bluetooth, so it's never heard)
+const TYPE_LABEL={plus:'MagicBand+',classic:'Standard MagicBand (NFC only)',unknown:'Not known yet'};
+function typeAsk(nfcOnly){ const ask=nfcOnly.filter(b=>b.type!=='plus'&&b.s.type), wait=nfcOnly.filter(b=>b.type==='plus'), std=TYPES_STD;
+  return (wait.length?`<p class="sub2" style="margin:10px 0 0">${wait.length} MagicBand+ ${wait.length>1?'haven’t':'hasn’t'} been heard over Bluetooth yet (${esc(wait.map(b=>b.name).join(', '))}). Wake bands from a bridge to make them advertise.</p>`:'')
+    +(ask.length?`<p class="sub2" style="margin:10px 0 0">Which kind ${ask.length>1?'are these bands':'is this band'}? A standard MagicBand has no Bluetooth, so it will never be heard; marking it stops it being looked for.</p>`
+      +ask.map(b=>`<div class="item"><div class="t"><span>${esc(b.name)}</span><span class="sub2">${b.person?esc(b.person):''}</span></div><div class="btns">
+        <button class="btn sm" data-type="${esc(b.s.type)}" data-opt="plus">MagicBand+</button><button class="btn sm" data-type="${esc(b.s.type)}" data-opt="classic">Standard MagicBand</button></div></div>`).join(''):'')
+    +(std?`<p class="sub2" style="margin:8px 0 0">${std} standard MagicBand${std>1?'s':''} (NFC only) ${std>1?'aren’t':'isn’t'} expected over Bluetooth.</p>`:''); }
+let TYPES_STD=0;
+function linkJob(I,B,P){ const btOnly=((BT&&BT.bluetooth_bands)||[]).filter(b=>!b.band), nfcOnly=B.filter(b=>b.hasNfc&&!b.btid&&b.type!=='classic');
+  TYPES_STD=B.filter(b=>b.hasNfc&&!b.btid&&b.type==='classic').length;
+  const typeBtns=()=>document.querySelectorAll('[data-type]').forEach(x=>x.onclick=()=>act(H().call('select','select_option',x.dataset.type,{option:x.dataset.opt}),'t'+x.dataset.type));
+  if(!btOnly.length){ $('link').innerHTML=`<p class="muted" style="margin:10px 0 0">Every band heard over Bluetooth is linked.</p>`+typeAsk(nfcOnly); typeBtns(); return; }
   $('link').innerHTML=btOnly.map((b,i)=>{ const key='l'+i;
     // best guess: an NFC band of the same person with no Bluetooth yet, else any NFC-only band
     const guess=nfcOnly.find(x=>b.person&&x.person===b.person)||(nfcOnly.length===1?nfcOnly[0]:null);
@@ -175,7 +187,8 @@ function linkJob(I,B,P){ const btOnly=((BT&&BT.bluetooth_bands)||[]).filter(b=>!
       <div class="form"><select data-l-to="${key}"><option value="">Link to…</option>
         ${nfcOnly.length?`<optgroup label="NFC bands with no Bluetooth">${nfcOnly.map(x=>`<option value="band:${esc(x.nfc)}"${guess&&guess.nfc===x.nfc?' selected':''}>${esc(x.name)}${x.person?' ('+esc(x.person)+')':''}</option>`).join('')}</optgroup>`:''}
         <optgroup label="Or a person (their band)">${P.map(p=>`<option value="person:${esc(p.name)}">${esc(p.name)}</option>`).join('')}</optgroup></select>
-      <button class="btn pri" data-l-go="${key}" data-bt="${esc(b.id)}"${BUSY[key]?' disabled':''}>Link</button>${guess?`<span class="sub2">suggested: ${esc(guess.name)}</span>`:''}</div><div class="msg" id="msg-${key}"></div></div>`; }).join('');
+      <button class="btn pri" data-l-go="${key}" data-bt="${esc(b.id)}"${BUSY[key]?' disabled':''}>Link</button>${guess?`<span class="sub2">suggested: ${esc(guess.name)}</span>`:''}</div><div class="msg" id="msg-${key}"></div></div>`; }).join('')+typeAsk(nfcOnly);
+  typeBtns();
   document.querySelectorAll('[data-l-go]').forEach(b=>b.onclick=()=>{ const k=b.dataset.lGo, v=document.querySelector(`[data-l-to="${k}"]`).value, msg=$('msg-'+k);
     if(!v){ msg.className='msg bad'; msg.textContent='Pick the band or person first.'; return; }
     const [kind,val_]=[v.slice(0,v.indexOf(':')),v.slice(v.indexOf(':')+1)];
@@ -190,8 +203,9 @@ function bandCards(I,B,P){ $('bands-cap').textContent=B.length?`${B.length} · t
       <dt>NFC ID</dt><dd>${b.nfc?esc(b.nfc):'<span class="muted">not tapped yet (Bluetooth only)</span>'}</dd>
       <dt>Last tap</dt><dd>${s.tap?esc(rel(S(s.tap).state))+(t.reader?' · '+esc(t.reader):'')+(t.scans?' · '+t.scans+' taps':''):'<span class="muted">–</span>'}</dd>
       <dt>Battery</dt><dd>${bat!=null?`<span class="bat"><i style="width:${Math.max(0,Math.min(100,bat))}%;background:${batC}"></i></span>${Math.round(bat)}%`:'<span class="muted">–</span>'}</dd>
-      <dt>Closest</dt><dd>${cl?esc(cl):hb&&!/unknown|unavailable/.test(hb)?esc(hb)+' <span class="muted">(last heard)</span>':b.hasBt?'<span class="muted">not heard lately</span>':'<span class="muted">no Bluetooth yet</span>'}${s.seen?' · '+esc(rel(S(s.seen).state)):''}</dd>
-      <dt>Bluetooth</dt><dd>${b.btid?esc(b.btid):'<span class="muted">not linked</span>'}</dd></dl>
+      <dt>Closest</dt><dd>${cl?esc(cl):hb&&!/unknown|unavailable/.test(hb)?esc(hb)+' <span class="muted">(last heard)</span>':b.hasBt?'<span class="muted">not heard lately</span>':b.type==='classic'?'<span class="muted">no Bluetooth (standard MagicBand)</span>':'<span class="muted">no Bluetooth yet</span>'}${s.seen?' · '+esc(rel(S(s.seen).state)):''}</dd>
+      <dt>Bluetooth</dt><dd>${b.btid?esc(b.btid):'<span class="muted">not linked</span>'}</dd>
+      ${b.s.type?`<dt>Type</dt><dd><select data-sel="${esc(b.s.type)}"${avail(b.s.type)?'':' disabled'}>${Object.entries(TYPE_LABEL).map(([k,v])=>`<option value="${k}"${k===b.type?' selected':''}>${esc(v)}</option>`).join('')}</select></dd>`:''}</dl>
       ${Object.keys(by).length?`<div class="chips">${Object.entries(by).sort((x,y)=>y[1]-x[1]).map(([k,v])=>`<span class="chip${best&&best[0]===k?' best':''}">${esc(k.replace(/^MagicBand Bridge BT /,'Bridge '))} <b>${v} dBm</b></span>`).join('')}</div>`:''}
       <details class="more" data-k="${esc(b.d.id)}"><summary>Manage</summary>
         ${b.nfc?`<div class="form"><label>Owner</label><select data-own="${key}"><option value="">nobody</option>${personOptions(P,b.person)}</select><input type="text" data-lab="${key}" value="${esc(b.label||'')}" placeholder="Nickname"><button class="btn sm" data-own-go="${key}" data-band="${esc(b.nfc)}">Save</button></div>`:''}

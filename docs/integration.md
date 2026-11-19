@@ -69,7 +69,8 @@ model shows *MagicBand+* once Bluetooth is linked, *MagicBand* before.
 
 | Entity | |
 |---|---|
-| `sensor.<band>_last_tap` | NFC side: when it was last tapped on a reader; attributes: NFC ID, label, person, HA person, allowed, reader, scans, first seen, linked Bluetooth band |
+| `sensor.<band>_last_tap` | NFC side: when it was last tapped on a reader; attributes: NFC ID, label, person, HA person, allowed, reader, scans, first seen, linked Bluetooth band, band type |
+| `select.<band>_band_type` | NFC side: **MagicBand+** (has Bluetooth), **Standard MagicBand** (NFC only) or **Not known yet**. Linking its Bluetooth makes it a MagicBand+ on its own; set the rest yourself (see [Bands over Bluetooth](#bands-over-bluetooth)) |
 | `binary_sensor.<band>_nearby` | On while its beacon is heard; off after 35 minutes without one (two missed beacons) |
 | `sensor.<band>_last_seen` | When its beacon was last heard; attributes: person, NFC band, which adapter heard it, beacon count, raw payload |
 | `sensor.<band>_heard_by` | Which bridge, proxy or adapter heard its latest beacon, by its Home Assistant device name (e.g. "Kitchen MagicBand Bridge"); rename the device to change it |
@@ -276,6 +277,19 @@ Unlinking splits them again. `magicband.list` also shows each band's
 Bluetooth side (nearby, battery, signal).
 Each beacon also fires a `magicband_band_seen` event with `bluetooth_band`,
 `name`, `person`, `band`, `battery`, `level`, `rssi`, `heard_by` and `new`.
+
+**Standard MagicBands** (the original, NFC-only bands) have no Bluetooth,
+so they'll never be heard. Set their **Band type** to *Standard MagicBand*
+(on the band's device page, or with the buttons in the management page's
+*Link Bluetooth to a band* box). Then:
+
+- tapping one no longer starts listening for its Bluetooth, so it can't be
+  linked by mistake to a MagicBand+ that happens to be nearby;
+- the management page stops listing it as "not heard over Bluetooth yet".
+
+A band whose Bluetooth gets linked becomes a *MagicBand+*, even if it was
+marked standard. Bands that are neither linked nor marked show *Not known
+yet*.
 
 **Range:** "nearby" means within range of a Bluetooth adapter or proxy that
 Home Assistant uses. Adding proxies (any bridge's **Bluetooth proxy**
