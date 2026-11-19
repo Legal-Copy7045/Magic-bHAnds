@@ -23,8 +23,10 @@
 # it locks again if the door isn't opened within 2 minutes. Uses the
 # magicband_tap event from the MagicbHAnds integration. Only the reader whose
 # device is named below counts, so a reader on the bench can't open the door.
-# Note: a band's NFC ID isn't secret (a phone can read it and copy it to a
-# blank tag), so this is about as secure as a basic RFID fob.
+# SECURITY: a band's NFC ID isn't secret (a phone can read it and copy it to
+# a blank tag), so on its own this is about as secure as a basic RFID fob.
+# The second condition below (someone is home) is a simple extra check;
+# see docs/security.md before using a tap to open a door.
 - alias: "MagicBand: unlock the front door for a known band"
   mode: single
   triggers:
@@ -38,6 +40,9 @@
     - condition: state
       entity_id: binary_sensor.front_door        # <- your door contact
       state: "off"
+    - condition: numeric_state                   # a second factor: at least one person is home
+      entity_id: zone.home                       # (zone.home counts people home; see docs/security.md)
+      above: 0
   actions:
     - action: lock.unlock
       target:

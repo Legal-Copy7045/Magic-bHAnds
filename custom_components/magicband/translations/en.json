@@ -96,12 +96,14 @@
       }
     },
     "error": {
-      "name_taken": "There's already a person with that name."
+      "name_taken": "There's already a person with that name.",
+      "invalid_band": "That isn't a valid band ID (4, 7 or 10 bytes of hex), so it can't be given to anyone. Remove it instead."
     },
     "abort": {
       "no_bands": "No bands yet. Tap a band on a MagicBand reader first.",
       "no_people": "No people yet. Add one first.",
-      "no_bluetooth_bands": "No MagicBand+ has been heard over Bluetooth yet. Its beacon comes about every 15 minutes: check back later."
+      "no_bluetooth_bands": "No MagicBand+ has been heard over Bluetooth yet. Its beacon comes about every 15 minutes: check back later.",
+      "invalid_band": "That isn't a valid band ID (4, 7 or 10 bytes of hex), so it can't be given to anyone. The person was added; remove the band instead."
     }
   },
   "entity": {

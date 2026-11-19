@@ -39,8 +39,10 @@ bridge needs no extra hardware.
    [![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Legal-Copy7045&repository=Magic-bHAnds&category=integration)
    Restart Home Assistant, then add **MagicbHAnds** under Settings → Devices &
    services.
-4. **Readers only:** on the reader's ESPHome entry, choose **Configure** and
-   turn on **Allow the device to perform Home Assistant actions**.
+4. **Readers:** leave **Allow the device to perform Home Assistant actions**
+   (the reader's ESPHome entry → Configure) **off**. Tag scans don't need it,
+   and a reader outside your door shouldn't be able to call any action
+   (see [docs/security.md](docs/security.md)).
 
 Then:
 - **Bridge:** call `magicband.send` from any automation, or use the
@@ -132,6 +134,12 @@ it on `main`. It tags `v<VERSION>` and publishes the GitHub Release.
   test); the ring is next. The other builds are not yet built.
   Follow each build's staged tests, which check voltages before anything is
   connected to the ESP32.
+
+## Security
+
+A band's NFC ID and Bluetooth beacon identify it but don't prove it's
+genuine, so a tap is about as secure as a basic RFID fob. Read
+[docs/security.md](docs/security.md) before using MagicbHAnds to open a door.
 
 ## Credits
 

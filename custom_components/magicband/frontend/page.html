@@ -175,7 +175,7 @@ function armed(key){ if(ARM[key]&&ARM[key]>Date.now()){ delete ARM[key]; return 
 const tg=(e,label)=>e?`<button class="tg${S(e).state==='on'?' on':''}" data-tg="${esc(e)}" aria-label="${esc(label)}" title="${esc(label)}"${avail(e)?'':' disabled'}></button>`:'<span class="muted">–</span>';
 const bt=(e,label,cls)=>e?`<button class="btn sm ${cls||''}" data-press="${esc(e)}"${avail(e)&&!BUSY[e]?'':' disabled'}>${esc(label)}</button>`:'';
 function selectFor(e){ if(!e) return '<span class="muted">–</span>'; const a=A(e); return `<select data-sel="${esc(e)}"${avail(e)?'':' disabled'}>${(a.options||[]).map(o=>`<option${o===S(e).state?' selected':''}>${esc(o)}</option>`).join('')}</select>`; }
-function numberFor(e){ if(!e) return '<span class="muted">–</span>'; const a=A(e), v=S(e).state; return `<input type="text" inputmode="decimal" size="5" data-num="${esc(e)}" value="${esc(v)}" title="${a.min??''}–${a.max??''}${a.unit_of_measurement?' '+a.unit_of_measurement:''}"${avail(e)?'':' disabled'}>`; }
+function numberFor(e){ if(!e) return '<span class="muted">–</span>'; const a=A(e), v=S(e).state; return `<input type="text" inputmode="decimal" size="5" data-num="${esc(e)}" value="${esc(v)}" title="${esc(a.min??'')}–${esc(a.max??'')}${a.unit_of_measurement?' '+esc(a.unit_of_measurement):''}"${avail(e)?'':' disabled'}>`; }
 const personOptions=(P,sel)=>P.map(p=>`<option value="${esc(p.name)}"${p.name===sel?' selected':''}>${esc(p.name)}</option>`).join('');
 function haPeople(){ return Object.keys(H().all()).filter(e=>e.startsWith('person.')&&A(e).user_id&&!/^(mqtt|alexa)/i.test(A(e).friendly_name||'')).map(e=>[e,A(e).friendly_name||e]); }
 function bandName(I,nfc){ const b=bands(I).find(x=>x.nfc===nfc); return b?b.name:null; }

@@ -115,9 +115,13 @@ class MagicBandOptionsFlow(OptionsFlow):
             choice = user_input["person"]
             if choice == NEW_PERSON:
                 return await self.async_step_new_person()
-            self._registry.assign_band(self._band, None if choice == UNASSIGN else choice, self._label)
-            persistent_notification.async_dismiss(self.hass, f"{DOMAIN}_unknown_{self._band}")
-            return self.async_create_entry(data=dict(self.config_entry.options))
+            try:
+                self._registry.assign_band(self._band, None if choice == UNASSIGN else choice, self._label)
+            except ValueError:
+                errors["band"] = "invalid_band"
+            else:
+                persistent_notification.async_dismiss(self.hass, f"{DOMAIN}_unknown_{self._band}")
+                return self.async_create_entry(data=dict(self.config_entry.options))
 
         bands = self._band_options()
         # Default to the most recently seen unassigned band.
@@ -152,7 +156,10 @@ class MagicBandOptionsFlow(OptionsFlow):
                 errors["name"] = "name_taken"
             else:
                 if self._band:
-                    self._registry.assign_band(self._band, person.id, self._label)
+                    try:
+                        self._registry.assign_band(self._band, person.id, self._label)
+                    except ValueError:
+                        return self.async_abort(reason="invalid_band")
                     persistent_notification.async_dismiss(self.hass, f"{DOMAIN}_unknown_{self._band}")
                 return self.async_create_entry(data=dict(self.config_entry.options))
         return self.async_show_form(step_id="new_person", data_schema=_person_schema(), errors=errors)

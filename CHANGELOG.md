@@ -3,6 +3,62 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.4] - 2026-11-19
+
+Security fixes from a review of the whole project. See
+[docs/security.md](docs/security.md) for the security model and what's left.
+
+### Breaking changes and things to do
+- **Bridge and reader firmware: no fallback setup hotspot.** ESPHome's captive
+  portal accepts a firmware upload from anyone who joins it, and the open
+  hotspot could be forced on by knocking a board off Wi-Fi for 90 seconds.
+  Wi-Fi is now set and changed over USB with the web installer.
+- **Admins only:** the actions that change who's allowed in (`add_person`,
+  `update_person`, `remove_person`, `assign_band`, `unassign_band`,
+  `remove_band`, `link_bluetooth`, `unlink_bluetooth`, `forget_bluetooth`)
+  and those that list band IDs (`list`, `list_bluetooth_bands`,
+  `list_heard`), and the MagicbHAnds sidebar page.
+- **Turn off "Allow the device to perform Home Assistant actions"** on
+  readers (ESPHome → the reader → Configure). The setup guides used to ask for
+  it, but tag scans don't need it, and it would let a tampered reader call any
+  action.
+- `magicband.send` only accepts MagicBand bridges in `bridges`.
+- `magicband.sync` returns `readers`, `applied` and `failed` (was `readers`).
+
+### Integration
+- Automatic Bluetooth pairing no longer gives an NFC tag the Bluetooth band's
+  owner. Before, tapping any tag while the only unlinked band heard belonged
+  to someone made that tag theirs and let it in. That case now asks for a
+  manual link; other automatic links show a notification.
+- Only real NFC IDs (4, 7 or 10 bytes of hex) are recorded, assigned or
+  allowed. The reader's "Test welcome" button (`TEST`) and malformed or
+  non-ASCII IDs are ignored; older stored IDs that aren't valid stay but are
+  never allowed.
+- `magicband.send` writes the bridges' Command entities with the caller's
+  context, so Home Assistant's permissions and logbook apply.
+- Readers that reject the allowed list are reported (notification and the
+  `sync` result), and so is a list too long for the readers to store.
+- Limits against made-up radio traffic: at most 25 unclaimed Bluetooth bands
+  (long-unheard ones are dropped, linked or owned bands never), 60
+  `magicband_heard` events a minute, and 50 unassigned NFC bands.
+- A damaged storage file no longer stops the integration loading; damaged
+  entries are skipped.
+- The management page escapes everything it shows from entity attributes.
+
+### Firmware
+- Reader: a new allowed list is checked in full. A malformed list, or one too
+  long to store (about 106 bands), empties the reader's list (everyone is
+  denied) instead of leaving the old one in place, so a revoked band can't
+  stay allowed, and the reader tells Home Assistant whether it applied it.
+- Reader: "Allow last band" only accepts real NFC IDs.
+- All boards: one command broadcasts for at most 60 seconds.
+
+### Build and release
+- GitHub Actions pinned to commit SHAs; checkouts don't keep credentials; the
+  release adds signed build-provenance attestations.
+- The web installer serves its own copy of ESP Web Tools, checked against a
+  fixed hash, instead of loading it from unpkg.
+
 ## [0.10.3] - 2026-11-19
 
 ### Integration

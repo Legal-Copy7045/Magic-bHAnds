@@ -6,7 +6,9 @@
   <title>MagicbHAnds Installer</title>
   <meta name="description" content="Install the MagicBand Bridge and MagicBand Reader firmware on an ESP32-S3 from your browser.">
   <link rel="icon" type="image/png" href="icon.png">
-  <script type="module" src="https://unpkg.com/esp-web-tools@10.4.0/dist/web/install-button.js?module"></script>
+  <!-- ESP Web Tools, served from this site: make_site.py downloads the pinned
+       release from npm and checks it against a fixed hash before publishing. -->
+  <script type="module" src="esp-web-tools/install-button.js"></script>
   <style>
     :root {
       --bg: #f6f5fb; --card: #ffffff; --text: #1e1b4b; --muted: #5f5b78;

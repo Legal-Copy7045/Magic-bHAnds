@@ -62,9 +62,10 @@ Full list with alternatives: [shopping list](../shopping-list.md).
 4. When asked, enter your Wi-Fi name and password.
 5. In Home Assistant, a **Discovered** notification appears for
    *MagicBand Reader*. Click **Add**.
-6. Open **Settings → Devices & services → ESPHome → the reader →
-   Configure** and turn on **Allow the device to perform Home Assistant
-   actions**.
+6. Leave **Allow the device to perform Home Assistant actions** (Settings →
+   Devices & services → ESPHome → the reader → Configure) **off**: tag scans
+   don't need it, and it would let a tampered reader call any action (see
+   [docs/security.md](../../docs/security.md)).
 7. On the reader's device page, under **Configuration**, set **LED count**
    to the number of LEDs on your ring (**35**). Leave **LED colour order**
    on **GRB** for now.

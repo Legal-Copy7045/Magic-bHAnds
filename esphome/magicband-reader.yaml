@@ -20,7 +20,7 @@
 substitutions:
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.10.3"
+  project_version: "0.10.4"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -103,7 +103,11 @@ api:
       then:
         - globals.set: {id: decision, value: "2"}
     # Used by the MagicBand integration to replace the reader's allowed list.
-    # bands: comma-separated band IDs (any of 04-53-65-.., 0453652A.. forms).
+    # bands: comma-separated band IDs (04-53-65-.. or 0453652A..: 4, 7 or 10
+    # bytes of hex). A list that can't be applied in full (a malformed ID, or
+    # too long to store) empties the allowed list instead of keeping the old
+    # one, so a band revoked in Home Assistant can never stay allowed here.
+    # The reply tells Home Assistant whether the list was applied.
     - action: set_known_bands
       variables:
         bands: string
@@ -111,22 +115,40 @@ api:
         - lambda: |-
             std::string out = ",";
             std::string cur;
+            std::string err;
             for (char c : std::string(bands) + ",") {
               if (c == ',') {
-                if (!cur.empty()) out += cur + ",";
+                if (!cur.empty()) {
+                  if (cur.size() != 8 && cur.size() != 14 && cur.size() != 20) {
+                    err = "Malformed band ID " + cur;
+                    break;
+                  }
+                  out += cur + ",";
+                }
                 cur.clear();
-              } else if (std::isalnum(static_cast<unsigned char>(c))) {
+              } else if (std::isxdigit(static_cast<unsigned char>(c))) {
                 cur += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+              } else if (c != '-' && c != ':' && c != ' ') {
+                err = "Unexpected character in the band list";
+                break;
               }
             }
-            if (out.size() >= id(known_list).size()) {
-              ESP_LOGE("reader", "Too many bands (%u chars); list not changed", (unsigned) out.size());
-              return;
-            }
+            if (err.empty() && out.size() >= id(known_list).size())
+              err = "Too many bands: " + std::to_string(out.size()) + " characters, room for " +
+                    std::to_string(id(known_list).size() - 1);
             std::fill(id(known_list).begin(), id(known_list).end(), 0);
-            std::copy(out.begin(), out.end(), id(known_list).begin());
-            ESP_LOGI("reader", "Known bands updated: %s", out.c_str());
+            if (err.empty()) {
+              std::copy(out.begin(), out.end(), id(known_list).begin());
+              ESP_LOGI("reader", "Known bands updated: %s", out.c_str());
+            } else {
+              ESP_LOGE("reader", "%s. Known bands cleared: every band is denied until a valid list arrives",
+                       err.c_str());
+            }
+            id(sync_error) = err;
         - component.update: known_band_count
+        - api.respond:
+            success: !lambda 'return id(sync_error).empty();'
+            error_message: !lambda 'return id(sync_error);'
 
 ota:
   # Updates come from the published firmware through Home Assistant (the
@@ -143,12 +165,13 @@ update:
     update_interval: 6h
 
 wifi:
-  # No credentials here: they're entered in the web installer (Improv) or via
-  # the fallback hotspot's captive portal.
-  ap:
-    ssid: "MagicBand Reader Setup"
-
-captive_portal:
+  # No credentials here: they're entered in the web installer (Improv over
+  # USB). There's deliberately no fallback hotspot: ESPHome's captive portal
+  # accepts a firmware upload from anyone who joins it, and an open hotspot
+  # can be forced on by knocking the board off Wi-Fi for 90 seconds. To change
+  # Wi-Fi later, plug the board into a computer and use the web installer.
+  # (Building your own? You can add "ap:" with a strong password and
+  # "captive_portal:" back.)
 
 improv_serial:
 
@@ -309,6 +332,8 @@ globals:
     type: std::array<char, 1600>
     restore_value: true
     update_interval: 5s
+  - id: sync_error        # why the last set_known_bands failed ("" = applied)
+    type: std::string
 
 select:
   # How far the welcome's light-up reaches. Every MagicBand+ in range reacts,
@@ -705,10 +730,11 @@ script:
             - lambda: |-
                 std::string key;
                 for (char c : uid)
-                  if (std::isalnum(static_cast<unsigned char>(c)))
+                  if (std::isxdigit(static_cast<unsigned char>(c)))
                     key += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
                 std::string list(id(known_list).data());
-                id(decision) = (!key.empty() && list.find("," + key + ",") != std::string::npos) ? 1 : 2;
+                bool valid = key.size() == 8 || key.size() == 14 || key.size() == 20;
+                id(decision) = (valid && list.find("," + key + ",") != std::string::npos) ? 1 : 2;
       - if:
           condition:
             lambda: 'return id(response_mode).current_option() == "Ask Home Assistant";'
@@ -815,9 +841,9 @@ button:
       - lambda: |-
           std::string key;
           for (char c : id(last_band).state)
-            if (std::isalnum(static_cast<unsigned char>(c)))
+            if (std::isxdigit(static_cast<unsigned char>(c)))
               key += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-          if (key.empty() || key == "TEST") return;
+          if (key.size() != 8 && key.size() != 14 && key.size() != 20) return;  // not a band ID (e.g. the test button)
           std::string list(id(known_list).data());
           if (list.empty()) list = ",";
           if (list.find("," + key + ",") != std::string::npos) return;
@@ -835,7 +861,7 @@ button:
       - lambda: |-
           std::string key;
           for (char c : id(last_band).state)
-            if (std::isalnum(static_cast<unsigned char>(c)))
+            if (std::isxdigit(static_cast<unsigned char>(c)))
               key += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
           std::string list(id(known_list).data());
           size_t pos = list.find("," + key + ",");

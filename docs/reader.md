@@ -112,10 +112,11 @@ Install the firmware **before wiring anything else to the ESP32**, as step
    labelled **UART**.
 2. Open the web installer in Chrome or Edge, click **Install the reader**,
    then enter your Wi-Fi details when asked. Unplug it, then build the rest.
-3. Add it in Home Assistant when it's discovered (ESPHome). Then open
-   **Settings → Devices & services → ESPHome → the reader → Configure**, and
-   turn on **Allow the device to perform Home Assistant actions**. That's
-   needed for tag scans to reach Home Assistant.
+3. Add it in Home Assistant when it's discovered (ESPHome). Leave **Allow
+   the device to perform Home Assistant actions** (ESPHome → the reader →
+   Configure) **off**: tag scans reach Home Assistant without it, and turning
+   it on would let anyone who tampers with the reader (it's outside your
+   door) call any action in Home Assistant, such as unlocking a lock.
 4. Install the [MagicbHAnds integration](integration.md) to manage people and
    bands.
 

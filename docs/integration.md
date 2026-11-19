@@ -202,6 +202,13 @@ actions:
 
 ## Actions
 
+Actions that change who's allowed in, or list band IDs, need a Home Assistant
+**administrator**: `add_person`, `update_person`, `remove_person`,
+`assign_band`, `unassign_band`, `remove_band`, `list`, `link_bluetooth`,
+`unlink_bluetooth`, `forget_bluetooth`, `list_bluetooth_bands` and
+`list_heard`. `send`, `sync` and `list_bridges` work for any user; `send`
+only targets MagicBand bridges. See [security.md](security.md).
+
 | Action | Fields |
 |---|---|
 | `magicband.add_person` | `name`, `ha_person` (optional), `allowed` |
@@ -210,7 +217,7 @@ actions:
 | `magicband.assign_band` | `band` (ID or `last`), `person`, `label` |
 | `magicband.unassign_band` | `band` |
 | `magicband.remove_band` | `band` |
-| `magicband.sync` | Push the allowed list to all readers now |
+| `magicband.sync` | Push the allowed list to all readers now. Returns `readers`, `applied` and `failed` (readers that refused it; from 0.10.4 a reader replies whether it stored the list) |
 | `magicband.list` | Returns all people and bands |
 | `magicband.send` | Sends an effect through the bridges (see above) |
 | `magicband.list_bridges` | Returns every bridge's Command entity |

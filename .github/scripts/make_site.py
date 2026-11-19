@@ -15,14 +15,26 @@ Each manifest serves two purposes:
     to offer over-the-air updates in Home Assistant.
 """
 
+import base64
 import hashlib
+import io
 import json
 from pathlib import Path
 import re
 import shutil
 import sys
+import tarfile
+import urllib.request
 
 REPO = Path(__file__).resolve().parents[2]
+# The browser installer (ESP Web Tools) is published with the site rather than
+# loaded from a CDN, so the page that flashes boards (and sees the Wi-Fi
+# password) runs only code checked here. To upgrade: change both values; the
+# integrity is npm's "dist.integrity" for that version.
+ESP_WEB_TOOLS_VERSION = "10.4.0"
+ESP_WEB_TOOLS_INTEGRITY = (
+    "sha512-3pwkeFFm5Fj7UQo8SJNYK5RXrtNCpq6X9QoI6bMT4GBZWgrJqjn0YvM9ihG74BtMoSFYXfmDtkehuxe50PTMPQ=="
+)
 RELEASES = "https://github.com/Legal-Copy7045/Magic-bHAnds/releases"
 PRODUCTS = {
     "bridge": ("MagicBand Bridge", "magicband-bridge", ""),
@@ -72,6 +84,34 @@ def build_product(out: Path, product: str, build_dir: Path, yaml_path: Path) -> 
     return version
 
 
+def vendor_esp_web_tools(out: Path) -> None:
+    """Download ESP Web Tools from npm, check its hash, and copy its browser build to out/esp-web-tools/."""
+    url = f"https://registry.npmjs.org/esp-web-tools/-/esp-web-tools-{ESP_WEB_TOOLS_VERSION}.tgz"
+    with urllib.request.urlopen(url, timeout=60) as resp:
+        data = resp.read()
+    algo, _, expected = ESP_WEB_TOOLS_INTEGRITY.partition("-")
+    actual = base64.b64encode(hashlib.new(algo, data).digest()).decode()
+    if actual != expected:
+        sys.exit(f"esp-web-tools {ESP_WEB_TOOLS_VERSION}: hash mismatch ({algo}-{actual})")
+    dest = out / "esp-web-tools"
+    dest.mkdir(parents=True, exist_ok=True)
+    with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:
+        for member in tar.getmembers():
+            name = member.name
+            if not member.isfile():
+                continue
+            if name.startswith("package/dist/web/") and "/" not in name.removeprefix("package/dist/web/"):
+                target = dest / Path(name).name
+            elif name == "package/LICENSE":
+                target = dest / "LICENSE"
+            else:
+                continue
+            target.write_bytes(tar.extractfile(member).read())
+    if not (dest / "install-button.js").is_file():
+        sys.exit("esp-web-tools: install-button.js missing from the package")
+    print(f"ESP Web Tools {ESP_WEB_TOOLS_VERSION} -> {dest}")
+
+
 def main() -> None:
     out = Path(sys.argv[1])
     out.mkdir(parents=True, exist_ok=True)
@@ -85,6 +125,7 @@ def main() -> None:
     page = (REPO / "web" / "index.html").read_text().replace("{{VERSION}}", version)
     (out / "index.html").write_text(page)
     shutil.copy(REPO / "docs" / "images" / "icon.png", out / "icon.png")
+    vendor_esp_web_tools(out)
     (out / ".nojekyll").write_text("")
 
 
