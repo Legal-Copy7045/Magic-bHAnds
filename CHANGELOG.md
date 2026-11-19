@@ -3,6 +3,15 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.9.14] - 2026-11-19
+
+### Fixed
+- **A second "MagicBand" device under the integration.** The reader's
+  **Last band name** sensor could create a device of its own instead of
+  joining the reader's device. It now joins the reader's device directly,
+  and the stray device is removed on start-up (its sensor moves back to the
+  reader, keeping its entity ID).
+
 ## [0.9.13] - 2026-11-18
 
 ### Reader

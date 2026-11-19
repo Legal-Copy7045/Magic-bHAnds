@@ -407,3 +407,31 @@ async def test_reader_shows_the_band_name(hass: HomeAssistant, setup_integration
     state = hass.states.get(entity.entity_id)
     assert state.state == "Jackie's MagicBand"
     assert state.attributes["band"] == "04-B0-AB-DA-B6-1D-90" and state.attributes["allowed"] is False
+    # On the reader's own device; no extra device for it.
+    assert entity.device_id == reader_device.id
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    ours = dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
+    assert [d.id for d in ours if not d.identifiers] == [reader_device.id]   # only the shared reader device
+
+
+async def test_stray_reader_device_is_cleaned_up(hass: HomeAssistant, reader_device) -> None:
+    """A 'Last band name' left on its own device by 0.9.10-0.9.13 moves back to the reader."""
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+    from homeassistant.helpers import entity_registry as er
+    from homeassistant.setup import async_setup_component
+
+    assert await async_setup_component(hass, "persistent_notification", {})
+    entry = MockConfigEntry(domain=DOMAIN, title="MagicBand", data={})
+    entry.add_to_hass(hass)
+    dev_reg, ent_reg = dr.async_get(hass), er.async_get(hass)
+    stray = dev_reg.async_get_or_create(config_entry_id=entry.entry_id, connections={("bluetooth", "00:11:22:33:44:55")}, name="MagicBand")
+    ent_reg.async_get_or_create(
+        "sensor", DOMAIN, f"reader_{reader_device.id}_last_band", config_entry=entry, device_id=stray.id
+    )
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert dev_reg.async_get(stray.id) is None
+    moved = ent_reg.async_get_entity_id("sensor", DOMAIN, f"reader_{reader_device.id}_last_band")
+    assert ent_reg.async_get(moved).device_id == reader_device.id
+    assert entry.title == "MagicbHAnds"
