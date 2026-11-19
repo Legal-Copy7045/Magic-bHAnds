@@ -36,8 +36,9 @@ New features, plus security fixes from a review of the whole project.
   Home Assistant isn't connected.
 - **Diagnostics download** with band IDs shortened and names replaced.
 - **CI** builds and tests every branch, not just `main`.
- See
-[docs/security.md](docs/security.md) for the security model and what's left.
+
+See [docs/security.md](docs/security.md) for the security model and what's
+left.
 
 ### Breaking changes and things to do
 - **Bridge and reader firmware: no fallback setup hotspot.** ESPHome's captive
@@ -48,7 +49,8 @@ New features, plus security fixes from a review of the whole project.
   `update_person`, `remove_person`, `assign_band`, `unassign_band`,
   `remove_band`, `link_bluetooth`, `unlink_bluetooth`, `forget_bluetooth`)
   and those that list band IDs (`list`, `list_bluetooth_bands`,
-  `list_heard`), and the MagicbHAnds sidebar page.
+  `list_heard`), and the MagicbHAnds sidebar page. The new `set_band_access`,
+  `enrol`, `stop_enrolment` and `history` are admin-only too.
 - **Turn off "Allow the device to perform Home Assistant actions"** on
   readers (ESPHome → the reader → Configure). The setup guides used to ask for
   it, but tag scans don't need it, and it would let a tampered reader call any
@@ -96,8 +98,8 @@ New features, plus security fixes from a review of the whole project.
 - Reader: holds 213 allowed bands (7-byte IDs), up from 106. Updating
   clears the reader's stored list once; Home Assistant sends it again as soon
   as the reader reconnects.
-- Reader: logs at INFO and never logs band IDs (it used to print the allowed
-  list on its USB port at every sync).
+- Reader: logs at INFO and never logs band IDs (it used to print the
+  allowed list on its USB port at every sync, and every tag read).
 - Reader: a new allowed list is checked in full. A malformed list, or one too
   long to store, empties the reader's list (everyone is
   denied) instead of leaving the old one in place, so a revoked band can't

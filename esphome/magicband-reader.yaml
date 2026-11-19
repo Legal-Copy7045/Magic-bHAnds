@@ -5,9 +5,10 @@
 #      and checked (NFC, both band types).
 #   2. Home Assistant gets the band's ID as a Tag scan, so any automation
 #      can react to it (lights, locks, music, ...).
-#   3. Welcome: the ring pulses green once, the tap-in sound plays, and a
-#      MagicBand+ also lights up green and buzzes (Bluetooth, via the
-#      magicband add-on). Denied (in "Known bands only" or "Ask Home
+#   3. Welcome: the ring pulses in the welcome colour (or the owner's own
+#      colour, from the MagicbHAnds integration), the tap-in sound plays, and
+#      a MagicBand+ lights up in the same colour and buzzes (Bluetooth, via
+#      the magicband add-on). Denied (in "Known bands only" or "Ask Home
 #      Assistant" mode): two red pulses and the error sound. Everything except "Ask Home Assistant" is decided
 #      on the reader, with no round trip to Home Assistant.
 # A start-up sound plays on boot. Sound files: see docs/reader.md.
@@ -90,7 +91,8 @@ logger:
   hardware_uart: UART0
   # INFO, not the default DEBUG: at DEBUG every tag read (a band's NFC ID) is
   # printed, on the USB port of a reader that sits outside the door and in
-  # Home Assistant's device logs. Band IDs are never logged at INFO.
+  # Home Assistant's device logs. Warnings and errors (such as the PN532 not
+  # answering) still show; band IDs never do.
   level: INFO
 
 api:

@@ -79,9 +79,20 @@ Then:
 - People with any number of bands, optionally linked to a Home Assistant
   person
 - New bands are denied and announced; add them in a couple of clicks
-- Allowed lists synced to every reader
+- Allowed lists synced to every reader, with each reader's status shown and
+  problems (a reader offline, a list it rejected) in Home Assistant's Repairs
+- **Schedules and expiry** per band: a daily time window, days of the week,
+  an end date
+- **Enrolment**: tap a person's bands one after another to add them all
+- **Personal welcome**: each person's bands welcomed in their own colour, on
+  the ring and on their MagicBand+
+- **Tap history** on the management page and in the logbook, and a battery
+  sparkline for each MagicBand+
+- **Charge reminders** for MagicBand+ (Repairs, an event, and a phone
+  notification blueprint)
+- A management page in the sidebar for bands, people, readers and bridges
 - `magicband_tap` events and per-person "last tap" sensors
-- The `magicband.send` action and the bundled blueprint
+- The `magicband.send` action and the bundled blueprints
 - Logs which MagicBand+ devices Home Assistant's Bluetooth hears, and when,
   so you can see bands responding to a bridge
 
@@ -113,12 +124,12 @@ it on `main`. It tags `v<VERSION>` and publishes the GitHub Release.
 | `esphome/screek-bp2-poe*.yaml` | SCREEK BP2-POE as a PoE proxy and bridge |
 | `esphome/sounds/` | The reader's sounds (the project owner's recordings) |
 | `custom_components/magicband/` | The MagicbHAnds integration (HACS) |
-| `homeassistant/` | Blueprint, example scripts and automations, and the [management dashboard](homeassistant/dashboards/magicband.yaml) |
+| `homeassistant/` | Blueprints (notification, charge me), example scripts and automations, and the [management dashboard](homeassistant/dashboards/magicband.yaml) |
 | `hardware/` | [Ways to build the reader](hardware/README.md), the [shopping list](hardware/shopping-list.md) (with generic alternatives), and the power diagram's generator |
 | `hardware/reader-breadboard/` | Breadboard build: step-by-step build, spec and wiring table, and the diagram's generator |
 | `hardware/reader-wired/` | Terminal base and point-to-point builds, with the interface board: step-by-step build and spec |
 | `web/` | The web installer page |
-| `docs/` | Guides: [bridge](docs/bridge.md), [reader](docs/reader.md), [integration](docs/integration.md), [commands](docs/commands.md), [protocol](docs/protocol.md), [SCREEK BP2-POE](docs/screek-bp2-poe.md); reader wiring diagrams; [ideas for later](docs/ideas.md) |
+| `docs/` | Guides: [bridge](docs/bridge.md), [reader](docs/reader.md), [integration](docs/integration.md), [commands](docs/commands.md), [protocol](docs/protocol.md), [SCREEK BP2-POE](docs/screek-bp2-poe.md), [security](docs/security.md); reader wiring diagrams; [ideas for later](docs/ideas.md) |
 | `tests/` | Integration tests |
 
 ## Caveats
@@ -129,9 +140,10 @@ it on `main`. It tags `v<VERSION>` and publishes the GitHub Release.
   [docs/protocol.md](docs/protocol.md).
 - This is for home tinkering. Don't run it anywhere near the parks.
 - The reader builds have been reviewed against the parts' datasheets. The
-  [compact build](hardware/reader-wired/build.md#compact-solderless-version)
+  [compact build](hardware/reader-compact/build.md)
   has been built and tested on the USB-C PD supply (power, NFC, sound, load
-  test); the ring is next. The other builds are not yet built.
+  test); the ring is next. The breadboard, terminal-base and point-to-point
+  builds have been reviewed but not built.
   Follow each build's staged tests, which check voltages before anything is
   connected to the ESP32.
 

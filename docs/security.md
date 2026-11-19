@@ -41,10 +41,10 @@ on the reader is real*.
 
 ## Who can change who's allowed in
 
-Everything that changes access (people, assigning bands, linking Bluetooth)
-and the actions that return everything at once (`list`,
-`list_bluetooth_bands`, `list_heard`) need an **administrator** in Home
-Assistant, and so does the MagicbHAnds sidebar page. Other users can still use
+Everything that changes access (people, assigning bands, access schedules,
+enrolment, linking Bluetooth) and the actions that return everything at once
+(`list`, `history`, `list_bluetooth_bands`, `list_heard`) need an
+**administrator** in Home Assistant, and so does the MagicbHAnds sidebar page. Other users can still use
 the bands (`magicband.send`, at most 30 commands a minute per bridge).
 
 **Band IDs are not hidden from other users**, though: entity attributes (the
@@ -71,9 +71,14 @@ administrator to confirm.
 The integration sends the allowed list to every reader and each reader
 replies whether it applied it. If a reader can't store the whole list (about
 213 bands of 7 bytes) or the list is malformed, the reader **empties** its
-list (denies everyone) rather than keep an old one, and Home Assistant shows
-a "reader not updated" notification. A reader that's offline keeps its last
-list until it reconnects.
+list (denies everyone) rather than keep an old one, and it shows in
+**Settings → Repairs** ("<reader> didn't take the allowed list", or "Too many
+allowed bands for the readers"). A reader that's offline keeps its last list
+until it reconnects; after 15 minutes offline it shows in Repairs too.
+
+Readers also store each band's welcome colour. Any Home Assistant user can
+call a reader's `set_band_colours` action, but that only changes the colour a
+band is welcomed in, not whether it's let in.
 
 ## Devices and updates
 
