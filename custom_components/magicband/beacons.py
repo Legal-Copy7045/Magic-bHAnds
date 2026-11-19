@@ -40,13 +40,17 @@ from typing import Any
 
 from homeassistant.components import persistent_notification
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import device_registry as dr, issue_registry as ir
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_call_later, async_track_time_interval
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, EVENT_BEACON, SIGNAL_BEACON, SIGNAL_BEACON_NEW
+from .const import DEFAULT_BATTERY_LEVEL, DOMAIN, EVENT_BEACON, SIGNAL_BEACON, SIGNAL_BEACON_NEW
+
+EVENT_BATTERY_LOW = "magicband_battery_low"
+# A band counts as charged again this far above the reminder level (levels come in steps).
+BATTERY_RECOVER_MARGIN = 10
 from .registry import MagicBandRegistry, normalize_uid
 
 _LOGGER = logging.getLogger(__name__)
@@ -213,6 +217,7 @@ class BluetoothBand:
     forms: list[str] = field(default_factory=list)  # beacon forms seen, e.g. "C0 0F"
     level_history: list[list] = field(default_factory=list)  # [iso time, level]
     samples: list[list] = field(default_factory=list)  # [iso time, payload hex, rssi, source]
+    battery_low: bool = False  # a reminder was sent and the band hasn't been charged since
 
     @property
     def short(self) -> str:
@@ -274,6 +279,7 @@ class BeaconTracker:
         self._windows: dict[str, _Window] = {}
         self._unsubs: list[Callable[[], None]] = []
         self._full_warned: datetime | None = None
+        self.battery_low_level: int = DEFAULT_BATTERY_LEVEL  # 0 = no reminders
 
     # ------------------------------------------------------------------ storage
 
@@ -426,6 +432,7 @@ class BeaconTracker:
         if beacon.level != band.level:
             band.level_history = [*band.level_history, [now, beacon.level]][-LEVEL_HISTORY:]
             band.level = beacon.level
+        self._check_battery(band)
         band.samples = [[now, band.last_payload, rssi, source], *band.samples][:SAMPLES]
 
         if band.band_uid is None:
@@ -452,6 +459,38 @@ class BeaconTracker:
             async_dispatcher_send(self.hass, SIGNAL_BEACON_NEW)
         async_dispatcher_send(self.hass, SIGNAL_BEACON)
         return band
+
+    @callback
+    def _check_battery(self, band: BluetoothBand) -> None:
+        """Remind once when a band's battery drops to the reminder level; clear it once it's charged."""
+        battery, level = band.battery, self.battery_low_level
+        issue_id = f"battery_low_{band.id}"
+        if battery is None or not level:
+            if band.battery_low:
+                band.battery_low = False
+                ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+            return
+        if battery <= level and not band.battery_low:
+            band.battery_low = True
+            person, _ = self.owner(band)
+            name = self.display_name(band)
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                issue_id,
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key="battery_low",
+                translation_placeholders={"band": name, "battery": str(battery)},
+            )
+            self.hass.bus.async_fire(
+                EVENT_BATTERY_LOW,
+                {"bluetooth_band": band.id, "name": name, "person": person.name if person else None, "battery": battery},
+            )
+            _LOGGER.info("%s needs charging (%d%%)", name, battery)
+        elif battery >= level + BATTERY_RECOVER_MARGIN and band.battery_low:
+            band.battery_low = False
+            ir.async_delete_issue(self.hass, DOMAIN, issue_id)
 
     def _unclaimed(self) -> list[BluetoothBand]:
         """Bands nobody owns: not given to a person, and not linked to an NFC band that has an owner.
@@ -538,6 +577,7 @@ class BeaconTracker:
     @callback
     def forget(self, band: BluetoothBand) -> None:
         self.bands.pop(band.id, None)
+        ir.async_delete_issue(self.hass, DOMAIN, f"battery_low_{band.id}")
         self._save()
         async_dispatcher_send(self.hass, SIGNAL_BEACON_NEW)
 

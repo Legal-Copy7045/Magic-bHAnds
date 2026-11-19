@@ -12,7 +12,7 @@ from homeassistant.core import callback
 from homeassistant.helpers import selector
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN
+from .const import CONF_BATTERY_LEVEL, DEFAULT_BATTERY_LEVEL, DOMAIN
 from .registry import MagicBandRegistry
 
 NEW_PERSON = "__new__"
@@ -271,10 +271,20 @@ class MagicBandOptionsFlow(OptionsFlow):
     async def async_step_settings(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
             return self.async_create_entry(data={**self.config_entry.options, **user_input})
-        current = self.config_entry.options.get("show_in_sidebar", True)
+        options = self.config_entry.options
         return self.async_show_form(
             step_id="settings",
-            data_schema=vol.Schema({vol.Required("show_in_sidebar", default=current): selector.BooleanSelector()}),
+            data_schema=vol.Schema(
+                {
+                    vol.Required("show_in_sidebar", default=options.get("show_in_sidebar", True)): selector.BooleanSelector(),
+                    vol.Required(
+                        CONF_BATTERY_LEVEL, default=options.get(CONF_BATTERY_LEVEL, DEFAULT_BATTERY_LEVEL)
+                    ): selector.NumberSelector(
+                        selector.NumberSelectorConfig(min=0, max=100, step=5, unit_of_measurement="%",
+                                                      mode=selector.NumberSelectorMode.SLIDER)
+                    ),
+                }
+            ),
         )
 
     # ------------------------------------------------------------------ bands
