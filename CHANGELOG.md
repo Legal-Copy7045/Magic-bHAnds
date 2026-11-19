@@ -3,6 +3,21 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.5] - 2026-11-19
+
+### Health of the readers and bridges
+- **Firmware (reader and bridge):** new diagnostic sensors: **Wi-Fi signal**,
+  **Wi-Fi network**, **IP address**, **CPU temperature**, **Last restart**
+  (changes only when it restarts) and **Reset reason**, **Free memory**,
+  **Largest free block** and **Loop time**. They're throttled so Home
+  Assistant's history stays small: Wi-Fi signal and temperature are sent when
+  they change noticeably (3 dB, 1 °C) or every 5 minutes at most; memory and
+  loop time every 5 minutes. The time comes from Home Assistant.
+- **Management page:** each reader and bridge card shows these as health
+  tiles (Wi-Fi strength, up for, CPU temperature, free memory, loop time, IP
+  address), coloured when something looks wrong. The SCREEK BP2-POE's own
+  sensors show the same way.
+
 ## [0.10.4] - 2026-11-19
 
 New features, plus security fixes from a review of the whole project.

@@ -41,6 +41,12 @@ table.t th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:va
 details.more{margin-top:8px}details.more summary{cursor:pointer;font-size:13px;color:var(--ink-2)}
 .set{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;align-items:center;font-size:13px;margin-top:8px}
 .msg{font-size:12.5px;color:var(--muted);min-height:1em}.msg.ok{color:var(--ok)}.msg.bad{color:var(--bad)}
+.hl{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px;margin:10px 0 2px}
+.hl div{background:var(--sunk);border:1px solid var(--line);border-radius:9px;padding:7px 9px;min-width:0}
+.hl span{display:block;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.hl b{display:block;font:600 15px/1.25 "JetBrains Mono",monospace;margin-top:2px;overflow-wrap:anywhere}.hl i{display:block;font-style:normal;font-size:11.5px;color:var(--muted);overflow-wrap:anywhere}
+.hl .ok b{color:var(--ok)}.hl .w b{color:var(--warn)}.hl .b b{color:var(--bad)}
+.hl b .wbars{display:inline-flex;gap:2px;align-items:flex-end;height:12px;margin:0 6px 0 0;vertical-align:-1px;color:inherit;text-transform:none;letter-spacing:0}.wbars i{width:3px;background:var(--line);border-radius:1px;display:inline-block}.wbars i.on{background:currentColor}
 .spark{vertical-align:middle;margin-left:8px}.spark path{fill:none;stroke:var(--page);stroke-width:1.5}
 .days{display:flex;flex-wrap:wrap;gap:4px}.days label{font-size:12px;display:flex;gap:2px;align-items:center}
 .access input[type=time],.access input[type=datetime-local]{font:500 13px "Instrument Sans",sans-serif;padding:4px 6px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink)}
@@ -363,7 +369,7 @@ function readerCards(I,RD,B){ $('readers').innerHTML=RD.map(d=>{ const p=l=>pick
       <div class="row"><span>Response mode</span>${selectFor(p(['select','Response mode']))}</div>
       <div class="row"><span>Known bands</span><span class="r">${kb&&avail(kb)?Math.round(num(kb)):'–'}</span></div>
       ${(()=>{ const al=p(['sensor','Allowed list']), up=(I.byDev[d.id]||[]).find(e=>e.startsWith('update.')&&S(e).state==='on'), st=al?S(al).state:null, cls=st==='up_to_date'?'yes':st&&st!=='waiting'?'no':'';
-        return `<div class="row"><span>Health</span><span class="r" style="white-space:normal">${!on?'<span class="tag no">offline</span> ':''}${st?`<span class="tag ${cls}">list ${esc(SYNC_LABEL[st]||st)}</span>`:''}${up?' <span class="tag no">update available</span>':''}${on&&!up&&st==='up_to_date'?' <span class="sub2">all good</span>':''}</span></div>${al&&A(al).error?`<p class="sub2" style="margin:2px 0 0">${esc(A(al).error)}</p>`:''}`; })()}
+        return `<div class="row"><span>Health</span><span class="r" style="white-space:normal">${!on?'<span class="tag no">offline</span> ':''}${st?`<span class="tag ${cls}">list ${esc(SYNC_LABEL[st]||st)}</span>`:''}${up?' <span class="tag no">update available</span>':''}${on&&!up&&st==='up_to_date'?' <span class="sub2">all good</span>':''}</span></div>${al&&A(al).error?`<p class="sub2" style="margin:2px 0 0">${esc(A(al).error)}</p>`:''}${healthTiles(I,d)}`; })()}
       <div class="row"><span>Last band</span><span class="r" style="white-space:normal">${lbV&&!/unknown|unavailable/.test(lbV)?esc(lbName||lbV):'–'}</span></div>
       <div class="row"><span>Sound</span>${tg(p(['switch','Sound']),'Sound')}</div>
       <div class="row"><span>Light up MagicBand+</span>${tg(p(['switch','Light up MagicBand+']),'Light up MagicBand+')}</div>
@@ -372,11 +378,33 @@ function readerCards(I,RD,B){ $('readers').innerHTML=RD.map(d=>{ const p=l=>pick
       <div class="btns">${bt(p(['button','Test welcome']),'Test welcome')}${(()=>{ const r=p(['button','Restart']); return r?`<button class="btn sm ${ARM['rs'+r]?'arm':''}" data-restart="${esc(r)}"${avail(r)?'':' disabled'}>${ARM['rs'+r]?'Tap again to restart':'Restart'}</button>`:''; })()}</div>
       <details class="more" data-k="${esc(d.id)}"><summary>Tap sequence</summary><div class="set">${T.map(([dom,l])=>{ const e=p([dom,l]); return e?`<span>${esc(l)}</span>${dom==='select'?selectFor(e):numberFor(e)}`:''; }).join('')}</div></details></section>`; }).join('')||'<p class="muted">No MagicBand readers found (ESPHome model magicband-reader).</p>'; }
 
+// Health tiles from the device's diagnostic sensors (reader, bridge and BP2 names), whichever it has
+function healthTiles(I,d){ const g=(...ls)=>{ for(const l of ls){ const e=pick(I,d,'sensor',l); if(e&&avail(e)&&!/unknown|unavailable/.test(S(e).state)) return e; } return null; };
+  const T=[], n=e=>parseFloat(S(e).state);
+  const wf=g('Wi-Fi signal','WiFi Signal'), ss=g('Wi-Fi network','SSID');
+  if(wf){ const v=n(wf), bars=v>=-55?4:v>=-65?3:v>=-75?2:1, c=v>=-65?'ok':v>=-75?'w':'b';
+    T.push([c,'Wi-Fi',`<span class="wbars">${[1,2,3,4].map(i=>`<i class="${i<=bars?'on':''}" style="height:${i*3}px"></i>`).join('')}</span>${Math.round(v)} dBm`,ss?S(ss).state:(bars>=3?'good':bars===2?'fair':'weak')]); }
+  const lr=g('Last restart'), up=g('Uptime'), rr=g('Reset reason','Reboot Reason');
+  if(lr||up){ let val, sub=rr?S(rr).state:'';
+    if(lr){ const t=Date.parse(S(lr).state), secs=(Date.now()-t)/1000; val=isNaN(t)?'–':secs<3600?Math.round(secs/60)+' min':secs<86400?Math.round(secs/3600)+' h':Math.floor(secs/86400)+' d '+Math.round((secs%86400)/3600)+' h'; }
+    else { val=S(up).state; }
+    T.push(['','Up for',esc(val),esc(sub)]); }
+  const tp=g('CPU temperature','CPU Temperature');
+  if(tp){ const v=n(tp); T.push([v>=75?'b':v>=65?'w':'ok','CPU',Math.round(v)+' °C','chip temperature']); }
+  const fm=g('Free memory','Heap Free'), lb=g('Largest free block');
+  if(fm){ const kb=n(fm)/1024; T.push([kb<20?'b':kb<40?'w':'','Memory free',Math.round(kb)+' KB',lb?'largest block '+Math.round(n(lb)/1024)+' KB':'']); }
+  const lt=g('Loop time');
+  if(lt){ const v=n(lt); T.push([v>=200?'b':v>=60?'w':'','Loop time',Math.round(v)+' ms','longest in 5 min']); }
+  const ip=g('IP address','IP Address');
+  if(ip) T.push(['','IP address',esc(S(ip).state),'']);
+  return T.length?`<div class="hl">${T.map(([c,l,v,s])=>`<div class="${c}"><span>${esc(l)}</span><b>${v}</b>${s?`<i>${s}</i>`:''}</div>`).join('')}</div>`
+    :'<p class="sub2" style="margin:8px 0 0">No health sensors yet: update the firmware to 0.10.5.</p>'; }
 function bridgeCards(I,BR){ $('bridges').innerHTML=BR.map(d=>{ const p=(dom,l)=>pick(I,d,dom,l), on=online(I,d);
     return `<section class="tc"><h3><span><span class="dot2 ${on?'':'off'}"></span>${esc(dname(d))}</span><small>${esc(d.area||'no area')}${firmware(I,d)?' · firmware '+esc(firmware(I,d)):''}</small></h3>
       <div class="row"><span>Fast mode</span>${tg(p('switch','Fast mode'),'Fast mode')}</div>
       <div class="row"><span>Bluetooth proxy</span>${p('switch','Bluetooth proxy')?tg(p('switch','Bluetooth proxy'),'Bluetooth proxy'):'<span class="sub2">not on this bridge</span>'}</div>
-      <div class="btns">${bt(p('button','Wake bands'),'Wake bands')}${bt(p('button','Ping'),'Ping')}</div></section>`; }).join('')||'<p class="muted">No MagicBand bridges found.</p>'; }
+      <div class="btns">${bt(p('button','Wake bands'),'Wake bands')}${bt(p('button','Ping'),'Ping')}</div>
+      ${healthTiles(I,d)}</section>`; }).join('')||'<p class="muted">No MagicBand bridges found.</p>'; }
 
 function wire(){ document.querySelectorAll('[data-tg]').forEach(x=>x.onclick=()=>{ const e=x.dataset.tg, dom=e.split('.')[0]; act(H().call(dom,S(e).state==='on'?'turn_off':'turn_on',e),e); });
   document.querySelectorAll('[data-press]').forEach(x=>x.onclick=()=>act(H().call('button','press',x.dataset.press),x.dataset.press));
