@@ -132,7 +132,11 @@ everything, read live from Home Assistant.
 - **Readers** and **bridges:** status, firmware and their settings (fast mode,
   Bluetooth proxy, response mode, sound, ring and so on). Each reader's
   **Health** line shows whether it has the current allowed list, whether it's
-  offline, and whether a firmware update is waiting.
+  offline, and whether a firmware update is waiting. Every reader and bridge
+  card also shows health tiles: Wi-Fi strength and network, how long it's
+  been up and why it last restarted, CPU temperature, free memory, loop time
+  and IP address (firmware 0.10.5 or later; the SCREEK BP2-POE's own sensors
+  too).
 
 The page is for Home Assistant **administrators** (it manages who the
 readers let in).
