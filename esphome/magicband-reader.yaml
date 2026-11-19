@@ -21,7 +21,7 @@
 substitutions:
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.10.9"
+  project_version: "0.10.10"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -103,15 +103,19 @@ api:
   on_client_connected:
     - if:
         condition:
-          not:
-            script.is_running: band_tapped
+          and:
+            - lambda: 'return id(ring_ready);'
+            - not:
+                script.is_running: band_tapped
         then:
           - script.execute: reader_idle
   on_client_disconnected:
     - if:
         condition:
-          not:
-            script.is_running: band_tapped
+          and:
+            - lambda: 'return id(ring_ready);'
+            - not:
+                script.is_running: band_tapped
         then:
           - script.execute: reader_idle
   actions:
@@ -495,10 +499,14 @@ select:
       - "Pink"
       - "Magenta"
     on_value:
+      # Not before boot has finished (restoring the setting at start-up runs
+      # this too, and the ring isn't set up yet: see ring_ready), nor during a tap.
       - if:
           condition:
-            not:
-              script.is_running: band_tapped
+            and:
+              - lambda: 'return id(ring_ready);'
+              - not:
+                  script.is_running: band_tapped
           then:
             - script.execute: reader_idle
   - platform: template
