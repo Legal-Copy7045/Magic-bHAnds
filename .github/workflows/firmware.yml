@@ -1,13 +1,15 @@
 name: Build, test & release
 
-# Every push builds both firmwares, runs the integration tests and (from main)
-# publishes the web installer. To release: Actions -> "Build, test & release"
+# Every push (any branch) builds the firmware, runs the integration tests and
+# (from main) publishes the web installer. To release: Actions -> "Build, test & release"
 # -> Run workflow on main with "release" ticked. That tags v<VERSION> and
 # creates a GitHub Release with the firmware and integration attached.
 # (Pushing a v* tag yourself does the same.)
 on:
   push:
-    branches: [main]
+    # Every branch builds and tests; only main publishes the site and only
+    # main or a v* tag can release (see the deploy and release jobs).
+    branches: ["**"]
     tags: ["v*"]
   pull_request:
   workflow_dispatch:

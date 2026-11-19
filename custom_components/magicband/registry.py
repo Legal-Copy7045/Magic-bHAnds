@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import datetime, time
 import logging
 import uuid
 
@@ -12,7 +12,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .const import STORAGE_KEY, STORAGE_VERSION
+from .const import READER_COLOURS, STORAGE_KEY, STORAGE_VERSION, WEEKDAYS
 
 
 _LOGGER = logging.getLogger(__name__)
@@ -66,6 +66,7 @@ class Person:
     name: str
     ha_person: str | None = None  # e.g. "person.jackie"
     allowed: bool = True
+    welcome_colour: str | None = None  # one of READER_COLOURS: the readers welcome this person's bands in it
 
 
 @dataclass
@@ -80,11 +81,50 @@ class Band:
     last_reader: str | None = None
     scans: int = 0
     band_type: str = "auto"  # BAND_TYPES: auto (not said), plus (MagicBand+), classic (NFC only)
+    # When the band works (on top of its owner being allowed). All optional.
+    expires: str | None = None  # ISO date-time; not allowed from then on
+    access_from: str | None = None  # "HH:MM" local time; with access_until, a daily window
+    access_until: str | None = None  # "HH:MM"; earlier than access_from means overnight
+    access_days: list[str] | None = None  # WEEKDAYS the window applies to; None = every day
 
     @property
     def display(self) -> str:
         """Readable ID."""
         return display_uid(self.uid)
+
+    @property
+    def has_schedule(self) -> bool:
+        return bool(self.expires or self.access_from or self.access_until or self.access_days)
+
+    def in_schedule(self, now: datetime) -> bool:
+        """Whether the band's own limits (expiry, time window, days) allow it at `now` (local time)."""
+        if self.expires:
+            ends = dt_util.parse_datetime(self.expires)
+            if ends is None or now >= dt_util.as_local(ends):
+                return False
+        days = self.access_days
+        start, end = _parse_time(self.access_from), _parse_time(self.access_until)
+        if start is None and end is None:
+            return days is None or WEEKDAYS[now.weekday()] in days
+        start, end, t = start or time(0, 0), end or time(23, 59, 59), now.time()
+        if start <= end:
+            return (days is None or WEEKDAYS[now.weekday()] in days) and start <= t < end
+        # Overnight (e.g. 22:00-06:00): the part after midnight belongs to the day it started.
+        if t >= start:
+            return days is None or WEEKDAYS[now.weekday()] in days
+        if t < end:
+            return days is None or WEEKDAYS[(now.weekday() - 1) % 7] in days
+        return False
+
+
+def _parse_time(value: str | None) -> time | None:
+    if not value:
+        return None
+    try:
+        hours, minutes = (int(x) for x in str(value).split(":")[:2])
+        return time(hours, minutes)
+    except ValueError:
+        return None
 
 
 @dataclass
@@ -95,6 +135,11 @@ class _Data:
 
 _BAND_FIELDS = set(Band.__dataclass_fields__)
 _PERSON_FIELDS = set(Person.__dataclass_fields__)
+
+
+def _check_colour(colour: str | None) -> None:
+    if colour and colour not in READER_COLOURS:
+        raise ValueError(f"Welcome colour must be one of {', '.join(READER_COLOURS)}")
 
 
 class MagicBandRegistry:
@@ -192,15 +237,27 @@ class MagicBandRegistry:
     def bands_for(self, person_id: str) -> list[Band]:
         return [b for b in self.bands if b.person_id == person_id]
 
-    def band_allowed(self, uid: str) -> bool:
+    def band_allowed(self, uid: str, now: datetime | None = None) -> bool:
+        """Allowed in now: a valid ID, owned by an allowed person, and within the band's own schedule."""
         band = self.get_band(uid)
         if band is None or parse_uid(band.uid) is None:
             return False  # only real NFC IDs are ever allowed
         person = self.get_person(band.person_id) if band else None
-        return bool(person and person.allowed)
+        if not (person and person.allowed):
+            return False
+        return band.in_schedule(dt_util.as_local(now or dt_util.now()))
 
-    def allowed_uids(self) -> list[str]:
-        return sorted(b.uid for b in self._data.bands.values() if self.band_allowed(b.uid))
+    def allowed_uids(self, now: datetime | None = None) -> list[str]:
+        return sorted(b.uid for b in self._data.bands.values() if self.band_allowed(b.uid, now))
+
+    def welcome_colours(self, now: datetime | None = None) -> dict[str, str]:
+        """Allowed band -> its owner's welcome colour, for bands whose owner has one."""
+        out = {}
+        for uid in self.allowed_uids(now):
+            person = self.get_person(self._data.bands[uid].person_id)
+            if person is not None and person.welcome_colour:
+                out[uid] = person.welcome_colour
+        return out
 
     @property
     def unassigned_bands(self) -> list[Band]:
@@ -232,22 +289,37 @@ class MagicBandRegistry:
         return band, is_new
 
     @callback
-    def add_person(self, name: str, ha_person: str | None = None, allowed: bool = True) -> Person:
+    def add_person(
+        self, name: str, ha_person: str | None = None, allowed: bool = True, welcome_colour: str | None = None
+    ) -> Person:
         name = name.strip()
         if not name:
             raise ValueError("A person needs a name")
         if self.find_person(name):
             raise ValueError(f"There's already a person called {name}")
-        person = Person(id=uuid.uuid4().hex[:12], name=name, ha_person=ha_person or None, allowed=allowed)
+        _check_colour(welcome_colour)
+        person = Person(
+            id=uuid.uuid4().hex[:12], name=name, ha_person=ha_person or None, allowed=allowed,
+            welcome_colour=welcome_colour or None,
+        )
         self._data.people[person.id] = person
         self._changed()
         return person
 
     @callback
     def update_person(
-        self, person_id: str, *, name: str | None = None, ha_person: str | None = None, allowed: bool | None = None
+        self,
+        person_id: str,
+        *,
+        name: str | None = None,
+        ha_person: str | None = None,
+        allowed: bool | None = None,
+        welcome_colour: str | None = None,
     ) -> Person:
         person = self._data.people[person_id]
+        if welcome_colour is not None:
+            _check_colour(welcome_colour)
+            person.welcome_colour = welcome_colour or None  # "" = the reader's own welcome colour
         if name is not None:
             name = name.strip()
             other = self.find_person(name)
@@ -302,6 +374,32 @@ class MagicBandRegistry:
         band.person_id = person_id
         if label is not None:
             band.label = label.strip()
+        self._changed()
+        return band
+
+    @callback
+    def set_band_access(
+        self,
+        uid: str,
+        *,
+        expires: datetime | None | str = "keep",
+        access_from: time | None | str = "keep",
+        access_until: time | None | str = "keep",
+        access_days: list[str] | None | str = "keep",
+    ) -> Band:
+        """Set when a band works. None clears a limit; "keep" leaves it as it is."""
+        band = self._data.bands.get(normalize_uid(uid))
+        if band is None:
+            raise ValueError("Unknown band")
+        if expires != "keep":
+            band.expires = dt_util.as_utc(expires).isoformat() if expires else None
+        if access_from != "keep":
+            band.access_from = access_from.strftime("%H:%M") if access_from else None
+        if access_until != "keep":
+            band.access_until = access_until.strftime("%H:%M") if access_until else None
+        if access_days != "keep":
+            days = [d for d in WEEKDAYS if d in (access_days or [])]
+            band.access_days = days or None
         self._changed()
         return band
 

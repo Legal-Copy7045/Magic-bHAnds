@@ -88,10 +88,12 @@
       "settings": {
         "title": "Settings",
         "data": {
-          "show_in_sidebar": "Show MagicbHAnds in the sidebar"
+          "show_in_sidebar": "Show MagicbHAnds in the sidebar",
+          "battery_reminder_level": "Charge reminder at (%)"
         },
         "data_description": {
-          "show_in_sidebar": "The management page: bands, people, readers and bridges. Turn it off if you show the page somewhere else, such as in your own set of dashboards."
+          "show_in_sidebar": "The management page: bands, people, readers and bridges. Turn it off if you show the page somewhere else, such as in your own set of dashboards.",
+          "battery_reminder_level": "When a MagicBand+ battery drops to this level, it shows in Repairs and the magicband_battery_low event fires (the \"Charge me\" blueprint turns that into a phone notification). 0 turns reminders off."
         }
       }
     },
@@ -137,6 +139,16 @@
       },
       "reader_last_band": {
         "name": "Last band name"
+      },
+      "reader_allowed_list": {
+        "name": "Allowed list",
+        "state": {
+          "up_to_date": "Up to date",
+          "failed": "Not applied",
+          "unconfirmed": "Sent (update the reader to confirm)",
+          "offline": "Reader offline",
+          "waiting": "Waiting"
+        }
       }
     },
     "binary_sensor": {
@@ -171,6 +183,10 @@
         "allowed": {
           "name": "Allowed",
           "description": "Whether their bands get the welcome."
+        },
+        "welcome_colour": {
+          "name": "Welcome colour",
+          "description": "The colour the readers welcome this person's bands in (empty: the reader's own Welcome colour)."
         }
       }
     },
@@ -193,6 +209,10 @@
         "allowed": {
           "name": "Allowed",
           "description": "Whether their bands get the welcome."
+        },
+        "welcome_colour": {
+          "name": "Welcome colour",
+          "description": "The colour the readers welcome this person's bands in (empty: the reader's own Welcome colour)."
         }
       }
     },
@@ -379,6 +399,86 @@
           "description": "Its ID (or the first few characters), its name, or \"last\"."
         }
       }
+    },
+    "set_band_access": {
+      "name": "Set band access",
+      "description": "When a band works: a daily time window, days of the week and an expiry. Admins only.",
+      "fields": {
+        "band": {
+          "name": "Band",
+          "description": "Band ID, or \"last\"."
+        },
+        "from": {
+          "name": "From",
+          "description": "Start of the daily window (local time)."
+        },
+        "until": {
+          "name": "Until",
+          "description": "End of the daily window; earlier than From means overnight."
+        },
+        "days": {
+          "name": "Days",
+          "description": "Days the window applies to (empty: every day)."
+        },
+        "expires": {
+          "name": "Expires",
+          "description": "The band stops working from this date and time."
+        },
+        "clear": {
+          "name": "Clear",
+          "description": "Remove every limit: the band works whenever its owner is allowed."
+        }
+      }
+    },
+    "enrol": {
+      "name": "Enrol bands",
+      "description": "For the next few minutes, every band tapped that nobody owns is given to this person. Admins only.",
+      "fields": {
+        "person": {
+          "name": "Person",
+          "description": "Who the bands are for."
+        },
+        "minutes": {
+          "name": "Minutes",
+          "description": "How long to keep enrolling (1–15)."
+        },
+        "label": {
+          "name": "Nickname",
+          "description": "Optional; each band gets it with a number (\"Nana's band 1\")."
+        }
+      }
+    },
+    "stop_enrolment": {
+      "name": "Stop enrolling",
+      "description": "End enrolment now."
+    },
+    "history": {
+      "name": "Tap history",
+      "description": "Returns the most recent taps, newest first. Admins only.",
+      "fields": {
+        "count": {
+          "name": "How many",
+          "description": "Up to 300."
+        }
+      }
+    }
+  },
+  "issues": {
+    "reader_sync_failed": {
+      "title": "{reader} didn't take the allowed list",
+      "description": "The reader replied: {error}\n\nIt keeps no allowed list until it gets one it can apply, so it denies every band on its own (Home Assistant's own decisions are unaffected). If the list is too long, give fewer people access; otherwise restart the reader or update its firmware."
+    },
+    "list_too_long": {
+      "title": "Too many allowed bands for the readers",
+      "description": "{bands} bands are allowed, but a reader holds about {capacity}. Readers that can't store the whole list deny every band on their own until there are fewer allowed bands."
+    },
+    "reader_offline": {
+      "title": "{reader} is offline",
+      "description": "Home Assistant hasn't been able to reach this MagicBand reader since {since}. It keeps welcoming bands from its last allowed list, but changes (such as a band you've revoked) don't reach it until it's back. Check its power and Wi-Fi."
+    },
+    "battery_low": {
+      "title": "{band} needs charging",
+      "description": "Its battery is at {battery}%. This clears itself once the band has been charged. Set the reminder level under MagicbHAnds → Configure → Settings."
     }
   }
 }

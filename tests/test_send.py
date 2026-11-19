@@ -112,7 +112,7 @@ async def test_imported_blueprint_is_updated_in_place(hass: HomeAssistant) -> No
         "blueprint:\n  name: old\n  source_url: https://github.com/Legal-Copy7045/Magic-bHAnds/blob/main/x.yaml\n"
     )
     written = await async_install_blueprints(hass)
-    assert written == [imported]
+    assert imported in written
     assert "magicband.send" in imported.read_text()
     # No second copy is created alongside it.
     assert not Path(hass.config.config_dir, "blueprints/automation/magicband/magicband_notify.yaml").exists()
@@ -120,7 +120,8 @@ async def test_imported_blueprint_is_updated_in_place(hass: HomeAssistant) -> No
     assert await async_install_blueprints(hass) == []
 
 
-def test_repo_blueprint_matches_bundled_copy() -> None:
-    bundled = REPO / "custom_components/magicband/blueprints/magicband_notify.yaml"
-    repo = REPO / "homeassistant/blueprints/automation/magicband_notify.yaml"
+@pytest.mark.parametrize("name", ["magicband_notify.yaml", "magicband_charge_me.yaml"])
+def test_repo_blueprint_matches_bundled_copy(name: str) -> None:
+    bundled = REPO / "custom_components/magicband/blueprints" / name
+    repo = REPO / "homeassistant/blueprints/automation" / name
     assert bundled.read_text() == repo.read_text()

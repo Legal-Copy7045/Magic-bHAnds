@@ -5,7 +5,38 @@ Home Assistant integration share one version number.
 
 ## [0.10.4] - 2026-11-19
 
-Security fixes from a review of the whole project. See
+New features, plus security fixes from a review of the whole project.
+
+### New
+- **Band schedules and expiry.** Each band can have a daily time window
+  (overnight windows work), days of the week and an expiry date
+  (`magicband.set_band_access`, or the band's **Manage** on the page).
+  Outside them the band is denied, the readers' lists follow within a
+  minute, and `magicband_tap` reports `allowed: false`.
+- **Enrolment.** `magicband.enrol` (or **Enrol bands** next to a person):
+  for up to 15 minutes, every band tapped that nobody owns is given to that
+  person, numbered if you give a nickname. Bands that belong to someone are
+  never taken.
+- **Personal welcome.** Each person can have a welcome colour; readers
+  (0.10.4 firmware) welcome their bands in it, on the ring and on their
+  MagicBand+.
+- **Tap history.** The management page lists recent taps (`magicband.history`,
+  admins), taps appear in Home Assistant's logbook ("welcomed at Front
+  Door"), and each MagicBand+ shows a 7-day battery sparkline.
+- **Charge me reminders.** When a MagicBand+ drops to the reminder level
+  (Configure → Settings, default 20 %), it shows in Repairs and fires
+  `magicband_battery_low`; the new **MagicbHAnds: charge me reminder**
+  blueprint sends a phone notification. It resets once the band is charged.
+- **Repairs.** A reader that rejects the allowed list, a list too long for
+  the readers, a reader offline for 15 minutes and low batteries show in
+  Settings → Repairs and clear themselves.
+- **Reader health.** Each reader has an **Allowed list** sensor (up to date,
+  not applied, sent but unconfirmed on older firmware, offline); the page
+  shows it with firmware updates; the reader's idle glow turns amber while
+  Home Assistant isn't connected.
+- **Diagnostics download** with band IDs shortened and names replaced.
+- **CI** builds and tests every branch, not just `main`.
+ See
 [docs/security.md](docs/security.md) for the security model and what's left.
 
 ### Breaking changes and things to do

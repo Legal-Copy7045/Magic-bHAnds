@@ -29,6 +29,16 @@ SIGNAL_BEACON_NEW = f"{DOMAIN}_beacon_new"
 
 SYNC_INTERVAL_MINUTES = 10
 
+# The reader's ring colours (esphome/magicband-reader.yaml, set_ring_colour):
+# a person's welcome colour is one of these.
+READER_COLOURS = [
+    "White", "Warm white", "Red", "Orange", "Yellow", "Green", "Cyan", "Blue", "Purple", "Pink", "Magenta",
+]
+WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+CONF_BATTERY_LEVEL = "battery_reminder_level"
+DEFAULT_BATTERY_LEVEL = 20
+ATTR_WELCOME_COLOUR = "welcome_colour"
+
 ATTR_BAND = "band"
 ATTR_PERSON = "person"
 ATTR_LABEL = "label"

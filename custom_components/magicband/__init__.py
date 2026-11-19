@@ -12,7 +12,7 @@ allowed bands to every reader so they can answer instantly on their own.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import timedelta
+from datetime import datetime, timedelta
 import logging
 from typing import Any
 
@@ -28,8 +28,14 @@ from homeassistant.helpers.service import async_register_admin_service
 from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.util import dt as dt_util
 
 from .const import (
+    ATTR_WELCOME_COLOUR,
+    CONF_BATTERY_LEVEL,
+    DEFAULT_BATTERY_LEVEL,
+    READER_COLOURS,
+    WEEKDAYS,
     ATTR_ALLOWED,
     ATTR_BAND,
     ATTR_HA_PERSON,
@@ -48,7 +54,9 @@ from .beacons import BeaconTracker
 from .blueprint_installer import async_install_blueprints
 from .panel import CONF_SIDEBAR, async_remove_panel, async_setup_panel
 from .bridges import ANIMATIONS, EFFECTS, async_send, find_bridges
+from .history import TapHistory
 from .listener import BandListener
+from .readers import READER_LIST_CAPACITY, ReaderManager, is_reader_device  # noqa: F401 - re-exported
 from .registry import Band, MagicBandRegistry, display_uid, parse_uid
 
 _LOGGER = logging.getLogger(__name__)
@@ -56,11 +64,19 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.SELECT, Platform.SENSOR]
 
 EVENT_TAG_SCANNED = "tag_scanned"
-# The reader stores its allowed list as ",UID,UID," in 3,200 characters
-# including the terminator (esphome/magicband-reader.yaml, known_list): 213
-# bands with 7-byte IDs. Readers on 0.10.3 or earlier hold 1,600 (106 bands).
-READER_LIST_CAPACITY = 3199
-SYNC_NOTIFICATION_ID = f"{DOMAIN}_reader_sync"
+MAX_ENROL_MINUTES = 15
+SIGNAL_ENROLMENT = f"{DOMAIN}_enrolment"
+EVENT_ENROLLED = "magicband_enrolled"
+
+
+@dataclass
+class Enrolment:
+    """Bands tapped until `until` that nobody owns yet go to this person."""
+
+    person_id: str
+    until: datetime
+    label: str | None = None
+    count: int = 0
 
 
 @dataclass
@@ -71,53 +87,13 @@ class MagicBandData:
     sync: Debouncer
     listener: BandListener
     beacons: BeaconTracker
+    readers: ReaderManager
+    history: TapHistory
+    enrolment: Enrolment | None = None
     unsubs: list = field(default_factory=list)
 
 
 type MagicBandConfigEntry = ConfigEntry[MagicBandData]
-
-
-def _esphome_entries(hass: HomeAssistant, device: dr.DeviceEntry) -> list[ConfigEntry]:
-    entries = (hass.config_entries.async_get_entry(entry_id) for entry_id in device.config_entries)
-    return [entry for entry in entries if entry is not None and entry.domain == "esphome"]
-
-
-def is_reader_device(hass: HomeAssistant, device_id: str | None) -> bool:
-    """True if the device is a MagicBand reader: an ESPHome device built from the reader firmware.
-
-    The model alone isn't enough: other integrations (a phone registered with
-    the mobile app, for example) let any logged-in user pick a device's model
-    and name, and send tag scans from it.
-    """
-    if not device_id:
-        return False
-    device = dr.async_get(hass).async_get(device_id)
-    if device is None or not _esphome_entries(hass, device):
-        return False
-    if (device.model or "").lower() == READER_MODEL:
-        return True
-    # Fallback (a reader built with another project name): an ESPHome device with the reader's "Known bands" sensor.
-    return any(
-        entity.entity_id.endswith("_known_bands") and entity.domain == "sensor" and entity.platform == "esphome"
-        for entity in er.async_entries_for_device(er.async_get(hass), device_id)
-    )
-
-
-def reader_set_services(hass: HomeAssistant) -> list[str]:
-    """The esphome.<node>_set_known_bands actions of the MagicBand readers, and no other device's.
-
-    Any ESPHome device can declare an action with that name; only readers get the allowed list.
-    """
-    names: set[str] = set()
-    for device in dr.async_get(hass).devices.values():
-        if not is_reader_device(hass, device.id):
-            continue
-        for entry in _esphome_entries(hass, device):
-            info = getattr(getattr(entry, "runtime_data", None), "device_info", None)
-            node = getattr(info, "name", None) or entry.data.get("device_name")
-            if node:
-                names.add(f"{node.replace('-', '_')}{READER_SET_SERVICE_SUFFIX}")
-    return sorted(name for name in names if hass.services.has_service("esphome", name))
 
 
 def _reader_name(hass: HomeAssistant, device_id: str | None) -> str | None:
@@ -130,16 +106,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
         hass.config_entries.async_update_entry(entry, title="MagicbHAnds")
     registry = MagicBandRegistry(hass)
     await registry.async_load()
+    readers = ReaderManager(hass, registry)
+    history = TapHistory(hass)
+    await history.async_load()
 
     async def _sync() -> None:
-        await async_sync_readers(hass, registry)
+        await readers.async_sync()
 
     debouncer = Debouncer(hass, _LOGGER, cooldown=2.0, immediate=False, function=_sync)
     beacons = BeaconTracker(hass, registry)
+    beacons.battery_low_level = entry.options.get(CONF_BATTERY_LEVEL, DEFAULT_BATTERY_LEVEL)
     await beacons.async_load()
     listener = BandListener(hass)
     listener.on_band = beacons.async_beacon
-    data = MagicBandData(registry=registry, sync=debouncer, listener=listener, beacons=beacons)
+    data = MagicBandData(
+        registry=registry, sync=debouncer, listener=listener, beacons=beacons, readers=readers, history=history
+    )
     entry.runtime_data = data
 
     @callback
@@ -159,7 +141,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
             # Not an NFC ID: e.g. the reader's "Test welcome" button ("TEST").
             _LOGGER.debug("Ignoring tag %r from a reader: not a band ID", event.data.get("tag_id"))
             return
-        _handle_scan(hass, registry, uid, device_id)
+        _handle_scan(hass, data, uid, device_id)
         beacons.async_start_pairing(uid, _reader_name(hass, device_id))
 
     data.unsubs.append(hass.bus.async_listen(EVENT_TAG_SCANNED, _on_tag))
@@ -178,6 +160,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
         hass.async_create_task(debouncer.async_call())
 
     data.unsubs.append(async_track_time_interval(hass, _periodic_sync, timedelta(minutes=SYNC_INTERVAL_MINUTES)))
+
+    @callback
+    def _every_minute(_now) -> None:
+        # A band's schedule opened or closed: the readers' lists change.
+        if readers.schedule_changed():
+            hass.async_create_task(debouncer.async_call())
+        readers.check_health()
+        if data.enrolment is not None and dt_util.utcnow() >= data.enrolment.until:
+            _end_enrolment(hass, data)
+
+    data.unsubs.append(async_track_time_interval(hass, _every_minute, timedelta(minutes=1)))
 
     if hass.state is CoreState.running:
         hass.async_create_task(debouncer.async_call())
@@ -198,7 +191,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
 
 
 async def _options_updated(hass: HomeAssistant, entry: MagicBandConfigEntry) -> None:
-    """Configure saves the options after every change; only the sidebar setting needs acting on."""
+    """Configure saves the options after every change; the sidebar and battery settings need acting on."""
+    entry.runtime_data.beacons.battery_low_level = entry.options.get(CONF_BATTERY_LEVEL, DEFAULT_BATTERY_LEVEL)
     if entry.options.get(CONF_SIDEBAR, True):
         await async_setup_panel(hass, True)
     else:
@@ -210,6 +204,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) -
     if unload_ok:
         async_remove_panel(hass)
         await entry.runtime_data.registry.async_flush()
+        await entry.runtime_data.history.async_flush()
         await entry.runtime_data.beacons.async_shutdown()
         for unsub in entry.runtime_data.unsubs:
             unsub()
@@ -225,16 +220,18 @@ async def async_unload_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) -
 
 
 @callback
-def _handle_scan(hass: HomeAssistant, registry: MagicBandRegistry, tag_id: str, device_id: str | None) -> None:
+def _handle_scan(hass: HomeAssistant, data: MagicBandData, tag_id: str, device_id: str | None) -> None:
+    registry = data.registry
     reader = _reader_name(hass, device_id)
     if registry.get_band(tag_id) is None:
         for old in registry.prune_unassigned():
             persistent_notification.async_dismiss(hass, f"{DOMAIN}_unknown_{old}")
-            for entry in hass.config_entries.async_loaded_entries(DOMAIN):
-                entry.runtime_data.beacons.unlink_nfc(old)
+            data.beacons.unlink_nfc(old)
     band, is_new = registry.record_scan(tag_id, reader)
+    enrolled = _maybe_enrol(hass, data, band.uid)
     person = registry.get_person(band.person_id)
     allowed = registry.band_allowed(band.uid)
+    name = data.beacons.band_display_name(band.uid)
 
     hass.bus.async_fire(
         EVENT_TAP,
@@ -248,8 +245,12 @@ def _handle_scan(hass: HomeAssistant, registry: MagicBandRegistry, tag_id: str, 
             "known": person is not None,
             "reader": reader,
             "reader_device_id": device_id,
+            "name": name,
+            "enrolled": enrolled,
         },
     )
+    data.history.add(band=band.display, name=name, person=person.name if person else None, reader=reader,
+                     allowed=allowed, enrolled=enrolled)
     async_dispatcher_send(hass, SIGNAL_UPDATED)
     if device_id:
         async_dispatcher_send(hass, SIGNAL_READER_TAP, device_id, band.uid, allowed)
@@ -269,55 +270,65 @@ def _handle_scan(hass: HomeAssistant, registry: MagicBandRegistry, tag_id: str, 
 
 
 # ---------------------------------------------------------------------------
+# Enrolment: the next bands tapped go to one person
+# ---------------------------------------------------------------------------
+
+
+@callback
+def _maybe_enrol(hass: HomeAssistant, data: MagicBandData, uid: str) -> bool:
+    """Give a band nobody owns to the person being enrolled, if enrolment is on."""
+    enrolment = data.enrolment
+    if enrolment is None:
+        return False
+    if dt_util.utcnow() >= enrolment.until:
+        _end_enrolment(hass, data)
+        return False
+    band = data.registry.get_band(uid)
+    person = data.registry.get_person(enrolment.person_id)
+    if band is None or band.person_id is not None or person is None:
+        return False  # only bands nobody owns: enrolment never takes a band from someone
+    enrolment.count += 1
+    label = f"{enrolment.label} {enrolment.count}" if enrolment.label else None
+    data.registry.assign_band(uid, person.id, label)
+    persistent_notification.async_dismiss(hass, f"{DOMAIN}_unknown_{uid}")
+    hass.bus.async_fire(EVENT_ENROLLED, {"band": band.display, "person": person.name, "count": enrolment.count})
+    async_dispatcher_send(hass, SIGNAL_ENROLMENT)
+    return True
+
+
+@callback
+def _end_enrolment(hass: HomeAssistant, data: MagicBandData) -> None:
+    enrolment, data.enrolment = data.enrolment, None
+    if enrolment is not None:
+        person = data.registry.get_person(enrolment.person_id)
+        persistent_notification.async_create(
+            hass,
+            f"Enrolment for **{person.name if person else 'someone'}** ended: {enrolment.count} band(s) added.",
+            title="MagicbHAnds: enrolment finished",
+            notification_id=f"{DOMAIN}_enrolment",
+        )
+    async_dispatcher_send(hass, SIGNAL_ENROLMENT)
+
+
+def enrolment_state(data: MagicBandData) -> dict[str, Any] | None:
+    enrolment = data.enrolment
+    if enrolment is None:
+        return None
+    person = data.registry.get_person(enrolment.person_id)
+    return {"person": person.name if person else None, "until": enrolment.until.isoformat(), "count": enrolment.count}
+
+
+# ---------------------------------------------------------------------------
 # Sync to readers
 # ---------------------------------------------------------------------------
 
 
-async def async_sync_readers(hass: HomeAssistant, registry: MagicBandRegistry) -> dict[str, Any]:
-    """Send the allowed list to every reader.
-
-    Readers from 0.10.4 on reply whether they applied the list; a reader that
-    can't (a list too long to store, or malformed) empties its own list, so
-    it denies everyone rather than keep bands that were revoked. Failures are
-    reported in a notification and in the result: {"readers", "applied", "failed"}.
-    """
-    uids = registry.allowed_uids()
-    bands = ",".join(uids)
-    stored = 1 + sum(len(u) + 1 for u in uids)  # ",UID,UID," as the reader keeps it
-    services = reader_set_services(hass)
-    ignored = sorted(
-        name
-        for name in hass.services.async_services_for_domain("esphome")
-        if name.endswith(READER_SET_SERVICE_SUFFIX) and name not in services
-    )
-    if ignored:
-        _LOGGER.warning("Not sending the allowed list to %s: not a MagicBand reader", ", ".join(ignored))
-    failed: dict[str, str] = {}
-    for service in services:
-        try:
-            await hass.services.async_call("esphome", service, {"bands": bands}, blocking=True)
-        except Exception as err:  # noqa: BLE001 - one offline reader shouldn't stop the rest
-            failed[service] = str(err) or type(err).__name__
-            _LOGGER.warning("Reader esphome.%s didn't take the allowed list: %s", service, failed[service])
-    problems = []
-    if stored > READER_LIST_CAPACITY:
-        problems.append(
-            f"The allowed list is too long for the readers ({len(uids)} bands, {stored} characters; "
-            f"they hold {READER_LIST_CAPACITY}). Readers that can't store it deny every band until "
-            "there are fewer allowed bands."
-        )
-    problems += [f"**esphome.{name}**: {error}" for name, error in failed.items()]
-    if problems:
-        persistent_notification.async_create(
-            hass,
-            "Some readers don't have the current allowed list:\n\n- " + "\n- ".join(problems),
-            title="MagicbHAnds: reader not updated",
-            notification_id=SYNC_NOTIFICATION_ID,
-        )
-    else:
-        persistent_notification.async_dismiss(hass, SYNC_NOTIFICATION_ID)
-    _LOGGER.debug("Synced %d allowed band(s) to %d reader(s), %d failed", len(uids), len(services), len(failed))
-    return {"readers": len(services), "applied": len(services) - len(failed), "failed": sorted(failed)}
+async def async_sync_readers(hass: HomeAssistant, registry: MagicBandRegistry | None = None) -> dict[str, Any]:
+    """Send the allowed list to every reader now (see readers.py)."""
+    entries = hass.config_entries.async_loaded_entries(DOMAIN)
+    if not entries:
+        raise ServiceValidationError("MagicbHAnds isn't set up")
+    return await entries[0].runtime_data.readers.async_sync()
 
 
 # ---------------------------------------------------------------------------
@@ -360,7 +371,10 @@ def _register_services(hass: HomeAssistant) -> None:
         registry = _get_registry(hass)
         try:
             person = registry.add_person(
-                call.data[ATTR_NAME], call.data.get(ATTR_HA_PERSON), call.data.get(ATTR_ALLOWED, True)
+                call.data[ATTR_NAME],
+                call.data.get(ATTR_HA_PERSON),
+                call.data.get(ATTR_ALLOWED, True),
+                call.data.get(ATTR_WELCOME_COLOUR) or None,
             )
         except ValueError as err:
             raise ServiceValidationError(str(err)) from err
@@ -375,6 +389,7 @@ def _register_services(hass: HomeAssistant) -> None:
                 name=call.data.get(ATTR_NAME),
                 ha_person=call.data.get(ATTR_HA_PERSON),
                 allowed=call.data.get(ATTR_ALLOWED),
+                welcome_colour=call.data.get(ATTR_WELCOME_COLOUR),
             )
         except ValueError as err:
             raise ServiceValidationError(str(err)) from err
@@ -413,11 +428,15 @@ def _register_services(hass: HomeAssistant) -> None:
                     "name": p.name,
                     "ha_person": p.ha_person,
                     "allowed": p.allowed,
+                    "welcome_colour": p.welcome_colour,
                     "bands": [b.display for b in registry.bands_for(p.id)],
                 }
                 for p in registry.people
             ],
             "bands": [_band_dict(registry, b, _beacons()[1]) for b in registry.bands],
+            "readers": _data().readers.report(),
+            "enrolment": enrolment_state(_data()),
+            "colours": READER_COLOURS,
         }
 
     async_register_admin_service(
@@ -428,6 +447,7 @@ def _register_services(hass: HomeAssistant) -> None:
                 vol.Required(ATTR_NAME): cv.string,
                 vol.Optional(ATTR_HA_PERSON): cv.entity_domain("person"),
                 vol.Optional(ATTR_ALLOWED, default=True): cv.boolean,
+                vol.Optional(ATTR_WELCOME_COLOUR): vol.Any("", vol.In(READER_COLOURS)),
             }
         ),
         supports_response=SupportsResponse.OPTIONAL,
@@ -441,6 +461,7 @@ def _register_services(hass: HomeAssistant) -> None:
                 vol.Optional(ATTR_NAME): cv.string,
                 vol.Optional(ATTR_HA_PERSON): vol.Any("", cv.entity_domain("person")),
                 vol.Optional(ATTR_ALLOWED): cv.boolean,
+                vol.Optional(ATTR_WELCOME_COLOUR): vol.Any("", vol.In(READER_COLOURS)),
             }
         ),
     )
@@ -538,6 +559,88 @@ def _register_services(hass: HomeAssistant) -> None:
         hass, DOMAIN, "forget_bluetooth", forget_bluetooth, vol.Schema({vol.Required("bluetooth_band"): cv.string})
     )
 
+    def _data() -> MagicBandData:
+        entries = hass.config_entries.async_loaded_entries(DOMAIN)
+        if not entries:
+            raise ServiceValidationError("MagicbHAnds isn't set up")
+        return entries[0].runtime_data
+
+    async def set_band_access(call: ServiceCall) -> None:
+        registry = _get_registry(hass)
+        uid = _resolve_band(registry, call.data[ATTR_BAND])
+        if registry.get_band(uid) is None:
+            raise ServiceValidationError(f"No band {uid} has been tapped or added")
+        if call.data.get("clear"):
+            registry.set_band_access(uid, expires=None, access_from=None, access_until=None, access_days=None)
+            return
+        kwargs: dict[str, Any] = {}
+        for key, field_name in (("expires", "expires"), ("access_from", "from"), ("access_until", "until"), ("access_days", "days")):
+            if field_name in call.data:
+                kwargs[key] = call.data[field_name] or None
+        if kwargs.get("expires") is not None and kwargs["expires"].tzinfo is None:
+            kwargs["expires"] = kwargs["expires"].replace(tzinfo=dt_util.get_default_time_zone())
+        registry.set_band_access(uid, **kwargs)
+
+    async def enrol(call: ServiceCall) -> dict[str, Any]:
+        data = _data()
+        person = _resolve_person(data.registry, call.data[ATTR_PERSON])
+        minutes = call.data.get("minutes", 5)
+        data.enrolment = Enrolment(
+            person_id=person.id,
+            until=dt_util.utcnow() + timedelta(minutes=minutes),
+            label=(call.data.get(ATTR_LABEL) or "").strip() or None,
+        )
+        persistent_notification.async_dismiss(hass, f"{DOMAIN}_enrolment")
+        async_dispatcher_send(hass, SIGNAL_ENROLMENT)
+        _LOGGER.info("Enrolling bands for %s for %d minute(s)", person.name, minutes)
+        return enrolment_state(data) or {}
+
+    async def stop_enrolment(call: ServiceCall) -> None:
+        _end_enrolment(hass, _data())
+
+    async def history(call: ServiceCall) -> dict[str, Any]:
+        return {"taps": _data().history.recent(call.data.get("count", 50))}
+
+    async_register_admin_service(
+        hass,
+        DOMAIN,
+        "set_band_access",
+        set_band_access,
+        vol.Schema(
+            {
+                vol.Required(ATTR_BAND): cv.string,
+                vol.Optional("expires"): vol.Any(None, "", cv.datetime),
+                vol.Optional("from"): vol.Any(None, "", cv.time),
+                vol.Optional("until"): vol.Any(None, "", cv.time),
+                vol.Optional("days"): vol.Any(None, vol.All(cv.ensure_list, [vol.In(WEEKDAYS)])),
+                vol.Optional("clear", default=False): cv.boolean,
+            }
+        ),
+    )
+    async_register_admin_service(
+        hass,
+        DOMAIN,
+        "enrol",
+        enrol,
+        vol.Schema(
+            {
+                vol.Required(ATTR_PERSON): cv.string,
+                vol.Optional("minutes", default=5): vol.All(vol.Coerce(int), vol.Range(min=1, max=MAX_ENROL_MINUTES)),
+                vol.Optional(ATTR_LABEL): cv.string,
+            }
+        ),
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    async_register_admin_service(hass, DOMAIN, "stop_enrolment", stop_enrolment, vol.Schema({}))
+    async_register_admin_service(
+        hass,
+        DOMAIN,
+        "history",
+        history,
+        vol.Schema({vol.Optional("count", default=50): vol.All(vol.Coerce(int), vol.Range(min=1, max=300))}),
+        supports_response=SupportsResponse.ONLY,
+    )
+
     async def list_bridges(call: ServiceCall) -> dict[str, Any]:
         return {"bridges": find_bridges(hass)}
 
@@ -592,4 +695,9 @@ def _band_dict(registry: MagicBandRegistry, band: Band, tracker: BeaconTracker |
         "last_reader": band.last_reader,
         "scans": band.scans,
         "band_type": tracker.band_type(band.uid) if tracker else band.band_type,
+        "expires": band.expires,
+        "access_from": band.access_from,
+        "access_until": band.access_until,
+        "access_days": band.access_days,
+        "in_schedule": band.in_schedule(dt_util.now()),
     }

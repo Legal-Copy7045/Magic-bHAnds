@@ -13,6 +13,10 @@ add_person:
       default: true
       selector:
         boolean:
+    welcome_colour:
+      selector:
+        select:
+          options: ["White", "Warm white", "Red", "Orange", "Yellow", "Green", "Cyan", "Blue", "Purple", "Pink", "Magenta"]
 
 update_person:
   fields:
@@ -31,6 +35,10 @@ update_person:
     allowed:
       selector:
         boolean:
+    welcome_colour:
+      selector:
+        select:
+          options: ["White", "Warm white", "Red", "Orange", "Yellow", "Green", "Cyan", "Blue", "Purple", "Pink", "Magenta"]
 
 remove_person:
   fields:
@@ -211,3 +219,54 @@ forget_bluetooth:
       required: true
       selector:
         text:
+
+set_band_access:
+  fields:
+    band:
+      required: true
+      example: 04-53-65-2A-C0-5F-80
+      selector:
+        text:
+    from:
+      selector:
+        time:
+    until:
+      selector:
+        time:
+    days:
+      selector:
+        select:
+          multiple: true
+          options: [mon, tue, wed, thu, fri, sat, sun]
+    expires:
+      selector:
+        datetime:
+    clear:
+      default: false
+      selector:
+        boolean:
+
+enrol:
+  fields:
+    person:
+      required: true
+      example: Nana
+      selector:
+        text:
+    minutes:
+      default: 5
+      selector:
+        number: {min: 1, max: 15, step: 1, mode: slider, unit_of_measurement: min}
+    label:
+      example: Nana's band
+      selector:
+        text:
+
+stop_enrolment:
+
+history:
+  fields:
+    count:
+      default: 50
+      selector:
+        number: {min: 1, max: 300, step: 1, mode: box}

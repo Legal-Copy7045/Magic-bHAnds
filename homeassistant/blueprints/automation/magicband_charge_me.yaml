@@ -1,0 +1,41 @@
+blueprint:
+  name: "MagicbHAnds: charge me reminder"
+  description: >-
+    Sends a phone notification when a MagicBand+ battery drops to the reminder
+    level set in MagicbHAnds (Configure → Settings). It's sent once per
+    discharge: after the band has been charged, the next low battery reminds
+    again. The same reminder also shows in Settings → Repairs.
+    Source: github.com/Legal-Copy7045/Magic-bHAnds
+  domain: automation
+  source_url: https://github.com/Legal-Copy7045/Magic-bHAnds/blob/main/custom_components/magicband/blueprints/magicband_charge_me.yaml
+  input:
+    notify_device:
+      name: Phone
+      description: The Home Assistant app that gets the reminder.
+      selector:
+        device:
+          filter:
+            - integration: mobile_app
+    only_owner:
+      name: Only the owner's bands
+      description: >-
+        Only remind about bands that belong to this person (their name in
+        MagicbHAnds). Leave empty for every band.
+      default: ""
+      selector:
+        text:
+mode: queued
+triggers:
+  - trigger: event
+    event_type: magicband_battery_low
+variables:
+  only_owner: !input only_owner
+conditions:
+  - condition: template
+    value_template: "{{ not only_owner or trigger.event.data.person == only_owner }}"
+actions:
+  - domain: mobile_app
+    type: notify
+    device_id: !input notify_device
+    title: "🔋 Charge me"
+    message: "{{ trigger.event.data.name }} is at {{ trigger.event.data.battery }}%."

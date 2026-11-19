@@ -17,7 +17,9 @@ from homeassistant.core import Context, HomeAssistant, ServiceCall
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError, Unauthorized
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
-from custom_components.magicband import READER_LIST_CAPACITY, SYNC_NOTIFICATION_ID
+from custom_components.magicband.readers import READER_LIST_CAPACITY
+from homeassistant.helpers import issue_registry as ir
+from tests.conftest import make_esphome_device
 from custom_components.magicband.beacons import MAX_UNCLAIMED
 from custom_components.magicband.const import DOMAIN
 from custom_components.magicband.listener import EVENTS_PER_MINUTE
@@ -238,14 +240,7 @@ async def test_send_uses_the_callers_context(
 
 
 def _esphome_device(hass: HomeAssistant, node: str, model: str) -> dr.DeviceEntry:
-    entry = MockConfigEntry(domain="esphome", title=node, data={"device_name": node})
-    entry.add_to_hass(hass)
-    return dr.async_get(hass).async_get_or_create(
-        config_entry_id=entry.entry_id,
-        connections={(dr.CONNECTION_NETWORK_MAC, f"aa:bb:cc:{abs(hash(node)) % 256:02x}:00:01")},
-        model=model,
-        name=node,
-    )
+    return make_esphome_device(hass, node, model)
 
 
 async def _with_readers(hass: HomeAssistant, behaviour: dict[str, Exception | None]) -> list[tuple[str, str]]:
@@ -268,13 +263,17 @@ async def test_sync_reports_readers_that_refuse_the_list(hass: HomeAssistant, se
     await hass.services.async_call(DOMAIN, "assign_band", {"band": TAG, "person": "Andrew"}, blocking=True)
     await _with_readers(hass, {"front": None, "garage": HomeAssistantError("Too many bands")})
     result = await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
-    assert result == {"readers": 2, "applied": 1, "failed": ["garage_set_known_bands"]}
-    assert "Too many bands" in _notification(hass, SYNC_NOTIFICATION_ID)["message"]
+    assert result == {"readers": 2, "applied": 1, "failed": ["garage"]}
+    issues = [i for (d, i) in ir.async_get(hass).issues if d == DOMAIN and i.startswith("reader_sync_failed")]
+    assert len(issues) == 1
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issues[0]).translation_placeholders["error"] == "Too many bands"
 
     hass.services.async_remove("esphome", "garage_set_known_bands")
+    _ = await _with_readers(hass, {"rogue_fixed": None})  # garage comes back working
+    hass.services.async_register("esphome", "garage_set_known_bands", lambda call: None)
     result = await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
     assert result["failed"] == []
-    assert _notification(hass, SYNC_NOTIFICATION_ID) is None  # cleared once every reader has it
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issues[0]) is None  # cleared once the reader has it
 
 
 async def test_sync_warns_when_the_list_is_too_long_for_readers(hass: HomeAssistant, setup_integration) -> None:
@@ -286,7 +285,7 @@ async def test_sync_warns_when_the_list_is_too_long_for_readers(hass: HomeAssist
     await _with_readers(hass, {"front": None})
     await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
     assert len(registry.allowed_uids()) == n
-    assert "too long" in _notification(hass, SYNC_NOTIFICATION_ID)["message"]
+    assert ir.async_get(hass).async_get_issue(DOMAIN, "list_too_long") is not None
 
 
 # ---------------------------------------------------------------------------- Bluetooth flooding
@@ -507,3 +506,60 @@ async def test_raw_commands_have_the_same_time_limits(
         await hass.services.async_call(DOMAIN, "send", {"command": command}, blocking=True)
     await hass.services.async_call(DOMAIN, "send", {"command": {"effect": "raw", "hex": "E9", "duration_ms": 5000}}, blocking=True)
     assert len(text_calls) == 1
+
+
+_COLOUR_HARNESS = r"""
+#include <algorithm>
+#include <array>
+#include <cctype>
+#include <cstdio>
+#include <string>
+static std::array<char, %d> band_colours;
+static std::string sync_error;
+#define id(x) x
+#define ESP_LOGI(tag, ...) std::printf(__VA_ARGS__), std::printf("\n")
+#define ESP_LOGW(tag, ...) std::printf(__VA_ARGS__), std::printf("\n")
+static void set_band_colours(const std::string &colours) {
+%s
+}
+int main(int argc, char **argv) {
+  set_band_colours(argv[1]);
+  std::printf("LIST=%%s\nERROR=%%s\n", band_colours.data(), sync_error.c_str());
+}
+"""
+
+
+def _colour_firmware(tmp_path: Path) -> Path:
+    if shutil.which("g++") is None:
+        pytest.skip("no C++ compiler")
+    yaml = (REPO / "esphome" / "magicband-reader.yaml").read_text()
+    block = yaml.split("- action: set_band_colours", 1)[1].split("- lambda: |-", 1)[1]
+    body = block.split("- api.respond:", 1)[0]
+    size = int(re.search(r"id: band_colours\s+type: std::array<char, (\d+)>", yaml).group(1))
+    src = tmp_path / "colours.cpp"
+    src.write_text(_COLOUR_HARNESS % (size, body))
+    exe = tmp_path / "colours"
+    subprocess.run(["g++", "-std=c++17", "-o", str(exe), str(src)], check=True, capture_output=True)
+    return exe
+
+
+def test_reader_takes_welcome_colours(tmp_path: Path) -> None:
+    exe = _colour_firmware(tmp_path)
+    out = subprocess.run([str(exe), "0453652AC05F80=Purple,04-AA-BB-CC=Warm white"], check=True, capture_output=True, text=True).stdout
+    assert dict(re.findall(r"^(LIST|ERROR)=(.*)$", out, re.M)) == {"LIST": ",0453652AC05F80=Purple,04AABBCC=Warm white,", "ERROR": ""}
+
+
+@pytest.mark.parametrize("bad", ["0453652AC05F80=Plaid", "TEST=Red", "0453652AC05F80", "04;53652AC05F80=Red"])
+def test_reader_rejects_bad_welcome_colours(tmp_path: Path, bad: str) -> None:
+    exe = _colour_firmware(tmp_path)
+    out = subprocess.run([str(exe), bad], check=True, capture_output=True, text=True).stdout
+    result = dict(re.findall(r"^(LIST|ERROR)=(.*)$", out, re.M))
+    assert result["LIST"] == "" and result["ERROR"]
+
+
+def test_reader_colours_match_the_integration() -> None:
+    from custom_components.magicband.const import READER_COLOURS
+
+    yaml = (REPO / "esphome" / "magicband-reader.yaml").read_text()
+    options = re.search(r"id: welcome_colour.*?options:\n((?:\s+- \"[^\"]+\"\n)+)", yaml, re.S).group(1)
+    assert re.findall(r'"([^"]+)"', options) == READER_COLOURS
