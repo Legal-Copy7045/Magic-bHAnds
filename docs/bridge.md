@@ -43,8 +43,10 @@ up.
 up there with **Take control**. That imports `esphome/magicband-bridge.yaml` as
 a package so you can edit it and build your own firmware.
 
-**If Wi-Fi setup fails,** the board starts a hotspot called
-"MagicBand Bridge Setup". Join it and pick your network.
+**If Wi-Fi setup fails, or your Wi-Fi changes later,** plug the board into a
+computer and use the web installer's **Change Wi-Fi** (Improv over USB). There's
+no fallback hotspot: an open setup hotspot would let anyone nearby upload their
+own firmware (see [security.md](security.md)).
 
 ## Hardware
 
@@ -81,13 +83,14 @@ installer: the Wi-Fi setup step and logs run on that port.
 | **Firmware** (update) | Installs new releases over Wi-Fi. |
 
 **Per-board actions**, prefixed `esphome.magicband_bridge_<suffix>_`. Each
-of these sends through that one board only. To send through several bridges,
-use the blueprint, `script.magicband_send`, or the Command entity.
+of these sends through that one board only. To send through several (or all)
+bridges, use the MagicbHAnds integration's `magicband.send` (the blueprint
+and `script.magicband_send` both use it), or write JSON to the Command entity.
 
 | Action | Fields |
 |--------|--------|
 | `color` | `color`, `vibration` |
-| `color_advanced` | `color`, `vibration`, `leds` (all/top_left/top_right/bottom_left/bottom_right), `on_seconds` (≈6–52, 0 = default), `fade_seconds` (0–3), `always_on` |
+| `color_advanced` | `color`, `vibration`, `leds` (all/top_left/top_right/bottom_left/bottom_right), `on_seconds` (about 5.5–52, 0 = default), `fade_seconds` (0–3), `always_on` |
 | `rgb` | `red`, `green`, `blue` (0–255), `vibration`, `always_on`, `flash` |
 | `dual_color` | `inner`, `outer`, `vibration` |
 | `five_color` | `colors` ("centre, top right, bottom right, bottom left, top left"), `vibration` |
@@ -178,7 +181,8 @@ fine; the bridge supports both.
 
 - Bridges transmit at maximum power by default: +20 dBm on ESP32-S3. In
   regions with a 20 dBm EIRP limit (such as the EU) and a high-gain antenna,
-  set `tx_power: 17dBm`.
+  set `tx_power: 18dBm` or `15dBm` (on ESP32-S3 the steps are −24 to +18
+  in 3 dB steps, plus 20).
 - Bands only listen now and then. **Fast mode** (on by default) asks them to
   listen continuously. If the first effect after a quiet spell is often
   missed, set **Fast mode warm-up** to 5–10 s, or press **Wake bands** first.

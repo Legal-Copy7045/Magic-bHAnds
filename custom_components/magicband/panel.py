@@ -70,7 +70,7 @@ async def async_setup_panel(hass: HomeAssistant, show: bool) -> None:
         sidebar_title="MagicbHAnds",
         sidebar_icon="mdi:watch-variant",
         module_url=f"{STATIC}/panel.js?v={version}",
-        require_admin=False,
+        require_admin=True,  # the page manages who the readers let in
         config={},
     )
 

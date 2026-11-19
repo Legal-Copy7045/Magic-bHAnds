@@ -17,7 +17,7 @@ it to check each later build.
 | 1 | **Breadboard** | **[Build it](reader-breadboard/build.md)** | [Spec](reader-breadboard/README.md), [diagram](../docs/reader-breadboard.svg) | Large | The ring's wires only | Reviewed, first build |
 | 2 | **Lonely Binary terminal base** | **[Build it](reader-wired/build.md)** | [Spec](reader-wired/README.md), [diagram](../docs/reader-terminal-base.svg) | Medium | Interface board, amplifier power, two power wires | Reviewed, not built |
 | 3 | **Point-to-point wiring** | **[Build it](reader-wired/build.md)** | [Spec](reader-wired/README.md), [diagram](../docs/reader-point-to-point.svg) | Small | Interface board, every joint | Reviewed, not built |
-| 3a | **Compact (solderless)**: point-to-point on a 400-point half breadboard | **[Build it](reader-wired/build.md#compact-solderless-version)** | [Spec](reader-wired/README.md#compact-solderless-version), [diagram](../docs/reader-compact.svg) | Small | The PN532 header and the ring's wires only | **Built and tested** on the USB-C PD supply (power, NFC, sound, load test); ring next |
+| 3a | **Compact (solderless)**: point-to-point on a 400-point half breadboard | **[Build it](reader-compact/build.md)** | [Spec](reader-wired/README.md#compact-solderless-version), [diagram](../docs/reader-compact.svg) | Small | The PN532 header and the ring's wires only | **Built and tested** on the USB-C PD supply (power, NFC, sound, load test); ring next |
 
 All of them use a dev board (ESP32-S3-DevKitC-1 layout, such as the Lonely
 Binary N16R8) and install from the web installer's *Install the reader*
@@ -31,21 +31,30 @@ design is out of date and has been taken out of this repository for now.
 Run through this for every build, in order. Each step only needs the ones
 before it.
 
+**Where to look.** Most checks use the reader's entities on its device page
+in Home Assistant (**Last band ID**, **Known bands**, **Allowed list**, the
+**Firmware** version). For start-up messages, plug USB into the **UART** port
+and open the web installer's **Logs & console** (on a built reader, unplug the
+ESP32's 5 V wire first). The log shows warnings and errors, never band IDs.
+
 1. **Board and firmware.** Install from the
    [web installer](https://legal-copy7045.github.io/Magic-bHAnds/), set up
-   Wi-Fi, and add the device in Home Assistant. *Logs* show the version.
-2. **NFC reader.** The log shows the PN532 found at start-up (no
-   `Error sending setup` or `PN532 not found` lines). Tap a band: the log
-   shows its ID and Home Assistant gets a tag scan.
+   Wi-Fi, and add the device in Home Assistant. The device page shows the
+   firmware version.
+2. **NFC reader.** No `Error sending version command` in the start-up log
+   (that means the PN532 isn't answering). Tap a band: **Last band ID** shows
+   its ID, and Home Assistant gets a tag scan (Settings → Tags).
 3. **LEDs.** Turn on the **Ring** light in Home Assistant. Every LED lights
    in the right colour (wrong colours mean a wrong LED count or order;
    flicker or garbage usually means the level shifter or ground).
 4. **Sound.** Restart the device: the start-up sound plays. Then tap a
    known and an unknown band for the tap-in and error sounds.
-5. **Bluetooth.** Tap a known MagicBand+: it lights green and buzzes.
+5. **Bluetooth.** Tap a known MagicBand+: it lights in the welcome colour
+   and buzzes.
 6. **Under load.** Set the ring to full white for a minute while tapping
-   bands. The board shouldn't restart (check *Uptime*), and nothing should
-   get hot.
+   bands. The board shouldn't restart (the start-up sound doesn't play again
+   and the device stays online in Home Assistant), and nothing should get
+   hot.
 7. **In its case.** Repeat steps 2 and 5 with everything closed up. NFC
    needs no metal between the antenna and the band.
 

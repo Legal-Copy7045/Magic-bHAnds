@@ -7,10 +7,12 @@ the Command entity; the firmware parses them (see docs/commands.md).
 
 from __future__ import annotations
 
+from collections import deque
 import json
+import time
 from typing import Any
 
-from homeassistant.core import HomeAssistant
+from homeassistant.core import Context, HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 
@@ -64,6 +66,13 @@ ANIMATIONS = [
     "show_07_2",
 ]
 MAX_COMMAND_LEN = 255  # the Command text entity's max length
+# Each command makes a bridge broadcast (and may pause its Bluetooth proxy),
+# so magicband.send accepts at most this many commands per bridge a minute.
+# Far more than any automation or dashboard needs; it stops a loop or a user
+# keeping every bridge transmitting.
+MAX_SENDS_PER_MINUTE = 30
+MAX_DURATION_MS = 30000  # also the limit on the duration_ms field
+_SEND_TIMES = "magicband_send_times"
 
 
 def _is_named(entry: er.RegistryEntry, name: str) -> bool:
@@ -91,7 +100,12 @@ def find_bridges(hass: HomeAssistant) -> list[str]:
 def build_command(data: dict[str, Any]) -> dict[str, Any]:
     """Turn the magicband.send fields into the firmware's JSON command."""
     if isinstance(data.get("command"), dict):
-        return dict(data["command"])  # raw command, passed through
+        cmd = dict(data["command"])  # raw command, passed through, within the same time limits
+        for key, limit in (("duration_ms", MAX_DURATION_MS), ("seconds", 60)):
+            value = cmd.get(key)
+            if value is not None and (not isinstance(value, (int, float)) or isinstance(value, bool) or not 0 <= value <= limit):
+                raise ServiceValidationError(f"command {key} must be a number from 0 to {limit}")
+        return cmd
     effect = data.get("effect", "color")
     cmd: dict[str, Any] = {"effect": effect}
 
@@ -130,9 +144,25 @@ def build_command(data: dict[str, Any]) -> dict[str, Any]:
     return cmd
 
 
-async def async_send(hass: HomeAssistant, data: dict[str, Any]) -> list[str]:
-    """Send one command to the chosen bridges (default: all). Returns the bridges used."""
-    bridges = list(data.get("bridges") or []) or find_bridges(hass)
+async def async_send(hass: HomeAssistant, data: dict[str, Any], context: Context | None = None) -> list[str]:
+    """Send one command to the chosen bridges (default: all). Returns the bridges used.
+
+    Only MagicBand bridges' Command entities can be targeted: anything else in
+    `bridges` is refused, so this can't be used to write other text entities.
+    The write runs with the caller's context, so Home Assistant's own
+    permissions and logbook see who sent it.
+    """
+    known = find_bridges(hass)
+    wanted = list(dict.fromkeys(data.get("bridges") or []))
+    if wanted:
+        if unknown := [entity_id for entity_id in wanted if entity_id not in known]:
+            raise ServiceValidationError(
+                f"Not a MagicBand bridge's Command entity: {', '.join(unknown)}. "
+                "magicband.list_bridges shows the bridges."
+            )
+        bridges = wanted
+    else:
+        bridges = known
     if not bridges:
         raise ServiceValidationError(
             "No MagicBand bridges found. Add a bridge (an ESPHome device with the magicband "
@@ -141,5 +171,19 @@ async def async_send(hass: HomeAssistant, data: dict[str, Any]) -> list[str]:
     value = json.dumps(build_command(data), separators=(",", ":"))
     if len(value) > MAX_COMMAND_LEN:
         raise ServiceValidationError(f"Command is {len(value)} characters; the limit is {MAX_COMMAND_LEN}")
-    await hass.services.async_call("text", "set_value", {"entity_id": bridges, "value": value}, blocking=True)
+    now = time.monotonic()
+    times: dict[str, deque[float]] = hass.data.setdefault(_SEND_TIMES, {})
+    for entity_id in bridges:
+        recent = times.setdefault(entity_id, deque())
+        while recent and now - recent[0] >= 60:
+            recent.popleft()
+        if len(recent) >= MAX_SENDS_PER_MINUTE:
+            raise ServiceValidationError(
+                f"Too many commands to {entity_id}: at most {MAX_SENDS_PER_MINUTE} a minute per bridge"
+            )
+    for entity_id in bridges:
+        times[entity_id].append(now)
+    await hass.services.async_call(
+        "text", "set_value", {"entity_id": bridges, "value": value}, blocking=True, context=context
+    )
     return bridges

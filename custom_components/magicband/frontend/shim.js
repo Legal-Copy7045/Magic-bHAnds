@@ -16,7 +16,8 @@
   var CTRL = { light: ['turn_on', 'turn_off', 'toggle'], switch: ['turn_on', 'turn_off', 'toggle'],
                media_player: ['volume_set'], select: ['select_option'], number: ['set_value'], button: ['press'] };
   var SVC = { magicband: ['assign_band', 'unassign_band', 'remove_band', 'add_person', 'update_person', 'remove_person',
-                          'link_bluetooth', 'unlink_bluetooth', 'sync', 'send', 'list', 'list_bluetooth_bands'] };
+                          'link_bluetooth', 'unlink_bluetooth', 'sync', 'send', 'list', 'list_bluetooth_bands',
+                          'set_band_access', 'enrol', 'stop_enrolment', 'history'] };
   var NOPRESS = /factory_reset|safe_mode|forget_all/;   // buttons the page may not press
   var idxFor = null, idx = {};
   function nameIndex(h) {

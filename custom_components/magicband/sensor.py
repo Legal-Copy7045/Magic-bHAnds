@@ -18,6 +18,7 @@ from . import MagicBandConfigEntry, is_reader_device
 from .const import DOMAIN, SIGNAL_BEACON, SIGNAL_HEARD, SIGNAL_READER_TAP, SIGNAL_UPDATED
 from .band_entity import BluetoothBandEntity, NfcBandEntity, async_setup_band_entities
 from .beacons import CLOSEST_WINDOW, BeaconTracker, adapter_name
+from .readers import SIGNAL_READER_STATUS, reader_devices
 from .registry import MagicBandRegistry
 
 
@@ -72,7 +73,7 @@ async def async_setup_entry(
         if dr.async_get(hass).async_get(device_id) is None:
             return
         readers[device_id] = ReaderLastBandSensor(entry, device_id)
-        async_add_entities([readers[device_id]])
+        async_add_entities([readers[device_id], ReaderSyncSensor(entry, device_id)])
 
     for device in list(dr.async_get(hass).devices.values()):
         _add_reader(device.id)
@@ -84,6 +85,14 @@ async def async_setup_entry(
             sensor.tapped(uid, allowed)
 
     entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_READER_TAP, _on_tap))
+
+    @callback
+    def _add_new_readers() -> None:
+        # Readers added after start-up (checked every minute and at each sync).
+        for device in reader_devices(hass):
+            _add_reader(device.id)
+
+    entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_READER_STATUS, _add_new_readers))
 
     async_setup_band_entities(
         hass,
@@ -149,8 +158,15 @@ class UnknownBandsSensor(_Base):
 
     def __init__(self, entry, registry) -> None:
         super().__init__(entry, registry)
+        self._entry_data = entry.runtime_data
         self._attr_unique_id = f"{entry.entry_id}_unknown_bands"
         self.entity_id = "sensor.magicband_unknown_bands"
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        from . import SIGNAL_ENROLMENT
+
+        self.async_on_remove(async_dispatcher_connect(self.hass, SIGNAL_ENROLMENT, self.async_write_ha_state))
 
     @property
     def native_value(self) -> int:
@@ -158,11 +174,15 @@ class UnknownBandsSensor(_Base):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
+        from . import enrolment_state
+
         return {
             "bands": [
                 {"band": b.display, "last_seen": b.last_seen, "reader": b.last_reader, "scans": b.scans}
                 for b in self._registry.unassigned_bands[:20]
-            ]
+            ],
+            # While enrolling: {person, until, count}; the next bands nobody owns go to that person.
+            "enrolling": enrolment_state(self._entry_data),
         }
 
 
@@ -501,4 +521,49 @@ class ReaderLastBandSensor(RestoreSensor):
             "person": person.name if person else None,
             "allowed": self._allowed,
             "at": self._at,
+        }
+
+
+class ReaderSyncSensor(SensorEntity):
+    """Whether this reader has the current allowed list, on the reader's own device page."""
+
+    _attr_has_entity_name = True
+    _attr_should_poll = False
+    _attr_translation_key = "reader_allowed_list"
+    _attr_icon = "mdi:playlist-check"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = ["up_to_date", "failed", "unconfirmed", "offline", "waiting"]
+
+    def __init__(self, entry: MagicBandConfigEntry, device_id: str) -> None:
+        self._entry = entry
+        self._reader_id = device_id
+        self._attr_unique_id = f"reader_{device_id}_allowed_list"
+
+    async def async_added_to_hass(self) -> None:
+        if self.registry_entry is not None and self.registry_entry.device_id != self._reader_id:
+            dr.async_get(self.hass).async_update_device(self._reader_id, add_config_entry_id=self._entry.entry_id)
+            er.async_get(self.hass).async_update_entity(self.entity_id, device_id=self._reader_id)
+        self.async_on_remove(async_dispatcher_connect(self.hass, SIGNAL_READER_STATUS, self._update))
+
+    @callback
+    def _update(self) -> None:
+        if self.hass is not None and self.enabled:
+            self.async_write_ha_state()
+
+    @property
+    def native_value(self) -> str:
+        status = self._entry.runtime_data.readers.status_of(self._reader_id)
+        return status.state if status else "waiting"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        status = self._entry.runtime_data.readers.status_of(self._reader_id)
+        if status is None:
+            return {}
+        return {
+            "error": status.error,
+            "last_sync": status.last_sync,
+            "bands": status.bands,
+            "welcome_colours": status.colours,
         }

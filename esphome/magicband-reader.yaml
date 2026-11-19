@@ -5,9 +5,10 @@
 #      and checked (NFC, both band types).
 #   2. Home Assistant gets the band's ID as a Tag scan, so any automation
 #      can react to it (lights, locks, music, ...).
-#   3. Welcome: the ring pulses green once, the tap-in sound plays, and a
-#      MagicBand+ also lights up green and buzzes (Bluetooth, via the
-#      magicband add-on). Denied (in "Known bands only" or "Ask Home
+#   3. Welcome: the ring pulses in the welcome colour (or the owner's own
+#      colour, from the MagicbHAnds integration), the tap-in sound plays, and
+#      a MagicBand+ lights up in the same colour and buzzes (Bluetooth, via
+#      the magicband add-on). Denied (in "Known bands only" or "Ask Home
 #      Assistant" mode): two red pulses and the error sound. Everything except "Ask Home Assistant" is decided
 #      on the reader, with no round trip to Home Assistant.
 # A start-up sound plays on boot. Sound files: see docs/reader.md.
@@ -20,7 +21,7 @@
 substitutions:
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.10.3"
+  project_version: "0.10.4"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -88,11 +89,31 @@ dashboard_import:
 logger:
   # Logs and the web installer's Wi-Fi setup use the port labelled "UART".
   hardware_uart: UART0
+  # INFO, not the default DEBUG: at DEBUG every tag read (a band's NFC ID) is
+  # printed, on the USB port of a reader that sits outside the door and in
+  # Home Assistant's device logs. Warnings and errors (such as the PN532 not
+  # answering) still show; band IDs never do.
+  level: INFO
 
 api:
   # Encrypted. Home Assistant gives each board its own key the first time it
   # connects, so there's no key to manage.
   encryption: {}
+  # The idle glow turns amber while Home Assistant isn't connected.
+  on_client_connected:
+    - if:
+        condition:
+          not:
+            script.is_running: band_tapped
+        then:
+          - script.execute: reader_idle
+  on_client_disconnected:
+    - if:
+        condition:
+          not:
+            script.is_running: band_tapped
+        then:
+          - script.execute: reader_idle
   actions:
     # For "Ask Home Assistant" mode: an automation on the tag scan calls one
     # of these within 3 seconds (esphome.magicband_reader_<suffix>_accept / _deny).
@@ -103,7 +124,11 @@ api:
       then:
         - globals.set: {id: decision, value: "2"}
     # Used by the MagicBand integration to replace the reader's allowed list.
-    # bands: comma-separated band IDs (any of 04-53-65-.., 0453652A.. forms).
+    # bands: comma-separated band IDs (04-53-65-.. or 0453652A..: 4, 7 or 10
+    # bytes of hex). A list that can't be applied in full (a malformed ID, or
+    # too long to store) empties the allowed list instead of keeping the old
+    # one, so a band revoked in Home Assistant can never stay allowed here.
+    # The reply tells Home Assistant whether the list was applied.
     - action: set_known_bands
       variables:
         bands: string
@@ -111,22 +136,89 @@ api:
         - lambda: |-
             std::string out = ",";
             std::string cur;
+            std::string err;
             for (char c : std::string(bands) + ",") {
               if (c == ',') {
-                if (!cur.empty()) out += cur + ",";
+                if (!cur.empty()) {
+                  if (cur.size() != 8 && cur.size() != 14 && cur.size() != 20) {
+                    err = "A band ID in the list isn't 4, 7 or 10 bytes";
+                    break;
+                  }
+                  out += cur + ",";
+                }
                 cur.clear();
-              } else if (std::isalnum(static_cast<unsigned char>(c))) {
+              } else if (std::isxdigit(static_cast<unsigned char>(c))) {
                 cur += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+              } else if (c != '-' && c != ':' && c != ' ') {
+                err = "Unexpected character in the band list";
+                break;
               }
             }
-            if (out.size() >= id(known_list).size()) {
-              ESP_LOGE("reader", "Too many bands (%u chars); list not changed", (unsigned) out.size());
-              return;
-            }
+            if (err.empty() && out.size() >= id(known_list).size())
+              err = "Too many bands: " + std::to_string(out.size()) + " characters, room for " +
+                    std::to_string(id(known_list).size() - 1);
             std::fill(id(known_list).begin(), id(known_list).end(), 0);
-            std::copy(out.begin(), out.end(), id(known_list).begin());
-            ESP_LOGI("reader", "Known bands updated: %s", out.c_str());
+            if (err.empty()) {
+              std::copy(out.begin(), out.end(), id(known_list).begin());
+              ESP_LOGI("reader", "Known bands updated: %u", (unsigned) std::count(out.begin(), out.end(), ',') - 1);
+            } else {
+              ESP_LOGE("reader", "%s. Known bands cleared: every band is denied until a valid list arrives",
+                       err.c_str());
+            }
+            id(sync_error) = err;
         - component.update: known_band_count
+        - api.respond:
+            success: !lambda 'return id(sync_error).empty();'
+            error_message: !lambda 'return id(sync_error);'
+    # Used by the MagicBand integration: each allowed band's owner's welcome
+    # colour, as "UID=Colour,UID=Colour" (colours as in "Welcome colour").
+    # Bands not listed are welcomed in "Welcome colour".
+    - action: set_band_colours
+      variables:
+        colours: string
+      then:
+        - lambda: |-
+            static const char *const NAMES[] = {"White", "Warm white", "Red", "Orange", "Yellow", "Green", "Cyan", "Blue", "Purple", "Pink", "Magenta"};
+            std::string out = ",";
+            std::string err;
+            std::string all = std::string(colours);
+            size_t start = 0;
+            while (err.empty() && start < all.size()) {
+              size_t end = all.find(',', start);
+              if (end == std::string::npos) end = all.size();
+              std::string token = all.substr(start, end - start);
+              start = end + 1;
+              if (token.empty()) continue;
+              size_t eq = token.find('=');
+              if (eq == std::string::npos) { err = "Expected UID=Colour"; break; }
+              std::string key;
+              for (char c : token.substr(0, eq)) {
+                if (std::isxdigit(static_cast<unsigned char>(c)))
+                  key += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+                else if (c != '-' && c != ':' && c != ' ') { err = "Unexpected character in a band ID"; break; }
+              }
+              if (!err.empty()) break;
+              std::string name = token.substr(eq + 1);
+              bool known = false;
+              for (const char *n : NAMES) known = known || name == n;
+              if ((key.size() != 8 && key.size() != 14 && key.size() != 20) || !known) {
+                err = "A band ID or colour isn't valid";
+                break;
+              }
+              out += key + "=" + name + ",";
+            }
+            if (err.empty() && out.size() >= id(band_colours).size()) err = "Too many welcome colours";
+            std::fill(id(band_colours).begin(), id(band_colours).end(), 0);
+            if (err.empty()) {
+              std::copy(out.begin(), out.end(), id(band_colours).begin());
+              ESP_LOGI("reader", "Welcome colours updated");
+            } else {
+              ESP_LOGW("reader", "%s. Every band is welcomed in the Welcome colour", err.c_str());
+            }
+            id(sync_error) = err;
+        - api.respond:
+            success: !lambda 'return id(sync_error).empty();'
+            error_message: !lambda 'return id(sync_error);'
 
 ota:
   # Updates come from the published firmware through Home Assistant (the
@@ -143,12 +235,13 @@ update:
     update_interval: 6h
 
 wifi:
-  # No credentials here: they're entered in the web installer (Improv) or via
-  # the fallback hotspot's captive portal.
-  ap:
-    ssid: "MagicBand Reader Setup"
-
-captive_portal:
+  # No credentials here: they're entered in the web installer (Improv over
+  # USB). There's deliberately no fallback hotspot: ESPHome's captive portal
+  # accepts a firmware upload from anyone who joins it, and an open hotspot
+  # can be forced on by knocking the board off Wi-Fi for 90 seconds. To change
+  # Wi-Fi later, plug the board into a computer and use the web installer.
+  # (Building your own? You can add "ap:" with a strong password and
+  # "captive_portal:" back.)
 
 improv_serial:
 
@@ -304,11 +397,21 @@ globals:
     initial_value: "0"
   # Allowed bands for "Known bands only": ",UID,UID," with IDs uppercase and
   # without separators. Stored on the reader, so it survives restarts and
-  # works with Home Assistant offline. Room for ~100 bands.
+  # works with Home Assistant offline. Room for 213 bands with 7-byte IDs
+  # (READER_LIST_CAPACITY in the integration must match: size - 1).
   - id: known_list
-    type: std::array<char, 1600>
+    type: std::array<char, 3200>
     restore_value: true
     update_interval: 5s
+  - id: sync_error        # why the last set_known_bands failed ("" = applied)
+    type: std::string
+  # Each allowed band's owner's welcome colour: ",UID=Colour,UID=Colour,"
+  # (from the MagicBand integration's set_band_colours).
+  - id: band_colours
+    type: std::array<char, 4096>
+    restore_value: true
+  - id: welcome_name      # the colour this tap is welcomed in
+    type: std::string
 
 select:
   # How far the welcome's light-up reaches. Every MagicBand+ in range reacts,
@@ -601,6 +704,14 @@ sensor:
       return n;
 
 text_sensor:
+  # This reader's ESPHome name: the MagicBand integration uses it to find the
+  # reader's actions (esphome.<name>_set_known_bands).
+  - platform: template
+    name: "ESPHome name"
+    icon: mdi:identifier
+    entity_category: diagnostic
+    update_interval: 300s
+    lambda: 'return App.get_name();'
   # The raw NFC ID. With the MagicBand integration, "Last band name" (from
   # the integration, on this device's page) shows whose band it was.
   - platform: template
@@ -655,7 +766,25 @@ script:
 
   - id: reader_idle
     then:
-      # A soft white glow while waiting for a band ("Idle glow"; 0 = off).
+      # A soft white glow while waiting for a band ("Idle glow"; 0 = off),
+      # amber (at least 10%) while Home Assistant isn't connected, so a reader
+      # that can't get changes to its allowed list shows it.
+      - if:
+          condition:
+            not:
+              api.connected:
+          then:
+            - light.turn_on:
+                id: ring
+                effect: "None"
+                brightness: !lambda 'return std::max(10.0f, id(idle_glow).state) / 100.0f;'
+                red: 100%
+                green: 45%
+                blue: 0%
+          else:
+            - script.execute: reader_idle_glow
+  - id: reader_idle_glow
+    then:
       - if:
           condition:
             lambda: 'return id(idle_glow).state > 0;'
@@ -680,6 +809,19 @@ script:
           state: !lambda 'return uid;'
       - homeassistant.tag_scanned: !lambda 'return uid;'
       - globals.set: {id: decision, value: "0"}
+      # The owner's welcome colour, if Home Assistant gave this band one.
+      - lambda: |-
+          std::string key;
+          for (char c : uid)
+            if (std::isxdigit(static_cast<unsigned char>(c)))
+              key += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+          id(welcome_name) = id(welcome_colour).current_option().str();
+          std::string colours(id(band_colours).data());
+          size_t pos = key.empty() ? std::string::npos : colours.find("," + key + "=");
+          if (pos != std::string::npos) {
+            size_t from = pos + key.size() + 2, to = colours.find(',', from);
+            if (to != std::string::npos) id(welcome_name) = colours.substr(from, to - from);
+          }
       # Chasing circles while the band is checked ("Checking circles" x
       # "Circle time", in "Checking colour").
       - script.execute:
@@ -705,10 +847,11 @@ script:
             - lambda: |-
                 std::string key;
                 for (char c : uid)
-                  if (std::isalnum(static_cast<unsigned char>(c)))
+                  if (std::isxdigit(static_cast<unsigned char>(c)))
                     key += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
                 std::string list(id(known_list).data());
-                id(decision) = (!key.empty() && list.find("," + key + ",") != std::string::npos) ? 1 : 2;
+                bool valid = key.size() == 8 || key.size() == 14 || key.size() == 20;
+                id(decision) = (valid && list.find("," + key + ",") != std::string::npos) ? 1 : 2;
       - if:
           condition:
             lambda: 'return id(response_mode).current_option() == "Ask Home Assistant";'
@@ -748,7 +891,7 @@ script:
           value: !lambda 'return std::isnan(id(welcome_pulses).state) ? 1 : static_cast<int>(id(welcome_pulses).state);'
       - script.execute:
           id: set_ring_colour
-          name: !lambda 'return id(welcome_colour).current_option().str();'
+          name: !lambda 'return id(welcome_name).empty() ? id(welcome_colour).current_option().str() : id(welcome_name);'
       - light.turn_on:
           id: ring
           effect: "Pulse"
@@ -768,8 +911,19 @@ script:
             switch.is_on: light_up_band
           then:
             - lambda: |-
-                id(band).send_single_color(magicband::GREEN, 2,
-                    magicband::MagicBand::timing(6, 1, false));
+                // The same colour on the band (nearest in the MagicBand+ palette).
+                struct Entry { const char *name; uint8_t code; };
+                static const Entry TABLE[] = {
+                    {"White", magicband::WHITE},   {"Warm white", magicband::OFF_YELLOW}, {"Red", magicband::RED},
+                    {"Orange", magicband::ORANGE}, {"Yellow", magicband::YELLOW_ORANGE},   {"Green", magicband::GREEN},
+                    {"Cyan", magicband::CYAN},     {"Blue", magicband::BLUE},             {"Purple", magicband::PURPLE},
+                    {"Pink", magicband::PINK},     {"Magenta", magicband::BRIGHT_PURPLE},
+                };
+                std::string name = id(welcome_name).empty() ? id(welcome_colour).current_option().str() : id(welcome_name);
+                uint8_t code = magicband::GREEN;
+                for (const auto &e : TABLE)
+                  if (name == e.name) code = e.code;
+                id(band).send_single_color(code, 2, magicband::MagicBand::timing(6, 1, false));
       - delay: !lambda |-
           float pt = id(pulse_time).state;
           if (std::isnan(pt) || pt < 0.1f) pt = 0.45f;
@@ -815,9 +969,9 @@ button:
       - lambda: |-
           std::string key;
           for (char c : id(last_band).state)
-            if (std::isalnum(static_cast<unsigned char>(c)))
+            if (std::isxdigit(static_cast<unsigned char>(c)))
               key += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-          if (key.empty() || key == "TEST") return;
+          if (key.size() != 8 && key.size() != 14 && key.size() != 20) return;  // not a band ID (e.g. the test button)
           std::string list(id(known_list).data());
           if (list.empty()) list = ",";
           if (list.find("," + key + ",") != std::string::npos) return;
@@ -825,7 +979,7 @@ button:
           if (list.size() >= id(known_list).size()) { ESP_LOGW("reader", "Known bands list is full"); return; }
           std::fill(id(known_list).begin(), id(known_list).end(), 0);
           std::copy(list.begin(), list.end(), id(known_list).begin());
-          ESP_LOGI("reader", "Allowed band %s", key.c_str());
+          ESP_LOGI("reader", "Allowed the last band");
       - component.update: known_band_count
   - platform: template
     name: "Forget last band"
@@ -835,7 +989,7 @@ button:
       - lambda: |-
           std::string key;
           for (char c : id(last_band).state)
-            if (std::isalnum(static_cast<unsigned char>(c)))
+            if (std::isxdigit(static_cast<unsigned char>(c)))
               key += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
           std::string list(id(known_list).data());
           size_t pos = list.find("," + key + ",");
@@ -843,7 +997,7 @@ button:
           list.erase(pos, key.size() + 1);
           std::fill(id(known_list).begin(), id(known_list).end(), 0);
           std::copy(list.begin(), list.end(), id(known_list).begin());
-          ESP_LOGI("reader", "Forgot band %s", key.c_str());
+          ESP_LOGI("reader", "Forgot the last band");
       - component.update: known_band_count
   - platform: template
     name: "Forget all bands"

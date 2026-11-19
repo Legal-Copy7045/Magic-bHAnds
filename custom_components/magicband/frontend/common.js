@@ -1,6 +1,6 @@
 /* Shared helpers for the MagicbHAnds page (from the home-dashboards project's live_common.js). */
 const $ = id => document.getElementById(id);
-const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const H = () => window.hdHA;
 const S = eid => { const h = H(); return h ? h.state(eid) : null; };
 const val = eid => { const s = S(eid); return s && s.state !== 'unavailable' && s.state !== 'unknown' ? s.state : null; };
