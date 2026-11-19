@@ -3,6 +3,16 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.3] - 2026-11-19
+
+### Integration
+- **Waltograph lettering.** The logo wordmark and the management page's
+  title and section headings use the Waltograph font (by Justin Callaghan,
+  mickeyavenue.com, Creative Commons NonCommercial-ShareAlike). The font
+  ships with the integration, with its readme and licence, and the page
+  loads it from `/magicbhands_static/fonts/`. Body text, cards and numbers
+  keep the original fonts.
+
 ## [0.10.2] - 2026-11-19
 
 ### Integration

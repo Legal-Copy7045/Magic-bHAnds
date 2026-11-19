@@ -5,7 +5,13 @@
     python3 docs/images/make_logo.py dark  > logo-dark.svg
 
 Then render each at 1100 x 256 with a transparent background, e.g. with
-Playwright (page.screenshot(omit_background=True)). The PNGs are used by the
+Playwright (page.screenshot(omit_background=True)), from this folder so the
+font path resolves.
+
+The wordmark is set in Waltograph by Justin Callaghan (mickeyavenue.com),
+released under Creative Commons Attribution-NonCommercial-ShareAlike; the
+font, its readme and licence are in custom_components/magicband/frontend/
+fonts/. The logo images made with it carry the same licence. The PNGs are used by the
 README (docs/images/logo*.png) and the integration (custom_components/
 magicband/brand/logo.png, dark_logo.png).
 """
@@ -18,15 +24,17 @@ HERE = Path(__file__).parent
 W, H = 1100, 256
 TEXT = {"light": "#1E1B4B", "dark": "#F3F2FF"}
 HA = "#3B82F6"
+FONT = "../../custom_components/magicband/frontend/fonts/waltograph42.otf"
 
 
 def build(mode: str) -> str:
     icon = (HERE / "icon.svg").read_text()
     inner = re.search(r"<svg[^>]*>(.*)</svg>", icon, re.S).group(1)
     return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}">
+  <style>@font-face{{font-family:"Waltograph";src:url("{FONT}") format("opentype")}}</style>
   <svg x="0" y="0" width="{H}" height="{H}" viewBox="0 0 512 512">{inner}</svg>
-  <text x="284" y="172" font-family="Inter, 'Inter Display', sans-serif" font-weight="800" font-size="116"
-        letter-spacing="-3" fill="{TEXT[mode]}">Magicb<tspan fill="{HA}">HA</tspan>nds</text>
+  <text x="276" y="186" font-family="Waltograph" font-size="176"
+        fill="{TEXT[mode]}">Magicb<tspan dx="12" fill="{HA}">HA</tspan><tspan dx="6">nds</tspan></text>
 </svg>
 """
 
