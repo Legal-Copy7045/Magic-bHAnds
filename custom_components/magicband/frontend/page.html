@@ -390,11 +390,13 @@ function healthTiles(I,d){ const g=(...ls)=>{ for(const l of ls){ const e=pick(I
     else { val=S(up).state; }
     T.push(['','Up for',esc(val),esc(sub)]); }
   const tp=g('CPU temperature','CPU Temperature');
-  if(tp){ const v=n(tp); T.push([v>=75?'b':v>=65?'w':'ok','CPU',Math.round(v)+' °C','chip temperature']); }
+  if(tp){ const v=n(tp), u=A(tp).unit_of_measurement||'°C', c=/F/.test(u)?(v-32)*5/9:v;   // Home Assistant may show °F
+    T.push([c>=75?'b':c>=65?'w':'ok','CPU',Math.round(v)+' '+esc(u),'chip temperature']); }
   const fm=g('Free memory','Heap Free'), lb=g('Largest free block');
   if(fm){ const kb=n(fm)/1024; T.push([kb<20?'b':kb<40?'w':'','Memory free',Math.round(kb)+' KB',lb?'largest block '+Math.round(n(lb)/1024)+' KB':'']); }
   const lt=g('Loop time');
-  if(lt){ const v=n(lt); T.push([v>=200?'b':v>=60?'w':'','Loop time',Math.round(v)+' ms','longest in 5 min']); }
+  // the slowest single loop in the last 5 minutes: a few hundred ms (Bluetooth, Wi-Fi, saving settings) is normal
+  if(lt){ const v=n(lt); T.push([v>=3000?'b':v>=1000?'w':'','Slowest loop',Math.round(v)+' ms','in the last 5 min']); }
   const ip=g('IP address','IP Address');
   if(ip) T.push(['','IP address',esc(S(ip).state),'']);
   return T.length?`<div class="hl">${T.map(([c,l,v,s])=>`<div class="${c}"><span>${esc(l)}</span><b>${v}</b>${s?`<i>${s}</i>`:''}</div>`).join('')}</div>`
