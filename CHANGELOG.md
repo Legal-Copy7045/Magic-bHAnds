@@ -3,6 +3,21 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.2] - 2026-11-19
+
+### Integration
+- **Group, sort and find bands on the management page.** Group by person,
+  band type, where (closest bridge), nearby or away, battery, last reader,
+  allowed in, or Bluetooth linked; sort by owner, name, last tap, last
+  heard, battery (lowest first), most taps or signal; a search box. The
+  choice is remembered in that browser.
+- **More ways to send to the bands.** New one-tap buttons (purple, pink,
+  white, rainbow, colour cycle, lightning, spin and buzz, buzz, stop) and a
+  "build your own" panel with every effect the bridges support: colours,
+  colour picker, light shows, buzz strength, how long, which LEDs, fade-out,
+  stay on, and sending through one bridge only (just the bands in that room)
+  or all of them.
+
 ## [0.10.1] - 2026-11-19
 
 ### Integration

@@ -87,8 +87,20 @@ everything, read live from Home Assistant.
   who it's for (or add them) and give it a nickname.
 - **Link Bluetooth to a band:** join a MagicBand+'s Bluetooth side to its NFC
   side.
-- **Bands:** owner, NFC ID, last tap, nearby, battery and closest bridge.
-- **Send to every band in range**, through the bridges.
+- **Bands:** owner, NFC ID, type, last tap, nearby, battery and closest
+  bridge. **Group by** person, band type, where (closest bridge), nearby or
+  away, battery, the reader it was last tapped on, allowed in, or whether its
+  Bluetooth is linked. **Sort by** owner, name, last tap, last heard, battery
+  (lowest first), most taps or signal. A search box finds a band by name,
+  owner, nickname or ID. Grouping and sorting are remembered in that browser.
+- **Send to every band in range**, through the bridges: one-tap buttons
+  (wake, ping, colours, rainbow, colour cycle, lightning, spin and buzz, buzz,
+  stop), and **More: build your own**: one, two or five colours, a fade
+  between two colours, a spinning circle, any colour from a picker, any of the
+  firmware's light shows, or a buzz on its own. Set how hard it buzzes, how
+  long it stays lit, which LEDs, the fade-out, and whether it stays on until
+  you send Stop. **Through** sends it through every bridge (the whole house)
+  or just one, which reaches only the bands near that bridge.
 - **People:** who the readers let in.
 - **Readers** and **bridges:** status, firmware and their settings (fast mode,
   Bluetooth proxy, response mode, sound, ring and so on).

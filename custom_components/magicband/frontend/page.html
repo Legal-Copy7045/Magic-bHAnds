@@ -41,6 +41,10 @@ table.t th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:va
 details.more{margin-top:8px}details.more summary{cursor:pointer;font-size:13px;color:var(--ink-2)}
 .set{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;align-items:center;font-size:13px;margin-top:8px}
 .msg{font-size:12.5px;color:var(--muted);min-height:1em}.msg.ok{color:var(--ok)}.msg.bad{color:var(--bad)}
+.bar{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin:0 0 12px;font-size:12.5px;color:var(--muted)}
+.bar label{display:flex;gap:6px;align-items:center}.bar input[type=search]{font:500 13px "Instrument Sans",sans-serif;padding:5px 8px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink);width:min(290px,100%)}
+.set.sx{grid-template-columns:max-content minmax(0,1fr);justify-items:start;gap:8px 16px}.sx [hidden]{display:none}.five{display:flex;flex-wrap:wrap;gap:4px}.five select{max-width:110px}#sx-c1,#sx-c2,#sx-anim,#sx-bridge,#sx-effect{max-width:240px}
+h3.grp{font:700 14px "Bricolage Grotesque",sans-serif;margin:16px 0 8px;display:flex;gap:8px;align-items:baseline;color:var(--ink-2)}h3.grp:first-child{margin-top:0}h3.grp small{font:500 12px "Instrument Sans",sans-serif;color:var(--muted)}
 .tag{font:600 10.5px "Instrument Sans",sans-serif;padding:1px 7px;border-radius:999px;background:var(--grid);color:var(--ink-2);margin-left:6px;vertical-align:1px}
 .tag.no{background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad)}.tag.yes{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
 @media (max-width:600px){.kv{grid-template-columns:1fr}.kv dt{margin-top:4px}}
@@ -68,9 +72,40 @@ html:root[data-theme="dark"]{--page:#a78bfa;--mbh-ha:#60a5fa}
 </div>
 
 <h2 class="sec">Bands <small id="bands-cap"></small></h2>
-<div class="grid" id="bands"></div>
+<div class="bar" id="bands-bar">
+  <label>Group by <select id="b-group">
+    <option value="none">Nothing</option><option value="person">Person</option><option value="type">Band type</option>
+    <option value="where">Where (closest bridge)</option><option value="near">Nearby or away</option><option value="battery">Battery</option>
+    <option value="reader">Last tapped on</option><option value="access">Allowed in</option><option value="link">Bluetooth linked</option></select></label>
+  <label>Sort by <select id="b-sort">
+    <option value="person">Owner, then name</option><option value="name">Name</option><option value="tap">Last tap, newest first</option>
+    <option value="seen">Last heard, newest first</option><option value="battery">Battery, lowest first</option><option value="taps">Most taps</option>
+    <option value="signal">Signal, strongest first</option></select></label>
+  <label><input type="search" id="b-find" placeholder="Find a band, owner or NFC ID"></label>
+</div>
+<div id="bands"></div>
 <section class="tc" style="margin-top:14px"><h3>Send to every band in range <small>through the bridges</small></h3>
-  <div class="btns" id="send"></div><div class="msg" id="send-msg"></div></section>
+  <div class="btns" id="send"></div><div class="msg" id="send-msg"></div>
+  <details class="more" id="sx"><summary>More: build your own</summary>
+  <div class="set sx">
+    <span>Effect</span><select id="sx-effect">
+      <option value="color">One colour</option><option value="dual_color">Two colours</option><option value="five_color">Five colours (one per LED)</option>
+      <option value="crossfade">Fade between two colours</option><option value="circle">Spinning circle</option><option value="rgb">Any colour (picker)</option>
+      <option value="animation">Light show</option><option value="buzz">Buzz only</option><option value="wake">Wake (make bands advertise)</option></select>
+    <span data-for="color dual_color crossfade">Colour</span><select data-for="color dual_color crossfade" id="sx-c1"></select>
+    <span data-for="dual_color crossfade">Second colour</span><select data-for="dual_color crossfade" id="sx-c2"></select>
+    <span data-for="five_color">Colours</span><span data-for="five_color" class="five"><select id="sx-f0"></select><select id="sx-f1"></select><select id="sx-f2"></select><select id="sx-f3"></select><select id="sx-f4"></select></span>
+    <span data-for="rgb">Colour</span><span data-for="rgb"><input type="color" id="sx-rgb" value="#ff00b4"> <label class="sub2"><input type="checkbox" id="sx-flash"> flash</label></span>
+    <span data-for="animation">Show</span><select data-for="animation" id="sx-anim"></select>
+    <span data-for="color">LEDs</span><select data-for="color" id="sx-leds"><option value="all">All</option><option value="top_left">Top left</option><option value="top_right">Top right</option><option value="bottom_left">Bottom left</option><option value="bottom_right">Bottom right</option></select>
+    <span data-for="color dual_color five_color crossfade circle rgb buzz">Buzz</span><span data-for="color dual_color five_color crossfade circle rgb buzz"><input type="range" id="sx-vib" min="0" max="15" value="0"> <b id="sx-vib-v" class="sub2">off</b></span>
+    <span data-for="color dual_color five_color rgb">How long</span><span data-for="color dual_color five_color rgb"><input type="range" id="sx-on" min="0" max="52" value="0"> <b id="sx-on-v" class="sub2">band’s default</b></span>
+    <span data-for="color dual_color five_color rgb">Fade out</span><select data-for="color dual_color five_color rgb" id="sx-fade"><option value="">Default</option><option value="0">None</option><option value="1">1 s</option><option value="2">2 s</option><option value="3">3 s</option></select>
+    <span data-for="color dual_color five_color rgb">Stay on</span><label data-for="color dual_color five_color rgb" class="sub2"><input type="checkbox" id="sx-always"> until you send Stop</label>
+    <span data-for="wake">For</span><span data-for="wake"><input type="range" id="sx-secs" min="1" max="60" value="15"> <b id="sx-secs-v" class="sub2">15 s</b></span>
+    <span>Through</span><select id="sx-bridge"><option value="">Every bridge (whole house)</option></select>
+  </div>
+  <div class="btns"><button class="btn pri" id="sx-go">Send</button><button class="btn" id="sx-stop">Stop</button></div><div class="msg" id="sx-msg"></div></details></section>
 
 <h2 class="sec">People <small>who the readers let in</small></h2>
 <section class="tc"><div id="people"></div>
@@ -194,9 +229,44 @@ function linkJob(I,B,P){ const btOnly=((BT&&BT.bluetooth_bands)||[]).filter(b=>!
     const [kind,val_]=[v.slice(0,v.indexOf(':')),v.slice(v.indexOf(':')+1)];
     act(mb('link_bluetooth',{bluetooth_band:b.dataset.bt,[kind]:val_}),k,msg,'Linked.'); }); }
 
-function bandCards(I,B,P){ $('bands-cap').textContent=B.length?`${B.length} · tap a band on a reader to update its last tap`:'';
-  $('bands').innerHTML=B.map((b,i)=>{ const s=b.s, nearOn=s.near&&S(s.near).state==='on', bat=s.bat?num(s.bat):null, cl=s.closest&&!/unknown|unavailable/.test(S(s.closest).state)?S(s.closest).state:null,
-      hb=s.heard?S(s.heard).state:null, by=s.signal?(A(s.signal).by_source||{}):{}, best=Object.entries(by).sort((x,y)=>y[1]-x[1])[0], key='b'+i, t=s.tap?A(s.tap):{};
+// grouping and sorting of the band cards; the choice is remembered in this browser
+const BV={group:'none',sort:'person',find:''}; try{ Object.assign(BV,JSON.parse(localStorage.getItem('mbh-bands')||'{}'),{find:''}); }catch(e){}
+let BLAST=null;
+const ts=e=>{ const v=e?Date.parse(S(e).state):NaN; return isNaN(v)?null:v; };
+function facts(b){ const s=b.s, t=s.tap?A(s.tap):{}, cl=s.closest&&!/unknown|unavailable/.test(S(s.closest).state)?S(s.closest).state:null, sig=s.signal?num(s.signal):null;
+  return {tap:ts(s.tap), seen:ts(s.seen), bat:s.bat?num(s.bat):null, taps:t.scans||0, reader:t.reader||null, cl, sig:sig==null||isNaN(sig)?null:sig,
+    near:s.near?S(s.near).state==='on':null, allowed:t.allowed}; }
+const GROUPS={
+  none:()=>'',
+  person:b=>b.person||'Nobody yet',
+  type:b=>({plus:'MagicBand+',classic:'Standard MagicBand (NFC only)'})[b.type]||(b.hasBt?'MagicBand+':'Type not known yet'),
+  where:(b,f)=>f.cl||(b.hasBt?'Not heard lately':'No Bluetooth'),
+  near:(b,f)=>f.near===true?'Nearby':f.near===false?'Away':'No Bluetooth',
+  battery:(b,f)=>f.bat==null?'No battery reading':f.bat<=20?'Low (20% or less)':f.bat<=50?'Half or less':'Good (over 50%)',
+  reader:(b,f)=>f.reader||'Never tapped',
+  access:b=>b.allowed===true?'Allowed in':b.hasNfc?'Not allowed in':'No NFC ID yet',
+  link:b=>b.hasNfc&&b.btid?'NFC and Bluetooth':b.hasNfc?'NFC only':'Bluetooth only'};
+// groups that read better in a fixed order than alphabetically; the "nobody/never/none" groups go last
+const GORDER={near:['Nearby','Away','No Bluetooth'],battery:['Low (20% or less)','Half or less','Good (over 50%)','No battery reading'],
+  access:['Allowed in','Not allowed in','No NFC ID yet'],link:['NFC and Bluetooth','NFC only','Bluetooth only'],
+  type:['MagicBand+','Standard MagicBand (NFC only)','Type not known yet']};
+const LAST=/^(Nobody yet|Never tapped|No Bluetooth|Not heard lately)$/;
+const desc=(x,y)=>(y==null)-(x==null)||(y||0)-(x||0);
+const SORTS={name:(a,b)=>a.b.name.localeCompare(b.b.name), person:(a,b)=>String(a.b.person||'~').localeCompare(String(b.b.person||'~'))||a.b.name.localeCompare(b.b.name),
+  tap:(a,b)=>desc(a.f.tap,b.f.tap), seen:(a,b)=>desc(a.f.seen,b.f.seen), taps:(a,b)=>desc(a.f.taps,b.f.taps), signal:(a,b)=>desc(a.f.sig,b.f.sig),
+  battery:(a,b)=>(a.f.bat==null)-(b.f.bat==null)||(a.f.bat||0)-(b.f.bat||0)};
+function bandCards(I,B,P){ BLAST=[I,B,P];
+  const q=BV.find.trim().toLowerCase(), all=B.map(b=>({b,f:facts(b)}));
+  const shown=all.filter(({b})=>!q||[b.name,b.person,b.label,b.nfc,b.btid].some(v=>String(v||'').toLowerCase().includes(q)));
+  shown.sort((x,y)=>(SORTS[BV.sort]||SORTS.person)(x,y)||x.b.name.localeCompare(y.b.name));
+  $('bands-cap').textContent=B.length?(q?`${shown.length} of ${B.length}`:`${B.length}`)+' · tap a band on a reader to update its last tap':'';
+  const g=GROUPS[BV.group]||GROUPS.none, groups=new Map(); shown.forEach(x=>{ const k=g(x.b,x.f); if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(x.b); });
+  const ord=GORDER[BV.group], keys=[...groups.keys()].sort((x,y)=>ord?ord.indexOf(x)-ord.indexOf(y):(LAST.test(x)-LAST.test(y))||x.localeCompare(y));
+  $('bands').innerHTML=!B.length?'<p class="muted">No MagicBands yet.</p>':!shown.length?'<p class="muted">No band matches.</p>'
+    :keys.map(k=>(k?`<h3 class="grp">${esc(k)} <small>${groups.get(k).length}</small></h3>`:'')+`<div class="grid">${groups.get(k).map(b=>bandCard(b,P)).join('')}</div>`).join('');
+  wireBands(); }
+function bandCard(b,P){ { const s=b.s, nearOn=s.near&&S(s.near).state==='on', bat=s.bat?num(s.bat):null, cl=s.closest&&!/unknown|unavailable/.test(S(s.closest).state)?S(s.closest).state:null,
+      hb=s.heard?S(s.heard).state:null, by=s.signal?(A(s.signal).by_source||{}):{}, best=Object.entries(by).sort((x,y)=>y[1]-x[1])[0], key='b'+String(b.d.id).replace(/[^\w]/g,''), t=s.tap?A(s.tap):{};
     const batC=bat==null?'':bat<=20?'var(--bad)':bat<=40?'var(--warn)':'var(--ok)';
     return `<section class="tc band"><div class="nh"><b>${esc(b.name)}</b><span class="sub2">${s.near?`<span class="dot2 ${nearOn?'':'unk'}"></span>${nearOn?'nearby':'away'}`:''}</span></div>
       <dl class="kv"><dt>Owner</dt><dd>${esc(b.person||'nobody yet')}${b.label?' · '+esc(b.label):''}${t.allowed===false?' <span class="tag no">not allowed</span>':''}</dd>
@@ -211,13 +281,17 @@ function bandCards(I,B,P){ $('bands-cap').textContent=B.length?`${B.length} · t
         ${b.nfc?`<div class="form"><label>Owner</label><select data-own="${key}"><option value="">nobody</option>${personOptions(P,b.person)}</select><input type="text" data-lab="${key}" value="${esc(b.label||'')}" placeholder="Nickname"><button class="btn sm" data-own-go="${key}" data-band="${esc(b.nfc)}">Save</button></div>`:''}
         <div class="btns">${b.btid&&b.nfc?`<button class="btn sm ${ARM['ub'+key]?'arm':''}" data-unlink="${key}" data-bt="${esc(b.btid)}">${ARM['ub'+key]?'Tap again to unlink':'Unlink Bluetooth'}</button>`:''}
           ${b.nfc?`<button class="btn sm ${ARM['rm'+key]?'arm':''}" data-remove="${key}" data-band="${esc(b.nfc)}">${ARM['rm'+key]?'Tap again to remove':'Remove band'}</button>`:''}</div>
-        <div class="msg" id="msg-${key}"></div></details></section>`; }).join('')||'<p class="muted">No MagicBands yet.</p>';
+        <div class="msg" id="msg-${key}"></div></details></section>`; } }
+function wireBands(){
   document.querySelectorAll('[data-own-go]').forEach(x=>x.onclick=()=>{ const k=x.dataset.ownGo, band=x.dataset.band, who=document.querySelector(`[data-own="${k}"]`).value, label=document.querySelector(`[data-lab="${k}"]`).value.trim();
     act(who?mb('assign_band',Object.assign({band,person:who},label?{label}:{})):mb('unassign_band',{band}),k,$('msg-'+k),who?'Saved.':'Unassigned.'); });
   document.querySelectorAll('[data-unlink]').forEach(x=>x.onclick=()=>{ const k=x.dataset.unlink; if(!armed('ub'+k)) return; act(mb('unlink_bluetooth',{bluetooth_band:x.dataset.bt}),k,$('msg-'+k),'Unlinked.'); });
   document.querySelectorAll('[data-remove]').forEach(x=>x.onclick=()=>{ const k=x.dataset.remove; if(!armed('rm'+k)) return; act(mb('remove_band',{band:x.dataset.band}),k,$('msg-'+k),'Removed.'); }); }
 
-function sendBar(){ const B=[['Wake','wake',{effect:'wake'}],['Ping','ping',{effect:'ping'}],['Green + buzz','green',{effect:'color',color:'green',vibration:3}],['Blue','blue',{effect:'color',color:'blue'}],['Red','red',{effect:'color',color:'red'}]];
+function sendBar(){ const B=[['Wake','wake',{effect:'wake'}],['Ping','ping',{effect:'ping'}],['Green + buzz','green',{effect:'color',color:'green',vibration:3}],['Blue','blue',{effect:'color',color:'blue'}],['Red','red',{effect:'color',color:'red'}],
+    ['Purple','purple',{effect:'color',color:'purple'}],['Pink','pink',{effect:'color',color:'pink'}],['White','white',{effect:'color',color:'white'}],
+    ['Rainbow','rainbow',{effect:'five_color',colors:'red, orange, yellow, green, blue'}],['Colour cycle','cycle',{effect:'animation',animation:'color_cycle'}],
+    ['Lightning','lightning',{effect:'animation',animation:'lightning'}],['Spin + buzz','spin',{effect:'animation',animation:'spin_buzz'}],['Buzz','buzz',{effect:'buzz',vibration:8}],['Stop','stop',{effect:'stop'}]];
   $('send').innerHTML=B.map(([l,k])=>`<button class="btn" data-send="${k}"${BUSY['s'+k]?' disabled':''}>${esc(l)}</button>`).join('');
   document.querySelectorAll('[data-send]').forEach(x=>x.onclick=()=>{ const b=B.find(y=>y[1]===x.dataset.send); act(mb('send',b[2],true),'s'+b[1],$('send-msg'),b[0]+' sent.'); }); }
 
@@ -268,12 +342,46 @@ function wire(){ document.querySelectorAll('[data-tg]').forEach(x=>x.onclick=()=
 // the integration's own lists (people ids, Bluetooth halves); refreshed every minute and after any change
 async function load(){ if(!H()||!H().service) return; LAST_LOAD=Date.now();
   try{ const [l,b]=await Promise.all([mb('list',{},true),mb('list_bluetooth_bands',{},true)]); LIST=l; BT=b; }catch(e){ console.error('magicband list',e); } render(); }
+(()=>{ const save=()=>{ try{ localStorage.setItem('mbh-bands',JSON.stringify({group:BV.group,sort:BV.sort})); }catch(e){} }, redraw=()=>{ if(BLAST){ bandCards(...BLAST); try{ wire(); }catch(e){ console.error(e); } } };
+  const g=$('b-group'), so=$('b-sort'), f=$('b-find'); if(!g) return; g.value=BV.group; so.value=BV.sort;
+  g.onchange=()=>{ BV.group=g.value; save(); redraw(); }; so.onchange=()=>{ BV.sort=so.value; save(); redraw(); }; f.oninput=()=>{ BV.find=f.value; redraw(); }; })();
+// "build your own" send: fields shown for the chosen effect, sent with magicband.send
+const SX_COLORS=[['white','White'],['red','Red'],['red_orange','Red-orange'],['orange','Orange'],['yellow','Yellow'],['off_yellow','Pale yellow'],['lime','Lime'],['lime_green','Lime green'],
+  ['green','Green'],['cyan','Cyan'],['blue','Blue'],['midnight_blue','Midnight blue'],['purple','Purple'],['bright_purple','Bright purple'],['lavender','Lavender'],['pink','Pink'],['random','Random'],['unique','Different on each band']];
+const SX_ANIMS=[['rainbow','Rainbow'],['color_cycle','Colour cycle'],['lightning','Lightning'],['orange_blink','Orange blink'],['circle','Circle'],['alternating','Alternating'],
+  ...[1,2,3,4,5,6,7].map(n=>['crossfade'+(n>1?'_'+n:''),'Crossfade '+n]),...[1,2,3].map(n=>['spin_buzz'+(n>1?'_'+n:''),'Spin + buzz '+n]),
+  ...['0e_1','0e_2','0e_3','0e_4','0e_5','0f_1','0f_2','e913','13_2','13_3','14_1','14_2','14_3','07_1','07_2'].map(x=>['show_'+x,'Show '+x.toUpperCase().replace('_','-')])];
+(()=>{ const opts=(L,v)=>L.map(([k,l])=>`<option value="${k}"${k===v?' selected':''}>${esc(l)}</option>`).join(''), E=$('sx-effect'); if(!E) return;
+  $('sx-c1').innerHTML=opts(SX_COLORS,'blue'); $('sx-c2').innerHTML=opts(SX_COLORS,'pink'); $('sx-anim').innerHTML=opts(SX_ANIMS,'rainbow');
+  ['red','orange','yellow','green','blue'].forEach((c,i)=>{ $('sx-f'+i).innerHTML=opts(SX_COLORS,c); });
+  const show=()=>document.querySelectorAll('.sx [data-for]').forEach(x=>{ x.hidden=!x.dataset.for.split(' ').includes(E.value); });
+  E.onchange=show; show();
+  const lab=(id,f)=>{ const r=$(id), o=$(id+'-v'); const u=()=>{ o.textContent=f(+r.value); }; r.oninput=u; u(); };
+  lab('sx-vib',v=>v?v+' of 15':'off'); lab('sx-on',v=>v?v+' s':'band’s default'); lab('sx-secs',v=>v+' s');
+  const build=()=>{ const e=E.value, d={effect:e}, vib=+$('sx-vib').value, on=+$('sx-on').value, has=f=>f.split(' ').includes(e);
+    if(has('color dual_color crossfade')) d.color=$('sx-c1').value;
+    if(has('dual_color crossfade')) d.color2=$('sx-c2').value;
+    if(e==='five_color') d.colors=[0,1,2,3,4].map(i=>$('sx-f'+i).value).join(', ');
+    if(e==='rgb'){ const h=$('sx-rgb').value; d.rgb_color=[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)); if($('sx-flash').checked) d.flash=true; }
+    if(e==='animation') d.animation=$('sx-anim').value;
+    if(e==='color'&&$('sx-leds').value!=='all') d.leds=$('sx-leds').value;
+    if(has('color dual_color five_color crossfade circle rgb buzz')&&(vib||e==='buzz')) d.vibration=vib||8;
+    if(has('color dual_color five_color rgb')){ if(on) d.on_seconds=on; if($('sx-fade').value!=='') d.fade_seconds=+$('sx-fade').value; if($('sx-always').checked) d.always_on=true; }
+    if(e==='wake') d.seconds=+$('sx-secs').value;
+    if($('sx-bridge').value) d.bridges=[$('sx-bridge').value];
+    return d; };
+  $('sx-go').onclick=()=>act(mb('send',build(),true),'sx',$('sx-msg'),'Sent'+($('sx-bridge').value?' through '+$('sx-bridge').selectedOptions[0].text:'')+'.');
+  $('sx-stop').onclick=()=>act(mb('send',Object.assign({effect:'stop'},$('sx-bridge').value?{bridges:[$('sx-bridge').value]}:{}),true),'sx',$('sx-msg'),'Stopped.'); })();
+// the "Through" list: each bridge's command entity, by the bridge's own name
+function sxBridges(I,BR){ const sel=$('sx-bridge'); if(!sel) return; const L=BR.map(d=>[pick(I,d,'text','Command'),dname(d)]).filter(x=>x[0]);
+  const h='<option value="">Every bridge (whole house)</option>'+L.map(([e,n])=>`<option value="${esc(e)}">${esc(n)}</option>`).join('');
+  if(sel.__h!==h){ const v=sel.value; sel.innerHTML=h; sel.__h=h; sel.value=L.some(x=>x[0]===v)?v:''; } }
 let editing=false; document.addEventListener('focusin',e=>{ editing=/^(INPUT|SELECT)$/.test(e.target.tagName); }); document.addEventListener('focusout',()=>{ editing=false; });
 function render(){ if(!H()||!H().live()) return; if(editing) return;   // never redraw under someone typing
   const I=index(), D=H().devices(), BR=D.filter(d=>BRIDGE_MODELS.test(d.model||'')).sort((a,b)=>dname(a).localeCompare(dname(b))), RD=D.filter(d=>READER_MODEL.test(d.model||''));
   const B=bands(I).sort((a,b)=>String(a.person||'~').localeCompare(String(b.person||'~'))||a.name.localeCompare(b.name)), P=people(I);
   const us=svcSensor(I,e=>/unknown_bands$/.test(e)||(e.startsWith('sensor.')&&'bands' in A(e)&&!('allowed' in A(e)))), unk=us?(A(us).bands||[]):[];
-  [()=>kpis(I,B,P,BR,RD,unk),()=>unknownJob(I,P,unk),()=>linkJob(I,B,P),()=>bandCards(I,B,P),sendBar,()=>peopleTable(I,P),()=>readerCards(I,RD,B),()=>bridgeCards(I,BR),wire].forEach(f=>{ try{ f(); }catch(e){ console.error(e); } }); }
+  [()=>kpis(I,B,P,BR,RD,unk),()=>unknownJob(I,P,unk),()=>linkJob(I,B,P),()=>bandCards(I,B,P),sendBar,()=>peopleTable(I,P),()=>readerCards(I,RD,B),()=>bridgeCards(I,BR),()=>sxBridges(I,BR),wire].forEach(f=>{ try{ f(); }catch(e){ console.error(e); } }); }
 // each section is redrawn only when its content changed, and an open fold-out (Manage, Tap sequence) stays open
 (()=>{ const D=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML');
   ['kpis','unknown','link','bands','send','people','readers','bridges'].forEach(id=>{ const el=$(id); if(!el) return;
