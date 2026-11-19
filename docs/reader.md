@@ -275,6 +275,6 @@ so there's nothing to copy onto Home Assistant.
 ## Notes
 
 - The MagicBand+ feedback uses Bluetooth, so it reaches **any** MagicBand+
-  nearby, not only the one on the reader. The reader transmits at 0 dBm (set
-  `tx_power` under `magicband:`) to keep that local.
+  nearby, not only the one on the reader. The reader transmits at −12 dBm by
+  default (the **Band light-up power** setting) to keep that local.
 - Taps during a sequence are ignored; tap again once the reader is idle.

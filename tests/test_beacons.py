@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 from freezegun.api import FrozenDateTimeFactory
+import pytest
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from homeassistant.core import HomeAssistant
@@ -58,6 +59,14 @@ BAND_Z = [
     "C0 13 01 01 3C 9A 2D B0 B9 6B 8E 16 94 00 36 31 00 00 00 00 00",
     "C0 13 01 01 32 9B 6D F0 79 E7 8E 16 DC 00 36 31 00 00 00 00 00",
 ]
+
+
+@pytest.fixture(autouse=True)
+def no_beacon_rate_limit(monkeypatch):
+    """These tests replay captured beacons back to back; the rate limit has its own tests."""
+    from custom_components.magicband import beacons
+
+    monkeypatch.setattr(beacons, "MIN_BEACON_INTERVAL", timedelta(0))
 
 
 def _tracker(hass: HomeAssistant):

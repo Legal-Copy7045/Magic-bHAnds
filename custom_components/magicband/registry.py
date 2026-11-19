@@ -24,7 +24,7 @@ _SEPARATORS = "-: "
 # Bands nobody owns are kept for assigning later; beyond this many, the
 # longest-unseen ones are dropped so a stream of made-up tags can't fill the
 # registry (and the device list, and the notifications).
-MAX_UNASSIGNED_BANDS = 50
+MAX_UNASSIGNED_BANDS = 100
 
 
 def normalize_uid(uid: str) -> str:
@@ -271,13 +271,11 @@ class MagicBandRegistry:
 
     @callback
     def prune_unassigned(self, limit: int = MAX_UNASSIGNED_BANDS - 1) -> list[str]:
-        """Drop the longest-unseen untouched unassigned bands beyond `limit`. Returns their IDs."""
+        """Drop the longest-unseen unassigned, unnamed bands beyond `limit`. Returns their IDs."""
         spare = sorted(
-            (
-                b
-                for b in self._data.bands.values()
-                if b.person_id is None and not b.label and b.band_type == "auto"
-            ),
+            # Any user can set a band's type (it's an entity), so only an owner or a nickname
+            # (both admin-only) keep an unassigned band.
+            (b for b in self._data.bands.values() if b.person_id is None and not b.label),
             key=lambda b: b.last_seen or b.first_seen or "",
         )
         removed = [b.uid for b in spare[: max(0, len(spare) - limit)]]

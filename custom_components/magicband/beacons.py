@@ -77,6 +77,10 @@ LEVEL_HISTORY = 100
 MAX_UNCLAIMED = 25
 MAX_FORMS = 8
 MAX_PAIRING_WINDOWS = 10
+# A band beacons every few minutes. The same beacon is usually heard by
+# several adapters/proxies at once, so the limit is per band and per adapter:
+# anything more often is a replay (or a flood) and is ignored.
+MIN_BEACON_INTERVAL = timedelta(seconds=30)
 
 
 @dataclass
@@ -397,6 +401,10 @@ class BeaconTracker:
             return None
 
         band = self._match(beacon.signature)
+        if band is not None and (last := band.heard.get(source)):
+            seen = dt_util.parse_datetime(last[1]) if isinstance(last, list) and len(last) > 1 else None
+            if seen is not None and dt_util.utcnow() - seen < MIN_BEACON_INTERVAL:
+                return band  # heard from this adapter moments ago
         is_new = band is None
         if band is None:
             if not self._make_room():
@@ -446,7 +454,25 @@ class BeaconTracker:
         return band
 
     def _unclaimed(self) -> list[BluetoothBand]:
-        return [b for b in self.bands.values() if b.band_uid is None and b.person_id is None]
+        """Bands nobody owns: not given to a person, and not linked to an NFC band that has an owner.
+
+        A band linked automatically to a tag nobody owns still counts, so tapping
+        made-up tags can't lift bands out of the cap.
+        """
+        return [b for b in self.bands.values() if self.owner(b)[0] is None]
+
+    @callback
+    def unlink_nfc(self, uid: str) -> None:
+        """An NFC band was removed: drop links to it."""
+        key = normalize_uid(uid)
+        changed = False
+        for band in self.bands.values():
+            if band.band_uid == key:
+                band.band_uid = None
+                changed = True
+        if changed:
+            self._save()
+            async_dispatcher_send(self.hass, SIGNAL_BEACON)
 
     def _make_room(self) -> bool:
         """Whether a new Bluetooth band may be added (dropping a long-unheard unclaimed one if needed)."""

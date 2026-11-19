@@ -237,9 +237,22 @@ async def test_send_uses_the_callers_context(
 # ---------------------------------------------------------------------------- reader sync
 
 
+def _esphome_device(hass: HomeAssistant, node: str, model: str) -> dr.DeviceEntry:
+    entry = MockConfigEntry(domain="esphome", title=node, data={"device_name": node})
+    entry.add_to_hass(hass)
+    return dr.async_get(hass).async_get_or_create(
+        config_entry_id=entry.entry_id,
+        connections={(dr.CONNECTION_NETWORK_MAC, f"aa:bb:cc:{abs(hash(node)) % 256:02x}:00:01")},
+        model=model,
+        name=node,
+    )
+
+
 async def _with_readers(hass: HomeAssistant, behaviour: dict[str, Exception | None]) -> list[tuple[str, str]]:
     sent: list[tuple[str, str]] = []
     for name, error in behaviour.items():
+        if not name.startswith("rogue"):
+            _esphome_device(hass, name, "magicband-reader")
 
         async def handler(call: ServiceCall, name=name, error=error) -> None:
             sent.append((name, call.data["bands"]))
@@ -323,7 +336,7 @@ _HARNESS = r"""
 #include <cctype>
 #include <cstdio>
 #include <string>
-static std::array<char, 1600> known_list;
+static std::array<char, %d> known_list;
 static std::string sync_error;
 #define id(x) x
 #define ESP_LOGI(tag, ...) std::printf(__VA_ARGS__), std::printf("\n")
@@ -346,7 +359,9 @@ def _reader_firmware(tmp_path: Path) -> Path:
     block = yaml.split("- action: set_known_bands", 1)[1].split("- lambda: |-", 1)[1]
     body = block.split("- component.update: known_band_count", 1)[0]
     src = tmp_path / "reader.cpp"
-    src.write_text(_HARNESS % body)
+    size = int(re.search(r"id: known_list\s+type: std::array<char, (\d+)>", yaml).group(1))
+    assert size - 1 == READER_LIST_CAPACITY  # the integration and the firmware agree
+    src.write_text(_HARNESS % (size, body))
     exe = tmp_path / "reader"
     subprocess.run(["g++", "-std=c++17", "-o", str(exe), str(src)], check=True, capture_output=True)
     return exe
@@ -365,7 +380,7 @@ def test_reader_applies_a_valid_list(tmp_path: Path) -> None:
 
 def test_reader_never_keeps_a_revoked_band(tmp_path: Path) -> None:
     exe = _reader_firmware(tmp_path)
-    too_many = ",".join(f"04AABBCCDD{i:04X}" for i in range(200))
+    too_many = ",".join(f"04AABBCCDD{i:04X}" for i in range(READER_LIST_CAPACITY // 15 + 1))
     result = _run(exe, "0453652AC05F80", too_many)  # allowed, then a list too long to store
     assert result["LIST"] == ""  # emptied: the old band isn't still allowed
     assert result["ERROR"].startswith("Too many bands")
@@ -376,3 +391,119 @@ def test_reader_rejects_malformed_lists(tmp_path: Path, bad: str) -> None:
     exe = _reader_firmware(tmp_path)
     result = _run(exe, "0453652AC05F80", f"0453652A,{bad}")
     assert result["LIST"] == "" and result["ERROR"]
+
+
+# ---------------------------------------------------------------------------- who counts as a reader
+
+
+async def test_only_esphome_readers_count(hass: HomeAssistant, setup_integration) -> None:
+    """A device from another integration (e.g. a phone registered with the mobile app, where any user
+    picks the model and name) can't pose as a reader."""
+    taps = []
+    hass.bus.async_listen("magicband_tap", lambda e: taps.append(e.data))
+    await hass.services.async_call(DOMAIN, "add_person", {"name": "Alice"}, blocking=True)
+    await hass.services.async_call(DOMAIN, "assign_band", {"band": TAG, "person": "Alice"}, blocking=True)
+    phone_entry = MockConfigEntry(domain="mobile_app", title="Phone")
+    phone_entry.add_to_hass(hass)
+    fake = dr.async_get(hass).async_get_or_create(
+        config_entry_id=phone_entry.entry_id,
+        identifiers={("mobile_app", "fake")},
+        model="magicband-reader",
+        name="Front Door MagicBand Reader",
+    )
+    hass.bus.async_fire("tag_scanned", {"tag_id": TAG, "device_id": fake.id})
+    await hass.async_block_till_done()
+    assert taps == []
+
+    real = _esphome_device(hass, "front-door", "magicband-reader")
+    hass.bus.async_fire("tag_scanned", {"tag_id": TAG, "device_id": real.id})
+    await hass.async_block_till_done()
+    assert [t["allowed"] for t in taps] == [True]
+    assert taps[0]["reader_device_id"] == real.id
+
+
+async def test_allowed_list_only_goes_to_readers(hass: HomeAssistant, setup_integration) -> None:
+    await hass.services.async_call(DOMAIN, "add_person", {"name": "Alice"}, blocking=True)
+    await hass.services.async_call(DOMAIN, "assign_band", {"band": TAG, "person": "Alice"}, blocking=True)
+    sent = await _with_readers(hass, {"front": None})
+    _esphome_device(hass, "smart-plug", "some-plug")  # an ESPHome device that isn't a reader...
+    for name in ("smart_plug", "rogue_plug"):  # ...and one with no device at all, both declaring the action
+
+        async def handler(call: ServiceCall, name=name) -> None:
+            sent.append((name, call.data["bands"]))
+
+        hass.services.async_register("esphome", f"{name}_set_known_bands", handler)
+    result = await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    assert result["readers"] == 1
+    assert [name for name, _ in sent] == ["front"]
+
+
+# ---------------------------------------------------------------------------- second-round limits
+
+
+async def test_replayed_beacons_are_rate_limited(hass: HomeAssistant, setup_integration) -> None:
+    seen = []
+    hass.bus.async_listen("magicband_band_seen", lambda e: seen.append(e))
+    for i in range(500):
+        p = bytearray(bytes.fromhex(BAND_X))
+        p[4] = 50 + i % 50  # a replaying attacker can change the level byte too
+        _beacon(hass, bytes(p), address=f"{i:012x}")
+    await hass.async_block_till_done()
+    assert len(seen) == 1
+    band = next(iter(_data(hass).beacons.bands.values()))
+    assert band.beacons == 1 and band.level == 50
+
+
+async def test_beacons_heard_by_several_adapters_all_count(hass: HomeAssistant, setup_integration) -> None:
+    beacons = _data(hass).beacons
+    for source, rssi in (("hci0", -80), ("proxy1", -55), ("proxy2", -70)):
+        beacons.async_beacon("11:22:33:44:55:66", rssi, source, bytes.fromhex(BAND_X))
+    band = next(iter(beacons.bands.values()))
+    assert set(band.heard) == {"hci0", "proxy1", "proxy2"}
+    assert band.closest()[0] == "proxy1"
+
+
+async def test_auto_linked_bands_still_count_towards_the_cap(
+    hass: HomeAssistant, setup_integration, reader_device, freezer: FrozenDateTimeFactory
+) -> None:
+    rnd = random.Random(9)
+    for i in range(MAX_UNCLAIMED + 15):
+        hass.bus.async_fire("tag_scanned", {"tag_id": f"04AABBCCDD{i:04X}", "device_id": reader_device.id})
+        await hass.async_block_till_done()
+        _beacon(hass, _random_beacon(rnd), address=f"{i:012x}")
+        freezer.tick(timedelta(minutes=21))
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done()
+    assert len(_data(hass).beacons.bands) <= MAX_UNCLAIMED
+
+
+async def test_band_type_doesnt_protect_unassigned_bands(hass: HomeAssistant, setup_integration, reader_device) -> None:
+    hass.bus.async_fire("tag_scanned", {"tag_id": "04AABBCCDD0000", "device_id": reader_device.id})
+    await hass.async_block_till_done()
+    _data(hass).registry.set_band_type("04AABBCCDD0000", "classic")  # any user can do this through the select
+    for i in range(1, MAX_UNASSIGNED_BANDS + 1):
+        hass.bus.async_fire("tag_scanned", {"tag_id": f"04AABBCCDD{i:04X}", "device_id": reader_device.id})
+        await hass.async_block_till_done()
+    assert _data(hass).registry.get_band("04AABBCCDD0000") is None
+    assert len(_data(hass).registry.bands) == MAX_UNASSIGNED_BANDS
+
+
+async def test_send_is_rate_limited_per_bridge(hass: HomeAssistant, setup_integration, bridge, text_calls) -> None:
+    from custom_components.magicband.bridges import MAX_SENDS_PER_MINUTE
+
+    for _ in range(MAX_SENDS_PER_MINUTE):
+        await hass.services.async_call(DOMAIN, "send", {"effect": "ping"}, blocking=True)
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(DOMAIN, "send", {"effect": "ping"}, blocking=True)
+    assert len(text_calls) == MAX_SENDS_PER_MINUTE
+
+
+@pytest.mark.parametrize("command", [{"effect": "raw", "hex": "E9", "duration_ms": 600000}, {"effect": "wake", "seconds": 3600},
+                                     {"effect": "wake", "seconds": "lots"}])
+async def test_raw_commands_have_the_same_time_limits(
+    hass: HomeAssistant, setup_integration, bridge, text_calls, command: dict
+) -> None:
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(DOMAIN, "send", {"command": command}, blocking=True)
+    await hass.services.async_call(DOMAIN, "send", {"command": {"effect": "raw", "hex": "E9", "duration_ms": 5000}}, blocking=True)
+    assert len(text_calls) == 1

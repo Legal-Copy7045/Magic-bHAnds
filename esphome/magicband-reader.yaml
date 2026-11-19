@@ -88,6 +88,10 @@ dashboard_import:
 logger:
   # Logs and the web installer's Wi-Fi setup use the port labelled "UART".
   hardware_uart: UART0
+  # INFO, not the default DEBUG: at DEBUG every tag read (a band's NFC ID) is
+  # printed, on the USB port of a reader that sits outside the door and in
+  # Home Assistant's device logs. Band IDs are never logged at INFO.
+  level: INFO
 
 api:
   # Encrypted. Home Assistant gives each board its own key the first time it
@@ -120,7 +124,7 @@ api:
               if (c == ',') {
                 if (!cur.empty()) {
                   if (cur.size() != 8 && cur.size() != 14 && cur.size() != 20) {
-                    err = "Malformed band ID " + cur;
+                    err = "A band ID in the list isn't 4, 7 or 10 bytes";
                     break;
                   }
                   out += cur + ",";
@@ -139,7 +143,7 @@ api:
             std::fill(id(known_list).begin(), id(known_list).end(), 0);
             if (err.empty()) {
               std::copy(out.begin(), out.end(), id(known_list).begin());
-              ESP_LOGI("reader", "Known bands updated: %s", out.c_str());
+              ESP_LOGI("reader", "Known bands updated: %u", (unsigned) std::count(out.begin(), out.end(), ',') - 1);
             } else {
               ESP_LOGE("reader", "%s. Known bands cleared: every band is denied until a valid list arrives",
                        err.c_str());
@@ -327,9 +331,10 @@ globals:
     initial_value: "0"
   # Allowed bands for "Known bands only": ",UID,UID," with IDs uppercase and
   # without separators. Stored on the reader, so it survives restarts and
-  # works with Home Assistant offline. Room for ~100 bands.
+  # works with Home Assistant offline. Room for 213 bands with 7-byte IDs
+  # (READER_LIST_CAPACITY in the integration must match: size - 1).
   - id: known_list
-    type: std::array<char, 1600>
+    type: std::array<char, 3200>
     restore_value: true
     update_interval: 5s
   - id: sync_error        # why the last set_known_bands failed ("" = applied)
@@ -851,7 +856,7 @@ button:
           if (list.size() >= id(known_list).size()) { ESP_LOGW("reader", "Known bands list is full"); return; }
           std::fill(id(known_list).begin(), id(known_list).end(), 0);
           std::copy(list.begin(), list.end(), id(known_list).begin());
-          ESP_LOGI("reader", "Allowed band %s", key.c_str());
+          ESP_LOGI("reader", "Allowed the last band");
       - component.update: known_band_count
   - platform: template
     name: "Forget last band"
@@ -869,7 +874,7 @@ button:
           list.erase(pos, key.size() + 1);
           std::fill(id(known_list).begin(), id(known_list).end(), 0);
           std::copy(list.begin(), list.end(), id(known_list).begin());
-          ESP_LOGI("reader", "Forgot band %s", key.c_str());
+          ESP_LOGI("reader", "Forgot the last band");
       - component.update: known_band_count
   - platform: template
     name: "Forget all bands"
