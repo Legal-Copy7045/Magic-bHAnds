@@ -11,6 +11,8 @@ Home Assistant integration share one version number.
   in the reader's local time from Home Assistant). Set both hours the same to
   keep **Idle glow** all day. All three are also in the reader's **Tap
   sequence** fold-out on the MagicbHAnds page.
+- **LED count** now goes up to 100 (was 60). The power cap still holds
+  full white to 24 LEDs' worth, so 100 LEDs run at up to 24 %.
 
 ### Branding
 - A lighter cut of Waltograph (`waltograph42-light.otf`, made by
