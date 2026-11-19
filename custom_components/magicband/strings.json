@@ -466,7 +466,7 @@
   "issues": {
     "reader_sync_failed": {
       "title": "{reader} didn't take the allowed list",
-      "description": "The reader replied: {error}\n\nIt keeps no allowed list until it gets one it can apply, so it denies every band on its own (Home Assistant's own decisions are unaffected). If the list is too long, give fewer people access; otherwise restart the reader or update its firmware."
+      "description": "Home Assistant got: {error}\n\nIf that's a timeout or no reply, the reader may still have applied the list; it's sent again every few minutes and this goes away once the reader confirms it. If the reader refused the list, it keeps none until it gets one it can apply, so it denies every band on its own (Home Assistant's own decisions are unaffected): if the list is too long, give fewer people access; otherwise restart the reader or update its firmware."
     },
     "list_too_long": {
       "title": "Too many allowed bands for the readers",

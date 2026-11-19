@@ -141,7 +141,7 @@ it first connects.
 **Your ring or strip:** the web installer's firmware fits any of them. On
 the reader's device page in Home Assistant, under **Configuration**, set:
 
-- **LED count** (1–60, default 24): the number of LEDs in your ring or
+- **LED count** (1–100, default 24): the number of LEDs in your ring or
   strip. Above 24 the reader caps their output at 24 ÷ count (35 LEDs: 68 %)
   so full white stays within the 20 W supply.
 - **LED colour order:** GRB for most NeoPixels and generic WS2812B rings; RGB
@@ -152,6 +152,13 @@ the reader's device page in Home Assistant, under **Configuration**, set:
   power cap, so it can only make the ring dimmer, never over budget.
 - **Idle glow** (0–100 %, default 30 %): the glow (in **Idle colour**, default White) while waiting for a
   band; 0 turns the ring off between taps.
+- **Idle glow at night** (0–100 %, default 10 %) with **Night from** (default
+  22) and **Night until** (default 6), whole hours in the reader's local time
+  (from Home Assistant): the idle glow used at night. Set both hours the same
+  to use **Idle glow** all day.
+- In **Warm white** the idle glow is mixed specially so it keeps its colour
+  when dim (the Ring light shows the "Warm glow" effect at 100 %); its
+  dimmest is a little brighter than the other colours' dimmest.
 
 **The tap sequence** is set the same way, under **Configuration**:
 
