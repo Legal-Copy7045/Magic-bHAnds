@@ -3,6 +3,16 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.6] - 2026-11-19
+
+### Fixed
+- **Health tiles:** CPU temperature is shown in Home Assistant's own unit
+  (°F or °C) and judged on the Celsius value; it showed Fahrenheit readings as
+  "°C" and marked them as too hot. "Loop time" is now "Slowest loop" and only
+  turns amber from 1 s (red from 3 s): a few hundred ms is normal.
+- No firmware changes (the version number is shared, so devices offer the
+  same firmware as 0.10.6).
+
 ## [0.10.5] - 2026-11-19
 
 ### Health of the readers and bridges
