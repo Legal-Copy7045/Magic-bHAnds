@@ -23,14 +23,16 @@ Jackie is linked to `person.jackie` and has two bands, "blue" and "plus".
 1. In **HACS**, open the **⋮** menu, choose **Custom repositories**, add
    `https://github.com/Legal-Copy7045/Magic-bHAnds` with type **Integration**,
    then install **MagicbHAnds** and restart Home Assistant.
-2. **Settings → Devices & services → Add integration → MagicBand.**
-3. **For each MagicBand reader:** go to **Settings → Devices & services →
-   ESPHome**, find the reader, click **Configure**, and turn on **Allow the
-   device to perform Home Assistant actions**. Readers report scans as Home
-   Assistant tag scans, which needs this setting.
+2. **Settings → Devices & services → Add integration → MagicbHAnds.**
+3. **For each MagicBand reader:** leave **Allow the device to perform Home
+   Assistant actions** (ESPHome → the reader → Configure) **off**. Tag scans
+   reach Home Assistant without it, and with it on, a tampered reader could
+   call any action (see [security.md](security.md)).
 
 Readers are found automatically: any ESPHome device built from
-`esphome/magicband-reader.yaml` (firmware 0.6.0 or later).
+`esphome/magicband-reader.yaml`. Firmware 0.10.4 or later is needed for
+welcome colours and for the reader to confirm it applied the allowed list
+(older firmware shows **Sent (update the reader to confirm)**).
 
 ## Adding people and bands
 
@@ -46,10 +48,19 @@ Readers are found automatically: any ESPHome device built from
 Within a couple of seconds every reader gets the updated list, and the next
 tap is welcomed.
 
+**Several bands for one person?** Use **Enrol bands** next to their name on
+the MagicbHAnds page (or `magicband.enrol`): for the next 5 minutes (up to
+15) every band tapped that nobody owns becomes theirs. Bands that already
+belong to someone are never taken.
+
 The **Configure** menu also has **Add a person**, **Edit a person** (rename,
 link or unlink an HA person, or turn **Allowed in** off to block all their
-bands), **Remove a band** and **Remove a person**. Removing a person keeps
-their bands but unassigns them, so they're denied.
+bands), **Link a band's Bluetooth**, **Remove a band**, **Remove a person**
+and **Settings** (show the page in the sidebar; **Charge reminder at (%)**,
+default 20, 0 = off). Removing a person keeps their bands but unassigns them,
+so they're denied. A person's **welcome colour** and a band's **access
+schedule** are set on the MagicbHAnds page (or with `update_person` and
+`set_band_access`), not in Configure.
 
 ## Entities
 
@@ -78,6 +89,13 @@ model shows *MagicBand+* once Bluetooth is linked, *MagicBand* before.
 | `sensor.<band>_signal` | Signal strength of the last beacon, and per adapter or proxy (diagnostic) |
 | `sensor.<band>_battery` | Battery level in %, from its beacon, in steps (5, 15, 50, 60, 72, 80, 98, 100). A battery sensor, so it works in battery views and low-battery automations |
 
+**On each reader's own device page** the integration adds:
+
+| Entity | |
+|---|---|
+| **Last band name** | Whose band was last tapped on this reader (the name, not the ID); attributes: band ID, person, allowed, when |
+| **Allowed list** (diagnostic) | Whether this reader has the current allowed list: *Up to date*, *Not applied* (the reader rejected it; the reason is in the `error` attribute and in Repairs), *Sent (update the reader to confirm)* (firmware before 0.10.4), *Reader offline* or *Waiting*; attributes: last sync, number of bands, whether it takes welcome colours |
+
 ## Management page
 
 MagicbHAnds adds a **MagicbHAnds** entry to the sidebar: one page for
@@ -101,9 +119,23 @@ everything, read live from Home Assistant.
   long it stays lit, which LEDs, the fade-out, and whether it stays on until
   you send Stop. **Through** sends it through every bridge (the whole house)
   or just one, which reaches only the bands near that bridge.
-- **People:** who the readers let in.
+  Each band's **Manage** also sets its **access**: a daily time window
+  (an end earlier than the start means overnight), days of the week and an
+  expiry date; the card shows the rule ("07:00–21:00, Mo Tu We Th Fr, until
+  24 Dec"). Each MagicBand+ shows a 7-day battery sparkline.
+- **People:** who the readers let in, each person's **welcome colour** (the
+  readers welcome their bands in it, on the ring and on their MagicBand+),
+  and **Enrol bands** (the next bands tapped that nobody owns become theirs;
+  a banner shows the time left and a Stop button).
+- **Recent taps:** the last 30 taps, welcomed, denied or enrolled
+  (administrators only).
 - **Readers** and **bridges:** status, firmware and their settings (fast mode,
-  Bluetooth proxy, response mode, sound, ring and so on).
+  Bluetooth proxy, response mode, sound, ring and so on). Each reader's
+  **Health** line shows whether it has the current allowed list, whether it's
+  offline, and whether a firmware update is waiting.
+
+The page is for Home Assistant **administrators** (it manages who the
+readers let in).
 
 It finds everything by device and attribute, so new bands, readers and
 bridges appear by themselves. Changes go through the integration's own
@@ -127,7 +159,7 @@ scripts or templates.
 action: magicband.send
 data:
   effect: color          # color, rgb, dual_color, five_color, crossfade,
-                         # circle, animation, buzz, ping, "off", raw, stop
+                         # circle, animation, buzz, ping, wake, "off", raw, stop
   color: red
   vibration: 1           # 0 = none, 1–11 = patterns
   always_on: true
@@ -137,9 +169,11 @@ data:
   bridges.
 - `effect: "off"` must be **quoted** in YAML. A bare `off` means false.
 - Other fields: `color2`, `colors`, `rgb_color`, `animation`, `leds`,
-  `on_seconds`, `fade_seconds`, `flash`, `fast`, `hex`, `duration_ms`, or
-  `command` for a raw command object. They're all in the action editor with
-  descriptions.
+  `on_seconds`, `fade_seconds`, `flash`, `fast`, `seconds` (for `wake`),
+  `hex`, `duration_ms`, or `command` for a raw command object (with the same
+  time limits). They're all in the action editor with descriptions.
+- At most 30 commands a minute go to each bridge; a bridge broadcasts one
+  command for at most 60 seconds.
 - `magicband.list_bridges` returns the bridges it found.
 
 Example: flash red three times when your team scores.
@@ -156,12 +190,18 @@ Example: flash red three times when your team scores.
       - delay: 2
 ```
 
-## The blueprint
+## The blueprints
 
-The integration installs the **MagicBand+ notification** blueprint for you. It
-goes in `blueprints/automation/magicband/`, or, if you'd already imported it
-from GitHub, it updates that copy in place. Each integration update refreshes
-it and reloads automations, so you never need to re-import it.
+The integration installs two blueprints for you:
+
+- **MagicBand+ notification**: light up and buzz bands when something
+  happens.
+- **MagicbHAnds: charge me reminder**: a phone notification when a MagicBand+
+  battery drops to the reminder level (see [Charge reminders](#charge-reminders)).
+
+They go in `blueprints/automation/magicband/`, or, if you'd already imported
+one from GitHub, that copy is updated in place. Each integration update
+refreshes them and reloads automations, so you never need to re-import them.
 
 ## Reacting to taps
 
@@ -178,8 +218,21 @@ data:
   allowed: true
   known: true
   reader: Lounge reader
-  reader_device_id: ...
+  reader_device_id: ...     # match readers by this, not by name
+  name: Jackie's MagicBand  # the band's name as shown in Home Assistant
+  enrolled: false           # true if this tap enrolled the band
 ```
+
+`allowed` is Home Assistant's own decision: the owner is allowed in and the
+band's access schedule (if any) allows it now. Taps also appear in the
+**logbook** ("Jackie's MagicBand: welcomed at Lounge reader").
+
+Two more events:
+
+- **`magicband_enrolled`** (`band`, `person`, `count`): a band was given to
+  someone during enrolment.
+- **`magicband_battery_low`** (`bluetooth_band`, `name`, `person`, `battery`):
+  a MagicBand+ dropped to the reminder level.
 
 Example: welcome Jackie by name.
 
@@ -204,24 +257,28 @@ actions:
 
 Actions that change who's allowed in, or list band IDs, need a Home Assistant
 **administrator**: `add_person`, `update_person`, `remove_person`,
-`assign_band`, `unassign_band`, `remove_band`, `list`, `link_bluetooth`,
-`unlink_bluetooth`, `forget_bluetooth`, `list_bluetooth_bands` and
-`list_heard`. `send`, `sync` and `list_bridges` work for any user; `send`
+`assign_band`, `unassign_band`, `remove_band`, `set_band_access`, `enrol`,
+`stop_enrolment`, `list`, `history`, `link_bluetooth`, `unlink_bluetooth`,
+`forget_bluetooth`, `list_bluetooth_bands` and `list_heard`. `send`, `sync` and `list_bridges` work for any user; `send`
 only targets MagicBand bridges. See [security.md](security.md).
 
 | Action | Fields |
 |---|---|
-| `magicband.add_person` | `name`, `ha_person` (optional), `allowed` |
-| `magicband.update_person` | `person` (name or ID), `name`, `ha_person` (empty to unlink), `allowed` |
+| `magicband.add_person` | `name`, `ha_person` (optional), `allowed`, `welcome_colour` (optional) |
+| `magicband.update_person` | `person` (name or ID), `name`, `ha_person` (empty to unlink), `allowed`, `welcome_colour` (one of White, Warm white, Red, Orange, Yellow, Green, Cyan, Blue, Purple, Pink, Magenta; empty for the reader's own) |
 | `magicband.remove_person` | `person` |
 | `magicband.assign_band` | `band` (ID or `last`), `person`, `label` |
 | `magicband.unassign_band` | `band` |
 | `magicband.remove_band` | `band` |
+| `magicband.set_band_access` | `band`, `from` and `until` (a daily window; `until` earlier than `from` means overnight), `days` (`mon` … `sun`; empty = every day), `expires` (date and time), or `clear: true` to remove every limit |
+| `magicband.enrol` | `person`, `minutes` (1–15, default 5), `label` (optional; numbered per band): the next bands tapped that nobody owns become theirs |
+| `magicband.stop_enrolment` | Ends enrolment now |
+| `magicband.history` | `count` (up to 300, default 50): returns the latest taps, newest first |
 | `magicband.sync` | Push the allowed list to all readers now. Returns `readers`, `applied` and `failed` (readers that refused it; from 0.10.4 a reader replies whether it stored the list) |
-| `magicband.list` | Returns all people and bands |
+| `magicband.list` | Returns all people (with welcome colours) and bands (with access schedules), the readers' status, any enrolment, and the welcome colours |
 | `magicband.send` | Sends an effect through the bridges (see above) |
 | `magicband.list_bridges` | Returns every bridge's Command entity |
-| `magicband.list_heard` | Returns recent MagicBand+ Bluetooth traffic heard (last 30) |
+| `magicband.list_heard` | Returns recent MagicBand+ Bluetooth traffic heard (last 30), and the last 200 band messages |
 | `magicband.list_bluetooth_bands` | Returns every MagicBand+ recognised over Bluetooth, with its battery history, signal per adapter, changing bits and last 50 raw beacons |
 | `magicband.link_bluetooth` | `bluetooth_band` (ID, first characters, name or `last`), and `band` (NFC ID or `last`) or `person` |
 | `magicband.unlink_bluetooth` | `bluetooth_band` |
@@ -285,12 +342,16 @@ band, so the integration recognises each band and gives it a device:
   minutes (long enough for one beacon) the integration listens for unlinked
   Bluetooth bands. If exactly one is heard, or only one is already given to
   that band's owner, or one is at least 10 dB stronger than the rest, it's
-  linked. Otherwise a notification asks you to link it by hand.
+  linked and a notification says so (unlink it if it's wrong). Otherwise a
+  notification asks you to link it by hand. Automatic linking never changes
+  who a band belongs to: if the Bluetooth band was given to someone and the
+  NFC band isn't theirs, nothing is linked and a notification asks you to
+  confirm by linking by hand.
 - **By hand:** **Configure → Link a band's Bluetooth**, or
   `magicband.link_bluetooth`. To tell two bands apart, put one in a metal
   tin (or out of range) for half an hour: the one still nearby is the other.
 
-Linking passes ownership across: if the NFC band doesn't belong to anyone yet, it takes the Bluetooth band's owner (and is allowed in if they are); if it already has an owner, that owner is kept. Linking merges the two sides into one device: the Bluetooth entities move
+Linking by hand passes ownership across: if the NFC band doesn't belong to anyone yet, it takes the Bluetooth band's owner (and is allowed in if they are); if it already has an owner, that owner is kept. Linking merges the two sides into one device: the Bluetooth entities move
 onto the band's device, and the Bluetooth-only device disappears.
 Unlinking splits them again. `magicband.list` also shows each band's
 Bluetooth side (nearby, battery, signal).
@@ -315,18 +376,18 @@ Home Assistant uses. Adding proxies (any bridge's **Bluetooth proxy**
 switch) extends it. Beacons are stored, so presence and history survive a
 restart.
 
-**Low battery reminder,** for example:
+### Charge reminders
 
-```yaml
-triggers:
-  - trigger: numeric_state
-    entity_id: sensor.jackie_s_magicband_battery
-    below: 20
-actions:
-  - action: notify.notify
-    data:
-      message: "Jackie's MagicBand+ needs charging"
-```
+When a MagicBand+ drops to the reminder level (**Configure → Settings →
+Charge reminder at (%)**, default 20 %, 0 = off):
+
+- it shows in **Settings → Repairs** ("Jackie's MagicBand+ needs charging"),
+  and clears itself once the band has been charged;
+- a **`magicband_battery_low`** event fires, once per discharge.
+
+For a phone notification, create an automation from the **MagicbHAnds:
+charge me reminder** blueprint and pick your phone (optionally only one
+person's bands).
 
 **Help work out the rest:** `magicband.list_bluetooth_bands` returns each
 band's last 50 raw beacons, the history of its level byte and which bits
@@ -338,9 +399,21 @@ back to 100 confirmed the battery reading.
 - The integration is the **source of truth**. Each sync replaces the reader's
   own list, so manage bands here rather than with the reader's **Allow last
   band** button.
-- Readers get the list when they connect to Home Assistant, after every
-  change, and every 10 minutes.
+- Readers get the list (and the welcome colours) when they connect to Home
+  Assistant, after every change, every 10 minutes, and within a minute of a
+  band's access schedule opening or closing.
+- Each reader replies whether it applied the list (firmware 0.10.4+). Its
+  **Allowed list** sensor shows the result, and problems show in **Settings →
+  Repairs**: a reader that rejected the list, a list too long for the readers
+  (they hold 213 bands), and a reader offline for 15 minutes. A reader that
+  can't apply a list empties its own list (denies every band) rather than
+  keep an old one.
 - Keep the reader's **Response mode** on **Known bands only** (the default).
-  Green or red is then decided on the reader, using the synced list.
-- Data is stored in Home Assistant's `.storage/magicband.registry`, which is
-  included in HA backups.
+  Welcome or deny is then decided on the reader, using the synced list.
+- Data is stored in Home Assistant's `.storage/magicband.registry` (people
+  and bands), `.storage/magicband.bluetooth` (Bluetooth bands) and
+  `.storage/magicband.history` (the last 300 taps), all included in HA
+  backups.
+- **Diagnostics:** Settings → Devices & services → MagicbHAnds → ⋮ →
+  **Download diagnostics** gives a summary for troubleshooting, with band IDs
+  shortened and people's names replaced.

@@ -2,9 +2,10 @@
 
 A park-style touch point for Home Assistant. Tap an **original MagicBand** or a
 **MagicBand+** on it: two quick white circles chase round the ring while
-it's checked, Home Assistant gets the band's ID, then the ring pulses green
-once with a chime (a MagicBand+ also lights up green and buzzes), or red
-twice with the error sound for a band it doesn't let in.
+it's checked, Home Assistant gets the band's ID, then the ring pulses in the
+welcome colour (green, or the owner's own colour if MagicbHAnds gives them
+one) with a chime, and a MagicBand+ lights up in the same colour and buzzes;
+a band it doesn't let in gets two red pulses and the error sound.
 
 Config: [`esphome/magicband-reader.yaml`](../esphome/magicband-reader.yaml).
 
@@ -121,9 +122,19 @@ Install the firmware **before wiring anything else to the ESP32**, as step
    bands.
 
 Firmware updates then appear in Home Assistant as an update on the reader,
-and install over Wi-Fi: no USB needed. If you ever do plug USB into the
-built reader (for serial logs), **first disconnect the ESP32's 5 V wire**
-from the 5 V rail or hub; the rest can stay powered.
+and install over Wi-Fi: no USB needed. USB is only needed again to **change
+its Wi-Fi** (there's no setup hotspot: use the web installer's *Change
+Wi-Fi*) or to see its start-up log. Before plugging USB into the built
+reader, **first disconnect the ESP32's 5 V wire** from the 5 V rail or hub;
+the rest can stay powered.
+
+**Where the logs are:** over USB, the web installer's **Logs & console**
+shows everything from start-up on. Over Wi-Fi, ESPHome → the reader →
+Configure → turn on log subscription, then the reader's logs appear in
+Home Assistant's log. The reader logs at INFO level: you see warnings and
+errors (such as `Error sending version command` when the PN532 doesn't
+answer) but never band IDs, so use its **Last band ID** and **Known bands**
+entities to check taps.
 The connection is encrypted: Home Assistant gives each reader its own key when
 it first connects.
 
@@ -149,7 +160,7 @@ the reader's device page in Home Assistant, under **Configuration**, set:
 | **Checking colour** | White | Colour of the circles that chase round the ring while a band is checked |
 | **Checking circles** | 2 | How many circles before the result shows |
 | **Circle time** | 0.5 s | How long one circle takes (0.2–2 s) |
-| **Welcome colour** | Green | Colour of the welcome pulse |
+| **Welcome colour** | Green | Colour of the welcome pulse. A person's welcome colour set in MagicbHAnds overrides it for their bands |
 | **Welcome pulses** | 1 | How many times it pulses for a welcomed band |
 | **Denied colour** | Red | Colour of the denied pulse |
 | **Denied pulses** | 2 | How many times it pulses for a band it doesn't let in |
@@ -175,7 +186,7 @@ MagicBand+**, for example to turn on the lounge lights.
 
 | Entity | What it does |
 |---|---|
-| **Ring** | The LED ring as a normal HA light, so you can use it as a night light too. It glows white while idle |
+| **Ring** | The LED ring as a normal HA light, so you can use it as a night light too. It glows white while idle (**Idle glow**), and amber while Home Assistant isn't connected |
 | **Last band name** | Whose band was last tapped ("Jackie's MagicBand", or your name for the band), from the MagicbHAnds integration; attributes: NFC ID, person, allowed, time |
 | **Last band ID** (diagnostic) | The raw NFC ID of the last band read |
 | **Response mode** | *Known bands only* (default: decided on the reader; new bands are denied), *Welcome every band*, or *Ask Home Assistant* (see below) |
@@ -183,10 +194,14 @@ MagicBand+**, for example to turn on the lounge lights.
 | **Known bands** | How many bands are on the reader's allowed list |
 | **Allow last band**, **Forget last band**, **Forget all bands** | Manage the reader's list by hand, if you don't use the MagicbHAnds integration |
 | **Speaker** | Media player: Home Assistant can also play announcements and TTS through the reader |
-| **Light up MagicBand+** | Send green + buzz to a MagicBand+ on a successful read (default on) |
+| **Light up MagicBand+** | Send the welcome colour + buzz to a MagicBand+ on a successful read (default on) |
 | **Band light-up power** | How far that light-up reaches, −24 to 0 dBm (default −12). A broadcast can't be addressed to one band, so every MagicBand+ in range reacts: lower it until only the band on the reader lights up. Each −6 dB roughly halves the reach |
 | **Sound** | Chimes on/off |
 | **Test welcome** | Plays the welcome sequence without a band |
+| **Allowed list** (diagnostic) | From the MagicbHAnds integration: whether this reader has the current allowed list (*Up to date*, *Not applied*, *Reader offline* …) |
+| **ESPHome name** (diagnostic) | The reader's ESPHome name; the integration uses it to find the reader's actions |
+| **Firmware** | Update entity: new firmware appears here and installs over Wi-Fi |
+| **Restart** (diagnostic) | Restarts the reader |
 | plus the MagicBand bridge entities | MagicBand light, Buzz, Command, Prefix mode and so on |
 
 ### No waiting on Home Assistant
@@ -199,8 +214,10 @@ Assistant* mode.
 ### "Known bands only" mode (default): green for your bands, red for others, decided instantly
 
 A band's first scan gets the denied sequence. The reader stores its allowed
-list itself, with room for about 100 bands, so it answers instantly and keeps
-working when Home Assistant is offline.
+list itself, with room for 213 bands (7-byte IDs), so it answers instantly
+and keeps working when Home Assistant is offline. A list that's too long or
+malformed empties the reader's list (every band is denied) rather than leave
+an old one in place.
 
 **Recommended:** manage people and bands with the
 [MagicbHAnds integration](integration.md). It logs scans, alerts you about new

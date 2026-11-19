@@ -20,6 +20,13 @@ checks: each one catches a mistake before it can damage a part. Hole names
 
 ## Before you start
 
+**Software:** Home Assistant with the ESPHome integration, and
+[HACS](https://hacs.xyz) for the MagicbHAnds integration; Chrome or Edge on a
+computer for the web installer, and a USB-C **data** cable (if the board isn't
+detected, hold **BOOT**, press **RST**, then release BOOT). Add each new board
+in Home Assistant as soon as it's discovered, on a network you trust (see
+[docs/security.md](../../docs/security.md)).
+
 You need:
 
 | Part | Notes |
@@ -71,9 +78,9 @@ Full list with alternatives: [shopping list](../shopping-list.md).
    on **GRB** for now.
 8. Unplug the USB cable.
 
-✅ **Check:** the device page shows the reader online, and its *Logs* show
-it connecting to Wi-Fi (a "PN532 not found" error is expected: it isn't
-connected yet).
+✅ **Check:** the device page shows the reader online. (While it's still on
+USB, the web installer's **Logs & console** shows it connecting to Wi-Fi; an
+`Error sending version command` is expected: the PN532 isn't connected yet.)
 
 ### Step 2. Set the USB-C PD trigger to 5 V
 
@@ -161,7 +168,7 @@ the ESP32.
 1. Plug in the charger.
 2. Measure: hub 5 V to GND **4.75–5.25 V**; ESP32 **5V** pin (a21) to GND
    the same; ESP32 **3V3** pin (a1) to GND **3.2–3.4 V**.
-3. Home Assistant → the reader → *Logs*: it boots and connects to Wi-Fi.
+3. Home Assistant: the reader comes online within a minute.
 
 ⛔ **Stop if** the voltage is below 4.75 V, the charger cuts out, or
 anything gets warm. Unplug the charger.
@@ -183,14 +190,16 @@ anything gets warm. Unplug the charger.
 2. Unplug the charger. Plug in **SDA → c30** and **SCL → c31**.
 3. Plug in the charger. Measure: PN532 VCC to GND 4.75–5.25 V; SDA (c30)
    and SCL (c31) to GND **3.2–3.4 V**.
-4. *Logs*: the I²C scan finds a device at **0x24**, and the PN532 reports
-   its firmware version with no errors.
-5. Tap a MagicBand on the PN532: its ID appears in the log, and in Home
-   Assistant under **Settings → Tags**. The ring isn't connected yet, so
-   nothing lights.
+4. Tap a MagicBand on the PN532: **Last band ID** on the reader's device page
+   shows its ID, and it appears under **Settings → Tags**. The ring isn't
+   connected yet, so nothing lights.
+5. If nothing shows: unplug the charger, pull **a21**, plug USB into **UART**
+   and open the web installer's **Logs & console**, then press the board's
+   **RST**. `Error sending version command` means the PN532 isn't answering.
+   Put a21 back before using the charger again.
 
-⛔ **Stop if** there's no device at 0x24: check the switches (1 ON, 2 OFF)
-and that SDA and SCL aren't swapped.
+⛔ **Stop if** the PN532 isn't answering: check the switches (1 ON, 2 OFF),
+that SDA and SCL aren't swapped, and the pull-ups.
 
 ### Stage 3: level shifter and ring
 
@@ -259,8 +268,8 @@ supply is dipping: re-check the hub wiring.
 1. Set **Ring** to white at 100 % and the **Speaker** volume to 100 %.
 2. Press **Test welcome** repeatedly for a minute, then tap bands.
 3. Measure the hub voltage while that runs: **at least 4.75 V**.
-4. Afterwards: the reader's *Uptime* hasn't reset, and nothing is more than
-   barely warm (power wires, hubs, PD trigger, 74AHCT125).
+4. Afterwards: the reader didn't restart (no start-up sound, it stayed online),
+   and nothing is more than barely warm (power wires, hubs, PD trigger, 74AHCT125).
 
 ⛔ **Stop if** the voltage dips below 4.75 V, the charger cuts out, the
 ESP32 restarts, or anything is hot. Lower **LED brightness** and check the
@@ -282,7 +291,7 @@ On the device page, under **Configuration**:
 | **LED brightness** | Scales everything the ring shows (5–100 %) |
 | **Idle glow** | The white glow between taps (0 = off) |
 | **Sound** / speaker volume | Turn sounds on or off; set the volume on the *Speaker* entity |
-| **Light up MagicBand+** | Whether a MagicBand+ lights up green on a welcome |
+| **Light up MagicBand+** | Whether a MagicBand+ lights up (in the welcome colour) on a welcome |
 
 ### Step 20. Bands and people
 
@@ -291,7 +300,9 @@ On the device page, under **Configuration**:
    Devices & services**.
 2. Tap each band once. Under **Settings → Tags**, give each one a name.
 3. Allow your bands, either in the MagicbHAnds integration (people and their
-   bands) or on the reader: tap a band, then press **Allow last band**.
+   bands: on the MagicbHAnds page, **Enrol bands** next to a person, then tap
+   their bands one after another) or on the reader: tap a band, then press
+   **Allow last band**.
 4. **Response mode** chooses who's welcomed: *Known bands only* (default),
    *Welcome every band*, or *Ask Home Assistant*.
 
@@ -307,7 +318,7 @@ build.
 |---|---|
 | Nothing powers up | PD trigger not at 5 V or the charger is under 20 W; a hub wire not pushed fully in; a21/a22 missing |
 | ESP32 resets when the ring or sound starts | Supply dipping: charger under 20 W, a thin or long power wire, or the ring/amplifier powered through the breadboard instead of the hubs |
-| "PN532 not found" | Switches not on I²C (1 ON, 2 OFF); SDA/SCL swapped; pull-ups missing; PN532 VCC not on 5 V |
+| `Error sending version command` in the log, or **Last band ID** never changes | Switches not on I²C (1 ON, 2 OFF); SDA/SCL swapped; pull-ups missing; PN532 VCC not on 5 V |
 | Band not read | Band too far: hold it flat on the antenna; no metal between them |
 | Ring dark | Data wire on DOUT instead of DIN; 74AHCT125 in backwards; a21 jumper out; LED count set to 0 |
 | Ring flickers or shows random colours | Grounds not common; 470 Ω missing or at the wrong end; data wire too long or run away from the ring's power pair |
