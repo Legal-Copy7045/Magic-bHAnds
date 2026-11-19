@@ -563,3 +563,34 @@ def test_reader_colours_match_the_integration() -> None:
     yaml = (REPO / "esphome" / "magicband-reader.yaml").read_text()
     options = re.search(r"id: welcome_colour.*?options:\n((?:\s+- \"[^\"]+\"\n)+)", yaml, re.S).group(1)
     assert re.findall(r'"([^"]+)"', options) == READER_COLOURS
+
+
+def test_reader_never_touches_the_ring_before_boot_finishes() -> None:
+    """A setting restored at start-up runs its on_value before the ring exists (0.9.5, 0.10.9 boot crashes).
+
+    Every handler in the reader firmware that runs reader_idle or turns the ring on must check ring_ready.
+    """
+    import yaml as pyyaml
+
+    class Loader(pyyaml.SafeLoader):
+        pass
+
+    Loader.add_multi_constructor("!", lambda loader, suffix, node: loader.construct_scalar(node)
+                                 if isinstance(node, pyyaml.ScalarNode) else None)
+    cfg = pyyaml.load((REPO / "esphome" / "magicband-reader.yaml").read_text(), Loader=Loader)
+
+    def touches_ring(actions) -> bool:
+        text = repr(actions)
+        return "reader_idle" in text or "'ring'" in text
+
+    bad = []
+    for domain in ("select", "number", "switch"):
+        for item in cfg.get(domain) or []:
+            for key in ("on_value", "on_turn_on", "on_turn_off"):
+                if item.get(key) and touches_ring(item[key]) and "ring_ready" not in repr(item[key]):
+                    bad.append(f"{domain} {item.get('id') or item.get('name')} {key}")
+    for key in ("on_client_connected", "on_client_disconnected"):
+        actions = (cfg.get("api") or {}).get(key)
+        if actions and touches_ring(actions) and "ring_ready" not in repr(actions):
+            bad.append(f"api {key}")
+    assert bad == []
