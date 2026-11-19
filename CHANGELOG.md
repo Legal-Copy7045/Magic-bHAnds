@@ -3,6 +3,28 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.11] - 2026-11-19
+
+### Reader
+- **Idle glow at night:** a second idle brightness (default 10 %) used
+  between **Night from** and **Night until** (whole hours, default 22 to 6,
+  in the reader's local time from Home Assistant). Set both hours the same to
+  keep **Idle glow** all day. All three are also in the reader's **Tap
+  sequence** fold-out on the MagicbHAnds page.
+
+### Branding
+- A lighter cut of Waltograph (`waltograph42-light.otf`, made by
+  `docs/images/make_light_font.py`) for the wordmark and headings, which were
+  heavy and hard to read. The logos are re-rendered with it.
+- The web installer uses the new branding: the purple and blue colours, the
+  gradient strip and Waltograph headings (the font, its readme and licence
+  are published with the site).
+
+### Fixed
+- The "didn't take the allowed list" repair no longer says the reader
+  cleared its list when it only didn't answer in time.
+- The reader's Tap sequence fold-out listed **Idle glow** twice.
+
 ## [0.10.10] - 2026-11-19
 
 ### Fixed
