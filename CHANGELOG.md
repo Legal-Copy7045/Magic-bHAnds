@@ -3,6 +3,14 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.1] - 2026-11-19
+
+### Integration
+- **Management page branding.** The page now carries the MagicbHAnds logo and
+  wordmark (the "HA" in blue), the brand's purple accent and a
+  purple-blue-teal strip across the header, in light and dark mode. The logo
+  is inline, so it shows wherever the page is served.
+
 ## [0.10.0] - 2026-11-19
 
 ### Integration
