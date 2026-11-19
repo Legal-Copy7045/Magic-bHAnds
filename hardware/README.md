@@ -52,9 +52,9 @@ ESP32's 5 V wire first). The log shows warnings and errors, never band IDs.
 5. **Bluetooth.** Tap a known MagicBand+: it lights in the welcome colour
    and buzzes.
 6. **Under load.** Set the ring to full white for a minute while tapping
-   bands. The board shouldn't restart (the start-up sound doesn't play again
-   and the device stays online in Home Assistant), and nothing should get
-   hot.
+   bands. The board shouldn't restart (**Last restart** doesn't change, the
+   start-up sound doesn't play again), and nothing should get hot (**CPU
+   temperature** is a rough guide).
 7. **In its case.** Repeat steps 2 and 5 with everything closed up. NFC
    needs no metal between the antenna and the band.
 

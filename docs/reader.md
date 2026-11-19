@@ -202,6 +202,10 @@ MagicBand+**, for example to turn on the lounge lights.
 | **ESPHome name** (diagnostic) | The reader's ESPHome name; the integration uses it to find the reader's actions |
 | **Firmware** | Update entity: new firmware appears here and installs over Wi-Fi |
 | **Restart** (diagnostic) | Restarts the reader |
+| **Wi-Fi signal**, **Wi-Fi network**, **IP address** (diagnostic) | Its connection; the signal is sent when it changes by 3 dB, or every 5 minutes |
+| **CPU temperature** (diagnostic) | The ESP32's own sensor: a trend for spotting a hot case, not an exact reading |
+| **Last restart**, **Reset reason** (diagnostic) | When it last started and why (power on, software restart, crash) |
+| **Free memory**, **Largest free block**, **Loop time** (diagnostic) | Early warning of memory trouble or a busy reader, every 5 minutes |
 | plus the MagicBand bridge entities | MagicBand light, Buzz, Command, Prefix mode and so on |
 
 ### No waiting on Home Assistant
