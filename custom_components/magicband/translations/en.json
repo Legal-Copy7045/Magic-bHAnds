@@ -21,7 +21,8 @@
           "edit_person": "Edit a person",
           "remove_band": "Remove a band",
           "link_bluetooth": "Link a band's Bluetooth",
-          "remove_person": "Remove a person"
+          "remove_person": "Remove a person",
+          "settings": "Settings"
         }
       },
       "assign_band": {
@@ -82,6 +83,15 @@
         },
         "data_description": {
           "owner": "Linking to a band's NFC ID gives it that band's owner. Or give it to a person directly, until the band has been tapped on a reader."
+        }
+      },
+      "settings": {
+        "title": "Settings",
+        "data": {
+          "show_in_sidebar": "Show MagicbHAnds in the sidebar"
+        },
+        "data_description": {
+          "show_in_sidebar": "The management page: bands, people, readers and bridges. Turn it off if you show the page somewhere else, such as in your own set of dashboards."
         }
       }
     },

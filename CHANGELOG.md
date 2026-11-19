@@ -3,6 +3,24 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.0] - 2026-11-19
+
+### Integration
+- **MagicbHAnds management page in the sidebar.** Assign new bands, link a
+  band's Bluetooth to its NFC side, see every band (owner, last tap, nearby,
+  battery, closest bridge), manage people, send to every band, and set up
+  the readers and bridges, all on one live page. It's the page built for
+  the home-dashboards project, packaged with the integration. Turn the
+  sidebar entry off under **Configure → Settings**.
+
+### Fixed
+- **"Updating a disabled entity" warning:** the reader's **Last band name**
+  is no longer written while it's disabled.
+- **Deprecated device lookups:** the integration no longer calls
+  `DeviceRegistry.async_get_device`, which Home Assistant has deprecated.
+- The Configure screens kept resetting the integration's settings; they
+  now keep them.
+
 ## [0.9.14] - 2026-11-19
 
 ### Fixed

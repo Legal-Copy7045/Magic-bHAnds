@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MagicBands</title>
+<style>
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:14px;align-items:start}
+.tc{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0}
+.tc h3{margin:0 0 8px;font:700 16px "Bricolage Grotesque",sans-serif;display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap}
+.tc h3 small{font:500 12px "Instrument Sans",sans-serif;color:var(--muted)}
+h2.sec{font:700 19px "Bricolage Grotesque",sans-serif;margin:22px 0 10px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}h2.sec small{font:500 12.5px "Instrument Sans",sans-serif;color:var(--muted)}
+.muted{color:var(--muted)}.sub2{font-size:12px;color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:14px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}.kpi span{font-size:12px;color:var(--muted)}
+.kpi b{display:block;font:600 24px/1.1 "JetBrains Mono",monospace;margin-top:3px}.kpi i{font-style:normal;font-size:12px;color:var(--muted)}
+.kpi.w b{color:var(--warn)}.kpi.b b{color:var(--bad)}
+.row{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--line);font-size:13.5px;align-items:center}
+.row:first-of-type{border-top:0}.row .r{text-align:right;font:500 12.5px "JetBrains Mono",monospace;white-space:nowrap}
+.dot2{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:1px;background:var(--ok);flex:none}.dot2.off{background:var(--bad)}.dot2.unk{background:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 2px}.chip{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:2px 9px;background:var(--sunk);white-space:nowrap}
+.chip b{font:600 11.5px "JetBrains Mono",monospace}.chip.best{border-color:var(--page);background:color-mix(in srgb,var(--page) 10%,var(--surface))}
+.btn{border:1px solid var(--line);background:var(--sunk);color:var(--ink-2);border-radius:8px;padding:6px 11px;font:600 12.5px "Instrument Sans",sans-serif;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--page)}.btn.pri{background:var(--page);border-color:var(--page);color:#fff}.btn.arm{background:var(--bad);border-color:var(--bad);color:#fff}
+.btn:disabled{opacity:.5;cursor:default}.btn.sm{padding:3px 8px;font-size:11.5px}
+.btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tg{position:relative;width:36px;height:20px;border-radius:999px;background:var(--line);border:0;cursor:pointer;flex:none;padding:0}
+.tg::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s}
+.tg.on{background:var(--page)}.tg.on::after{left:18px}.tg:disabled{opacity:.45;cursor:default}
+select,input[type=text]{font:500 13px "Instrument Sans",sans-serif;padding:5px 8px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink);max-width:100%;min-width:0}
+input[type=range]{accent-color:var(--page);width:130px}
+.job{border:1px solid var(--page);border-left:5px solid var(--page);border-radius:12px;padding:14px 16px;background:var(--surface)}
+.job h3{margin:0 0 4px;font:700 16px "Bricolage Grotesque",sans-serif}
+.item{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--sunk);margin-top:8px}
+.item .t{font-weight:650;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline}
+.form{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
+.form label{font-size:12px;color:var(--muted)}
+.band{display:flex;flex-direction:column;gap:2px}
+.band .nh{display:flex;justify-content:space-between;align-items:baseline;gap:8px}.band .nh b{font:700 15px "Bricolage Grotesque",sans-serif}
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:3px 12px;font-size:13px;margin:6px 0 0}.kv dt{color:var(--muted)}.kv dd{margin:0;font-family:"JetBrains Mono",monospace;font-size:12.5px;overflow-wrap:anywhere}
+.bat{display:inline-block;width:46px;height:8px;border-radius:4px;background:var(--line);vertical-align:0;margin-right:6px;overflow:hidden}.bat i{display:block;height:100%}
+table.t{width:100%;border-collapse:collapse;font-size:13px}table.t td,table.t th{padding:6px 6px;border-top:1px solid var(--line);text-align:left;vertical-align:middle}
+table.t th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-top:0}
+details.more{margin-top:8px}details.more summary{cursor:pointer;font-size:13px;color:var(--ink-2)}
+.set{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;align-items:center;font-size:13px;margin-top:8px}
+.msg{font-size:12.5px;color:var(--muted);min-height:1em}.msg.ok{color:var(--ok)}.msg.bad{color:var(--bad)}
+.tag{font:600 10.5px "Instrument Sans",sans-serif;padding:1px 7px;border-radius:999px;background:var(--grid);color:var(--ink-2);margin-left:6px;vertical-align:1px}
+.tag.no{background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad)}.tag.yes{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+@media (max-width:600px){.kv{grid-template-columns:1fr}.kv dt{margin-top:4px}}
+</style></head><body>
+<div class="wrap">
+<header class="hero"><div>
+  <div class="eyebrow">MagicbHAnds · live</div>
+  <h1>MagicBands</h1>
+  <p class="sub">The bands, who wears which, the readers that check them in and the bridges that hear them over Bluetooth. Everything is found by device and attribute, so new bands, readers and bridges appear on their own.</p>
+</div><div class="art"><span class="l">Status</span><span class="n"><span class="dot" id="ldot"></span> <span id="lstatus">Connecting to Home Assistant…</span></span></div></header>
+<div class="kpis" id="kpis"></div>
+
+<div class="grid" style="margin-bottom:6px">
+  <section class="job" id="j-unknown"><h3>New bands to assign</h3><p class="sub2" style="margin:0">A band nobody owns yet, tapped on a reader. Pick who it's for (or add them) and give it a nickname.</p><div id="unknown"></div></section>
+  <section class="job" id="j-link"><h3>Link Bluetooth to a band</h3><p class="sub2" style="margin:0">A MagicBand+ is heard over Bluetooth and tapped over NFC; linking the two makes one band with both.</p><div id="link"></div></section>
+</div>
+
+<h2 class="sec">Bands <small id="bands-cap"></small></h2>
+<div class="grid" id="bands"></div>
+<section class="tc" style="margin-top:14px"><h3>Send to every band in range <small>through the bridges</small></h3>
+  <div class="btns" id="send"></div><div class="msg" id="send-msg"></div></section>
+
+<h2 class="sec">People <small>who the readers let in</small></h2>
+<section class="tc"><div id="people"></div>
+  <div class="form" id="addp"></div><div class="msg" id="people-msg"></div></section>
+
+<h2 class="sec">Readers</h2>
+<div class="grid" id="readers"></div>
+<h2 class="sec">Bridges <small>Bluetooth listeners; they also wake and light the bands</small></h2>
+<div class="grid" id="bridges"></div>
+<footer>Read live from Home Assistant: the MagicbHAnds integration (bands, people, taps) and the ESPHome readers and bridges, found by device model. Assigning, linking and people changes go through the MagicbHAnds integration's own actions; "Push to readers" sends the allowed list to every reader. Remove buttons ask for a second tap.</footer>
+</div>
+<script>/*COMMON*/</script>
+<script>
+// ───────── discovery: devices by model, sensors by their attributes (no entity ids written down) ─────────
+const BRIDGE_MODELS=/^magicband-(bridge|bp2-poe)$/, READER_MODEL=/^magicband-reader$/;
+let LIST=null, BT=null, BUSY={}, ARM={}, LAST_LOAD=0;
+function index(){ const all=H().all(), byDev={}, plat={};
+  Object.keys(all).forEach(e=>{ const m=H().meta(e)||{}; if(!m.device_id) return; (byDev[m.device_id]=byDev[m.device_id]||[]).push(e); plat[e]=m.platform; });
+  return {all,byDev,plat}; }
+const A=e=>(S(e)||{attributes:{}}).attributes||{};
+const avail=e=>{ const s=S(e); return s&&s.state!=='unavailable'; };
+const dname=d=>d.name_by_user||d.name;
+// an entity on a device by its name after the device's ("Fast mode", "Wake bands") and its domain
+function pick(I,d,dom,label){ const L=(I.byDev[d.id]||[]).filter(e=>e.startsWith(dom+'.')); const want=String(label).toLowerCase();
+  return L.find(e=>{ const fn=String(A(e).friendly_name||'').toLowerCase(), dn=dname(d).toLowerCase(); return (fn.startsWith(dn)?fn.slice(dn.length).trim():fn)===want; })||null; }
+function firmware(I,d){ const u=(I.byDev[d.id]||[]).filter(e=>e.startsWith('update.')).map(e=>A(e).installed_version).filter(v=>v&&!/^20/.test(String(v)));
+  return u[0]||null; }
+const online=(I,d)=>(I.byDev[d.id]||[]).some(avail);
+// the integration's devices: a band has band sensors (a tap counter or Bluetooth sightings); the others are the
+// integration's own service devices, whatever they've been renamed to
+function mbDevices(I){ const D=H().devices(); const mbDev=new Set(Object.keys(I.plat).filter(e=>I.plat[e]==='magicband').map(e=>(H().meta(e)||{}).device_id)); return D.filter(d=>mbDev.has(d.id)); }
+const isBandDev=(I,d)=>(I.byDev[d.id]||[]).some(e=>{ const a=A(e); return ('scans' in a&&'band' in a)||'beacons' in a||'away_after_minutes' in a||'by_source' in a||'heard_in_last_20_minutes' in a; });
+function bandDevices(I){ return mbDevices(I).filter(d=>isBandDev(I,d)); }
+function serviceDevices(I){ return mbDevices(I).filter(d=>!isBandDev(I,d)); }
+// a band's sensors, told apart by attributes
+function bandSensors(I,d){ const L=I.byDev[d.id]||[], has=(e,...k)=>k.every(x=>x in A(e)), o={};
+  L.forEach(e=>{ if(e.startsWith('sensor.')&&has(e,'scans','band','person','allowed')) o.tap=e;
+    else if(e.startsWith('binary_sensor.')&&has(e,'away_after_minutes')) o.near=e;
+    else if(has(e,'raw','changes')||(has(e,'raw')&&A(e).device_class==='battery')) o.bat=e;   // changes is left out when it's empty
+    else if(has(e,'heard_in_last_20_minutes')) o.closest=e;
+    else if(has(e,'by_source')) o.signal=e;
+    else if(has(e,'beacons')) o.seen=e;
+    else if(e.startsWith('sensor.')&&has(e,'rssi','at')) o.heard=e; });
+  return o; }
+function bands(I){ const btBy={}; ((BT&&BT.bluetooth_bands)||[]).forEach(b=>{ btBy[b.name]=b; });
+  return bandDevices(I).map(d=>{ const s=bandSensors(I,d), t=s.tap?A(s.tap):{}, nb=s.near?A(s.near):{}, sn=s.seen?A(s.seen):{}, bt=btBy[dname(d)]||btBy[d.name]||null;
+    const nfc=t.band||nb.band||sn.band||(bt&&bt.band)||null;
+    return {d, s, name:dname(d), nfc, person:t.person||nb.person||sn.person||(bt&&bt.person)||null, label:t.label||null,
+      btid:t.bluetooth_band||(bt&&bt.id)||null, hasNfc:!!s.tap, hasBt:!!(s.seen||s.near||s.signal||bt), allowed:t.allowed}; }); }
+function people(I){ return serviceDevices(I).flatMap(d=>(I.byDev[d.id]||[]).filter(e=>e.startsWith('sensor.')&&'bands' in A(e)&&'allowed' in A(e)))
+  .map(e=>{ const a=A(e), dn=String((H().meta(e)||{}).device||''), fn=String(a.friendly_name||e), n=(dn&&fn.startsWith(dn)?fn.slice(dn.length):fn.replace(/^MagicBand\s+/i,'')).trim().replace(/\s+last tap$/i,''); const L=((LIST&&LIST.people)||[]).find(p=>p.name===n);
+    return {e, name:n, id:L?L.id:null, ha:a.ha_person||null, allowed:a.allowed!==false, bands:(a.bands||[]).map(b=>typeof b==='string'?{band:b}:b), last:S(e).state, last_reader:a.last_reader}; })
+  .sort((x,y)=>x.name.localeCompare(y.name)); }
+const svcSensor=(I,attr)=>{ for(const d of serviceDevices(I)) for(const e of (I.byDev[d.id]||[])) if(attr(e)) return e; return null; };
+
+// ───────── helpers ─────────
+const rel=t=>t&&!/unknown|unavailable/.test(t)?ago(t):'never';
+function act(p,key,msgEl,ok){ BUSY[key]=1; render(); return p.then(r=>{ if(msgEl){ msgEl.className='msg ok'; msgEl.textContent=ok||'Done.'; } return r; })
+  .catch(e=>{ if(msgEl){ msgEl.className='msg bad'; msgEl.textContent='Didn’t work: '+((e&&e.message)||e); } console.error(e); })
+  .finally(()=>{ delete BUSY[key]; setTimeout(()=>{ load(); render(); },600); }); }
+const mb=(svc,data,resp)=>H().service('magicband',svc,data||{},resp);
+// a remove or forget asks for a second tap within 4 seconds
+function armed(key){ if(ARM[key]&&ARM[key]>Date.now()){ delete ARM[key]; return true; } ARM[key]=Date.now()+4000; render(); setTimeout(render,4100); return false; }
+const tg=(e,label)=>e?`<button class="tg${S(e).state==='on'?' on':''}" data-tg="${esc(e)}" aria-label="${esc(label)}" title="${esc(label)}"${avail(e)?'':' disabled'}></button>`:'<span class="muted">–</span>';
+const bt=(e,label,cls)=>e?`<button class="btn sm ${cls||''}" data-press="${esc(e)}"${avail(e)&&!BUSY[e]?'':' disabled'}>${esc(label)}</button>`:'';
+function selectFor(e){ if(!e) return '<span class="muted">–</span>'; const a=A(e); return `<select data-sel="${esc(e)}"${avail(e)?'':' disabled'}>${(a.options||[]).map(o=>`<option${o===S(e).state?' selected':''}>${esc(o)}</option>`).join('')}</select>`; }
+function numberFor(e){ if(!e) return '<span class="muted">–</span>'; const a=A(e), v=S(e).state; return `<input type="text" inputmode="decimal" size="5" data-num="${esc(e)}" value="${esc(v)}" title="${a.min??''}–${a.max??''}${a.unit_of_measurement?' '+a.unit_of_measurement:''}"${avail(e)?'':' disabled'}>`; }
+const personOptions=(P,sel)=>P.map(p=>`<option value="${esc(p.name)}"${p.name===sel?' selected':''}>${esc(p.name)}</option>`).join('');
+function haPeople(){ return Object.keys(H().all()).filter(e=>e.startsWith('person.')&&A(e).user_id&&!/^(mqtt|alexa)/i.test(A(e).friendly_name||'')).map(e=>[e,A(e).friendly_name||e]); }
+function bandName(I,nfc){ const b=bands(I).find(x=>x.nfc===nfc); return b?b.name:null; }
+
+// ───────── sections ─────────
+function kpis(I,B,P,BR,RD,unk){ const near=B.filter(b=>b.s.near&&S(b.s.near).state==='on').length, on=x=>x.filter(d=>online(I,d)).length;
+  $('kpis').innerHTML=[['Bands',B.length,B.filter(b=>b.hasNfc&&b.hasBt).length+' with NFC and Bluetooth'],['Nearby now',near,'heard in the last few minutes'],
+    ['People',P.length,P.filter(p=>p.allowed).length+' allowed'],['Readers online',on(RD)+' / '+RD.length,'',on(RD)<RD.length?'b':''],
+    ['Bridges online',on(BR)+' / '+BR.length,'',on(BR)<BR.length?'b':''],['New bands',unk.length,unk.length?'to assign, below':'none waiting',unk.length?'w':'']]
+    .map(([l,v,s,c])=>`<div class="kpi ${c||''}"><span>${esc(l)}</span><b>${esc(v)}</b><i>${esc(s)}</i></div>`).join(''); }
+
+function unknownJob(I,P,unk){ const lt=svcSensor(I,e=>e.startsWith('sensor.')&&'reader' in A(e)&&'band' in A(e)&&!('scans' in A(e))), la=lt?A(lt):{};
+  const last=lt&&!/unknown|unavailable/.test(S(lt).state)?`<p class="sub2" style="margin:8px 0 0">Last tap: <b>${esc(la.person||'unknown band')}</b>${la.band?' ('+esc(la.band)+')':''} on ${esc(la.reader||'a reader')}, ${esc(rel(S(lt).state))}${la.allowed===false?' <span class="tag no">denied</span>':''}.</p>`:'';
+  if(!unk.length){ $('unknown').innerHTML=`<p class="muted" style="margin:10px 0 0">No new bands waiting. Tap a band nobody owns on a reader and it appears here.</p>`+last; return; }
+  $('unknown').innerHTML=unk.map((u,i)=>{ const id=u.band||u.id||u, key='u'+i;
+    return `<div class="item"><div class="t"><span>${esc(id)}</span><span class="sub2">${u.last_seen||u.first_seen?'tapped '+esc(rel(u.last_seen||u.first_seen)):''}${u.reader||u.last_reader?' on '+esc(u.reader||u.last_reader):''}${u.scans?' · '+u.scans+' taps':''}</span></div>
+      <div class="form"><select data-u-person="${key}"><option value="">Whose band?</option>${personOptions(P)}<option value="__new">+ Someone new…</option></select>
+      <input type="text" data-u-new="${key}" placeholder="Their name" hidden><input type="text" data-u-label="${key}" placeholder="Nickname, e.g. Castle (optional)">
+      <button class="btn pri" data-u-go="${key}" data-band="${esc(id)}"${BUSY[key]?' disabled':''}>Assign</button></div><div class="msg" id="msg-${key}"></div></div>`; }).join('')+last;
+  document.querySelectorAll('[data-u-person]').forEach(s=>s.onchange=()=>{ const k=s.dataset.uPerson; document.querySelector(`[data-u-new="${k}"]`).hidden=s.value!=='__new'; });
+  document.querySelectorAll('[data-u-go]').forEach(b=>b.onclick=async()=>{ const k=b.dataset.uGo, band=b.dataset.band, sel=document.querySelector(`[data-u-person="${k}"]`).value,
+      nw=document.querySelector(`[data-u-new="${k}"]`).value.trim(), label=document.querySelector(`[data-u-label="${k}"]`).value.trim(), msg=$('msg-'+k);
+    let person=sel; if(!sel){ msg.className='msg bad'; msg.textContent='Pick who it’s for first.'; return; }
+    if(sel==='__new'){ if(!nw){ msg.className='msg bad'; msg.textContent='Type their name.'; return; } person=nw; }
+    const go=(sel==='__new'?mb('add_person',{name:nw,allowed:true},true):Promise.resolve()).then(()=>mb('assign_band',Object.assign({band,person},label?{label}:{})));
+    act(go,k,msg,`Assigned to ${person}. Push to readers so they let it in.`); }); }
+
+// Bluetooth halves with no NFC side, and NFC bands with no Bluetooth: link one to the other
+function linkJob(I,B,P){ const btOnly=((BT&&BT.bluetooth_bands)||[]).filter(b=>!b.band), nfcOnly=B.filter(b=>b.hasNfc&&!b.btid);
+  if(!btOnly.length){ $('link').innerHTML=`<p class="muted" style="margin:10px 0 0">Every band heard over Bluetooth is linked${nfcOnly.length?`; ${nfcOnly.length} NFC band${nfcOnly.length>1?'s haven’t':' hasn’t'} been heard over Bluetooth yet (${esc(nfcOnly.map(b=>b.name).join(', '))}). Wake bands from a bridge to make them advertise.`:'.'}</p>`; return; }
+  $('link').innerHTML=btOnly.map((b,i)=>{ const key='l'+i;
+    // best guess: an NFC band of the same person with no Bluetooth yet, else any NFC-only band
+    const guess=nfcOnly.find(x=>b.person&&x.person===b.person)||(nfcOnly.length===1?nfcOnly[0]:null);
+    return `<div class="item"><div class="t"><span>${esc(b.name||b.id)}</span><span class="sub2">${b.nearby?'nearby · ':''}heard ${esc(rel(b.last_seen))}${b.heard_by?' by '+esc(b.heard_by):''}${b.battery!=null?' · battery '+b.battery+'%':''}</span></div>
+      <div class="form"><select data-l-to="${key}"><option value="">Link to…</option>
+        ${nfcOnly.length?`<optgroup label="NFC bands with no Bluetooth">${nfcOnly.map(x=>`<option value="band:${esc(x.nfc)}"${guess&&guess.nfc===x.nfc?' selected':''}>${esc(x.name)}${x.person?' ('+esc(x.person)+')':''}</option>`).join('')}</optgroup>`:''}
+        <optgroup label="Or a person (their band)">${P.map(p=>`<option value="person:${esc(p.name)}">${esc(p.name)}</option>`).join('')}</optgroup></select>
+      <button class="btn pri" data-l-go="${key}" data-bt="${esc(b.id)}"${BUSY[key]?' disabled':''}>Link</button>${guess?`<span class="sub2">suggested: ${esc(guess.name)}</span>`:''}</div><div class="msg" id="msg-${key}"></div></div>`; }).join('');
+  document.querySelectorAll('[data-l-go]').forEach(b=>b.onclick=()=>{ const k=b.dataset.lGo, v=document.querySelector(`[data-l-to="${k}"]`).value, msg=$('msg-'+k);
+    if(!v){ msg.className='msg bad'; msg.textContent='Pick the band or person first.'; return; }
+    const [kind,val_]=[v.slice(0,v.indexOf(':')),v.slice(v.indexOf(':')+1)];
+    act(mb('link_bluetooth',{bluetooth_band:b.dataset.bt,[kind]:val_}),k,msg,'Linked.'); }); }
+
+function bandCards(I,B,P){ $('bands-cap').textContent=B.length?`${B.length} · tap a band on a reader to update its last tap`:'';
+  $('bands').innerHTML=B.map((b,i)=>{ const s=b.s, nearOn=s.near&&S(s.near).state==='on', bat=s.bat?num(s.bat):null, cl=s.closest&&!/unknown|unavailable/.test(S(s.closest).state)?S(s.closest).state:null,
+      hb=s.heard?S(s.heard).state:null, by=s.signal?(A(s.signal).by_source||{}):{}, best=Object.entries(by).sort((x,y)=>y[1]-x[1])[0], key='b'+i, t=s.tap?A(s.tap):{};
+    const batC=bat==null?'':bat<=20?'var(--bad)':bat<=40?'var(--warn)':'var(--ok)';
+    return `<section class="tc band"><div class="nh"><b>${esc(b.name)}</b><span class="sub2">${s.near?`<span class="dot2 ${nearOn?'':'unk'}"></span>${nearOn?'nearby':'away'}`:''}</span></div>
+      <dl class="kv"><dt>Owner</dt><dd>${esc(b.person||'nobody yet')}${b.label?' · '+esc(b.label):''}${t.allowed===false?' <span class="tag no">not allowed</span>':''}</dd>
+      <dt>NFC ID</dt><dd>${b.nfc?esc(b.nfc):'<span class="muted">not tapped yet (Bluetooth only)</span>'}</dd>
+      <dt>Last tap</dt><dd>${s.tap?esc(rel(S(s.tap).state))+(t.reader?' · '+esc(t.reader):'')+(t.scans?' · '+t.scans+' taps':''):'<span class="muted">–</span>'}</dd>
+      <dt>Battery</dt><dd>${bat!=null?`<span class="bat"><i style="width:${Math.max(0,Math.min(100,bat))}%;background:${batC}"></i></span>${Math.round(bat)}%`:'<span class="muted">–</span>'}</dd>
+      <dt>Closest</dt><dd>${cl?esc(cl):hb&&!/unknown|unavailable/.test(hb)?esc(hb)+' <span class="muted">(last heard)</span>':b.hasBt?'<span class="muted">not heard lately</span>':'<span class="muted">no Bluetooth yet</span>'}${s.seen?' · '+esc(rel(S(s.seen).state)):''}</dd>
+      <dt>Bluetooth</dt><dd>${b.btid?esc(b.btid):'<span class="muted">not linked</span>'}</dd></dl>
+      ${Object.keys(by).length?`<div class="chips">${Object.entries(by).sort((x,y)=>y[1]-x[1]).map(([k,v])=>`<span class="chip${best&&best[0]===k?' best':''}">${esc(k.replace(/^MagicBand Bridge BT /,'Bridge '))} <b>${v} dBm</b></span>`).join('')}</div>`:''}
+      <details class="more" data-k="${esc(b.d.id)}"><summary>Manage</summary>
+        ${b.nfc?`<div class="form"><label>Owner</label><select data-own="${key}"><option value="">nobody</option>${personOptions(P,b.person)}</select><input type="text" data-lab="${key}" value="${esc(b.label||'')}" placeholder="Nickname"><button class="btn sm" data-own-go="${key}" data-band="${esc(b.nfc)}">Save</button></div>`:''}
+        <div class="btns">${b.btid&&b.nfc?`<button class="btn sm ${ARM['ub'+key]?'arm':''}" data-unlink="${key}" data-bt="${esc(b.btid)}">${ARM['ub'+key]?'Tap again to unlink':'Unlink Bluetooth'}</button>`:''}
+          ${b.nfc?`<button class="btn sm ${ARM['rm'+key]?'arm':''}" data-remove="${key}" data-band="${esc(b.nfc)}">${ARM['rm'+key]?'Tap again to remove':'Remove band'}</button>`:''}</div>
+        <div class="msg" id="msg-${key}"></div></details></section>`; }).join('')||'<p class="muted">No MagicBands yet.</p>';
+  document.querySelectorAll('[data-own-go]').forEach(x=>x.onclick=()=>{ const k=x.dataset.ownGo, band=x.dataset.band, who=document.querySelector(`[data-own="${k}"]`).value, label=document.querySelector(`[data-lab="${k}"]`).value.trim();
+    act(who?mb('assign_band',Object.assign({band,person:who},label?{label}:{})):mb('unassign_band',{band}),k,$('msg-'+k),who?'Saved.':'Unassigned.'); });
+  document.querySelectorAll('[data-unlink]').forEach(x=>x.onclick=()=>{ const k=x.dataset.unlink; if(!armed('ub'+k)) return; act(mb('unlink_bluetooth',{bluetooth_band:x.dataset.bt}),k,$('msg-'+k),'Unlinked.'); });
+  document.querySelectorAll('[data-remove]').forEach(x=>x.onclick=()=>{ const k=x.dataset.remove; if(!armed('rm'+k)) return; act(mb('remove_band',{band:x.dataset.band}),k,$('msg-'+k),'Removed.'); }); }
+
+function sendBar(){ const B=[['Wake','wake',{effect:'wake'}],['Ping','ping',{effect:'ping'}],['Green + buzz','green',{effect:'color',color:'green',vibration:3}],['Blue','blue',{effect:'color',color:'blue'}],['Red','red',{effect:'color',color:'red'}]];
+  $('send').innerHTML=B.map(([l,k])=>`<button class="btn" data-send="${k}"${BUSY['s'+k]?' disabled':''}>${esc(l)}</button>`).join('');
+  document.querySelectorAll('[data-send]').forEach(x=>x.onclick=()=>{ const b=B.find(y=>y[1]===x.dataset.send); act(mb('send',b[2],true),'s'+b[1],$('send-msg'),b[0]+' sent.'); }); }
+
+function peopleTable(I,P){ const HP=haPeople();
+  $('people').innerHTML=P.length?`<div style="overflow-x:auto"><table class="t"><tr><th>Name</th><th>Home Assistant person</th><th>Allowed</th><th>Bands</th><th>Last tap</th><th></th></tr>${P.map((p,i)=>{ const key='p'+i;
+    return `<tr><td><b>${esc(p.name)}</b></td><td><select data-ha="${key}" data-p="${esc(p.name)}"><option value="">–</option>${HP.map(([e,n])=>`<option value="${esc(e)}"${e===p.ha?' selected':''}>${esc(n)}</option>`).join('')}</select></td>
+      <td><button class="tg${p.allowed?' on':''}" data-allow="${esc(p.name)}" aria-label="Allowed"></button></td>
+      <td>${p.bands.length}${p.bands.length?' <span class="sub2">'+esc(p.bands.map(b=>b.label||bandName(I,b.band)||b.band).join(', '))+'</span>':''}</td>
+      <td>${esc(rel(p.last))}${p.last_reader&&!/unknown/.test(p.last)?' <span class="sub2">'+esc(p.last_reader)+'</span>':''}</td>
+      <td><button class="btn sm ${ARM['rp'+key]?'arm':''}" data-rmp="${key}" data-p="${esc(p.name)}">${ARM['rp'+key]?'Tap again':'Remove'}</button></td></tr>`; }).join('')}</table></div>`:'<p class="muted">Nobody added yet.</p>';
+  if(!$('addp').dataset.done){ $('addp').dataset.done=1;
+    $('addp').innerHTML=`<label>Add someone</label><input type="text" id="np-name" placeholder="Name"><select id="np-ha"><option value="">Home Assistant person (optional)</option>${HP.map(([e,n])=>`<option value="${esc(e)}">${esc(n)}</option>`).join('')}</select><button class="btn" id="np-go">Add</button><button class="btn pri" id="sync">Push to readers</button>`;
+    $('np-go').onclick=()=>{ const n=$('np-name').value.trim(); if(!n){ $('people-msg').className='msg bad'; $('people-msg').textContent='Type a name.'; return; }
+      act(mb('add_person',Object.assign({name:n,allowed:true},$('np-ha').value?{ha_person:$('np-ha').value}:{}),true),'np',$('people-msg'),n+' added.').then(()=>{ $('np-name').value=''; }); };
+    $('sync').onclick=()=>act(mb('sync',{},true),'sync',$('people-msg'),'Allowed list sent to the readers.'); }
+  document.querySelectorAll('[data-allow]').forEach(x=>x.onclick=()=>act(mb('update_person',{person:x.dataset.allow,allowed:!x.classList.contains('on')}),'al',$('people-msg'),'Saved. Push to readers to apply it.'));
+  document.querySelectorAll('[data-ha]').forEach(x=>x.onchange=()=>act(mb('update_person',Object.assign({person:x.dataset.p},x.value?{ha_person:x.value}:{ha_person:''})),'ha',$('people-msg'),'Saved.'));
+  document.querySelectorAll('[data-rmp]').forEach(x=>x.onclick=()=>{ if(!armed('rp'+x.dataset.rmp)) return; act(mb('remove_person',{person:x.dataset.p}),'rp',$('people-msg'),x.dataset.p+' removed.'); }); }
+
+function readerCards(I,RD,B){ $('readers').innerHTML=RD.map(d=>{ const p=l=>pick(I,d,l[0],l[1]), on=online(I,d);
+    const kb=pick(I,d,'sensor','Known bands'), lbS=(I.byDev[d.id]||[]).find(e=>e.startsWith('sensor.')&&'band_id' in A(e))||pick(I,d,'sensor','Last band'), lbV=lbS?S(lbS).state:null;
+    const lbName=lbS&&'band_id' in A(lbS)?lbV:(lbV&&bandName(I,lbV)), sp=p(['media_player','Speaker']), vol=sp?A(sp).volume_level:null, ring=p(['light','Ring']);
+    const T=[['select','Checking colour'],['number','Checking circles'],['number','Circle time'],['select','Welcome colour'],['number','Welcome pulses'],['select','Denied colour'],['number','Denied pulses'],['number','Pulse time'],['number','LED brightness'],['number','Idle glow'],['number','LED count']];
+    return `<section class="tc"><h3><span><span class="dot2 ${on?'':'off'}"></span>${esc(dname(d))}</span><small>${esc(d.area||'no area')}${firmware(I,d)?' · firmware '+esc(firmware(I,d)):''}</small></h3>
+      <div class="row"><span>Response mode</span>${selectFor(p(['select','Response mode']))}</div>
+      <div class="row"><span>Known bands</span><span class="r">${kb&&avail(kb)?Math.round(num(kb)):'–'}</span></div>
+      <div class="row"><span>Last band</span><span class="r" style="white-space:normal">${lbV&&!/unknown|unavailable/.test(lbV)?esc(lbName||lbV):'–'}</span></div>
+      <div class="row"><span>Sound</span>${tg(p(['switch','Sound']),'Sound')}</div>
+      <div class="row"><span>Light up MagicBand+</span>${tg(p(['switch','Light up MagicBand+']),'Light up MagicBand+')}</div>
+      <div class="row"><span>Ring light</span>${tg(ring,'Ring light')}</div>
+      <div class="row"><span>Speaker volume</span>${sp?`<span><input type="range" min="0" max="100" value="${vol!=null?Math.round(vol*100):50}" data-vol="${esc(sp)}"${avail(sp)?'':' disabled'}> <span class="sub2">${vol!=null?Math.round(vol*100)+'%':''}</span></span>`:'<span class="muted">–</span>'}</div>
+      <div class="btns">${bt(p(['button','Test welcome']),'Test welcome')}${(()=>{ const r=p(['button','Restart']); return r?`<button class="btn sm ${ARM['rs'+r]?'arm':''}" data-restart="${esc(r)}"${avail(r)?'':' disabled'}>${ARM['rs'+r]?'Tap again to restart':'Restart'}</button>`:''; })()}</div>
+      <details class="more" data-k="${esc(d.id)}"><summary>Tap sequence</summary><div class="set">${T.map(([dom,l])=>{ const e=p([dom,l]); return e?`<span>${esc(l)}</span>${dom==='select'?selectFor(e):numberFor(e)}`:''; }).join('')}</div></details></section>`; }).join('')||'<p class="muted">No MagicBand readers found (ESPHome model magicband-reader).</p>'; }
+
+function bridgeCards(I,BR){ $('bridges').innerHTML=BR.map(d=>{ const p=(dom,l)=>pick(I,d,dom,l), on=online(I,d);
+    return `<section class="tc"><h3><span><span class="dot2 ${on?'':'off'}"></span>${esc(dname(d))}</span><small>${esc(d.area||'no area')}${firmware(I,d)?' · firmware '+esc(firmware(I,d)):''}</small></h3>
+      <div class="row"><span>Fast mode</span>${tg(p('switch','Fast mode'),'Fast mode')}</div>
+      <div class="row"><span>Bluetooth proxy</span>${p('switch','Bluetooth proxy')?tg(p('switch','Bluetooth proxy'),'Bluetooth proxy'):'<span class="sub2">not on this bridge</span>'}</div>
+      <div class="btns">${bt(p('button','Wake bands'),'Wake bands')}${bt(p('button','Ping'),'Ping')}</div></section>`; }).join('')||'<p class="muted">No MagicBand bridges found.</p>'; }
+
+function wire(){ document.querySelectorAll('[data-tg]').forEach(x=>x.onclick=()=>{ const e=x.dataset.tg, dom=e.split('.')[0]; act(H().call(dom,S(e).state==='on'?'turn_off':'turn_on',e),e); });
+  document.querySelectorAll('[data-press]').forEach(x=>x.onclick=()=>act(H().call('button','press',x.dataset.press),x.dataset.press));
+  document.querySelectorAll('[data-restart]').forEach(x=>x.onclick=()=>{ const e=x.dataset.restart; if(!armed('rs'+e)) return; act(H().call('button','press',e),e); });
+  document.querySelectorAll('[data-sel]').forEach(x=>x.onchange=()=>act(H().call('select','select_option',x.dataset.sel,{option:x.value}),x.dataset.sel));
+  document.querySelectorAll('[data-num]').forEach(x=>x.onchange=()=>{ const v=parseFloat(x.value); if(!isFinite(v)) return; act(H().call('number','set_value',x.dataset.num,{value:v}),x.dataset.num); });
+  document.querySelectorAll('[data-vol]').forEach(x=>x.onchange=()=>act(H().call('media_player','volume_set',x.dataset.vol,{volume_level:+x.value/100}),x.dataset.vol)); }
+
+// the integration's own lists (people ids, Bluetooth halves); refreshed every minute and after any change
+async function load(){ if(!H()||!H().service) return; LAST_LOAD=Date.now();
+  try{ const [l,b]=await Promise.all([mb('list',{},true),mb('list_bluetooth_bands',{},true)]); LIST=l; BT=b; }catch(e){ console.error('magicband list',e); } render(); }
+let editing=false; document.addEventListener('focusin',e=>{ editing=/^(INPUT|SELECT)$/.test(e.target.tagName); }); document.addEventListener('focusout',()=>{ editing=false; });
+function render(){ if(!H()||!H().live()) return; if(editing) return;   // never redraw under someone typing
+  const I=index(), D=H().devices(), BR=D.filter(d=>BRIDGE_MODELS.test(d.model||'')).sort((a,b)=>dname(a).localeCompare(dname(b))), RD=D.filter(d=>READER_MODEL.test(d.model||''));
+  const B=bands(I).sort((a,b)=>String(a.person||'~').localeCompare(String(b.person||'~'))||a.name.localeCompare(b.name)), P=people(I);
+  const us=svcSensor(I,e=>/unknown_bands$/.test(e)||(e.startsWith('sensor.')&&'bands' in A(e)&&!('allowed' in A(e)))), unk=us?(A(us).bands||[]):[];
+  [()=>kpis(I,B,P,BR,RD,unk),()=>unknownJob(I,P,unk),()=>linkJob(I,B,P),()=>bandCards(I,B,P),sendBar,()=>peopleTable(I,P),()=>readerCards(I,RD,B),()=>bridgeCards(I,BR),wire].forEach(f=>{ try{ f(); }catch(e){ console.error(e); } }); }
+// each section is redrawn only when its content changed, and an open fold-out (Manage, Tap sequence) stays open
+(()=>{ const D=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML');
+  ['kpis','unknown','link','bands','send','people','readers','bridges'].forEach(id=>{ const el=$(id); if(!el) return;
+    Object.defineProperty(el,'innerHTML',{configurable:true,get(){ return D.get.call(el); },set(v){ if(el.__h===v) return;
+      const open=[...el.querySelectorAll('details[data-k]')].filter(x=>x.open).map(x=>x.dataset.k);
+      D.set.call(el,v); el.__h=v; open.forEach(k=>{ const x=[...el.querySelectorAll('details[data-k]')].find(y=>y.dataset.k===k); if(x) x.open=true; }); }}); }); })();
+live(()=>{ if(Date.now()-LAST_LOAD>60000) load(); render(); }, 20000);
+</script>
+</body></html>

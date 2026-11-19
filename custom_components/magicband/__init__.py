@@ -45,6 +45,7 @@ from .const import (
 )
 from .beacons import BeaconTracker
 from .blueprint_installer import async_install_blueprints
+from .panel import CONF_SIDEBAR, async_remove_panel, async_setup_panel
 from .bridges import ANIMATIONS, EFFECTS, async_send, find_bridges
 from .listener import BandListener
 from .registry import Band, MagicBandRegistry, display_uid
@@ -152,13 +153,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
 
     _register_services(hass)
     await async_install_blueprints(hass)
+    await async_setup_panel(hass, entry.options.get(CONF_SIDEBAR, True))
+    data.unsubs.append(entry.add_update_listener(_options_updated))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
+
+async def _options_updated(hass: HomeAssistant, entry: MagicBandConfigEntry) -> None:
+    """Configure saves the options after every change; only the sidebar setting needs acting on."""
+    if entry.options.get(CONF_SIDEBAR, True):
+        await async_setup_panel(hass, True)
+    else:
+        async_remove_panel(hass)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) -> bool:
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
+        async_remove_panel(hass)
         await entry.runtime_data.registry.async_flush()
         await entry.runtime_data.beacons.async_shutdown()
         for unsub in entry.runtime_data.unsubs:
