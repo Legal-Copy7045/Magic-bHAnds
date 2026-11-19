@@ -435,3 +435,44 @@ async def test_stray_reader_device_is_cleaned_up(hass: HomeAssistant, reader_dev
     moved = ent_reg.async_get_entity_id("sensor", DOMAIN, f"reader_{reader_device.id}_last_band")
     assert ent_reg.async_get(moved).device_id == reader_device.id
     assert entry.title == "MagicbHAnds"
+
+
+async def test_disabled_reader_sensor_is_not_written(hass: HomeAssistant, setup_integration, reader_device) -> None:
+    from homeassistant.helpers import entity_registry as er
+
+    hass.bus.async_fire("tag_scanned", {"tag_id": "04B0ABDAB61D90", "device_id": reader_device.id})
+    await hass.async_block_till_done()
+    ent_reg = er.async_get(hass)
+    entity = next(e for e in er.async_entries_for_device(ent_reg, reader_device.id) if e.unique_id.endswith("_last_band"))
+    ent_reg.async_update_entity(entity.entity_id, disabled_by=er.RegistryEntryDisabler.USER)
+    await hass.async_block_till_done()
+    # Another tap while it's disabled: no state is written, and nothing fails.
+    hass.bus.async_fire("tag_scanned", {"tag_id": "04B0ABDAB61D90", "device_id": reader_device.id})
+    await hass.async_block_till_done()
+    assert hass.states.get(entity.entity_id) is None
+
+
+async def test_management_page_and_sidebar(hass: HomeAssistant, setup_integration, hass_client) -> None:
+    from unittest.mock import AsyncMock, patch
+
+    client = await hass_client()
+    resp = await client.get("/api/magicband/page")
+    assert resp.status == 200
+    html = await resp.text()
+    assert "window.hdHA" in html and "MagicbHAnds" in html and "/*COMMON*/" not in html and "Sarver" not in html
+
+    # With the frontend loaded, the sidebar entry is added; turning it off removes it.
+    from custom_components.magicband import panel
+
+    hass.config.components.add("frontend")
+    panels: dict = {}
+    with patch.object(panel.panel_custom, "async_register_panel", AsyncMock(side_effect=lambda h, **kw: panels.__setitem__(kw["frontend_url_path"], kw))), \
+         patch.object(panel.frontend, "async_remove_panel", side_effect=lambda h, p: panels.pop(p, None)), \
+         patch.dict(hass.data, {panel.frontend.DATA_PANELS: panels}):
+        entry = hass.config_entries.async_entries(DOMAIN)[0]
+        hass.config_entries.async_update_entry(entry, options={"show_in_sidebar": True})
+        await hass.async_block_till_done()
+        assert panels["magicbhands"]["sidebar_title"] == "MagicbHAnds"
+        hass.config_entries.async_update_entry(entry, options={"show_in_sidebar": False})
+        await hass.async_block_till_done()
+        assert "magicbhands" not in panels

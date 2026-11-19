@@ -77,25 +77,32 @@ model shows *MagicBand+* once Bluetooth is linked, *MagicBand* before.
 | `sensor.<band>_signal` | Signal strength of the last beacon, and per adapter or proxy (diagnostic) |
 | `sensor.<band>_battery` | Battery level in %, from its beacon, in steps (5, 15, 50, 60, 72, 80, 98, 100). A battery sensor, so it works in battery views and low-battery automations |
 
-## Management dashboard
+## Management page
 
-[`homeassistant/dashboards/magicband.yaml`](../homeassistant/dashboards/magicband.yaml)
-is a ready-made dashboard for everything MagicBand, in one page:
+MagicbHAnds adds a **MagicbHAnds** entry to the sidebar: one page for
+everything, read live from Home Assistant.
 
-- **Bands:** every band with its NFC ID, owner, last tap, nearby, battery and
-  closest bridge, linked to its device page.
-- **People:** who's allowed in, how many bands, last tap.
-- **Readers:** online, response mode, known bands, last band (by name) and
-  firmware.
-- **Bridges:** area, online, fast mode, Bluetooth proxy and firmware.
-- **Buttons:** *People & bands* (the integration's Configure screens),
-  *Sync readers*, *Wake bands*, *Ping bands*, *Bluetooth*.
+- **New bands to assign:** a band nobody owns yet, tapped on a reader. Pick
+  who it's for (or add them) and give it a nickname.
+- **Link Bluetooth to a band:** join a MagicBand+'s Bluetooth side to its NFC
+  side.
+- **Bands:** owner, NFC ID, last tap, nearby, battery and closest bridge.
+- **Send to every band in range**, through the bridges.
+- **People:** who the readers let in.
+- **Readers** and **bridges:** status, firmware and their settings (fast mode,
+  Bluetooth proxy, response mode, sound, ring and so on).
 
-It uses only built-in cards, and finds every band, person, reader and bridge
-itself, so it needs no editing as you add more. To install: **Settings →
-Dashboards → Add dashboard → New dashboard from scratch**. Open it, then
-**✏️ → ⋮ → Raw configuration editor**. Replace everything with the file, and
-**Save**.
+It finds everything by device and attribute, so new bands, readers and
+bridges appear by themselves. Changes go through the integration's own
+actions.
+
+To hide the sidebar entry (for example, if you show the page inside your own
+set of dashboards): **Configure → Settings → Show MagicbHAnds in the
+sidebar**. The page itself is `custom_components/magicband/frontend/page.html`.
+
+A simpler version built from Home Assistant's own cards is in
+[`homeassistant/dashboards/magicband.yaml`](../homeassistant/dashboards/magicband.yaml),
+if you'd rather have a normal dashboard.
 
 ## Sending effects from automations
 

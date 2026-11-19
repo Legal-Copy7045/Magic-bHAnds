@@ -477,7 +477,9 @@ class ReaderLastBandSensor(RestoreSensor):
     @callback
     def tapped(self, uid: str, allowed: bool) -> None:
         self._uid, self._allowed, self._at = uid, allowed, dt_util.utcnow().isoformat()
-        self.async_write_ha_state()
+        # A disabled sensor isn't added to Home Assistant: keep the value, don't write a state.
+        if self.hass is not None and self.enabled:
+            self.async_write_ha_state()
 
     @property
     def native_value(self) -> str | None:

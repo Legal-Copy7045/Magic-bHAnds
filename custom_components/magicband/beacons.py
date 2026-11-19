@@ -105,6 +105,26 @@ def parse(payload: bytes) -> Beacon | None:
 _MAC_IN_NAME = re.compile(r"\s*\(([0-9A-Fa-f:]{17})\)\s*$")
 
 
+def find_device(
+    hass: HomeAssistant,
+    identifiers: set[tuple[str, str]] | None = None,
+    connections: set[tuple[str, str]] | None = None,
+) -> dr.DeviceEntry | None:
+    """A device with any of these identifiers or connections.
+
+    Searches the device registry's entries directly rather than calling
+    DeviceRegistry.async_get_device, which Home Assistant has deprecated.
+    """
+    want_ids = set(identifiers or ())
+    want_conn = {(t, v.lower()) for t, v in (connections or ())}
+    for device in dr.async_get(hass).devices.values():
+        if want_ids & device.identifiers:
+            return device
+        if want_conn and want_conn & {(t, v.lower()) for t, v in device.connections}:
+            return device
+    return None
+
+
 def _shift_mac(address: str, offset: int) -> str | None:
     try:
         value = int(address.replace(":", ""), 16) + offset
@@ -133,12 +153,11 @@ def adapter_name(hass: HomeAssistant, source: str | None) -> str | None:
         return None
     m = _MAC_IN_NAME.search(source)
     address = (m.group(1) if m else source).upper()
-    dev_reg = dr.async_get(hass)
-    device = dev_reg.async_get_device(connections={(dr.CONNECTION_BLUETOOTH, address)})
+    device = find_device(hass, connections={(dr.CONNECTION_BLUETOOTH, address)})
     if device is None:
         for offset in (-2, -3, -1):
             mac = _shift_mac(address, offset)
-            if mac and (device := dev_reg.async_get_device(connections={(dr.CONNECTION_NETWORK_MAC, mac)})):
+            if mac and (device := find_device(hass, connections={(dr.CONNECTION_NETWORK_MAC, mac)})):
                 break
     if device is not None:
         name = device.name_by_user or device.name or source
@@ -293,7 +312,7 @@ class BeaconTracker:
 
     def display_name(self, band: BluetoothBand) -> str:
         """The band's name as shown in Home Assistant, including a rename of its device."""
-        device = dr.async_get(self.hass).async_get_device(identifiers={(DOMAIN, self.device_key(band))})
+        device = find_device(self.hass, identifiers={(DOMAIN, self.device_key(band))})
         if device is not None and device.name_by_user:
             return device.name_by_user
         return self.name(band)
@@ -307,7 +326,7 @@ class BeaconTracker:
 
     def nfc_display_name(self, nfc) -> str | None:
         """A renamed NFC band device's name, if it has one."""
-        device = dr.async_get(self.hass).async_get_device(identifiers={(DOMAIN, f"band_{nfc.uid}")})
+        device = find_device(self.hass, identifiers={(DOMAIN, f"band_{nfc.uid}")})
         return device.name_by_user if device is not None and device.name_by_user else None
 
     def band_name(self, nfc, ble: BluetoothBand | None) -> str:
