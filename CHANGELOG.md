@@ -11,6 +11,11 @@ Home Assistant integration share one version number.
   in the reader's local time from Home Assistant). Set both hours the same to
   keep **Idle glow** all day. All three are also in the reader's **Tap
   sequence** fold-out on the MagicbHAnds page.
+- **Warm white idle glow stays warm when dim.** Each colour channel keeps
+  at least one step when dimmed, so a dim warm white became one step of
+  red, green and blue: a cool white. The idle glow in Warm white is now mixed
+  in the ring's own output steps (a "Warm glow" effect), keeping the same
+  colour at any Idle glow, with a floor of 5 steps of red so it can.
 - **LED count** now goes up to 100 (was 60). The power cap still holds
   full white to 24 LEDs' worth, so 100 LEDs run at up to 24 %.
 

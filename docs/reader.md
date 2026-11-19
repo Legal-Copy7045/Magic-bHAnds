@@ -156,6 +156,9 @@ the reader's device page in Home Assistant, under **Configuration**, set:
   22) and **Night until** (default 6), whole hours in the reader's local time
   (from Home Assistant): the idle glow used at night. Set both hours the same
   to use **Idle glow** all day.
+- In **Warm white** the idle glow is mixed specially so it keeps its colour
+  when dim (the Ring light shows the "Warm glow" effect at 100 %); its
+  dimmest is a little brighter than the other colours' dimmest.
 
 **The tap sequence** is set the same way, under **Configuration**:
 
