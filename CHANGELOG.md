@@ -3,6 +3,21 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.9] - 2026-11-19
+
+### Reader
+- **Idle colour:** a new setting for the colour of the idle glow (the same
+  colours as the others; default White). **Idle glow** still sets its
+  brightness.
+- **Circle tail:** a new setting for how many LEDs long the chasing trail is
+  while a band is checked. 0 (the default) keeps the automatic length, a
+  fifth of the ring.
+- The "Home Assistant isn't connected" signal is now a slow amber pulse
+  instead of a steady amber glow, so it can't be mistaken for an orange or
+  yellow idle colour.
+- Both settings are also on the MagicbHAnds page, in the reader's **Tap
+  sequence** fold-out (with Idle glow).
+
 ## [0.10.8] - 2026-11-19
 
 ### New
