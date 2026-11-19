@@ -13,7 +13,13 @@ Home Assistant integration share one version number.
   power cap allows for its higher draw (18 LEDs' worth of everything on).
   One firmware fits every ring; changing the setting restarts the reader.
   The white mixes are first guesses, to be tuned on real rings.
-- Also on the MagicbHAnds page, in the reader's **Tap sequence** fold-out.
+- **The welcome has a shape now:** it comes on quickly (**Welcome fade
+  in**, default 0.15 s), stays on (**Welcome hold**, default 1 s), then fades
+  out (**Welcome fade out**, default 1 s), instead of one quick pulse.
+  **Welcome pulses** repeats the whole thing. The denied pulses are
+  unchanged (**Pulse time** now only sets those).
+- All of these are also on the MagicbHAnds page, in the reader's **Tap
+  sequence** fold-out.
 
 ## [0.10.11] - 2026-11-19
 

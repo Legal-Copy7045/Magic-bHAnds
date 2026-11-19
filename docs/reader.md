@@ -174,10 +174,13 @@ the reader's device page in Home Assistant, under **Configuration**, set:
 | **Circle time** | 0.5 s | How long one circle takes (0.2–2 s) |
 | **Circle tail** | 0 (automatic) | How many LEDs long the chasing trail is (1 up to the LED count). 0 = a fifth of the ring, at least 3 (7 on a 35-LED ring) |
 | **Welcome colour** | Green | Colour of the welcome pulse. A person's welcome colour set in MagicbHAnds overrides it for their bands |
-| **Welcome pulses** | 1 | How many times it pulses for a welcomed band |
+| **Welcome pulses** | 1 | How many times it shows the welcome for a welcomed band (0.2 s apart) |
+| **Welcome fade in** | 0.15 s | How quickly the welcome comes on (0 = instantly) |
+| **Welcome hold** | 1 s | How long it stays fully on |
+| **Welcome fade out** | 1 s | How slowly it fades out (0 = off at once) |
 | **Denied colour** | Red | Colour of the denied pulse |
 | **Denied pulses** | 2 | How many times it pulses for a band it doesn't let in |
-| **Pulse time** | 0.45 s | How long one pulse (fade up and down) takes; pulses are a third of that apart |
+| **Pulse time** | 0.45 s | How long one denied pulse (fade up and down) takes; pulses are a third of that apart |
 
 Colours: White, Warm white, Red, Orange, Yellow, Green, Cyan, Blue,
 Purple, Pink, Magenta. **LED brightness** scales them all.
