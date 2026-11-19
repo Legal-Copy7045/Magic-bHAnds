@@ -44,6 +44,8 @@ Security fixes from a review of the whole project. See
 - A damaged storage file no longer stops the integration loading; damaged
   entries are skipped.
 - The management page escapes everything it shows from entity attributes.
+- The sidebar panel loads the page only through Home Assistant's own
+  authenticated fetch and never reads the login token itself.
 
 ### Firmware
 - Reader: a new allowed list is checked in full. A malformed list, or one too

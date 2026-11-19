@@ -31,13 +31,14 @@ class MagicbHAndsPanel extends HTMLElement {
     this._loaded = true;
     const h = this._hass, path = '/api/magicband/page';
     try {
-      const r = h.fetchWithAuth ? await h.fetchWithAuth(path)
-        : await fetch(path, { headers: { Authorization: 'Bearer ' + h.auth.data.access_token } });
+      // Home Assistant's own authenticated fetch: the page never reads the login token itself.
+      const r = await h.fetchWithAuth(path);
       if (!r.ok) throw new Error('HTTP ' + r.status);
       this._frame.srcdoc = await r.text();
     } catch (e) {
       this._loaded = false;
-      this._frame.srcdoc = '<p style="font:15px sans-serif;padding:24px">Couldn\'t load MagicbHAnds: ' + String(e.message || e) + '</p>';
+      const msg = String((e && e.message) || e).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      this._frame.srcdoc = '<p style="font:15px sans-serif;padding:24px">Couldn\'t load MagicbHAnds: ' + msg + '</p>';
     }
   }
 }
