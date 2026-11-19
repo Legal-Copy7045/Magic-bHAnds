@@ -59,7 +59,7 @@ Do these as in the breadboard guide, if you haven't already:
    and tape the switch.
 3. [Make up the power hubs](../reader-breadboard/build.md#step-3-make-up-the-power-hubs):
    trigger + / − into the first port of each hub. The other wires here are
-   different (step 6 below).
+   different (step 7 below).
 4. [Wire the LED ring](../reader-breadboard/build.md#step-5-wire-the-led-ring):
    power pair, 1000 µF and the data wire with its 470 Ω at the ring. Leave
    the data wire's far end stripped 6 mm and untinned: it's soldered to
@@ -79,7 +79,7 @@ Solder each part from the top, legs through, then trim the legs underneath.
 
 1. **IC socket** (or the 74AHCT125 itself): pin 1 in **e10**, notch towards
    **row 1**. Pins 1–7 run down column e (rows 10–16), pins 14–8 down
-   column f. If you solder the chip directly, solder it last (after step 2's
+   column f. If you solder the chip directly, solder it last (after step 3's
    continuity check).
 2. **4.7 kΩ** from **a2 to a6** (SDA pull-up) and **b2 to b7** (SCL pull-up).
 3. **0.1 µF** ceramic from **h9 to h10**.
@@ -137,9 +137,9 @@ Push the 74AHCT125 into its socket: notch towards row 1, pin 1 at e10.
 
 ## Part 3: the ESP32 connections
 
-Do **3A** for the terminal base or **3B** for point-to-point.
+Do **6A** for the terminal base or **6B** for point-to-point.
 
-### Step 3A. Terminal base
+### Step 6A. Terminal base
 
 1. Seat the ESP32 on the base, antenna end matching the base's outline.
 2. Check the terminal labels on your base against this table before wiring.
@@ -152,9 +152,9 @@ Do **3A** for the terminal base or **3B** for point-to-point.
 | Left **3V3** | Interface board c2 |
 | Left **8** / **9** | Interface board d6 / d7 |
 | Left **10** | Interface board d11 |
-| Right **5** / Right **6** / Left **7** | Amplifier cable LRC / BCLK / DIN (Dupont ends cut off; step 7) |
+| Right **5** / Right **6** / Left **7** | Amplifier cable LRC / BCLK / DIN (Dupont ends cut off; step 8) |
 
-### Step 3B. Point-to-point
+### Step 6B. Point-to-point
 
 1. Header **J1** is on the left with the antenna at the top (component side
    up); J1-1 is nearest the antenna.
@@ -172,18 +172,18 @@ Do **3A** for the terminal base or **3B** for point-to-point.
 | **J1-22** | GND | GND hub |
 
 The amplifier's LRC, BCLK and DIN go on **J1-5**, **J1-6** and **J1-7**
-(step 7).
+(step 8).
 
 ## Part 4: power, amplifier and ring
 
-### Step 6. Wire the hubs
+### Step 7. Wire the hubs
 
 Each hub has five ports. Port 1 is the PD trigger (Part 1).
 
 | Port | 5 V hub | GND hub |
 |---|---|---|
 | 2 | Interface board L+25 | Interface board L−26 |
-| 3 | Amplifier VIN (step 7) | Amplifier GND (step 7) |
+| 3 | Amplifier VIN (step 8) | Amplifier GND (step 8) |
 | 4 | Ring 5V | Ring GND |
 | 5 | ESP32 5V | ESP32 GND |
 
@@ -194,7 +194,7 @@ the ESP32's GND (point-to-point: another J1-22 lead; terminal base: a GND
 terminal) to the interface board's **L−**. The sound and LED signals
 reference it; with ground only through the hub, the amplifier crackles.
 
-### Step 7. Amplifier
+### Step 8. Amplifier
 
 1. Plug the PH2.0 cable into the amplifier. Read the **labels printed on
    the amplifier** and follow each wire to its Dupont end; label them.
@@ -212,7 +212,7 @@ reference it; with ground only through the hub, the amplifier crackles.
    about 20 cm.
 5. Plug the speaker into the amplifier's 2-pin PH2.0 socket.
 
-### Step 8. Ring and PN532
+### Step 9. Ring and PN532
 
 1. Ring **GND** into GND hub port 4, then **5V** into 5 V hub port 4.
    Its data wire is already on c12.
@@ -245,7 +245,8 @@ reference it; with ground only through the hub, the amplifier crackles.
 
 1. Unplug the charger. Reconnect the ring's 5V. Plug in the charger.
 2. The idle glow shows. Turn on **Ring**: red, green and blue at 100 % on
-   all 35 LEDs. Swapped colours: **LED colour order**.
+   all 35 LEDs. Swapped colours: **LED colour order**. An SK6812 RGBW ring:
+   set **Ring type** to match its white LEDs first (the reader restarts).
 
 ### Stage 3: sound
 

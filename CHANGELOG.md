@@ -3,6 +3,23 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.13] - 2026-11-19
+
+Documentation only: the firmware and integration are unchanged.
+
+### Docs
+- Every guide checked against the current firmware and integration. The
+  build walkthroughs cover Ring type, the new idle, night and welcome
+  settings, and the RGBW option; the compact build's ring step is a full
+  walkthrough (data path, power, capacitor, checks).
+- The wired build's step numbers are fixed (Part 3 had a second "Step 3").
+- The README, the integration guide and the installer page list the
+  current features: schedules, band type, welcome colours, enrolment,
+  history, battery reminders, Repairs, the admin-only page, no setup
+  hotspot (change Wi-Fi over USB) and the band limits.
+- Build status: the compact build's 35-LED ring is wired and lighting; its
+  tap sequence is still to be confirmed.
+
 ## [0.10.12] - 2026-11-19
 
 ### Reader

@@ -80,7 +80,7 @@
     <section class="card product">
       <span class="tag">Part 2</span>
       <h2>MagicBand Reader</h2>
-      <p>Tap a band: white circles chase round the ring, Home Assistant knows who it is, and the ring pulses green (welcome) or red twice (denied), with sound. Needs the reader hardware: see the <a href="https://github.com/Legal-Copy7045/Magic-bHAnds/blob/main/docs/reader.md">build guide</a>. Any WS2812B ring or strip: set its <strong>LED count</strong> and <strong>LED colour order</strong> on the reader's device page after installing.</p>
+      <p>Tap a band: white circles chase round the ring, Home Assistant knows who it is, and the ring glows green (welcome) or pulses red twice (denied), with sound. Needs the reader hardware: see the <a href="https://github.com/Legal-Copy7045/Magic-bHAnds/blob/main/docs/reader.md">build guide</a>. Any WS2812B ring or strip, or an SK6812 RGBW ring: set its <strong>LED count</strong>, <strong>LED colour order</strong> and <strong>Ring type</strong> on the reader's device page after installing.</p>
       <esp-web-install-button manifest="reader/manifest.json">
         <button slot="activate">Install the reader</button>
         <span slot="unsupported" class="warn">Your browser can't flash boards. Open this page in Chrome or Edge on a computer.</span>
@@ -106,7 +106,7 @@
       <li><strong>IPEX boards:</strong> click the antenna on before powering the board.</li>
       <li>Plug the board into this computer through the USB-C port labelled <code>UART</code>, with a data cable. Disconnect any other power supply first.</li>
       <li>Use Chrome or Edge on a desktop. Safari and Firefox can't flash boards.</li>
-      <li>After flashing, enter your Wi-Fi details when asked.</li>
+      <li>After flashing, enter your Wi-Fi details when asked. There's no setup hotspot: to change Wi-Fi later, plug the board in here again, click its Install button and choose <strong>Change Wi-Fi</strong>.</li>
     </ul>
     <p class="muted">Board not detected? Hold <code>BOOT</code>, tap <code>RST</code>, release <code>BOOT</code>, then try again.</p>
   </section>
