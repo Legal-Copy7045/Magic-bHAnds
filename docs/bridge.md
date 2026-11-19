@@ -15,11 +15,13 @@ effect. Use more bridges for more coverage.
 
 1. **Prepare the board.** On IPEX boards, click the antenna on first. Plug into
    your computer through the USB-C port labelled **UART**, using a data cable.
-2. **Flash it.** Open the web installer in Chrome or Edge, click **Install**,
+2. **Flash it.** Open the web installer in Chrome or Edge, click **Install the bridge**,
    then enter your Wi-Fi details when asked. You don't compile or edit YAML.
 3. **Add it to Home Assistant.** HA shows a *Discovered* notification for
    "MagicBand Bridge 3fa2c1" through the ESPHome integration (the last six
-   characters are unique to each board). Click **Add**. If no notification
+   characters are unique to each board). Click **Add**, and leave **Allow the
+   device to perform Home Assistant actions** off (the integration doesn't
+   need it). If no notification
    appears: Settings → Devices & services → Add integration → ESPHome, then
    enter the board's IP address from your router.
 4. **Test it.** Open the device page, hold the band nearby (a shake wakes it),
