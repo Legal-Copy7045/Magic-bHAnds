@@ -17,6 +17,10 @@ add_person:
       selector:
         select:
           options: ["White", "Warm white", "Red", "Orange", "Yellow", "Green", "Cyan", "Blue", "Purple", "Pink", "Magenta"]
+    guest:
+      default: false
+      selector:
+        boolean:
 
 update_person:
   fields:
@@ -39,6 +43,16 @@ update_person:
       selector:
         select:
           options: ["White", "Warm white", "Red", "Orange", "Yellow", "Green", "Cyan", "Blue", "Purple", "Pink", "Magenta"]
+    birthday:
+      example: "07-14"
+      selector:
+        text:
+    lockdown_exempt:
+      selector:
+        boolean:
+    guest:
+      selector:
+        boolean:
 
 remove_person:
   fields:
@@ -143,7 +157,7 @@ play_show:
       default: Random
       selector:
         select:
-          options: [Random, Rainbow rush, Fireworks, Comet chase, Colour parade, Twinkle, Heartbeat, Ocean, Fire, Pinwheel, Confetti, Penguins, Goal, Aurora, Candy cane, Thunderstorm, Sunrise, Disco]
+          options: [Random, Today, Rainbow rush, Fireworks, Comet chase, Colour parade, Twinkle, Heartbeat, Ocean, Fire, Pinwheel, Confetti, Penguins, Goal, Aurora, Candy cane, Thunderstorm, Sunrise, Disco, Birthday, New Year, Valentine, St Patrick, Easter, Stars and Stripes, Halloween, Thanksgiving, Hanukkah, Christmas, Stamp]
     device_id:
       selector:
         device:
@@ -348,3 +362,72 @@ history:
       default: 50
       selector:
         number: {min: 1, max: 300, step: 1, mode: box}
+
+set_guest_pass:
+  fields:
+    person:
+      required: true
+      example: Dog walker
+      selector:
+        text:
+    starts:
+      selector:
+        datetime:
+    ends:
+      selector:
+        datetime:
+    uses:
+      selector:
+        number:
+          min: 0
+          max: 10000
+          mode: box
+    from:
+      selector:
+        time:
+    until:
+      selector:
+        time:
+    days:
+      selector:
+        select:
+          multiple: true
+          options: [mon, tue, wed, thu, fri, sat, sun]
+    clear:
+      default: false
+      selector:
+        boolean:
+
+set_settings:
+  fields:
+    lockdown:
+      selector:
+        boolean:
+    lockdown_away:
+      selector:
+        boolean:
+    lockdown_night:
+      selector:
+        boolean:
+    lockdown_from:
+      selector:
+        time:
+    lockdown_until:
+      selector:
+        time:
+    lockdown_alarm:
+      selector:
+        entity:
+          domain: alarm_control_panel
+    holiday_shows:
+      selector:
+        boolean:
+    birthday_shows:
+      selector:
+        boolean:
+    passport:
+      selector:
+        boolean:
+    passport_shows:
+      selector:
+        boolean:

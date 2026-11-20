@@ -67,6 +67,35 @@ class Person:
     ha_person: str | None = None  # e.g. "person.morgan"
     allowed: bool = True
     welcome_colour: str | None = None  # one of READER_COLOURS: the readers welcome this person's bands in it
+    birthday: str | None = None  # "MM-DD": their taps get the Birthday show that day
+    lockdown_exempt: bool = False  # still let in while the house is in lockdown
+    # A guest pass (guest=True): when this person's bands work, on top of each band's own limits. All optional.
+    guest: bool = False
+    valid_from: str | None = None  # ISO date-time; not allowed before
+    valid_until: str | None = None  # ISO date-time; not allowed from then on
+    uses_left: int | None = None  # welcomed taps left (None = no limit); each welcome uses one
+    access_from: str | None = None  # "HH:MM", a daily window (as for bands)
+    access_until: str | None = None
+    access_days: list[str] | None = None
+
+    @property
+    def has_pass(self) -> bool:
+        return any((self.valid_from, self.valid_until, self.uses_left is not None, self.access_from,
+                    self.access_until, self.access_days))
+
+    def in_pass(self, now: datetime) -> bool:
+        """Whether this person's own limits (dates, uses left, daily window) let them in at `now` (local)."""
+        if self.valid_from:
+            starts = dt_util.parse_datetime(self.valid_from)
+            if starts is None or now < dt_util.as_local(starts):
+                return False
+        if self.valid_until:
+            ends = dt_util.parse_datetime(self.valid_until)
+            if ends is None or now >= dt_util.as_local(ends):
+                return False
+        if self.uses_left is not None and self.uses_left <= 0:
+            return False
+        return _in_window(now, self.access_from, self.access_until, self.access_days)
 
 
 @dataclass
@@ -102,19 +131,23 @@ class Band:
             ends = dt_util.parse_datetime(self.expires)
             if ends is None or now >= dt_util.as_local(ends):
                 return False
-        days = self.access_days
-        start, end = _parse_time(self.access_from), _parse_time(self.access_until)
-        if start is None and end is None:
-            return days is None or WEEKDAYS[now.weekday()] in days
-        start, end, t = start or time(0, 0), end or time(23, 59, 59), now.time()
-        if start <= end:
-            return (days is None or WEEKDAYS[now.weekday()] in days) and start <= t < end
-        # Overnight (e.g. 22:00-06:00): the part after midnight belongs to the day it started.
-        if t >= start:
-            return days is None or WEEKDAYS[now.weekday()] in days
-        if t < end:
-            return days is None or WEEKDAYS[(now.weekday() - 1) % 7] in days
-        return False
+        return _in_window(now, self.access_from, self.access_until, self.access_days)
+
+
+def _in_window(now: datetime, access_from: str | None, access_until: str | None, days: list[str] | None) -> bool:
+    """A daily window ("HH:MM" to "HH:MM", on some weekdays). Nothing set: always."""
+    start, end = _parse_time(access_from), _parse_time(access_until)
+    if start is None and end is None:
+        return days is None or WEEKDAYS[now.weekday()] in days
+    start, end, t = start or time(0, 0), end or time(23, 59, 59), now.time()
+    if start <= end:
+        return (days is None or WEEKDAYS[now.weekday()] in days) and start <= t < end
+    # Overnight (e.g. 22:00-06:00): the part after midnight belongs to the day it started.
+    if t >= start:
+        return days is None or WEEKDAYS[now.weekday()] in days
+    if t < end:
+        return days is None or WEEKDAYS[(now.weekday() - 1) % 7] in days
+    return False
 
 
 def _parse_time(value: str | None) -> time | None:
@@ -133,10 +166,38 @@ class _Data:
     bands: dict[str, Band] = field(default_factory=dict)
     released_readers: set[str] = field(default_factory=set)  # device ids released with unpair_reader
     reader_cameras: dict[str, str] = field(default_factory=dict)  # reader device id -> camera entity (snapshots)
+    settings: dict = field(default_factory=dict)  # house settings (SETTINGS_DEFAULTS); only changed values kept
+
+
+# House settings, changed with magicband.set_settings (admin) or the page.
+SETTINGS_DEFAULTS: dict = {
+    "lockdown": False,  # lockdown now (by hand)
+    "lockdown_away": False,  # lockdown while nobody's home (zone.home is 0)
+    "lockdown_night": False,  # lockdown between lockdown_from and lockdown_until
+    "lockdown_from": "23:00",
+    "lockdown_until": "06:00",
+    "lockdown_alarm": None,  # an alarm_control_panel: lockdown while it's armed
+    "holiday_shows": True,  # on a holiday, its show after each welcome
+    "birthday_shows": True,  # on someone's birthday, the Birthday show after their welcome
+    "passport": True,  # count taps and give badges
+    "passport_shows": True,  # the Stamp show after a welcome that earns a badge
+}
 
 
 _BAND_FIELDS = set(Band.__dataclass_fields__)
 _PERSON_FIELDS = set(Person.__dataclass_fields__)
+
+
+def _check_birthday(value: str) -> str | None:
+    """"MM-DD" (or "" to clear)."""
+    if not value:
+        return None
+    try:
+        month, day = (int(x) for x in str(value).split("-")[-2:])
+        datetime(2000, month, day)  # 2000 is a leap year, so 29 February is fine
+    except ValueError as err:
+        raise ValueError("Birthday must be a month and day, MM-DD (e.g. 07-14)") from err
+    return f"{month:02d}-{day:02d}"
 
 
 def _check_colour(colour: str | None) -> None:
@@ -186,7 +247,14 @@ class MagicBandRegistry:
             d: c for d, c in (raw.get("reader_cameras") or {}).items()
             if isinstance(d, str) and isinstance(c, str) and c.startswith("camera.")
         } if isinstance(raw.get("reader_cameras"), dict) else {}
-        self._data = _Data(people=people, bands=bands, released_readers=released, reader_cameras=cameras)
+        settings = {
+            k: v for k, v in (raw.get("settings") or {}).items()
+            if k in SETTINGS_DEFAULTS and (
+                isinstance(v, str) or v is None if k == "lockdown_alarm" else isinstance(v, type(SETTINGS_DEFAULTS[k]))
+            )
+        } if isinstance(raw.get("settings"), dict) else {}
+        self._data = _Data(people=people, bands=bands, released_readers=released, reader_cameras=cameras,
+                           settings=settings)
 
     def _serialize(self) -> dict:
         return {
@@ -194,6 +262,7 @@ class MagicBandRegistry:
             "bands": [asdict(b) for b in self._data.bands.values()],
             "released_readers": sorted(self._data.released_readers),
             "reader_cameras": dict(self._data.reader_cameras),
+            "settings": dict(self._data.settings),
         }
 
     @callback
@@ -229,6 +298,50 @@ class MagicBandRegistry:
         else:
             self._data.reader_cameras.pop(device_id, None)
         self._save()
+
+    # ------------------------------------------------------------------ house settings and lockdown
+
+    @property
+    def settings(self) -> dict:
+        return {**SETTINGS_DEFAULTS, **self._data.settings}
+
+    @callback
+    def set_settings(self, **changes) -> dict:
+        for key, value in changes.items():
+            if key not in SETTINGS_DEFAULTS:
+                raise ValueError(f"Unknown setting {key}")
+            if key in ("lockdown_from", "lockdown_until"):
+                if _parse_time(value) is None:
+                    raise ValueError(f"{key} must be a time (HH:MM)")
+                value = _parse_time(value).strftime("%H:%M")
+            if key == "lockdown_alarm":
+                value = value or None
+                if value and not str(value).startswith("alarm_control_panel."):
+                    raise ValueError("Pick an alarm panel (alarm_control_panel.…)")
+            self._data.settings[key] = value
+        self._changed()
+        return self.settings
+
+    def lockdown_reasons(self, now: datetime | None = None) -> list[str]:
+        """Why the house is in lockdown now (empty: it isn't). Only people marked lockdown_exempt get in."""
+        cfg, reasons = self.settings, []
+        now = dt_util.as_local(now or dt_util.now())
+        if cfg["lockdown"]:
+            reasons.append("Lockdown is on")
+        if cfg["lockdown_away"]:
+            home = self.hass.states.get("zone.home")
+            try:
+                if home is not None and int(float(home.state)) == 0:
+                    reasons.append("Nobody's home")
+            except ValueError:
+                pass
+        if cfg["lockdown_night"] and _in_window(now, cfg["lockdown_from"], cfg["lockdown_until"], None):
+            reasons.append(f"Night hours ({cfg['lockdown_from']}–{cfg['lockdown_until']})")
+        if alarm := cfg["lockdown_alarm"]:
+            state = self.hass.states.get(alarm)
+            if state is not None and (state.state.startswith("armed") or state.state == "triggered"):
+                reasons.append(f"{state.attributes.get('friendly_name') or alarm} is {state.state.replace('_', ' ')}")
+        return reasons
 
     async def async_flush(self) -> None:
         """Write any pending changes now (on unload/reload)."""
@@ -284,7 +397,23 @@ class MagicBandRegistry:
         person = self.get_person(band.person_id) if band else None
         if not (person and person.allowed):
             return False
-        return band.in_schedule(dt_util.as_local(now or dt_util.now()))
+        local = dt_util.as_local(now or dt_util.now())
+        if not (person.in_pass(local) and band.in_schedule(local)):
+            return False
+        return person.lockdown_exempt or not self.lockdown_reasons(local)
+
+    def person_allowed_now(self, person: Person, now: datetime | None = None) -> bool:
+        """Whether a person could get in now (allowed, within their pass, and not locked down)."""
+        local = dt_util.as_local(now or dt_util.now())
+        return person.allowed and person.in_pass(local) and (person.lockdown_exempt or not self.lockdown_reasons(local))
+
+    @callback
+    def use_tap(self, person_id: str) -> None:
+        """A welcomed tap: one use off a guest pass with a limited number of uses."""
+        person = self._data.people.get(person_id)
+        if person is not None and person.uses_left is not None and person.uses_left > 0:
+            person.uses_left -= 1
+            self._changed()
 
     def allowed_uids(self, now: datetime | None = None) -> list[str]:
         return sorted(b.uid for b in self._data.bands.values() if self.band_allowed(b.uid, now))
@@ -329,7 +458,8 @@ class MagicBandRegistry:
 
     @callback
     def add_person(
-        self, name: str, ha_person: str | None = None, allowed: bool = True, welcome_colour: str | None = None
+        self, name: str, ha_person: str | None = None, allowed: bool = True, welcome_colour: str | None = None,
+        guest: bool = False,
     ) -> Person:
         name = name.strip()
         if not name:
@@ -339,7 +469,7 @@ class MagicBandRegistry:
         _check_colour(welcome_colour)
         person = Person(
             id=uuid.uuid4().hex[:12], name=name, ha_person=ha_person or None, allowed=allowed,
-            welcome_colour=welcome_colour or None,
+            welcome_colour=welcome_colour or None, guest=guest,
         )
         self._data.people[person.id] = person
         self._changed()
@@ -354,8 +484,20 @@ class MagicBandRegistry:
         ha_person: str | None = None,
         allowed: bool | None = None,
         welcome_colour: str | None = None,
+        birthday: str | None = None,
+        lockdown_exempt: bool | None = None,
+        guest: bool | None = None,
     ) -> Person:
         person = self._data.people[person_id]
+        if birthday is not None:
+            person.birthday = _check_birthday(birthday)
+        if lockdown_exempt is not None:
+            person.lockdown_exempt = lockdown_exempt
+        if guest is not None:
+            person.guest = guest
+            if not guest:  # no longer a guest: the pass goes too
+                person.valid_from = person.valid_until = person.access_from = person.access_until = None
+                person.uses_left = person.access_days = None
         if welcome_colour is not None:
             _check_colour(welcome_colour)
             person.welcome_colour = welcome_colour or None  # "" = the reader's own welcome colour
@@ -441,6 +583,38 @@ class MagicBandRegistry:
             band.access_days = days or None
         self._changed()
         return band
+
+    @callback
+    def set_guest_pass(
+        self,
+        person_id: str,
+        *,
+        valid_from: datetime | None | str = "keep",
+        valid_until: datetime | None | str = "keep",
+        uses_left: int | None | str = "keep",
+        access_from: time | None | str = "keep",
+        access_until: time | None | str = "keep",
+        access_days: list[str] | None | str = "keep",
+    ) -> Person:
+        """Set a person's guest pass. None clears a limit; "keep" leaves it as it is. Makes them a guest."""
+        person = self._data.people.get(person_id)
+        if person is None:
+            raise ValueError("Unknown person")
+        if valid_from != "keep":
+            person.valid_from = dt_util.as_utc(valid_from).isoformat() if valid_from else None
+        if valid_until != "keep":
+            person.valid_until = dt_util.as_utc(valid_until).isoformat() if valid_until else None
+        if uses_left != "keep":
+            person.uses_left = None if uses_left is None else max(0, int(uses_left))
+        if access_from != "keep":
+            person.access_from = access_from.strftime("%H:%M") if access_from else None
+        if access_until != "keep":
+            person.access_until = access_until.strftime("%H:%M") if access_until else None
+        if access_days != "keep":
+            person.access_days = [d for d in WEEKDAYS if d in (access_days or [])] or None
+        person.guest = True
+        self._changed()
+        return person
 
     @callback
     def set_band_type(self, uid: str, band_type: str) -> Band:

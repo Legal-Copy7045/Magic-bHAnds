@@ -50,6 +50,9 @@ SHOW_NAMES = (
     "Rainbow rush", "Fireworks", "Comet chase", "Colour parade", "Twinkle", "Heartbeat",
     "Ocean", "Fire", "Pinwheel", "Confetti", "Penguins", "Goal",
     "Aurora", "Candy cane", "Thunderstorm", "Sunrise", "Disco",
+    # celebrations (holidays.py) and the passport's Stamp (reader firmware 0.10.24 or later)
+    "Birthday", "New Year", "Valentine", "St Patrick", "Easter", "Stars and Stripes", "Halloween",
+    "Thanksgiving", "Hanukkah", "Christmas", "Stamp",
 )
 SHOW_SERVICE_SUFFIX = "_play_show"
 PAIR_SERVICE_SUFFIX = "_pair"

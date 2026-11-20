@@ -72,6 +72,14 @@ details.more{margin-top:8px}details.more summary{cursor:pointer;font-size:13px;c
 .bar label{display:flex;gap:6px;align-items:center}.bar input[type=search]{font:500 13px "Instrument Sans",sans-serif;padding:5px 8px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink);width:min(290px,100%)}
 .set.sx{grid-template-columns:max-content minmax(0,1fr);justify-items:start;gap:8px 16px}.sx [hidden]{display:none}.five{display:flex;flex-wrap:wrap;gap:4px}.five select{max-width:110px}#sx-c1,#sx-c2,#sx-anim,#sx-bridge,#sx-effect{max-width:240px}
 h3.grp{font:700 14px "Bricolage Grotesque",sans-serif;margin:16px 0 8px;display:flex;gap:8px;align-items:baseline;color:var(--ink-2)}h3.grp:first-child{margin-top:0}h3.grp small{font:500 12px "Instrument Sans",sans-serif;color:var(--muted)}
+tr.pm td{border-top:0;padding-top:0}tr.pm details.more{margin-top:0}
+.pmset{grid-template-columns:max-content minmax(0,1fr);justify-items:start;gap:8px 16px;max-width:620px}
+.stamps{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:10px 6px;margin-top:12px}
+.stamp{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;font-size:10.5px;line-height:1.2;color:var(--muted);opacity:.4;filter:grayscale(1)}
+.stamp i{font-style:normal;font-size:21px;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;border:2px dashed var(--line)}
+.stamp b{font-weight:600}.stamp.got{opacity:1;filter:none;color:var(--ink-2)}
+.stamp.got i{border:2px solid #d9a21b;background:color-mix(in srgb,#d9a21b 14%,transparent);transform:rotate(-8deg)}
+.access input[type=number]{font:500 13px "Instrument Sans",sans-serif;padding:4px 6px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink);width:7em}
 .tag{font:600 10.5px "Instrument Sans",sans-serif;padding:1px 7px;border-radius:999px;background:var(--grid);color:var(--ink-2);margin-left:6px;vertical-align:1px}
 .tag.no{background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad)}.tag.yes{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
 @media (max-width:600px){.kv{grid-template-columns:1fr}.kv dt{margin-top:4px}}
@@ -141,6 +149,15 @@ h2.sec{font:400 34px/1.1 var(--mbh-display)!important}h3.grp{font:400 26px var(-
 <div id="enrol"></div>
 <section class="tc"><div id="people"></div>
   <div class="form" id="addp"></div><div class="msg" id="people-msg"></div></section>
+
+<h2 class="sec">Lockdown <small>only the people you choose get in</small></h2>
+<section class="tc"><div id="rules"></div><div class="msg" id="rules-msg"></div></section>
+
+<h2 class="sec">Celebrations <small>holiday and birthday shows after a welcome</small></h2>
+<section class="tc"><div id="celeb"></div><div class="msg" id="celeb-msg"></div></section>
+
+<h2 class="sec">Tap passport <small>taps, streaks and stamps for everyone who lives here</small></h2>
+<div class="grid" id="passport"></div>
 
 <h2 class="sec">Recent taps <small>newest first, 10 a page</small></h2>
 <section class="tc"><div id="hist"></div></section>
@@ -356,23 +373,98 @@ function peopleTable(I,P){ const HP=haPeople(), RDS=H().devices().filter(d=>READ
   if(ENROL_ON&&!RDS.some(d=>d.id===ENROL_ON)) ENROL_ON='';
   const enrolOn=RDS.length?`<p class="sub2" style="margin:0 0 8px"><label>Enrol bands tapped on <select data-enrol-on>${RDS.length>1?`<option value=""${ENROL_ON?'':' selected'}>any reader</option>`:''}${RDS.map(d=>`<option value="${esc(d.id)}"${d.id===ENROL_ON||(!ENROL_ON&&RDS.length===1)?' selected':''}>${esc(dname(d))}</option>`).join('')}</select></label> — only bands nobody owns; the tap that enrols a band doesn't open anything.</p>`:'';
   $('people').innerHTML=P.length?enrolOn+`<div style="overflow-x:auto"><table class="t"><tr><th>Name</th><th>Home Assistant person</th><th>Allowed</th><th>Welcome colour</th><th>Bands</th><th>Last tap</th><th></th></tr>${P.map((p,i)=>{ const key='p'+i, L=listPerson(p.name)||{};
-    return `<tr><td><b>${esc(p.name)}</b></td><td><select data-ha="${key}" data-p="${esc(p.name)}"><option value="">–</option>${HP.map(([e,n])=>`<option value="${esc(e)}"${e===p.ha?' selected':''}>${esc(n)}</option>`).join('')}</select></td>
+    return `<tr class="pr"><td><b>${esc(p.name)}</b>${personStatus(p,L)}</td><td><select data-ha="${key}" data-p="${esc(p.name)}"><option value="">–</option>${HP.map(([e,n])=>`<option value="${esc(e)}"${e===p.ha?' selected':''}>${esc(n)}</option>`).join('')}</select></td>
       <td><button class="tg${p.allowed?' on':''}" data-allow="${esc(p.name)}" aria-label="Allowed"></button></td>
       <td><select data-wc="${esc(p.name)}"><option value="">Reader's colour</option>${COLOURS().map(c=>`<option${c===L.welcome_colour?' selected':''}>${esc(c)}</option>`).join('')}</select></td>
       <td>${p.bands.length}${p.bands.length?' <span class="sub2">'+esc(p.bands.map(b=>b.label||bandName(I,b.band)||b.band).join(', '))+'</span>':''}</td>
       <td>${esc(rel(p.last))}${p.last_reader&&!/unknown/.test(p.last)?' <span class="sub2">'+esc(p.last_reader)+'</span>':''}</td>
-      <td style="white-space:nowrap"><button class="btn sm" data-enrol="${esc(p.name)}" title="The next bands tapped that nobody owns become theirs">Enrol bands</button> <button class="btn sm ${ARM['rp'+key]?'arm':''}" data-rmp="${key}" data-p="${esc(p.name)}">${ARM['rp'+key]?'Tap again':'Remove'}</button></td></tr>`; }).join('')}</table></div>`:'<p class="muted">Nobody added yet.</p>';
+      <td style="white-space:nowrap"><button class="btn sm" data-enrol="${esc(p.name)}" title="The next bands tapped that nobody owns become theirs">Enrol bands</button> <button class="btn sm ${ARM['rp'+key]?'arm':''}" data-rmp="${key}" data-p="${esc(p.name)}">${ARM['rp'+key]?'Tap again':'Remove'}</button></td></tr>
+      <tr class="pm"><td colspan="7">${personMore(p.name,L)}</td></tr>`; }).join('')}</table></div>`:'<p class="muted">Nobody added yet.</p>';
   if(!$('addp').dataset.done){ $('addp').dataset.done=1;
-    $('addp').innerHTML=`<label>Add someone</label><input type="text" id="np-name" placeholder="Name"><select id="np-ha"><option value="">Home Assistant person (optional)</option>${HP.map(([e,n])=>`<option value="${esc(e)}">${esc(n)}</option>`).join('')}</select><button class="btn" id="np-go">Add</button><button class="btn pri" id="sync">Push to readers</button>`;
+    $('addp').innerHTML=`<label>Add someone</label><input type="text" id="np-name" placeholder="Name"><select id="np-ha"><option value="">Home Assistant person (optional)</option>${HP.map(([e,n])=>`<option value="${esc(e)}">${esc(n)}</option>`).join('')}</select><label class="sub2"><input type="checkbox" id="np-guest"> Guest</label><button class="btn" id="np-go">Add</button><button class="btn pri" id="sync">Push to readers</button>`;
     $('np-go').onclick=()=>{ const n=$('np-name').value.trim(); if(!n){ $('people-msg').className='msg bad'; $('people-msg').textContent='Type a name.'; return; }
-      act(mb('add_person',Object.assign({name:n,allowed:true},$('np-ha').value?{ha_person:$('np-ha').value}:{}),true),'np',$('people-msg'),n+' added.').then(()=>{ $('np-name').value=''; }); };
+      const guest=$('np-guest').checked;
+      act(mb('add_person',Object.assign({name:n,allowed:true,guest},$('np-ha').value?{ha_person:$('np-ha').value}:{}),true),'np',$('people-msg'),n+' added.'+(guest?' Open “Birthday, lockdown, guest pass” to set their pass, then enrol their band.':'')).then(()=>{ $('np-name').value=''; $('np-guest').checked=false; }); };
     $('sync').onclick=()=>act(mb('sync',{},true),'sync',$('people-msg'),'Allowed list sent to the readers.'); }
   document.querySelectorAll('[data-allow]').forEach(x=>x.onclick=()=>act(mb('update_person',{person:x.dataset.allow,allowed:!x.classList.contains('on')}),'al',$('people-msg'),'Saved. Push to readers to apply it.'));
   document.querySelectorAll('[data-wc]').forEach(x=>x.onchange=()=>act(mb('update_person',{person:x.dataset.wc,welcome_colour:x.value}),'wc',$('people-msg'),'Saved. The readers welcome '+x.dataset.wc+' in '+(x.value||'their own colour')+'.').then(load));
   document.querySelectorAll('[data-enrol-on]').forEach(x=>x.onchange=()=>{ ENROL_ON=x.value; x.blur(); });
   document.querySelectorAll('[data-enrol]').forEach(x=>x.onclick=()=>act(mb('enrol',Object.assign({person:x.dataset.enrol,minutes:5},(()=>{ const s=document.querySelector('[data-enrol-on]'), id=s?s.value:''; return id?{device_id:id}:{}; })()),true),'en',$('people-msg'),'Tap '+x.dataset.enrol+"'s bands on a reader now (5 minutes).").then(load));
   document.querySelectorAll('[data-ha]').forEach(x=>x.onchange=()=>act(mb('update_person',Object.assign({person:x.dataset.p},x.value?{ha_person:x.value}:{ha_person:''})),'ha',$('people-msg'),'Saved.'));
-  document.querySelectorAll('[data-rmp]').forEach(x=>x.onclick=()=>{ if(!armed('rp'+x.dataset.rmp)) return; act(mb('remove_person',{person:x.dataset.p}),'rp',$('people-msg'),x.dataset.p+' removed.'); }); }
+  document.querySelectorAll('[data-rmp]').forEach(x=>x.onclick=()=>{ if(!armed('rp'+x.dataset.rmp)) return; act(mb('remove_person',{person:x.dataset.p}),'rp',$('people-msg'),x.dataset.p+' removed.'); });
+  const pm=(name,data,msg)=>act(mb('update_person',Object.assign({person:name},data)),'pm',$('people-msg'),msg||'Saved.').then(load), q=(a,n)=>document.querySelector(`[${a}="${CSS.escape(n)}"]`);
+  document.querySelectorAll('[data-bm],[data-bd]').forEach(x=>x.onchange=()=>{ x.blur(); const n=x.dataset.bm||x.dataset.bd, m=q('data-bm',n).value, d=q('data-bd',n).value;
+    if(!m&&!d) pm(n,{birthday:''},'Birthday cleared.'); else if(m&&d) pm(n,{birthday:m+'-'+d},'Birthday saved: '+n+' gets the Birthday show that day.'); });
+  document.querySelectorAll('[data-lx]').forEach(x=>x.onclick=()=>pm(x.dataset.lx,{lockdown_exempt:!x.classList.contains('on')},'Saved. The readers follow within a minute.'));
+  document.querySelectorAll('[data-guest]').forEach(x=>x.onclick=()=>pm(x.dataset.guest,{guest:!x.classList.contains('on')},x.classList.contains('on')?'No longer a guest (the pass is gone).':'Now a guest: set their pass below.'));
+  document.querySelectorAll('[data-gp]').forEach(x=>x.onchange=()=>{ const k=x.dataset.gp; let v=x.value;
+    if(k==='starts'||k==='ends') v=v?new Date(v).toISOString():null; else if(k==='uses') v=v===''?null:Math.max(0,parseInt(v,10)||0); else v=v||null;
+    act(mb('set_guest_pass',{person:x.dataset.p,[k]:v}),'gp',$('people-msg'),'Guest pass saved. The readers follow within a minute.').then(load); });
+  document.querySelectorAll('[data-gday]').forEach(x=>x.onchange=()=>{ const n=x.dataset.gday, days=[...document.querySelectorAll(`[data-gday="${CSS.escape(n)}"]`)].filter(c=>c.checked).map(c=>c.value);
+    act(mb('set_guest_pass',{person:n,days:days.length?days:null}),'gp',$('people-msg'),'Guest pass saved.').then(load); });
+  document.querySelectorAll('[data-gclear]').forEach(x=>x.onclick=()=>act(mb('set_guest_pass',{person:x.dataset.gclear,clear:true}),'gp',$('people-msg'),'Pass cleared: no limits.').then(load)); }
+
+// ───────── birthdays, lockdown and guest passes (per person) ─────────
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const fmtDT=iso=>iso?new Date(iso).toLocaleString([], {day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}):'';
+const dtInput=iso=>{ if(!iso) return ''; const d=new Date(iso), z=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`; };
+function passText(L){ const g=L.pass; if(!L.guest) return ''; const parts=[];
+  if(g){ if(g.from&&new Date(g.from)>new Date()) parts.push('from '+fmtDT(g.from)); if(g.until) parts.push('until '+fmtDT(g.until));
+    if(g.uses_left!=null) parts.push(g.uses_left+' use'+(g.uses_left===1?'':'s')+' left');
+    if(g.access_from||g.access_until) parts.push(`${g.access_from||'00:00'}–${g.access_until||'24:00'}`); if(g.days&&g.days.length) parts.push(g.days.map(d=>DAY_LABEL[d]).join(' ')); }
+  return 'Guest · '+(parts.length?parts.join(', '):'no limits yet'); }
+function personStatus(p,L){ const bits=[], b=L.birthday;
+  if(L.guest) bits.push(esc(passText(L)));
+  if(b){ const [m,d]=b.split('-').map(Number); bits.push('🎂 '+d+' '+MONTHS[m-1]); }
+  if(L.lockdown_exempt) bits.push('🛡️ gets in during lockdown');
+  if(p.allowed&&L.allowed_now===false) bits.push('<span class="tag no" style="margin:0">not now</span>');
+  return bits.length?`<div class="sub2">${bits.join(' · ')}</div>`:''; }
+function personMore(name,L){ const g=L.pass||{}, [bm,bd]=(L.birthday||'-').split('-'), n=esc(name);
+  return `<details class="more" data-k="pm-${n}"><summary>Birthday, lockdown, guest pass</summary><div class="set access pmset">
+    <span>Birthday</span><span><select data-bm="${n}"><option value="">Month</option>${MONTHS.map((m,i)=>`<option value="${String(i+1).padStart(2,'0')}"${+bm===i+1?' selected':''}>${m}</option>`).join('')}</select> <select data-bd="${n}"><option value="">Day</option>${Array.from({length:31},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}"${+bd===i+1?' selected':''}>${i+1}</option>`).join('')}</select></span>
+    <span>Gets in during lockdown</span><span><button class="tg${L.lockdown_exempt?' on':''}" data-lx="${n}" aria-label="Gets in during lockdown"></button></span>
+    <span>Guest</span><span><button class="tg${L.guest?' on':''}" data-guest="${n}" aria-label="Guest"></button></span>
+    ${L.guest?`<span>Pass starts</span><span><input type="datetime-local" data-gp="starts" data-p="${n}" value="${dtInput(g.from)}"></span>
+    <span>Pass ends</span><span><input type="datetime-local" data-gp="ends" data-p="${n}" value="${dtInput(g.until)}"></span>
+    <span>Uses left</span><span><input type="number" min="0" max="10000" data-gp="uses" data-p="${n}" value="${g.uses_left??''}" placeholder="no limit"></span>
+    <span>Each day</span><span><input type="time" data-gp="from" data-p="${n}" value="${esc(g.access_from||'')}"> to <input type="time" data-gp="until" data-p="${n}" value="${esc(g.access_until||'')}"></span>
+    <span>On</span><span class="days">${DAYS.map(d=>`<label><input type="checkbox" data-gday="${n}" value="${d}"${(g.days||[]).includes(d)?' checked':''}>${DAY_LABEL[d]}</label>`).join('')}</span>
+    <span></span><span><button class="btn sm" data-gclear="${n}">Clear the pass</button></span>`:''}
+  </div></details>`; }
+
+// ───────── lockdown, celebrations and the passport (house settings) ─────────
+const tgS=(k,C,label)=>`<button class="tg${C[k]?' on':''}" data-stg="${k}" aria-label="${esc(label||k)}"></button>`;
+function rulesCard(){ const el=$('rules'), C=LIST&&LIST.settings; if(!C){ el.innerHTML='<p class="muted">Loading…</p>'; return; }
+  const R=LIST.lockdown||[], ex=(LIST.people||[]).filter(p=>p.lockdown_exempt).map(p=>p.name), alarms=Object.keys(H().all()).filter(e=>e.startsWith('alarm_control_panel.'));
+  el.innerHTML=`<p style="margin:0 0 4px">${R.length?`<span class="tag no" style="margin:0">Lockdown</span> ${esc(R.join(' · '))}`:'<span class="tag yes" style="margin:0">Open</span> Not in lockdown now.'}</p>
+    <p class="sub2" style="margin:0">During lockdown only ${ex.length?'<b>'+esc(ex.join(', '))+'</b>':'<b>nobody</b>'} ${ex.length===1?'gets':'get'} in. Choose who under People → Birthday, lockdown, guest pass.</p>
+    <div class="set access pmset"><span>Lockdown now</span><span>${tgS('lockdown',C,'Lockdown now')}</span>
+    <span>When nobody's home</span><span>${tgS('lockdown_away',C,"When nobody's home")}</span>
+    <span>At night</span><span>${tgS('lockdown_night',C,'At night')} <input type="time" data-st="lockdown_from" value="${esc(C.lockdown_from)}"> to <input type="time" data-st="lockdown_until" value="${esc(C.lockdown_until)}"></span>
+    <span>While an alarm is armed</span><span><select data-st="lockdown_alarm"><option value="">No alarm</option>${alarms.map(e=>`<option value="${esc(e)}"${e===C.lockdown_alarm?' selected':''}>${esc(A(e).friendly_name||e)}</option>`).join('')}</select></span></div>`; }
+function celebCard(){ const el=$('celeb'), C=LIST&&LIST.settings; if(!C){ el.innerHTML=''; return; }
+  const T=LIST.today||{}, U=LIST.upcoming||[], today=[...(T.holidays||[]).map(h=>h.name),...(T.birthdays||[]).map(n=>n+'’s birthday')];
+  el.innerHTML=`<p style="margin:0 0 4px">${today.length?'🎉 Today: <b>'+esc(today.join(', '))+'</b>':'Nothing to celebrate today.'}</p>
+    <p class="sub2" style="margin:0">After a welcome the reader plays one show: a new passport stamp first, then a birthday, then the day's holiday. Birthdays are set per person under People.</p>
+    <div class="set access pmset"><span>Holiday shows</span><span>${tgS('holiday_shows',C,'Holiday shows')}</span>
+    <span>Birthday shows</span><span>${tgS('birthday_shows',C,'Birthday shows')}</span>
+    <span>Tap passport</span><span>${tgS('passport',C,'Tap passport')}</span>
+    <span>Stamp show for a new badge</span><span>${tgS('passport_shows',C,'Stamp show')}</span></div>
+    <p class="sub2" style="margin:12px 0 0">Coming up (tap one to preview its show on the reader):</p>
+    <div class="btns">${U.map(u=>`<button class="btn sm" data-preview="${esc(u.show)}">${esc(u.name)} · ${esc(new Date(u.date+'T12:00').toLocaleDateString([], {month:'short',day:'numeric'}))}</button>`).join('')}<button class="btn sm" data-preview="Birthday">Birthday</button><button class="btn sm" data-preview="Stamp">Passport stamp</button></div>
+    <details class="more" data-k="allshows"><summary>Every celebration show</summary><div class="btns">${['New Year','Valentine','St Patrick','Easter','Stars and Stripes','Halloween','Thanksgiving','Hanukkah','Christmas'].map(s=>`<button class="btn sm" data-preview="${esc(s)}">${esc(s)}</button>`).join('')}</div></details>`; }
+function passportCards(){ const el=$('passport'); if(!LIST||!LIST.settings){ el.innerHTML=''; return; }
+  if(!LIST.settings.passport){ el.innerHTML='<p class="muted">The tap passport is off (Celebrations).</p>'; return; }
+  const P=(LIST.people||[]).filter(p=>p.passport);
+  el.innerHTML=P.length?P.map(p=>{ const pp=p.passport, got=pp.badges.filter(b=>b.earned).length;
+    return `<div class="tc"><h3 style="margin:0">${esc(p.name)} <small class="sub2">${got} of ${pp.badges.length} stamps</small></h3>
+      <dl class="kv"><dt>Taps</dt><dd>${pp.taps}</dd><dt>Days</dt><dd>${pp.days}</dd><dt>Streak</dt><dd>${pp.streak} day${pp.streak===1?'':'s'} (best ${pp.best_streak})</dd>${pp.first?`<dt>Since</dt><dd>${esc(new Date(pp.first).toLocaleDateString([], {day:'numeric',month:'short',year:'numeric'}))}</dd>`:''}</dl>
+      <div class="stamps">${pp.badges.map(b=>`<span class="stamp${b.earned?' got':''}" title="${esc(b.how+(b.earned?' · earned '+new Date(b.earned).toLocaleDateString():''))}"><i>${b.icon}</i><b>${esc(b.name)}</b></span>`).join('')}</div></div>`; }).join('')
+    :'<p class="muted">No passports yet: every welcomed tap counts (guests don’t get one).</p>'; }
+function wireHouse(){ const msg=id=>$(id);
+  document.querySelectorAll('[data-stg]').forEach(x=>x.onclick=()=>{ const k=x.dataset.stg; act(mb('set_settings',{[k]:!x.classList.contains('on')},true),'st',msg(k.startsWith('lockdown')?'rules-msg':'celeb-msg'),'Saved.'+(k.startsWith('lockdown')?' The readers follow within a minute.':'')).then(load); });
+  document.querySelectorAll('[data-st]').forEach(x=>x.onchange=()=>{ x.blur(); const k=x.dataset.st; act(mb('set_settings',{[k]:x.value||(k==='lockdown_alarm'?null:x.value)},true),'st',msg('rules-msg'),'Saved.').then(load); });
+  document.querySelectorAll('[data-preview]').forEach(x=>x.onclick=()=>act(mb('play_show',{show:x.dataset.preview},true),'pv',msg('celeb-msg'),'Playing '+x.dataset.preview+' on the reader.')); }
 
 function enrolBar(I){ const us=H().state('sensor.magicband_unknown_bands'), en=us&&us.attributes&&us.attributes.enrolling;
   if(!en){ $('enrol').innerHTML=''; return; }
@@ -388,7 +480,7 @@ function histList(I){ const all=HIST||[], pages=Math.max(1,Math.ceil(all.length/
   const from=HIST_PAGE*HIST_PER, L=all.slice(from,from+HIST_PER);
   const pager=pages>1?`<div class="pager"><button class="btn sm" data-hp="-1"${HIST_PAGE?'':' disabled'}>‹ Newer</button><span class="sub2">${from+1}–${from+L.length} of ${all.length}${all.length>=300?'+':''} · page ${HIST_PAGE+1} of ${pages}</span><button class="btn sm" data-hp="1"${HIST_PAGE<pages-1?'':' disabled'}>Older ›</button></div>`:'';
   const keep=CAMS&&Object.keys(CAMS).length?`<div class="bar" style="margin:0 0 8px"><label>Camera pictures are kept for <input type="text" inputmode="numeric" size="3" data-snapdays value="${esc(SNAP_DAYS??30)}"> days</label><span class="sub2">click a picture to enlarge it; set each reader's camera on its card</span></div>`:'';
-  $('hist').innerHTML=L.length?keep+`<div style="overflow-x:auto"><table class="t"><tr><th>When</th><th>Band</th><th>Reader</th><th></th>${L.some(t=>t.snapshot_url)?'<th>Picture</th>':''}</tr>${L.map(t=>`<tr><td>${esc(rel(t.time))}</td><td>${esc(t.name||t.band)}${t.person?' <span class="sub2">'+esc(t.person)+'</span>':''}</td><td>${esc(t.reader||'–')}</td><td>${t.enrolled?'<span class="tag yes">enrolled</span>':t.allowed?'<span class="tag yes">welcomed</span>':'<span class="tag no">denied</span>'}</td>${L.some(x=>x.snapshot_url)?`<td>${t.snapshot_url?`<img class="snap" src="${esc(t.snapshot_url)}" data-snap="${esc(t.snapshot_url)}" alt="Picture of this tap" loading="lazy">`:''}</td>`:''}</tr>`).join('')}</table></div>${pager}`
+  $('hist').innerHTML=L.length?keep+`<div style="overflow-x:auto"><table class="t"><tr><th>When</th><th>Band</th><th>Reader</th><th></th>${L.some(t=>t.snapshot_url)?'<th>Picture</th>':''}</tr>${L.map(t=>`<tr><td>${esc(rel(t.time))}</td><td>${esc(t.name||t.band)}${t.person?' <span class="sub2">'+esc(t.person)+'</span>':''}</td><td>${esc(t.reader||'–')}</td><td>${t.enrolled?'<span class="tag yes">enrolled</span>':t.allowed?'<span class="tag yes">welcomed</span>':'<span class="tag no">denied</span>'}${(t.badges||[]).map(b=>' <span class="tag">'+esc(b)+'</span>').join('')}</td>${L.some(x=>x.snapshot_url)?`<td>${t.snapshot_url?`<img class="snap" src="${esc(t.snapshot_url)}" data-snap="${esc(t.snapshot_url)}" alt="Picture of this tap" loading="lazy">`:''}</td>`:''}</tr>`).join('')}</table></div>${pager}`
     :`<p class="muted" style="margin:0">${HIST?'No taps yet.':!HIST_ERR?'Loading…':/not allowed/i.test(HIST_ERR)?"This page's host doesn't allow the tap history yet; it's on the MagicbHAnds page in the sidebar."
       :/unauthori[sz]ed|admin/i.test(HIST_ERR)?'Only administrators can see the tap history.':'Couldn’t load the tap history: '+esc(HIST_ERR)}</p>`; }
 const SYNC_LABEL={up_to_date:'up to date',failed:'not applied',unconfirmed:'sent (update the reader to confirm)',offline:'reader offline',waiting:'waiting'};
@@ -412,8 +504,9 @@ function readerCards(I,RD,B){ $('readers').innerHTML=RD.map(d=>{ const p=l=>pick
       <details class="more" data-k="${esc(d.id)}"><summary>Ring and tap settings</summary>${readerSettings(p)}</details></section>`; }).join('')||'<p class="muted">No MagicBand readers found (ESPHome model magicband-reader).</p>'; }
 
 // The readers' light shows, a copy of components/magicband/shows.h for the live ring: keep the two in step.
-const SHOW_NAMES=['Rainbow rush','Fireworks','Comet chase','Colour parade','Twinkle','Heartbeat','Ocean','Fire','Pinwheel','Confetti','Penguins','Goal','Aurora','Candy cane','Thunderstorm','Sunrise','Disco'];
-const SHOW_MS=[3100,5000,4000,4300,5000,4300,5000,4500,4500,4500,4800,2900,5500,4500,5000,5000,4500];
+const SHOW_NAMES=['Rainbow rush','Fireworks','Comet chase','Colour parade','Twinkle','Heartbeat','Ocean','Fire','Pinwheel','Confetti','Penguins','Goal','Aurora','Candy cane','Thunderstorm','Sunrise','Disco',
+  'Birthday','New Year','Valentine','St Patrick','Easter','Stars and Stripes','Halloween','Thanksgiving','Hanukkah','Christmas','Stamp'];
+const SHOW_MS=[3100,5000,4000,4300,5000,4300,5000,4500,4500,4500,4800,2900,5500,4500,5000,5000,4500,5000,5200,4600,4500,4800,4800,5000,5000,5200,5000,2800];
 function showHash(a,b){ let h=(Math.imul(a+1,2654435761)^Math.imul(b,40503))>>>0; h=(h^(h>>>13))>>>0; h=Math.imul(h,0x5bd1e995)>>>0; h=(h^(h>>>15))>>>0; return h; }
 function showHue(h){ h=(h-Math.floor(h))*6; const k=n=>{ const v=(n+h)%6, m=Math.min(v,4-v); return 1-Math.max(0,Math.min(1,m)); }; return [k(5),k(3),k(1)]; }
 // [rgb 0-1, level 0-1] per LED, or null once the show has ended.
@@ -456,6 +549,44 @@ function renderShow(show,t,n){
     for(let i=0;i<n;i++){ const cloud=.5+.5*Math.sin(6.2832*(i/n*2+T/2600)); put(i,[.05,.1,.45],e*(.12+.25*cloud)); if(fl>0) put(i,[.85,.9,1],fl); } }
   else if(show===15){ const q=T/D, e=T>4300?cl((5000-T)/700):1; for(let i=0;i<n;i++){ const h=Math.abs(i/n-.5)*2, lift=cl(q*1.6-(1-h)*.6); put(i,[1,cl(lift*.85),cl(lift*lift*.55)],e*cl(.15+lift)); } }
   else if(show===16){ const bt=Math.floor(t/250), p=(T-bt*250)/250, e=T>4000?cl((4500-T)/500):1; for(let i=0;i<n;i++){ const seg=Math.floor(i*6/n), h=showHash(seg,bt); put(i,showHue((h&1023)/1024),e*(.45+.55*(1-p))); } }
+  else if(show===17){ const C=[[1,.35,.6],[1,.8,.1],[.2,.8,1],[.5,1,.2]];
+    if(T<4300){ const lit=T<1500?Math.floor(T/1500*n):n, blow=T<3300?0:(T-3300)/1000, f0=Math.floor(t/80);
+      for(let i=0;i<=lit&&i<n;i++){ const top=Math.abs(i/n-.5)*2; if(top>1-blow) continue; put(i,C[i%4],.75+.25*((showHash(i,f0)&255)/255)); } }
+    else { const q=(T-4300)/700, f0=Math.floor(t/50); for(let i=0;i<n;i++){ const h=showHash(i,f0); if((h&3)===0) put(i,C[(h>>>4)%4],1-q); } } }
+  else if(show===18){
+    if(T<1800){ const k=Math.floor(T/600), p=(T-k*600)/600, v=p<.6?1:1-(p-.6)/.4, lit=Math.floor(n*(3-k)/3); for(let i=0;i<lit;i++) put(i,[1,1,1],v); }
+    else { const e=T>4600?cl((5200-T)/600):1;
+      for(let k=0;k<5;k++){ const age=T-1800-k*650; if(age<0||age>1100) continue; const centre=showHash(k,31)%n, c=(k&1)?[.85,.88,1]:[1,.72,.12], radius=age/600*(n/5), fade=1-age/1100;
+        for(let d=0;d<=Math.floor(radius)&&d<=Math.floor(n/2);d++){ const v=e*fade*(.4+.6*(1-(radius-d)/(radius+1))); put(centre+d,c,v); put(centre-d,c,v); } }
+      const f0=Math.floor(t/60); for(let i=0;i<n;i++) if((showHash(i,f0)&31)===0) put(i,[1,.85,.4],e*.8); } }
+  else if(show===19){ const red=[1,0,.12], pink=[1,.3,.55];
+    if(T<1400){ const q=T/1400; for(let i=0;i<n;i++){ const pos=i/n, right=pos<=.5, along=right?pos*2:(1-pos)*2; if(along<=q) put(i,right?pink:red,.5+.5*(1-(q-along))); } }
+    else { const p=(T-1400)%1100; let v=.25; if(p<200) v=.25+.75*Math.sin(3.1416*p/200); else if(p>=280&&p<520) v=.25+.5*Math.sin(3.1416*(p-280)/240);
+      const e=T>4000?cl((4600-T)/600):1; for(let i=0;i<n;i++) put(i,i/n<=.5?pink:red,e*v); } }
+  else if(show===20){ const e=env(400,600); for(let i=0;i<n;i++){ const w=.5+.5*Math.sin(6.2832*(i/n*3+T/1800)); put(i,[.05+.25*w,.55+.45*w,.1*(1-w)],e*(.4+.6*w)); }
+    const f0=Math.floor(t/70); for(let i=0;i<n;i++) for(let b=0;b<6&&b<=f0;b++) if(showHash(i,f0-b)%100<3){ put(i,[1,.75,.1],e*(1-b/6)); break; } }
+  else if(show===21){ const P=[[1,.55,.7],[1,.9,.45],[.5,1,.7],[.75,.6,1],[.5,.8,1],[1,.7,.5]], e=env(400,600), turn=T/6000;
+    for(let i=0;i<n;i++){ const a=fr(i/n+turn)*6, egg=Math.floor(a), ins=a-egg; if(egg>5||ins<.15||ins>.85) continue; const hatch=T-600-egg*600;
+      put(i,P[egg],e*(.55+.45*Math.sin(3.1416*(ins-.15)/.7))); if(hatch>=0&&hatch<250) put(i,[1,1,1],e*(1-hatch/250)); } }
+  else if(show===22){ const C=[[1,0,.05],[1,1,1],[0,.2,1]];
+    if(T<1200){ const q=T/1200; for(let i=0;i<n;i++){ const pos=i/n*3, s=Math.floor(pos); if(pos-s<=q) put(i,C[s],s===1?.75:1); } }
+    else if(T<3400){ const q=(T-1200)/2200, turn=1.5*q*q; for(let i=0;i<n;i++){ const s=Math.min(2,Math.floor(fr(i/n+turn)*3)); put(i,C[s],s===1?.75:1); } }
+    else { const e=T>4200?cl((4800-T)/600):1; for(let i=0;i<n;i++){ put(i,C[2],e*.5); const h=showHash(i,5), s=Math.sin(6.2832*(T/(500+h%400)+((h>>>12)%100)/100)); if((h&3)===0&&s>0) put(i,[1,1,1],e*s); } } }
+  else if(show===23){ const e=env(400,600), turn=T/8000, f0=Math.floor(t/90); let ghost=0; for(const s0 of [2000,3600]){ const d=T-s0; if(d>=0&&d<300) ghost=1-d/300; }
+    for(let i=0;i<n;i++){ put(i,[.45,0,.8],e*.35); const a=fr(i/n+turn)*4, ins=a-Math.floor(a); if(ins>.3&&ins<.7) put(i,[1,.35,0],e*(.55+.45*((showHash(i,f0)&255)/255))); if(ghost>0) put(i,[.55,1,.55],ghost); } }
+  else if(show===24){ const L=[[1,.35,0],[.85,.1,0],[1,.7,.1],[.6,.25,.05]], e=env(500,700), half=n/2;
+    for(let i=0;i<n;i++) put(i,[1,.45,.05],e*.15);
+    for(let k=0;k<12;k++){ const age=T-showHash(k,11)%3600; if(age<0||age>1400) continue; const along=age/1400, right=(showHash(k,12)&1)===1, i=right?Math.floor(along*half):n-1-Math.floor(along*half), c=L[showHash(k,13)%4];
+      put(i,c,e*(1-.3*along)); put(right?i-1:i+1,c,e*.4*(1-along)); } }
+  else if(show===25){ const e=T>4600?cl((5200-T)/600):1, f0=Math.floor(t/90); for(let i=0;i<n;i++) put(i,[0,.2,1],e*cl((T-400)/1500)*.3);
+    for(let c=0;c<9;c++){ const lit=T-300-c*350; if(lit<0) continue; put(Math.floor(c*n/9),c===0?[1,.85,.5]:[.85,.9,1],e*cl(lit/200)*(.75+.25*((showHash(c,f0)&255)/255))); } }
+  else if(show===26){ const e=env(300,600);
+    if(T<3800){ const step=Math.floor(T/220), f0=Math.floor(t/120); for(let i=0;i<n;i++){ const k=(i+step)%4; if(k===0) put(i,[1,0,.05],e); else if(k===2) put(i,[0,1,.15],e); if((showHash(i,f0)&31)===0) put(i,[1,1,1],e*.9); } }
+    else { const q=(T-3800)/1200; for(let i=0;i<n;i++){ const top=Math.abs(i/n-.5)*2; put(i,[1,.7,.15],e*cl((top-.8)*5)*(.6+.4*Math.sin(q*12))); put(i,[0,.6,.1],e*.25*(1-q)); } } }
+  else if(show===27){ const gold=[1,.72,.1];
+    if(T<700){ const lit=Math.floor(T/700*n); for(let i=0;i<=lit&&i<n;i++) put(i,gold,.6+.4*i/n); }
+    else if(T<900){ for(let i=0;i<n;i++) put(i,[1,1,1],1-(T-700)/400); }
+    else { const e=T>2200?cl((2800-T)/600):1, f0=Math.floor(t/50); for(let i=0;i<n;i++){ put(i,gold,e*.7); if((showHash(i,f0)&7)===0) put(i,[1,1,.85],e); } } }
   return out; }
 
 // A live twin of the reader's ring: it draws what the ring is doing from the reader's Ring light
@@ -711,10 +842,10 @@ function render(){ if(!H()||!H().live()) return; if(editing) return;   // never 
   const I=index(), D=H().devices(), BR=D.filter(d=>BRIDGE_MODELS.test(d.model||'')).sort((a,b)=>dname(a).localeCompare(dname(b))), RD=D.filter(d=>READER_MODEL.test(d.model||''));
   const B=bands(I).sort((a,b)=>String(a.person||'~').localeCompare(String(b.person||'~'))||a.name.localeCompare(b.name)), P=people(I);
   const us=svcSensor(I,e=>/unknown_bands$/.test(e)||(e.startsWith('sensor.')&&'bands' in A(e)&&!('allowed' in A(e)))), unk=us?(A(us).bands||[]):[];
-  [()=>kpis(I,B,P,BR,RD,unk),()=>unknownJob(I,P,unk),()=>linkJob(I,B,P),()=>bandCards(I,B,P),sendBar,()=>peopleTable(I,P),()=>enrolBar(I),()=>histList(I),()=>readerCards(I,RD,B),()=>heroTwin(I,RD),()=>bridgeCards(I,BR),()=>sxBridges(I,BR),wire].forEach(f=>{ try{ f(); }catch(e){ console.error(e); } }); }
+  [()=>kpis(I,B,P,BR,RD,unk),()=>unknownJob(I,P,unk),()=>linkJob(I,B,P),()=>bandCards(I,B,P),sendBar,()=>peopleTable(I,P),()=>enrolBar(I),rulesCard,celebCard,passportCards,wireHouse,()=>histList(I),()=>readerCards(I,RD,B),()=>heroTwin(I,RD),()=>bridgeCards(I,BR),()=>sxBridges(I,BR),wire].forEach(f=>{ try{ f(); }catch(e){ console.error(e); } }); }
 // each section is redrawn only when its content changed, and an open fold-out (Manage, Ring and tap settings) stays open
 (()=>{ const D=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML');
-  ['kpis','unknown','link','bands','send','people','readers','bridges','hist','enrol','hero-twin'].forEach(id=>{ const el=$(id); if(!el) return;
+  ['kpis','unknown','link','bands','send','people','readers','bridges','hist','enrol','hero-twin','rules','celeb','passport'].forEach(id=>{ const el=$(id); if(!el) return;
     Object.defineProperty(el,'innerHTML',{configurable:true,get(){ return D.get.call(el); },set(v){ if(el.__h===v) return;
       const open=[...el.querySelectorAll('details[data-k]')].filter(x=>x.open).map(x=>x.dataset.k);
       D.set.call(el,v); el.__h=v; open.forEach(k=>{ const x=[...el.querySelectorAll('details[data-k]')].find(y=>y.dataset.k===k); if(x) x.open=true; }); }}); }); })();

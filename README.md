@@ -77,8 +77,9 @@ Then:
   sequence (colours, circles, welcome and denied timings, a dimmer idle glow
   at night, by set hours or sunset to sunrise) set from the reader's device
   page
-- 17 light shows, played at start-up, from the device page, from
-  `magicband.play_show` or on a schedule (blueprint)
+- 28 light shows, played at start-up, from the device page, from
+  `magicband.play_show` or on a schedule (blueprint), including holiday,
+  birthday and passport-stamp shows
 - Health sensors (Wi-Fi signal, memory, loop time, CPU temperature, restart
   reason) for spotting trouble
 - Runs from one USB-C charger (20 W or more)
@@ -107,6 +108,10 @@ Then:
 - The `magicband.send` action and the bundled blueprints
 - Logs which MagicBand+ devices Home Assistant's Bluetooth hears, and when,
   so you can see bands responding to a bridge
+- Guest passes (start and end, number of uses, daily hours), lockdown (by
+  hand, when nobody's home, at night or while the alarm is armed),
+  birthday and holiday shows after a welcome, and a tap passport with
+  streaks and stamps
 
 ## Releases and versions
 

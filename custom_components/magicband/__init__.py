@@ -23,7 +23,7 @@ import voluptuous as vol
 
 from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, EVENT_SERVICE_REGISTERED, Platform
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, EVENT_SERVICE_REGISTERED, EVENT_STATE_CHANGED, Platform
 from homeassistant.core import CoreState, Event, HomeAssistant, ServiceCall, SupportsResponse, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv, device_registry as dr, entity_registry as er
@@ -47,6 +47,7 @@ from .const import (
     ATTR_NAME,
     ATTR_PERSON,
     DOMAIN,
+    EVENT_BADGE,
     EVENT_TAP,
     READER_MODEL,
     READER_SET_SERVICE_SUFFIX,
@@ -58,7 +59,8 @@ from .beacons import BeaconTracker
 from .blueprint_installer import async_install_blueprints
 from .panel import CONF_SIDEBAR, async_remove_panel, async_setup_panel
 from .bridges import ANIMATIONS, EFFECTS, async_send, find_bridges
-from . import snapshots
+from . import holidays, snapshots
+from .passport import Passport
 from .history import TapHistory
 from .listener import BandListener
 from .readers import CONF_READER_KEY, READER_LIST_CAPACITY, ReaderManager, is_reader_device  # noqa: F401 - re-exported
@@ -96,7 +98,9 @@ class MagicBandData:
     beacons: BeaconTracker
     readers: ReaderManager
     history: TapHistory
+    passport: Passport
     enrolment: Enrolment | None = None
+    lockdown: bool = False
     unsubs: list = field(default_factory=list)
 
 
@@ -120,6 +124,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
     readers = ReaderManager(hass, registry, entry.data[CONF_READER_KEY])
     history = TapHistory(hass)
     await history.async_load()
+    passport = Passport(hass)
+    await passport.async_load()
 
     async def _sync() -> None:
         await readers.async_sync()
@@ -131,7 +137,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
     listener = BandListener(hass)
     listener.on_band = beacons.async_beacon
     data = MagicBandData(
-        registry=registry, sync=debouncer, listener=listener, beacons=beacons, readers=readers, history=history
+        registry=registry, sync=debouncer, listener=listener, beacons=beacons, readers=readers, history=history,
+        passport=passport,
     )
     entry.runtime_data = data
 
@@ -141,6 +148,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
         async_dispatcher_send(hass, SIGNAL_UPDATED)
 
     data.unsubs.append(registry.async_add_listener(_allowed_changed))
+
+    @callback
+    def _lockdown_input(event: Event) -> None:
+        # Somebody came home or left, or the alarm changed: lockdown may have started or ended.
+        hass.async_create_task(debouncer.async_call())
+        async_dispatcher_send(hass, SIGNAL_UPDATED)
+
+    @callback
+    def _is_lockdown_input(event_data) -> bool:
+        cfg = registry.settings
+        entity = event_data.get("entity_id")
+        return (cfg["lockdown_away"] and entity == "zone.home") or (bool(cfg["lockdown_alarm"]) and entity == cfg["lockdown_alarm"])
+
+    data.unsubs.append(hass.bus.async_listen(EVENT_STATE_CHANGED, _lockdown_input, event_filter=_is_lockdown_input))
 
     @callback
     def _on_tag(event: Event) -> None:
@@ -178,6 +199,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
         if readers.schedule_changed():
             hass.async_create_task(debouncer.async_call())
         readers.check_health()
+        lockdown = bool(registry.lockdown_reasons())
+        if lockdown != data.lockdown:  # night hours began or ended
+            data.lockdown = lockdown
+            async_dispatcher_send(hass, SIGNAL_UPDATED)
         if data.enrolment is not None and dt_util.utcnow() >= data.enrolment.until:
             _end_enrolment(hass, data)
         if _now.minute == 7:  # hourly: old tap snapshots go
@@ -220,6 +245,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) -
         async_remove_panel(hass)
         await entry.runtime_data.registry.async_flush()
         await entry.runtime_data.history.async_flush()
+        await entry.runtime_data.passport.async_flush()
         await entry.runtime_data.beacons.async_shutdown()
         for unsub in entry.runtime_data.unsubs:
             unsub()
@@ -249,6 +275,7 @@ def _handle_scan(hass: HomeAssistant, data: MagicBandData, tag_id: str, device_i
     # a moment ago, so it mustn't open anything. Its next tap is let in.
     allowed = False if enrolled else registry.band_allowed(band.uid)
     name = data.beacons.band_display_name(band.uid)
+    badges, celebration = _welcome_extras(hass, data, person, device_id) if allowed and person else ([], None)
 
     hass.bus.async_fire(
         EVENT_TAP,
@@ -264,10 +291,19 @@ def _handle_scan(hass: HomeAssistant, data: MagicBandData, tag_id: str, device_i
             "reader_device_id": device_id,
             "name": name,
             "enrolled": enrolled,
+            "celebration": celebration,
+            "badges": [b.name for b in badges],
         },
     )
+    for badge in badges:
+        hass.bus.async_fire(EVENT_BADGE, {
+            ATTR_PERSON: person.name, "person_id": person.id, ATTR_HA_PERSON: person.ha_person,
+            "badge": badge.key, "name": badge.name, "how": badge.how, "icon": badge.icon,
+        })
     entry = data.history.add(band=band.display, name=name, person=person.name if person else None, reader=reader,
                              allowed=allowed, enrolled=enrolled)
+    if badges:
+        entry["badges"] = [f"{b.icon} {b.name}" for b in badges]
     if camera := data.registry.reader_camera(device_id):
         # Optional: a picture of who tapped, from the camera linked to this reader (in the
         # background, so the tap and any unlock aren't held up).
@@ -294,6 +330,29 @@ def _handle_scan(hass: HomeAssistant, data: MagicBandData, tag_id: str, device_i
             title="MagicbHAnds: unknown band",
             notification_id=f"{DOMAIN}_unknown_{band.uid}",
         )
+
+
+def _welcome_extras(hass: HomeAssistant, data: MagicBandData, person, device_id: str | None):
+    """A welcomed tap: a use off a guest pass, the passport, and a celebration show after the welcome.
+
+    Returns (new badges, the show played or None). Badge > birthday > holiday.
+    """
+    registry = data.registry
+    registry.use_tap(person.id)
+    now, cfg = dt_util.now(), registry.settings
+    badges = data.passport.record(person.id, now, person.birthday) if cfg["passport"] and not person.guest else []
+    show = None
+    if badges and cfg["passport_shows"]:
+        show = "Stamp"
+    elif cfg["birthday_shows"] and holidays.is_birthday(person.birthday, now.date()):
+        show = "Birthday"
+    elif cfg["holiday_shows"] and (today := holidays.holidays_on(now.date())):
+        show = today[0].show
+    if show and device_id:
+        from .readers import async_play_show
+
+        hass.async_create_background_task(async_play_show(hass, show, [device_id]), f"{DOMAIN}_celebration")
+    return badges, show
 
 
 # ---------------------------------------------------------------------------
@@ -410,6 +469,7 @@ def _register_services(hass: HomeAssistant) -> None:
                 call.data.get(ATTR_HA_PERSON),
                 call.data.get(ATTR_ALLOWED, True),
                 call.data.get(ATTR_WELCOME_COLOUR) or None,
+                guest=call.data.get("guest", False),
             )
         except ValueError as err:
             raise ServiceValidationError(str(err)) from err
@@ -425,13 +485,18 @@ def _register_services(hass: HomeAssistant) -> None:
                 ha_person=call.data.get(ATTR_HA_PERSON),
                 allowed=call.data.get(ATTR_ALLOWED),
                 welcome_colour=call.data.get(ATTR_WELCOME_COLOUR),
+                birthday=call.data.get("birthday"),
+                lockdown_exempt=call.data.get("lockdown_exempt"),
+                guest=call.data.get("guest"),
             )
         except ValueError as err:
             raise ServiceValidationError(str(err)) from err
 
     async def remove_person(call: ServiceCall) -> None:
         registry = _get_registry(hass)
-        registry.remove_person(_resolve_person(registry, call.data[ATTR_PERSON]).id)
+        person = _resolve_person(registry, call.data[ATTR_PERSON])
+        registry.remove_person(person.id)
+        _data().passport.forget(person.id)
 
     async def assign_band(call: ServiceCall) -> None:
         registry = _get_registry(hass)
@@ -474,6 +539,15 @@ def _register_services(hass: HomeAssistant) -> None:
                     "allowed": p.allowed,
                     "welcome_colour": p.welcome_colour,
                     "bands": [b.display for b in registry.bands_for(p.id)],
+                    "birthday": p.birthday,
+                    "lockdown_exempt": p.lockdown_exempt,
+                    "guest": p.guest,
+                    "pass": {
+                        "from": p.valid_from, "until": p.valid_until, "uses_left": p.uses_left,
+                        "access_from": p.access_from, "access_until": p.access_until, "days": p.access_days,
+                    } if p.guest or p.has_pass else None,
+                    "allowed_now": registry.person_allowed_now(p),
+                    "passport": None if p.guest else _data().passport.get(p.id),
                 }
                 for p in registry.people
             ],
@@ -481,6 +555,18 @@ def _register_services(hass: HomeAssistant) -> None:
             "readers": _data().readers.report(),
             "enrolment": enrolment_state(_data()),
             "colours": READER_COLOURS,
+            "settings": registry.settings,
+            "lockdown": registry.lockdown_reasons(),
+            "today": _today(registry),
+            "upcoming": holidays.upcoming(dt_util.now().date()),
+        }
+
+    def _today(registry: MagicBandRegistry) -> dict[str, Any]:
+        day = dt_util.now().date()
+        return {
+            "date": day.isoformat(),
+            "holidays": [{"name": h.name, "show": h.show} for h in holidays.holidays_on(day)],
+            "birthdays": [p.name for p in registry.people if holidays.is_birthday(p.birthday, day)],
         }
 
     async_register_admin_service(
@@ -492,6 +578,7 @@ def _register_services(hass: HomeAssistant) -> None:
                 vol.Optional(ATTR_HA_PERSON): cv.entity_domain("person"),
                 vol.Optional(ATTR_ALLOWED, default=True): cv.boolean,
                 vol.Optional(ATTR_WELCOME_COLOUR): vol.Any("", vol.In(READER_COLOURS)),
+                vol.Optional("guest", default=False): cv.boolean,
             }
         ),
         supports_response=SupportsResponse.OPTIONAL,
@@ -506,6 +593,9 @@ def _register_services(hass: HomeAssistant) -> None:
                 vol.Optional(ATTR_HA_PERSON): vol.Any("", cv.entity_domain("person")),
                 vol.Optional(ATTR_ALLOWED): cv.boolean,
                 vol.Optional(ATTR_WELCOME_COLOUR): vol.Any("", vol.In(READER_COLOURS)),
+                vol.Optional("birthday"): vol.Any(None, cv.string),
+                vol.Optional("lockdown_exempt"): cv.boolean,
+                vol.Optional("guest"): cv.boolean,
             }
         ),
     )
@@ -538,7 +628,11 @@ def _register_services(hass: HomeAssistant) -> None:
         devices = call.data.get("device_id") or None
         if isinstance(devices, str):
             devices = [devices]
-        return await async_play_show(hass, call.data.get("show", "Random"), devices, call.context)
+        show = call.data.get("show", "Random")
+        if show == "Today":  # today's holiday show, or any everyday one
+            today = holidays.holidays_on(dt_util.now().date())
+            show = today[0].show if today else "Random"
+        return {**await async_play_show(hass, show, devices, call.context), "show": show}
 
     from .readers import SHOW_NAMES
 
@@ -548,7 +642,7 @@ def _register_services(hass: HomeAssistant) -> None:
         play_show,
         vol.Schema(
             {
-                vol.Optional("show", default="Random"): vol.In(("Random", *SHOW_NAMES)),
+                vol.Optional("show", default="Random"): vol.In(("Random", "Today", *SHOW_NAMES)),
                 vol.Optional("device_id"): vol.Any(cv.string, [cv.string]),
             }
         ),
@@ -680,6 +774,82 @@ def _register_services(hass: HomeAssistant) -> None:
         if kwargs.get("expires") is not None and kwargs["expires"].tzinfo is None:
             kwargs["expires"] = kwargs["expires"].replace(tzinfo=dt_util.get_default_time_zone())
         registry.set_band_access(uid, **kwargs)
+
+    async def set_guest_pass(call: ServiceCall) -> None:
+        """When a guest's bands work: dates, number of uses, a daily window. Makes the person a guest."""
+        registry = _get_registry(hass)
+        person = _resolve_person(registry, call.data[ATTR_PERSON])
+        if call.data.get("clear"):
+            registry.set_guest_pass(person.id, valid_from=None, valid_until=None, uses_left=None,
+                                    access_from=None, access_until=None, access_days=None)
+            return
+        kwargs: dict[str, Any] = {}
+        for key, field_name in (("valid_from", "starts"), ("valid_until", "ends"), ("access_from", "from"),
+                                ("access_until", "until"), ("access_days", "days")):
+            if field_name in call.data:
+                value = call.data[field_name] or None
+                if isinstance(value, datetime) and value.tzinfo is None:
+                    value = value.replace(tzinfo=dt_util.get_default_time_zone())
+                kwargs[key] = value
+        if "uses" in call.data:
+            kwargs["uses_left"] = call.data["uses"]
+        if kwargs.get("valid_from") and kwargs.get("valid_until") and kwargs["valid_until"] <= kwargs["valid_from"]:
+            raise ServiceValidationError("The pass has to end after it starts")
+        registry.set_guest_pass(person.id, **kwargs)
+
+    async def set_settings(call: ServiceCall) -> dict[str, Any]:
+        """Lockdown and celebration settings for the whole house."""
+        registry = _get_registry(hass)
+        changes = {k: v for k, v in call.data.items()}
+        for key in ("lockdown_from", "lockdown_until"):
+            if key in changes and hasattr(changes[key], "strftime"):
+                changes[key] = changes[key].strftime("%H:%M")
+        try:
+            settings = registry.set_settings(**changes)
+        except ValueError as err:
+            raise ServiceValidationError(str(err)) from err
+        async_dispatcher_send(hass, SIGNAL_UPDATED)
+        return {"settings": settings, "lockdown": registry.lockdown_reasons()}
+
+    async_register_admin_service(
+        hass,
+        DOMAIN,
+        "set_guest_pass",
+        set_guest_pass,
+        vol.Schema(
+            {
+                vol.Required(ATTR_PERSON): cv.string,
+                vol.Optional("starts"): vol.Any(None, "", cv.datetime),
+                vol.Optional("ends"): vol.Any(None, "", cv.datetime),
+                vol.Optional("uses"): vol.Any(None, vol.All(vol.Coerce(int), vol.Range(min=0, max=10000))),
+                vol.Optional("from"): vol.Any(None, "", cv.time),
+                vol.Optional("until"): vol.Any(None, "", cv.time),
+                vol.Optional("days"): vol.Any(None, vol.All(cv.ensure_list, [vol.In(WEEKDAYS)])),
+                vol.Optional("clear", default=False): cv.boolean,
+            }
+        ),
+    )
+    async_register_admin_service(
+        hass,
+        DOMAIN,
+        "set_settings",
+        set_settings,
+        vol.Schema(
+            {
+                vol.Optional("lockdown"): cv.boolean,
+                vol.Optional("lockdown_away"): cv.boolean,
+                vol.Optional("lockdown_night"): cv.boolean,
+                vol.Optional("lockdown_from"): cv.time,
+                vol.Optional("lockdown_until"): cv.time,
+                vol.Optional("lockdown_alarm"): vol.Any(None, "", cv.entity_domain("alarm_control_panel")),
+                vol.Optional("holiday_shows"): cv.boolean,
+                vol.Optional("birthday_shows"): cv.boolean,
+                vol.Optional("passport"): cv.boolean,
+                vol.Optional("passport_shows"): cv.boolean,
+            }
+        ),
+        supports_response=SupportsResponse.OPTIONAL,
+    )
 
     async def enrol(call: ServiceCall) -> dict[str, Any]:
         data = _data()

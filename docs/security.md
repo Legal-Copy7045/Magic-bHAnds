@@ -42,7 +42,8 @@ on the reader is real*.
 ## Who can change who's allowed in
 
 Everything that changes access (people, assigning bands, access schedules,
-enrolment, linking Bluetooth) and the actions that return everything at once
+guest passes, lockdown and the other house settings, enrolment, linking
+Bluetooth) and the actions that return everything at once
 (`list`, `history`, `list_bluetooth_bands`, `list_heard`) need an
 **administrator** in Home Assistant, and so does the MagicbHAnds sidebar page. Other users can only:
 use the bands (`magicband.send`, at most 30 commands a minute per bridge),
@@ -115,6 +116,16 @@ list (denies everyone) rather than keep an old one, and it shows in
 **Settings → Repairs** ("<reader> didn't take the allowed list", or "Too many
 allowed bands for the readers"). A reader that's offline keeps its last list
 until it reconnects; after 15 minutes offline it shows in Repairs too.
+
+Guest passes and lockdown work through this list: a band whose pass hasn't
+started, has ended or has no uses left, or whose owner doesn't get in during
+lockdown, is left off it, so the reader denies it on its own. Changes reach
+the readers within seconds (somebody leaving or coming home, the alarm, a
+setting) or within a minute (a pass or night hours starting or ending). A
+reader cut off from Home Assistant keeps its last list, so while it's offline
+a lockdown or a pass's end isn't applied, and a pass's uses aren't counted.
+Lockdown isn't a lock: it only changes who the readers welcome, and what that
+opens is up to your automations.
 
 Readers also store each band's welcome colour. Any Home Assistant user can
 call a reader's `set_band_colours` action, but that only changes the colour a

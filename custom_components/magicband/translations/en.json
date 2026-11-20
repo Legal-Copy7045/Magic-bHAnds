@@ -156,6 +156,9 @@
     "binary_sensor": {
       "band_nearby": {
         "name": "Nearby"
+      },
+      "lockdown": {
+        "name": "Lockdown"
       }
     },
     "select": {
@@ -189,12 +192,16 @@
         "welcome_colour": {
           "name": "Welcome colour",
           "description": "The colour the readers welcome this person's bands in (empty: the reader's own Welcome colour)."
+        },
+        "guest": {
+          "name": "Guest",
+          "description": "A guest: give them a pass with magicband.set_guest_pass (dates, uses, hours). Guests get no tap passport."
         }
       }
     },
     "update_person": {
       "name": "Update person",
-      "description": "Rename, link or allow/deny a person.",
+      "description": "Rename, link or allow/deny a person, and set their birthday or whether they get in during lockdown.",
       "fields": {
         "person": {
           "name": "Person",
@@ -215,6 +222,18 @@
         "welcome_colour": {
           "name": "Welcome colour",
           "description": "The colour the readers welcome this person's bands in (empty: the reader's own Welcome colour)."
+        },
+        "birthday": {
+          "name": "Birthday",
+          "description": "Month and day, MM-DD (empty to clear). Their taps that day get the Birthday show."
+        },
+        "lockdown_exempt": {
+          "name": "Gets in during lockdown",
+          "description": "Still let in while the house is in lockdown."
+        },
+        "guest": {
+          "name": "Guest",
+          "description": "Whether they're a guest (guests get no tap passport)."
         }
       }
     },
@@ -276,7 +295,7 @@
       "fields": {
         "show": {
           "name": "Show",
-          "description": "Which show, or Random for a different one each time."
+          "description": "Which show. Random: a different everyday show each time. Today: today's holiday show (or Random if it isn't a holiday)."
         },
         "device_id": {
           "name": "Readers",
@@ -537,6 +556,90 @@
         "days": {
           "name": "Days",
           "description": "1 to 365."
+        }
+      }
+    },
+    "set_guest_pass": {
+      "name": "Set a guest pass",
+      "description": "When a guest's bands work: from and until a date and time, a number of welcomed taps, and a daily window on some days. Makes the person a guest. Admins only.",
+      "fields": {
+        "person": {
+          "name": "Person",
+          "description": "Name or ID of the guest."
+        },
+        "starts": {
+          "name": "Starts",
+          "description": "Their bands work from this date and time (empty: now)."
+        },
+        "ends": {
+          "name": "Ends",
+          "description": "Their bands stop working at this date and time (empty: no end)."
+        },
+        "uses": {
+          "name": "Uses",
+          "description": "How many welcomed taps the pass has left (empty: no limit)."
+        },
+        "from": {
+          "name": "Each day from",
+          "description": "Daily window start (empty: all day)."
+        },
+        "until": {
+          "name": "Each day until",
+          "description": "Daily window end; earlier than From means overnight."
+        },
+        "days": {
+          "name": "Days",
+          "description": "Days of the week the pass works (empty: every day)."
+        },
+        "clear": {
+          "name": "Clear",
+          "description": "Remove every limit from the pass."
+        }
+      }
+    },
+    "set_settings": {
+      "name": "House settings",
+      "description": "Lockdown (only people who get in during lockdown are let in) and the celebration shows. Admins only.",
+      "fields": {
+        "lockdown": {
+          "name": "Lockdown now",
+          "description": "Turn lockdown on or off by hand."
+        },
+        "lockdown_away": {
+          "name": "Lockdown when nobody's home",
+          "description": "Lockdown while zone.home counts nobody home."
+        },
+        "lockdown_night": {
+          "name": "Lockdown at night",
+          "description": "Lockdown between Night from and Night until."
+        },
+        "lockdown_from": {
+          "name": "Night from",
+          "description": "Start of the nightly lockdown."
+        },
+        "lockdown_until": {
+          "name": "Night until",
+          "description": "End of the nightly lockdown."
+        },
+        "lockdown_alarm": {
+          "name": "Alarm",
+          "description": "Lockdown while this alarm panel is armed (empty: none)."
+        },
+        "holiday_shows": {
+          "name": "Holiday shows",
+          "description": "On a holiday, play its show after each welcome."
+        },
+        "birthday_shows": {
+          "name": "Birthday shows",
+          "description": "On someone's birthday, play the Birthday show after their welcome."
+        },
+        "passport": {
+          "name": "Tap passport",
+          "description": "Count taps and give badges."
+        },
+        "passport_shows": {
+          "name": "Passport stamp show",
+          "description": "Play the Stamp show after a welcome that earns a badge."
         }
       }
     }
