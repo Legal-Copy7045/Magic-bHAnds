@@ -21,7 +21,7 @@
 substitutions:
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.10.20"
+  project_version: "0.10.21"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -57,7 +57,6 @@ esphome:
     then:
       # Everything is set up now, so the ring's settings can be applied.
       - globals.set: {id: ring_ready, value: "true"}
-      - lambda: 'id(powered_on) = esp_reset_reason() == ESP_RST_POWERON;'
       - binary_sensor.template.publish:
           id: paired
           state: !lambda 'return magicband::reader_paired(id(pair_key));'
@@ -152,17 +151,29 @@ api:
     # The MagicbHAnds integration pairs with the reader (components/magicband/
     # reader_key.h): afterwards accept, deny, set_known_bands and
     # set_band_colours need its key, so other Home Assistant users can't use
-    # them. A paired reader takes a new key only within 10 minutes of being
-    # plugged in (a power-on, not a restart).
+    # them. A paired reader never takes a different key over the network: the
+    # key holder can release it (unpair), or erase it over USB.
     - action: pair
       variables:
         key: string
       then:
         - lambda: |-
-            const bool window = id(powered_on) && millis() < magicband::PAIR_WINDOW_MS;
-            id(sync_error) = magicband::reader_pair(id(pair_key), key, window);
+            id(sync_error) = magicband::reader_pair(id(pair_key), key);
             if (id(sync_error).empty()) ESP_LOGI("reader", "Paired with MagicbHAnds");
             else ESP_LOGW("reader", "Not paired: %s", id(sync_error).c_str());
+        - binary_sensor.template.publish:
+            id: paired
+            state: !lambda 'return magicband::reader_paired(id(pair_key));'
+        - api.respond:
+            success: !lambda 'return id(sync_error).empty();'
+            error_message: !lambda 'return id(sync_error);'
+    - action: unpair
+      variables:
+        key: string
+      then:
+        - lambda: |-
+            id(sync_error) = magicband::reader_unpair(id(pair_key), key);
+            if (id(sync_error).empty()) ESP_LOGI("reader", "No longer paired");
         - binary_sensor.template.publish:
             id: paired
             state: !lambda 'return magicband::reader_paired(id(pair_key));'
@@ -730,9 +741,6 @@ globals:
   - id: pair_key          # the MagicbHAnds integration's key ("" = not paired; see the pair action)
     type: magicband::ReaderKey
     restore_value: true
-  - id: powered_on        # this boot was a power-on (not a restart): a new key may pair
-    type: bool
-    initial_value: "false"
   - id: sync_error        # why the last set_known_bands failed ("" = applied)
     type: std::string
   # Each allowed band's owner's welcome colour: ",UID=Colour,UID=Colour,"

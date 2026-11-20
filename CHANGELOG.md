@@ -3,6 +3,18 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.21] - 2026-11-20
+
+### Security
+- **A paired reader can't be taken over after a power cut.** 0.10.20 let a
+  paired reader take a new key in the 10 minutes after a power-on, and any
+  Home Assistant user can call the reader's `pair` action, so someone could
+  pair it with their own key during that window. A paired reader now never
+  takes a different key over the network: only the key holder can release
+  it (new `unpair` action on the reader, and the admin-only
+  `magicband.unpair_reader`), or it can be erased over USB with the web
+  installer. The key is in Home Assistant's backups.
+
 ## [0.10.20] - 2026-11-20
 
 ### Security
