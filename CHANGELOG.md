@@ -3,6 +3,43 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.17] - 2026-11-20
+
+### Reader
+- **Ten light shows** for the ring, each a few seconds of colour: Rainbow
+  rush, Fireworks, Comet chase, Colour parade, Twinkle, Heartbeat, Ocean,
+  Fire, Pinwheel and Confetti (`components/magicband/shows.h`).
+- **Startup show** (a setting): the show played when the reader starts:
+  Off, Random or one show (default Rainbow rush).
+- **Show** and **Play show**: pick a show (or Random) and press the button
+  to play it; the reader's `play_show` action plays one by name. A band
+  tapped during a show takes over the ring as usual.
+
+### Home Assistant
+- **`magicband.play_show`** plays a show (or Random) on every reader or the
+  ones you pick, for automations and scripts.
+- **Blueprint "MagicbHAnds: light show on a schedule"**: a show every hour
+  (or every few hours) on the hour, between two times of day.
+
+### MagicbHAnds page
+- Each reader card has a **Play show** button, **Start-up show** and
+  **Show** are in the Ring settings, and the live ring plays the shows too.
+- **Recent taps** shows 10 at a time, with **Newer** and **Older** to page
+  through the last 300.
+
+### Fixed
+- **Colours turned cool white as they faded.** The tail of the chasing
+  circles, and the end of the welcome and denied fades, went faintly
+  bluish-white in warm white (and other mixed colours): the ring's
+  brightness curve keeps every channel that's on at one step or more, so a
+  very dim warm white became one step of red, green and blue. Channels that
+  should round to nothing now switch off, so fades keep their colour.
+- **The wordmark was widely spaced on Windows.** The lighter Waltograph
+  stored each letter's width twice and the two copies disagreed: Linux
+  browsers read the right one, Windows read one nearly twice as wide (which
+  also made the gaps between words look tiny). Both now match, and a test
+  checks it.
+
 ## [0.10.16] - 2026-11-20
 
 ### Branding

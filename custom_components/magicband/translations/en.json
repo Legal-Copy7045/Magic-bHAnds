@@ -268,6 +268,14 @@
       "name": "Sync readers",
       "description": "Send the allowed list to every reader now."
     },
+    "play_show": {
+      "name": "Play a light show",
+      "description": "Play one of the readers' light shows on the ring (reader firmware 0.10.17 or later). A band tapped during it takes over.",
+      "fields": {
+        "show": {"name": "Show", "description": "Which show, or Random for a different one each time."},
+        "device_id": {"name": "Readers", "description": "The readers to play it on. Leave empty for every reader."}
+      }
+    },
     "list": {
       "name": "List people and bands",
       "description": "Return all people and bands."

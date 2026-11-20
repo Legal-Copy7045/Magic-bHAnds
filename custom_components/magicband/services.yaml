@@ -80,6 +80,21 @@ remove_band:
 
 sync:
 
+play_show:
+  fields:
+    show:
+      default: Random
+      selector:
+        select:
+          options: [Random, Rainbow rush, Fireworks, Comet chase, Colour parade, Twinkle, Heartbeat, Ocean, Fire, Pinwheel, Confetti]
+    device_id:
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: esphome
+              model: magicband-reader
+
 list:
 
 send:
