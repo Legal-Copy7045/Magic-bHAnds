@@ -3,6 +3,17 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.14] - 2026-11-20
+
+### Reader
+- **Night mode:** the night idle glow can follow the sun. **Night mode**
+  is **Set hours** (Night from / Night until, as before, the default) or
+  **Sunset to sunrise**, moved by **Night starts after sunset** and **Night
+  ends after sunrise** (minutes, -240 to 240; negative = before). The sun
+  times come from Home Assistant's sun (`sun.sun`), are kept through
+  restarts, and the set hours are used until they've arrived. Also on the
+  MagicbHAnds page, in the reader's **Tap sequence** fold-out.
+
 ## [0.10.13] - 2026-11-19
 
 Documentation only: the firmware and integration are unchanged.
