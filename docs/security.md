@@ -174,6 +174,14 @@ band is welcomed in, not whether it's let in.
 
 ## Privacy
 
+**Tap pictures (optional).** If a reader is linked to a camera, each tap saves
+a picture of whoever is at the reader (family and visitors alike). They're
+kept in `magicbhands_snapshots` in Home Assistant's config folder, not the
+public `www` folder, served only through links signed for an hour that the
+admin-only history action hands out (each picture has a random 128-bit name),
+deleted after the number of days you set (30 by default), and included in
+Home Assistant backups.
+
 Band IDs, who owns them, and Bluetooth beacon data (including from other
 people's MagicBand+ passing by) are stored in Home Assistant, appear in
 entity attributes and history (visible to every Home Assistant user), and

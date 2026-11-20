@@ -89,11 +89,13 @@
         "title": "Settings",
         "data": {
           "show_in_sidebar": "Show MagicbHAnds in the sidebar",
-          "battery_reminder_level": "Charge reminder at (%)"
+          "battery_reminder_level": "Charge reminder at (%)",
+          "snapshot_days": "Keep tap snapshots for (days)"
         },
         "data_description": {
           "show_in_sidebar": "The management page: bands, people, readers and bridges. Turn it off if you show the page somewhere else, such as in your own set of dashboards.",
-          "battery_reminder_level": "When a MagicBand+ battery drops to this level, it shows in Repairs and the magicband_battery_low event fires (the \"Charge me\" blueprint turns that into a phone notification). 0 turns reminders off."
+          "battery_reminder_level": "When a MagicBand+ battery drops to this level, it shows in Repairs and the magicband_battery_low event fires (the \"Charge me\" blueprint turns that into a phone notification). 0 turns reminders off.",
+          "snapshot_days": "Pictures from readers' cameras (if you've linked one) are deleted after this many days."
         }
       }
     },
@@ -511,6 +513,20 @@
         "device_id": {
           "name": "Reader",
           "description": "The released reader."
+        }
+      }
+    },
+    "set_reader_camera": {
+      "name": "Set a reader's camera",
+      "description": "Optional: take a picture from this camera with every tap on the reader, kept with the tap in the history (admins only). Leave the camera empty to stop.",
+      "fields": {
+        "device_id": {
+          "name": "Reader",
+          "description": "The reader."
+        },
+        "camera": {
+          "name": "Camera",
+          "description": "The camera that sees the reader. Empty: no pictures."
         }
       }
     }

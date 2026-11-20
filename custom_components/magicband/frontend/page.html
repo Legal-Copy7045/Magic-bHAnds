@@ -43,6 +43,7 @@ details.more{margin-top:8px}details.more summary{cursor:pointer;font-size:13px;c
 .twin{display:flex;gap:14px;align-items:center;margin:4px 0 10px;--tw-off:#71747b;--tw-face:#8b8d92}.twin svg{flex:none}
 .seg{display:inline-flex;gap:4px;margin-top:6px}.seg .btn.on{background:var(--page);color:#fff;border-color:var(--page)}.twin.mini{margin:0;gap:12px}.twin.mini .tw-cap{font-size:14px}.hero-twin{min-width:0}.tw-live{display:flex;gap:6px;align-items:center}
 .tw-side{display:flex;flex-direction:column;gap:2px;min-width:0}.tw-cap{font:600 15px "Instrument Sans",sans-serif}
+.snap{width:56px;height:42px;object-fit:cover;border-radius:6px;cursor:zoom-in;display:block}#snappop{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:50;cursor:zoom-out;padding:16px}#snappop img{max-width:100%;max-height:100%;border-radius:10px}
 .pager{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:10px;flex-wrap:wrap}
 .sgs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,265px),1fr));gap:10px;margin-top:10px}
 .sg{border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:var(--sunk,var(--surface));min-width:0}
@@ -154,7 +155,7 @@ h2.sec{font:400 34px/1.1 var(--mbh-display)!important}h3.grp{font:400 26px var(-
 <script>
 // ───────── discovery: devices by model, sensors by their attributes (no entity ids written down) ─────────
 const BRIDGE_MODELS=/^magicband-(bridge|bp2-poe)$/, READER_MODEL=/^magicband-reader$/;
-let ENROL_ON='', LIST=null, BT=null, HIST=null, HIST_ERR=null, HIST_PAGE=0, HIST_PER=10, BUSY={}, ARM={}, LAST_LOAD=0, LAST_TAP=null, BATT={}, BATT_AT=0;
+let ENROL_ON='', CAMS=null, LIST=null, BT=null, HIST=null, HIST_ERR=null, HIST_PAGE=0, HIST_PER=10, BUSY={}, ARM={}, LAST_LOAD=0, LAST_TAP=null, BATT={}, BATT_AT=0;
 const DAYS=['mon','tue','wed','thu','fri','sat','sun'], DAY_LABEL={mon:'Mo',tue:'Tu',wed:'We',thu:'Th',fri:'Fr',sat:'Sa',sun:'Su'};
 const COLOURS=()=>(LIST&&LIST.colours)||['White','Warm white','Red','Orange','Yellow','Green','Cyan','Blue','Purple','Pink','Magenta'];
 const listBand=nfc=>((LIST&&LIST.bands)||[]).find(x=>x.band===nfc)||null;
@@ -379,11 +380,13 @@ function enrolBar(I){ const us=H().state('sensor.magicband_unknown_bands'), en=u
   $('enrol').innerHTML=`<div class="enrolbar"><b>Enrolling bands for ${esc(en.person||'someone')}</b><span class="sub2">tap them on ${en.reader?esc(en.reader):'any reader'} · about ${Math.ceil(left/60)} min left · ${Number(en.count)||0} added</span><button class="btn sm" id="enrol-stop">Stop</button></div>`;
   $('enrol-stop').onclick=()=>act(mb('stop_enrolment',{}),'es',null,'').then(load); }
 // Recent taps: 10 a page, Newer / Older.
-function bindPager(){ document.querySelectorAll('#hist [data-hp]').forEach(x=>x.onclick=()=>{ HIST_PAGE+=parseInt(x.dataset.hp,10)||0; histList(); bindPager(); }); }
+function bindPager(){ document.querySelectorAll('#hist [data-hp]').forEach(x=>x.onclick=()=>{ HIST_PAGE+=parseInt(x.dataset.hp,10)||0; histList(); bindPager(); });
+  document.querySelectorAll('#hist [data-snap]').forEach(x=>x.onclick=()=>{ const o=document.createElement('div'); o.id='snappop';
+    o.innerHTML=`<img src="${esc(x.dataset.snap)}" alt="Picture of this tap">`; o.onclick=()=>o.remove(); document.body.appendChild(o); }); }
 function histList(I){ const all=HIST||[], pages=Math.max(1,Math.ceil(all.length/HIST_PER)); HIST_PAGE=Math.min(Math.max(0,HIST_PAGE),pages-1);
   const from=HIST_PAGE*HIST_PER, L=all.slice(from,from+HIST_PER);
   const pager=pages>1?`<div class="pager"><button class="btn sm" data-hp="-1"${HIST_PAGE?'':' disabled'}>‹ Newer</button><span class="sub2">${from+1}–${from+L.length} of ${all.length}${all.length>=300?'+':''} · page ${HIST_PAGE+1} of ${pages}</span><button class="btn sm" data-hp="1"${HIST_PAGE<pages-1?'':' disabled'}>Older ›</button></div>`:'';
-  $('hist').innerHTML=L.length?`<div style="overflow-x:auto"><table class="t"><tr><th>When</th><th>Band</th><th>Reader</th><th></th></tr>${L.map(t=>`<tr><td>${esc(rel(t.time))}</td><td>${esc(t.name||t.band)}${t.person?' <span class="sub2">'+esc(t.person)+'</span>':''}</td><td>${esc(t.reader||'–')}</td><td>${t.enrolled?'<span class="tag yes">enrolled</span>':t.allowed?'<span class="tag yes">welcomed</span>':'<span class="tag no">denied</span>'}</td></tr>`).join('')}</table></div>${pager}`
+  $('hist').innerHTML=L.length?`<div style="overflow-x:auto"><table class="t"><tr><th>When</th><th>Band</th><th>Reader</th><th></th>${L.some(t=>t.snapshot_url)?'<th>Picture</th>':''}</tr>${L.map(t=>`<tr><td>${esc(rel(t.time))}</td><td>${esc(t.name||t.band)}${t.person?' <span class="sub2">'+esc(t.person)+'</span>':''}</td><td>${esc(t.reader||'–')}</td><td>${t.enrolled?'<span class="tag yes">enrolled</span>':t.allowed?'<span class="tag yes">welcomed</span>':'<span class="tag no">denied</span>'}</td>${L.some(x=>x.snapshot_url)?`<td>${t.snapshot_url?`<img class="snap" src="${esc(t.snapshot_url)}" data-snap="${esc(t.snapshot_url)}" alt="Picture of this tap" loading="lazy">`:''}</td>`:''}</tr>`).join('')}</table></div>${pager}`
     :`<p class="muted" style="margin:0">${HIST?'No taps yet.':!HIST_ERR?'Loading…':/not allowed/i.test(HIST_ERR)?"This page's host doesn't allow the tap history yet; it's on the MagicbHAnds page in the sidebar."
       :/unauthori[sz]ed|admin/i.test(HIST_ERR)?'Only administrators can see the tap history.':'Couldn’t load the tap history: '+esc(HIST_ERR)}</p>`; }
 const SYNC_LABEL={up_to_date:'up to date',failed:'not applied',unconfirmed:'sent (update the reader to confirm)',offline:'reader offline',waiting:'waiting'};
@@ -402,6 +405,8 @@ function readerCards(I,RD,B){ $('readers').innerHTML=RD.map(d=>{ const p=l=>pick
       <div class="row"><span>Ring light</span>${tg(ring,'Ring light')}</div>
       <div class="row"><span>Speaker volume</span>${sp?`<span><input type="range" min="0" max="100" value="${vol!=null?Math.round(vol*100):50}" data-vol="${esc(sp)}"${avail(sp)?'':' disabled'}> <span class="sub2">${vol!=null?Math.round(vol*100)+'%':''}</span></span>`:'<span class="muted">–</span>'}</div>
       <div class="btns">${bt(p(['button','Test welcome']),'Test welcome')}${bt(p(['button','Play show']),'Play show')}${(()=>{ const r=p(['button','Restart']); return r?`<button class="btn sm ${ARM['rs'+r]?'arm':''}" data-restart="${esc(r)}"${avail(r)?'':' disabled'}>${ARM['rs'+r]?'Tap again to restart':'Restart'}</button>`:''; })()}</div>
+      ${(()=>{ const cams=Object.keys(H().all()||{}).filter(e=>e.startsWith('camera.')).sort(); if(!cams.length||CAMS===null) return ''; const cur=CAMS[d.id]||'';
+        return `<div class="row"><span>Camera <span class="sub2">(a picture with each tap; optional)</span></span><select data-cam="${esc(d.id)}"><option value=""${cur?'':' selected'}>No camera</option>${cams.map(c=>`<option value="${esc(c)}"${c===cur?' selected':''}>${esc((A(c)&&A(c).friendly_name)||c)}</option>`).join('')}</select></div>`; })()}
       <details class="more" data-k="${esc(d.id)}"><summary>Ring and tap settings</summary>${readerSettings(p)}</details></section>`; }).join('')||'<p class="muted">No MagicBand readers found (ESPHome model magicband-reader).</p>'; }
 
 // The readers' light shows, a copy of components/magicband/shows.h for the live ring: keep the two in step.
@@ -615,6 +620,7 @@ function wire(){ document.querySelectorAll('[data-tg]').forEach(x=>x.onclick=()=
   document.querySelectorAll('[data-press]').forEach(x=>x.onclick=()=>act(H().call('button','press',x.dataset.press),x.dataset.press));
   document.querySelectorAll('[data-restart]').forEach(x=>x.onclick=()=>{ const e=x.dataset.restart; if(!armed('rs'+e)) return; act(H().call('button','press',e),e); });
   bindPager();
+  document.querySelectorAll('[data-cam]').forEach(x=>x.onchange=()=>{ x.blur(); act(mb('set_reader_camera',x.value?{device_id:x.dataset.cam,camera:x.value}:{device_id:x.dataset.cam}),'cam'+x.dataset.cam).then(load); });
   document.querySelectorAll('[data-twstyle]').forEach(x=>x.onclick=()=>{ TWIN_STYLE=x.dataset.twstyle; try{ localStorage.setItem('mbh-twin-style',TWIN_STYLE); }catch(e){} render(); });
   document.querySelectorAll('[data-sel]').forEach(x=>x.onchange=()=>{ x.blur(); act(H().call('select','select_option',x.dataset.sel,{option:x.value}),x.dataset.sel); });
   document.querySelectorAll('[data-num]').forEach(x=>x.onchange=()=>{ const v=parseFloat(x.value); if(!isFinite(v)) return; act(H().call('number','set_value',x.dataset.num,{value:v}),x.dataset.num); });
@@ -622,7 +628,7 @@ function wire(){ document.querySelectorAll('[data-tg]').forEach(x=>x.onclick=()=
 
 // the integration's own lists (people ids, Bluetooth halves); refreshed every minute and after any change
 async function load(){ if(!H()||!H().service) return; LAST_LOAD=Date.now();
-  try{ const [l,b,h]=await Promise.all([mb('list',{},true),mb('list_bluetooth_bands',{},true),mb('history',{count:300},true).then(r=>{ HIST_ERR=null; return r; },e=>{ HIST_ERR=String((e&&e.message)||e); return null; })]); LIST=l; BT=b; HIST=h&&h.taps; }catch(e){ console.error('magicband list',e); }
+  try{ const [l,b,h]=await Promise.all([mb('list',{},true),mb('list_bluetooth_bands',{},true),mb('history',{count:300},true).then(r=>{ HIST_ERR=null; return r; },e=>{ HIST_ERR=String((e&&e.message)||e); return null; })]); LIST=l; BT=b; HIST=h&&h.taps; CAMS=h?(h.cameras||{}):CAMS; }catch(e){ console.error('magicband list',e); }
   loadBattery(); render(); }
 // 7 days of each band's battery, for the sparklines (refreshed every 15 minutes)
 async function loadBattery(){ if(Date.now()-BATT_AT<15*60000||!H().ws) return; BATT_AT=Date.now();

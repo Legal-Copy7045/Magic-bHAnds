@@ -12,7 +12,7 @@ from homeassistant.core import callback
 from homeassistant.helpers import selector
 from homeassistant.util import dt as dt_util
 
-from .const import CONF_BATTERY_LEVEL, DEFAULT_BATTERY_LEVEL, DOMAIN
+from .const import CONF_BATTERY_LEVEL, CONF_SNAPSHOT_DAYS, DEFAULT_BATTERY_LEVEL, DOMAIN
 from .registry import MagicBandRegistry
 
 NEW_PERSON = "__new__"
@@ -282,6 +282,10 @@ class MagicBandOptionsFlow(OptionsFlow):
                     ): selector.NumberSelector(
                         selector.NumberSelectorConfig(min=0, max=100, step=5, unit_of_measurement="%",
                                                       mode=selector.NumberSelectorMode.SLIDER)
+                    ),
+                    vol.Required(CONF_SNAPSHOT_DAYS, default=options.get(CONF_SNAPSHOT_DAYS, 30)): selector.NumberSelector(
+                        selector.NumberSelectorConfig(min=1, max=365, step=1, unit_of_measurement="days",
+                                                      mode=selector.NumberSelectorMode.BOX)
                     ),
                 }
             ),

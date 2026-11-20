@@ -36,6 +36,7 @@ READER_COLOURS = [
 ]
 WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 CONF_BATTERY_LEVEL = "battery_reminder_level"
+CONF_SNAPSHOT_DAYS = "snapshot_days"  # how long tap snapshots are kept (snapshots.py)
 DEFAULT_BATTERY_LEVEL = 20
 ATTR_WELCOME_COLOUR = "welcome_colour"
 
