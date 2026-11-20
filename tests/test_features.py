@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from pathlib import Path
+import re
 
 from freezegun.api import FrozenDateTimeFactory
 import pytest
@@ -290,3 +292,31 @@ async def test_diagnostics_hide_ids_and_names(hass: HomeAssistant, setup_integra
     assert "Alice" not in text
     assert next(iter(_data(hass).beacons.bands)) not in text  # no Bluetooth signature
     assert diag["bands"][0]["band"].endswith("EE-FF") and diag["allowed_count"] == 1
+
+
+# ---------------------------------------------------------------------------- light shows
+
+
+async def test_play_show_goes_to_every_online_reader(
+    hass: HomeAssistant, setup_integration, reader_device
+) -> None:
+    shows: list[ServiceCall] = []
+    hass.services.async_register("esphome", "lounge_reader_play_show", lambda c: shows.append(c))
+    make_esphome_device(hass, "hall-reader", "magicband-reader", "Hall reader")  # offline: no actions
+    result = await hass.services.async_call(
+        DOMAIN, "play_show", {"show": "Fireworks"}, blocking=True, return_response=True
+    )
+    assert [c.data["show"] for c in shows] == ["Fireworks"]
+    assert result["skipped"] == ["Hall reader"] and len(result["played"]) == 1
+    await hass.services.async_call(DOMAIN, "play_show", {"device_id": [reader_device.id]}, blocking=True)
+    assert shows[-1].data["show"] == "Random"
+    with pytest.raises(Exception):
+        await hass.services.async_call(DOMAIN, "play_show", {"show": "Not a show"}, blocking=True)
+
+
+def test_show_names_match_the_firmware() -> None:
+    from custom_components.magicband.readers import SHOW_NAMES
+
+    header = (Path(__file__).parents[1] / "components" / "magicband" / "shows.h").read_text()
+    names = re.search(r"NAMES\[COUNT\] = \{(.*?)\};", header, re.S).group(1)
+    assert tuple(re.findall(r'"([^"]+)"', names)) == SHOW_NAMES

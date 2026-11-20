@@ -486,6 +486,30 @@ def _register_services(hass: HomeAssistant) -> None:
         hass, DOMAIN, "remove_band", remove_band, vol.Schema({vol.Required(ATTR_BAND): cv.string})
     )
     hass.services.async_register(DOMAIN, "sync", sync, supports_response=SupportsResponse.OPTIONAL)
+
+    async def play_show(call: ServiceCall) -> dict[str, Any]:
+        """Play a light show on the readers (a light show only: open to every user, like send)."""
+        from .readers import async_play_show
+
+        devices = call.data.get("device_id") or None
+        if isinstance(devices, str):
+            devices = [devices]
+        return await async_play_show(hass, call.data.get("show", "Random"), devices)
+
+    from .readers import SHOW_NAMES
+
+    hass.services.async_register(
+        DOMAIN,
+        "play_show",
+        play_show,
+        vol.Schema(
+            {
+                vol.Optional("show", default="Random"): vol.In(("Random", *SHOW_NAMES)),
+                vol.Optional("device_id"): vol.Any(cv.string, [cv.string]),
+            }
+        ),
+        supports_response=SupportsResponse.OPTIONAL,
+    )
     async_register_admin_service(
         hass, DOMAIN, "list", list_bands, supports_response=SupportsResponse.ONLY)
 

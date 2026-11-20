@@ -2,6 +2,7 @@
 
 #include "esphome/components/esp32_ble/ble.h"
 #include "esphome/core/component.h"
+#include "shows.h"
 
 #ifdef USE_ESP32
 
