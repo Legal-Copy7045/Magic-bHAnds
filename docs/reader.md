@@ -170,6 +170,7 @@ the reader's device page in Home Assistant, under **Configuration**, set:
   e.g. 30 and −30 for night from half an hour after sunset to half an hour
   before sunrise. The reader keeps the last sun times through restarts and
   uses the set hours until it has had them.
+- **Night now** (diagnostic): on while the night idle glow applies.
 - In **Warm white** the idle glow is mixed specially so it keeps its colour
   when dim (the Ring light shows the "Warm glow" effect at 100 %); its
   dimmest is a little brighter than the other colours' dimmest.
@@ -225,7 +226,7 @@ MagicBand+**, for example to turn on the lounge lights.
 | **Sound** | Chimes on/off |
 | **Test welcome** | Plays the welcome sequence without a band |
 | **Play show** | Plays the light show chosen in **Show** (or a random one) |
-| **Show** | Which show **Play show** plays: Random, or Rainbow rush, Fireworks, Comet chase, Colour parade, Twinkle, Heartbeat, Ocean, Fire, Pinwheel or Confetti |
+| **Show** | Which show **Play show** plays: Random, or Rainbow rush, Fireworks, Comet chase, Colour parade, Twinkle, Heartbeat, Ocean, Fire, Pinwheel, Confetti, Penguins (black and gold), Goal (three red pulses), Aurora, Candy cane, Thunderstorm, Sunrise or Disco |
 | **Startup show** | The show played when the reader starts: Off, Random or one show (default Rainbow rush) |
 | **Allowed list** (diagnostic) | From the MagicbHAnds integration: whether this reader has the current allowed list (*Up to date*, *Not applied*, *Reader offline* …) |
 | **ESPHome name** (diagnostic) | The reader's ESPHome name; the integration uses it to find the reader's actions |

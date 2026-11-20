@@ -44,8 +44,9 @@ SIGNAL_READER_STATUS = f"{DOMAIN}_reader_status"
 
 # The readers' light shows (0.10.17+), as in components/magicband/shows.h.
 SHOW_NAMES = (
-    "Rainbow rush", "Fireworks", "Comet chase", "Colour parade", "Twinkle",
-    "Heartbeat", "Ocean", "Fire", "Pinwheel", "Confetti",
+    "Rainbow rush", "Fireworks", "Comet chase", "Colour parade", "Twinkle", "Heartbeat",
+    "Ocean", "Fire", "Pinwheel", "Confetti", "Penguins", "Goal",
+    "Aurora", "Candy cane", "Thunderstorm", "Sunrise", "Disco",
 )
 SHOW_SERVICE_SUFFIX = "_play_show"
 

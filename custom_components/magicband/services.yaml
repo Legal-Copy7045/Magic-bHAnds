@@ -86,7 +86,7 @@ play_show:
       default: Random
       selector:
         select:
-          options: [Random, Rainbow rush, Fireworks, Comet chase, Colour parade, Twinkle, Heartbeat, Ocean, Fire, Pinwheel, Confetti]
+          options: [Random, Rainbow rush, Fireworks, Comet chase, Colour parade, Twinkle, Heartbeat, Ocean, Fire, Pinwheel, Confetti, Penguins, Goal, Aurora, Candy cane, Thunderstorm, Sunrise, Disco]
     device_id:
       selector:
         device:
