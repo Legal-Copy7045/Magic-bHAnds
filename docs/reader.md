@@ -281,10 +281,19 @@ actions:
         value_template: >
           {{ trigger.event.data.tag_id in ['04-53-65-2A-C0-5F-80', '04-11-22-33-44-55-66'] }}
     then:
-      - action: esphome.magicband_reader_XXXXXX_accept
+      - action: magicband.answer
+        data: {device_id: YOUR_READER_DEVICE_ID, allow: true}
     else:
-      - action: esphome.magicband_reader_XXXXXX_deny
+      - action: magicband.answer
+        data: {device_id: YOUR_READER_DEVICE_ID, allow: false}
 ```
+
+With the integration, use `magicband.answer` as above: the reader is paired
+with MagicbHAnds and only takes an answer that carries its key, which
+`magicband.answer` adds (and only administrators and automations can call
+it). Without the integration, call the reader's own
+`esphome.magicband_reader_XXXXXX_accept` / `_deny` actions with an empty
+`key`.
 
 ## Phones and watches
 

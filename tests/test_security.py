@@ -6,6 +6,7 @@ from datetime import timedelta
 import random
 import re
 import shutil
+import tempfile
 import subprocess
 from pathlib import Path
 
@@ -177,6 +178,7 @@ ADMIN_ONLY = [
     ("enrol", {"person": "Casey"}),
     ("stop_enrolment", {}),
     ("history", {}),
+    ("answer", {"device_id": "x", "allow": True}),
 ]
 
 
@@ -338,18 +340,26 @@ _HARNESS = r"""
 #include <array>
 #include <cctype>
 #include <cstdio>
+#include <cstdlib>
 #include <string>
+#include "%s"
+namespace magicband = esphome::magicband;
 static std::array<char, %d> known_list;
 static std::string sync_error;
+static magicband::ReaderKey pair_key{};
 #define id(x) x
 #define ESP_LOGI(tag, ...) std::printf(__VA_ARGS__), std::printf("\n")
+#define ESP_LOGW(tag, ...) std::printf(__VA_ARGS__), std::printf("\n")
 #define ESP_LOGE(tag, ...) std::printf(__VA_ARGS__), std::printf("\n")
-static void set_known_bands(const std::string &bands) {
+static void set_known_bands(const std::string &bands, const std::string &key) {
 %s
 }
 int main(int argc, char **argv) {
-  set_known_bands(argv[1]);
-  set_known_bands(argv[2]);
+  const char *k = std::getenv("KEY");
+  const std::string key = k ? k : "";
+  set_known_bands(argv[1], "");
+  if (const char *p = std::getenv("PAIR")) magicband::reader_pair(pair_key, p, false);
+  set_known_bands(argv[2], key);
   std::printf("LIST=%%s\nERROR=%%s\n", known_list.data(), sync_error.c_str());
 }
 """
@@ -364,14 +374,14 @@ def _reader_firmware(tmp_path: Path) -> Path:
     src = tmp_path / "reader.cpp"
     size = int(re.search(r"id: known_list\s+type: std::array<char, (\d+)>", yaml).group(1))
     assert size - 1 == READER_LIST_CAPACITY  # the integration and the firmware agree
-    src.write_text(_HARNESS % (size, body))
+    src.write_text(_HARNESS % (REPO / "components" / "magicband" / "reader_key.h", size, body))
     exe = tmp_path / "reader"
     subprocess.run(["g++", "-std=c++17", "-o", str(exe), str(src)], check=True, capture_output=True)
     return exe
 
 
-def _run(exe: Path, first: str, second: str) -> dict[str, str]:
-    out = subprocess.run([str(exe), first, second], check=True, capture_output=True, text=True).stdout
+def _run(exe: Path, first: str, second: str, env: dict[str, str] | None = None) -> dict[str, str]:
+    out = subprocess.run([str(exe), first, second], check=True, capture_output=True, text=True, env=env).stdout
     return dict(re.findall(r"^(LIST|ERROR)=(.*)$", out, re.M))
 
 
@@ -387,6 +397,47 @@ def test_reader_never_keeps_a_revoked_band(tmp_path: Path) -> None:
     result = _run(exe, "0453652AC05F80", too_many)  # allowed, then a list too long to store
     assert result["LIST"] == ""  # emptied: the old band isn't still allowed
     assert result["ERROR"].startswith("Too many bands")
+
+
+KEY = "a1" * 32
+
+
+def test_paired_reader_refuses_a_list_without_its_key(tmp_path: Path) -> None:
+    """Other Home Assistant users can call ESPHome actions; once paired, only the integration's key works."""
+    exe = _reader_firmware(tmp_path)
+    result = _run(exe, "0453652AC05F80", "04AABBCCDD0001", env={"PAIR": KEY, "KEY": ""})
+    assert result["LIST"] == ",0453652AC05F80," and "Wrong key" in result["ERROR"]  # unchanged
+    result = _run(exe, "0453652AC05F80", "04AABBCCDD0001", env={"PAIR": KEY, "KEY": "b2" * 32})
+    assert result["LIST"] == ",0453652AC05F80,"
+    result = _run(exe, "0453652AC05F80", "04AABBCCDD0001", env={"PAIR": KEY, "KEY": KEY})
+    assert result["LIST"] == ",04AABBCCDD0001," and result["ERROR"] == ""
+
+
+def test_pairing_rules() -> None:
+    """A paired reader takes a new key only in its power-on window (reader_key.h, compiled on the host)."""
+    if shutil.which("g++") is None:
+        pytest.skip("no C++ compiler")
+    src = Path(tempfile.mkdtemp()) / "pair.cpp"
+    src.write_text(
+        f'#include <cstdio>\n#include "{REPO / "components" / "magicband" / "reader_key.h"}"\n'
+        """using namespace esphome::magicband;
+int main() {
+  ReaderKey k{};
+  const std::string a(64, 'a'), b(64, 'b');
+  std::printf("%d", reader_key_ok(k, ""));                    // unpaired: anyone (as before)
+  std::printf("%d", reader_pair(k, "nothex!", false).empty()); // a bad key is refused
+  std::printf("%d", reader_pair(k, a, false).empty());         // first pairing
+  std::printf("%d", reader_key_ok(k, a));
+  std::printf("%d", reader_key_ok(k, ""));                     // paired: no key, no entry
+  std::printf("%d", reader_pair(k, b, false).empty());         // another key, outside the window
+  std::printf("%d", reader_key_ok(k, a));                      // still the first key
+  std::printf("%d", reader_pair(k, b, true).empty());          // after a power-on: re-paired
+  std::printf("%d", reader_key_ok(k, b));
+}
+""")
+    exe = src.with_suffix("")
+    subprocess.run(["g++", "-std=c++17", "-o", str(exe), str(src)], check=True, capture_output=True)
+    assert subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout == "101100111"
 
 
 @pytest.mark.parametrize("bad", ["TEST", "0453652AC05F8", "04É3652AC05F80", "0453652AC05F80;rm"])
@@ -518,12 +569,15 @@ _COLOUR_HARNESS = r"""
 #include <cctype>
 #include <cstdio>
 #include <string>
+#include "%s"
+namespace magicband = esphome::magicband;
 static std::array<char, %d> band_colours;
 static std::string sync_error;
+static magicband::ReaderKey pair_key{};
 #define id(x) x
 #define ESP_LOGI(tag, ...) std::printf(__VA_ARGS__), std::printf("\n")
 #define ESP_LOGW(tag, ...) std::printf(__VA_ARGS__), std::printf("\n")
-static void set_band_colours(const std::string &colours) {
+static void set_band_colours(const std::string &colours, const std::string &key = "") {
 %s
 }
 int main(int argc, char **argv) {
@@ -541,7 +595,7 @@ def _colour_firmware(tmp_path: Path) -> Path:
     body = block.split("- api.respond:", 1)[0]
     size = int(re.search(r"id: band_colours\s+type: std::array<char, (\d+)>", yaml).group(1))
     src = tmp_path / "colours.cpp"
-    src.write_text(_COLOUR_HARNESS % (size, body))
+    src.write_text(_COLOUR_HARNESS % (REPO / "components" / "magicband" / "reader_key.h", size, body))
     exe = tmp_path / "colours"
     subprocess.run(["g++", "-std=c++17", "-o", str(exe), str(src)], check=True, capture_output=True)
     return exe
