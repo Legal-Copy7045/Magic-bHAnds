@@ -128,7 +128,7 @@ jobs:
           python-version: "3.13"
 
       - name: Install test framework
-        run: pip install "pytest-homeassistant-custom-component==0.13.316"
+        run: pip install "pytest-homeassistant-custom-component==0.13.316" "fonttools==4.60.1"
 
       - name: Run tests
         run: python -m pytest -q

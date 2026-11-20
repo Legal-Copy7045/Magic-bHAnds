@@ -21,7 +21,7 @@
 substitutions:
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.10.16"
+  project_version: "0.10.17"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -58,7 +58,14 @@ esphome:
       # Everything is set up now, so the ring's settings can be applied.
       - globals.set: {id: ring_ready, value: "true"}
       - script.execute: apply_ring_settings
-      - script.execute: reader_idle
+      # The start-up light show ("Startup light show"), then the idle glow.
+      - if:
+          condition:
+            switch.is_on: startup_show_enabled
+          then:
+            - script.execute: startup_show
+          else:
+            - script.execute: reader_idle
       - if:
           condition:
             switch.is_on: sound_enabled
@@ -387,6 +394,57 @@ light:
               else if (p < in + hold + out) level = 1.0f - static_cast<float>(p - in - hold) / out;
             }
             it.all() = current_color * static_cast<uint8_t>(level * 255.0f);
+      # The start-up light show (see startup_show), about 3 s: two rainbow
+      # comets race round the ring and speed up, the whole ring becomes a
+      # spinning rainbow that swells, bursts into white and coloured sparkles,
+      # then settles and fades into the idle glow.
+      - addressable_lambda:
+          name: "Startup"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            if (initial_run) start = millis();
+            const uint32_t t = millis() - start;
+            const int n = it.size();
+            if (n == 0) return;
+            auto wheel = [](float h) -> Color {
+              h -= floorf(h);
+              return ESPHSVColor(static_cast<uint8_t>(h * 255.0f), 255, 255).to_rgb();
+            };
+            it.all() = Color::BLACK;
+            if (t < 900) {
+              // Two rainbow comets, half a ring apart, accelerating through two laps.
+              const float p = t / 900.0f, pos = p * p * 2.0f * n;
+              const int tail = std::max(4, n / 3);
+              for (int c = 0; c < 2; c++) {
+                const float head = pos + c * n / 2.0f;
+                for (int k = 0; k < tail; k++) {
+                  const int i = ((static_cast<int>(head) - k) % n + n) % n;
+                  const float f = 1.0f - static_cast<float>(k) / tail;
+                  it[i] = wheel((head - k) / n + c * 0.5f) * static_cast<uint8_t>(255.0f * f * f);
+                }
+              }
+            } else if (t < 1800) {
+              // The whole ring as a rainbow, spinning and swelling to full brightness.
+              const float p = (t - 900) / 900.0f;
+              const uint8_t level = static_cast<uint8_t>(255.0f * (0.35f + 0.65f * sinf(p * 1.5708f)));
+              for (int i = 0; i < n; i++) it[i] = wheel(static_cast<float>(i) / n + p * 1.5f) * level;
+            } else if (t < 2350) {
+              // Sparkle burst: white flashes among coloured twinkles, changing every 50 ms.
+              const float p = (t - 1800) / 550.0f;
+              const uint32_t frame = t / 50;
+              for (int i = 0; i < n; i++) {
+                uint32_t h = (i + 1) * 2654435761u ^ frame * 40503u;
+                h ^= h >> 13; h *= 0x5bd1e995u; h ^= h >> 15;
+                if ((h & 7) == 0) it[i] = Color(255, 255, 255) * static_cast<uint8_t>(255.0f * (1.0f - 0.5f * p));
+                else if ((h & 7) < 5) it[i] = wheel(((h >> 8) & 255) / 255.0f) * static_cast<uint8_t>(220.0f * (1.0f - 0.4f * p));
+              }
+            } else if (t < 3050) {
+              // Settle: a slow rainbow that fades away.
+              const float p = (t - 2350) / 700.0f;
+              const uint8_t level = static_cast<uint8_t>(200.0f * (1.0f - p) * (1.0f - p));
+              for (int i = 0; i < n; i++) it[i] = wheel(static_cast<float>(i) / n + 1.35f + p * 0.3f) * level;
+            }
       - addressable_lambda:
           name: "Spin"
           update_interval: 25ms
@@ -480,6 +538,9 @@ globals:
     restore_value: true
   - id: welcome_name      # the colour this tap is welcomed in
     type: std::string
+  - id: show_on           # the start-up light show is playing (see startup_show)
+    type: bool
+    initial_value: "false"
   - id: night             # inside the night hours (see update_night)
     type: bool
     initial_value: "false"
@@ -962,6 +1023,14 @@ number:
       - script.execute: update_night
 
 switch:
+  # Play the start-up light show when the reader starts.
+  - platform: template
+    id: startup_show_enabled
+    name: "Startup light show"
+    icon: mdi:creation
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
   - platform: template
     id: light_up_band
     name: "Light up MagicBand+"
@@ -1179,11 +1248,14 @@ script:
     then:
       # A soft glow in "Idle colour" while waiting for a band ("Idle glow"; 0 = off),
       # a slow amber pulse while Home Assistant isn't connected, so a reader
-      # that can't get changes to its allowed list shows it.
+      # that can't get changes to its allowed list shows it. Not while the
+      # start-up light show plays: it shows the idle glow when it ends.
       - if:
           condition:
-            not:
-              api.connected:
+            and:
+              - lambda: 'return !id(show_on);'
+              - not:
+                  api.connected:
           then:
             - lambda: 'id(rgb) = {1.0f, 0.45f, 0.0f, 0.0f};'
             - script.execute:
@@ -1191,7 +1263,30 @@ script:
                 effect: "Offline"
                 level: !lambda 'return std::max(30.0f, id(night) ? id(idle_glow_night).state : id(idle_glow).state) / 100.0f;'
           else:
-            - script.execute: reader_idle_glow
+            - if:
+                condition:
+                  lambda: 'return !id(show_on);'
+                then:
+                  - script.execute: reader_idle_glow
+  # About three seconds of colour when the reader starts ("Startup light
+  # show"), or on "Play startup show". A tap during it takes over the ring.
+  - id: startup_show
+    then:
+      - globals.set: {id: show_on, value: "true"}
+      - script.execute:
+          id: ring_on
+          effect: "Startup"
+          level: 1.0
+      - delay: 3100ms
+      - globals.set: {id: show_on, value: "false"}
+      - if:
+          condition:
+            and:
+              - lambda: 'return id(ring_ready);'
+              - not:
+                  script.is_running: band_tapped
+          then:
+            - script.execute: reader_idle
   # Works out whether it's night ("Night from" until "Night until") and, when
   # that changes while the ring is idle, redraws the idle glow.
   - id: update_night
@@ -1480,6 +1575,18 @@ button:
       - script.execute:
           id: band_tapped
           uid: "TEST"
+  - platform: template
+    name: "Play startup show"
+    icon: mdi:creation
+    on_press:
+      - if:
+          condition:
+            and:
+              - lambda: 'return id(ring_ready);'
+              - not:
+                  script.is_running: band_tapped
+          then:
+            - script.execute: startup_show
   - platform: restart
     name: "Restart"
     entity_category: diagnostic
