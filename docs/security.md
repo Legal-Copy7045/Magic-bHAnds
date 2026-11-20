@@ -75,7 +75,8 @@ when the key comes with it, and its **Allow last band** button does nothing
 any ESPHome action, can't add a band to a reader. A paired reader never takes a
 different key over the network, not even right after a restart or a power
 cut: only the key holder can release it (`magicband.unpair_reader`, to move
-it to another Home Assistant), or someone with the reader in hand can erase it
+it to another Home Assistant; this Home Assistant then leaves it alone until
+`magicband.pair_reader` takes it back), or someone with the reader in hand can erase it
 over USB (the web installer's **Erase device**) and add it again. The key is in
 Home Assistant's backups, so restoring a backup keeps your readers paired. If
 you lose it (a fresh install without a backup), erase the reader over USB.

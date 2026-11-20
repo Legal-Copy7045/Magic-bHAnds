@@ -80,6 +80,16 @@ remove_band:
 
 sync:
 
+pair_reader:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          filter:
+            - integration: esphome
+              model: magicband-reader
+
 unpair_reader:
   fields:
     device_id:

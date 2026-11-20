@@ -247,7 +247,9 @@ asks you to **tap any band on the reader** within 2 minutes; the ring turns
 green and the reader is paired (that tap does nothing else). The **Paired
 with MagicbHAnds** sensor shows it. A paired reader keeps its pairing through
 restarts, power cuts and updates. To move it to another Home Assistant, call
-`magicband.unpair_reader` first, or erase it over USB with the web installer.
+`magicband.unpair_reader` first (this Home Assistant then leaves it alone;
+`magicband.pair_reader` takes it back), or erase it over USB with the web
+installer.
 See [security.md](security.md).
 
 ### No waiting on Home Assistant

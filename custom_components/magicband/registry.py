@@ -131,6 +131,7 @@ def _parse_time(value: str | None) -> time | None:
 class _Data:
     people: dict[str, Person] = field(default_factory=dict)
     bands: dict[str, Band] = field(default_factory=dict)
+    released_readers: set[str] = field(default_factory=set)  # device ids released with unpair_reader
 
 
 _BAND_FIELDS = set(Band.__dataclass_fields__)
@@ -179,17 +180,32 @@ class MagicBandRegistry:
             if parse_uid(band.uid) is None:
                 _LOGGER.warning("Band %r isn't a valid NFC ID; it's kept but never allowed in", band.uid)
             bands[band.uid] = band
-        self._data = _Data(people=people, bands=bands)
+        released = {d for d in raw.get("released_readers", []) or [] if isinstance(d, str)}
+        self._data = _Data(people=people, bands=bands, released_readers=released)
 
     def _serialize(self) -> dict:
         return {
             "people": [asdict(p) for p in self._data.people.values()],
             "bands": [asdict(b) for b in self._data.bands.values()],
+            "released_readers": sorted(self._data.released_readers),
         }
 
     @callback
     def _save(self) -> None:
         self._store.async_delay_save(self._serialize, 1.0)
+
+    # ------------------------------------------------------------------ readers released to another Home Assistant
+
+    def reader_released(self, device_id: str) -> bool:
+        return device_id in self._data.released_readers
+
+    @callback
+    def set_reader_released(self, device_id: str, released: bool) -> None:
+        if released:
+            self._data.released_readers.add(device_id)
+        else:
+            self._data.released_readers.discard(device_id)
+        self._save()
 
     async def async_flush(self) -> None:
         """Write any pending changes now (on unload/reload)."""

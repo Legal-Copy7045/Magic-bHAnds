@@ -550,6 +550,19 @@ def _register_services(hass: HomeAssistant) -> None:
     async_register_admin_service(
         hass, DOMAIN, "unpair_reader", unpair_reader, vol.Schema({vol.Required("device_id"): cv.string})
     )
+
+    async def pair_reader(call: ServiceCall) -> dict[str, Any]:
+        """Take back a reader released with unpair_reader (it pairs again; a band tap on it confirms)."""
+        return await _data().readers.async_reclaim(call.data["device_id"])
+
+    async_register_admin_service(
+        hass,
+        DOMAIN,
+        "pair_reader",
+        pair_reader,
+        vol.Schema({vol.Required("device_id"): cv.string}),
+        supports_response=SupportsResponse.OPTIONAL,
+    )
     async_register_admin_service(
         hass,
         DOMAIN,
