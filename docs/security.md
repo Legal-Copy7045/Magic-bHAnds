@@ -44,8 +44,20 @@ on the reader is real*.
 Everything that changes access (people, assigning bands, access schedules,
 enrolment, linking Bluetooth) and the actions that return everything at once
 (`list`, `history`, `list_bluetooth_bands`, `list_heard`) need an
-**administrator** in Home Assistant, and so does the MagicbHAnds sidebar page. Other users can still use
-the bands (`magicband.send`, at most 30 commands a minute per bridge).
+**administrator** in Home Assistant, and so does the MagicbHAnds sidebar page. Other users can only:
+use the bands (`magicband.send`, at most 30 commands a minute per bridge),
+send the readers their allowed list again (`magicband.sync`, at most 6 a
+minute; it sends the same list), play a light show on the readers
+(`magicband.play_show`, at most 12 a minute per reader; a tap takes over the
+ring), and list the bridges. A test checks no other action is open.
+
+**Enrolment** (giving the next unknown bands tapped to one person) never lets
+the tap that enrols a band in: that tap is reported as not allowed
+(`allowed: false`, `enrolled: true`), and only the band's next tap opens
+anything. Anyone who taps an unknown band during the window (up to 15
+minutes) gets it enrolled, so start enrolment on the reader you're standing
+at (the page's **Enrol bands tapped on** choice, or `device_id` on
+`magicband.enrol`) rather than on any reader, and stop it when you're done.
 
 **Band IDs are not hidden from other users**, though: entity attributes (the
 last-tap sensors, the reader's "Last band ID" and "Last band name"), history,
@@ -82,6 +94,12 @@ band is welcomed in, not whether it's let in.
 
 ## Devices and updates
 
+- **No factory-reset button.** The SCREEK BP2-POE firmware leaves out
+  ESPHome's "Factory Reset" button: any Home Assistant user could press it,
+  and a reset board accepts the next client that brings a new encryption key.
+- **"Test welcome"** on a reader plays the welcome without sending a tag scan
+  to Home Assistant, so it can't set off automations.
+
 - **Leave "Allow the device to perform Home Assistant actions" off** for
   readers and bridges (ESPHome → the device → Configure). Tag scans and
   everything MagicbHAnds does work without it; with it on, a tampered device
@@ -94,13 +112,18 @@ band is welcomed in, not whether it's let in.
   boards promptly, on a network you trust.
 - **Updates** come over HTTPS from this project's GitHub Pages site and are
   checked against the MD5 in the same manifest. That catches corruption, not a
-  compromised site or repository: ESPHome has no firmware signing. Releases
-  carry signed build-provenance attestations; check a download with
-  `gh attestation verify <file> --repo Legal-Copy7045/Magic-bHAnds`.
+  compromised site or repository: ESPHome has no firmware signing. Releases,
+  and the firmware the update entities download from the site, carry signed
+  build-provenance attestations; check a file with
+  `gh attestation verify <file> --repo Legal-Copy7045/Magic-bHAnds`. Only
+  commits on `main` are released.
 - **The web installer** serves its own copy of ESP Web Tools, checked against
   a fixed hash when the site is built.
 - **Building your own firmware** ("Take control") pulls the add-on and
-  component from this repository's `main` branch at build time.
+  component from this repository's `main` branch at build time, so a build
+  picks up whatever `main` holds then. The CI build installs ESPHome by
+  version, not by hash, so its toolchain is only as trustworthy as PyPI and
+  PlatformIO.
 
 ## Limits on what nearby radios can do
 

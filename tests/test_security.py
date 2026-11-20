@@ -173,6 +173,10 @@ ADMIN_ONLY = [
     ("link_bluetooth", {"bluetooth_band": "last", "person": "Casey"}),
     ("unlink_bluetooth", {"bluetooth_band": "last"}),
     ("forget_bluetooth", {"bluetooth_band": "last"}),
+    ("set_band_access", {"band": TAG, "from": "07:00:00"}),
+    ("enrol", {"person": "Casey"}),
+    ("stop_enrolment", {}),
+    ("history", {}),
 ]
 
 
@@ -181,7 +185,7 @@ async def test_access_changes_and_band_lists_need_an_admin(
     hass: HomeAssistant, setup_integration, hass_read_only_user: MockUser, service: str, data: dict
 ) -> None:
     await hass.services.async_call(DOMAIN, "add_person", {"name": "Casey"}, blocking=True)
-    response = service in ("list", "list_bluetooth_bands", "list_heard")
+    response = service in ("list", "list_bluetooth_bands", "list_heard", "history")
     with pytest.raises(Unauthorized):
         await hass.services.async_call(
             DOMAIN, service, data, blocking=True, context=Context(user_id=hass_read_only_user.id), return_response=response
@@ -594,3 +598,25 @@ def test_reader_never_touches_the_ring_before_boot_finishes() -> None:
         if actions and touches_ring(actions) and "ring_ready" not in repr(actions):
             bad.append(f"api {key}")
     assert bad == []
+
+
+OPEN_TO_EVERYONE = {"send", "sync", "play_show", "list_bridges"}
+
+
+async def test_only_these_actions_are_open_to_every_user(hass: HomeAssistant, setup_integration) -> None:
+    """Everything else changes access or reveals band IDs, so it needs an administrator."""
+    from homeassistant.helpers.service import async_get_all_descriptions  # noqa: F401 - imported for its side effects
+
+    services = set(hass.services.async_services_for_domain(DOMAIN))
+    admin = {s for s in services if s not in OPEN_TO_EVERYONE}
+    assert OPEN_TO_EVERYONE <= services
+    assert {s for s, _ in ADMIN_ONLY} == admin, "a new action must be added to ADMIN_ONLY (or made admin-only)"
+
+
+async def test_sync_is_rate_limited(hass: HomeAssistant, setup_integration) -> None:
+    from homeassistant.exceptions import ServiceValidationError
+
+    for _ in range(6):
+        await hass.services.async_call(DOMAIN, "sync", {}, blocking=True)
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(DOMAIN, "sync", {}, blocking=True)

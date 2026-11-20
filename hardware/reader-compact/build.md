@@ -8,9 +8,11 @@ jumpers on its pins). See the [compact diagram](../../docs/reader-compact.svg).
 **Tested** (18 Nov 2026): power, the NFC reader (bands read, known bands
 welcomed, unknown denied) and the amplifier at 100 %, first on USB, then on
 the USB-C PD supply with the hubs (lowest reading under load: 4.95 V).
-19 Nov 2026: the 35-LED ring wired as in step 15 lights correctly (5.1 V at
-its input, idle glow, all 35 LEDs, colours right). Still to confirm: the
-tap sequence on the ring and the load test with it.
+19 Nov 2026: the 35-LED ring, wired as in step 15 with the 470 Ω and
+1000 µF on the breadboard and its power from hub port 4, lights correctly
+(5.1 V at its input, idle glow, all 35 LEDs, colours right with the **Ring**
+light and **Test welcome**). Still to confirm: the tap sequence on the ring
+and the load test (step 18) with it.
 
 **Rules for the whole build**
 
@@ -51,11 +53,20 @@ trigger at the same time.
 ### 1. Flash the ESP32
 
 Install from the [web installer](https://legal-copy7045.github.io/Magic-bHAnds/)
-over the **UART** port, enter Wi-Fi, and add the reader in Home Assistant.
-Leave **Allow the device to perform Home Assistant actions** (ESPHome → the
-reader → Configure) **off**: tag scans don't need it (see
-[docs/security.md](../../docs/security.md)). Set **LED count** under the
-reader's **Configuration** once it's online.
+over the **UART** port and enter Wi-Fi. Home Assistant discovers the reader
+(ESPHome): add it, and leave **Allow the device to perform Home Assistant
+actions** (ESPHome → the reader → Configure) **off**: tag scans don't need
+it (see [docs/security.md](../../docs/security.md)). On the reader's device
+page, under **Configuration**, set **LED count** to your ring's (**35**; the
+default is 24).
+
+Install the MagicbHAnds integration from HACS now too, and restart Home
+Assistant (and again after each integration update). If HACS doesn't show
+the latest version yet: **HACS → MagicbHAnds → ⋮ → Update information**.
+
+This is the only time the firmware needs USB: later versions appear as an
+update on the reader in Home Assistant and install over Wi-Fi (see
+[If an update fails](#if-an-update-fails)).
 
 ### 2. Solder the PN532's header
 
@@ -208,28 +219,46 @@ Leave the amplifier's 5 V (**L+ → f24**) off for now.
 
 The ring's data comes from the level shifter: **GPIO10 → d11** (74AHCT125
 pin 2) → **c12** (pin 3) → **470 Ω** → ring **DIN**. Its power comes from
-the hubs in the next step, never from the breadboard. These steps are the
-same as [breadboard step 5](../reader-breadboard/build.md#step-5-wire-the-led-ring);
-a generic 35-LED WS2812B ring (78 mm inside) is assumed, and an SK6812 RGBW
-ring wires the same way.
+the hubs in the next step (port 4), never through the ESP32. The tested
+build uses a 35-LED WS2812B ring (78 mm inside) with a ready-made 3-wire
+lead, so nothing is soldered; an SK6812 RGBW ring wires the same way.
 
-1. Find the pads: **DIN** (or IN), **5V** (VCC), **GND**. Leave **DOUT**
-   (OUT) unconnected. Use flux, and tin the pad and the wire first.
-2. **Power:** solder a red wire to **5V** and a black wire to **GND**
-   (22 AWG stranded, up to 50 cm). Strip **11 mm** at the far ends for the
-   hubs.
-3. **1000 µF** across the ring's input: its legs on the **5V** and **GND**
-   pads (or the wires right at them), **stripe (−) to GND**. Keep the legs
-   short and sleeve them.
-4. **Data:** slide heat shrink onto a yellow wire, solder the **470 Ω** in
-   series between it and **DIN**, at the ring end, and shrink the sleeve
-   over the resistor. Run the yellow wire alongside the power pair.
-5. Tie or hot-glue the three wires to the ring near the pads.
-6. ✅ **Check** with the meter: **5V–GND** gives no steady beep (a short
-   chirp from the capacitor is fine); the yellow wire's free end to **DIN**
-   reads **about 470 Ω**.
-7. Push the yellow wire's free end (tinned, or on a male jumper pin) into
-   **c12**. Its power goes to the hubs in the next step (port 4).
+**Which end is DIN?** A ring with leads usually has two JST pigtails, one
+male and one female. Wire up the **input** end and leave the other (the
+output, **DOUT**, for chaining another ring) unconnected. Don't go by which
+pigtail is male or female; go by the ring itself:
+
+- the pads the lead is soldered to are marked **DIN** (or DI, IN) on the
+  input and **DOUT** (DO, OUT) on the output;
+- the small arrows printed by the LEDs point **away from** the input, in
+  the direction the data flows.
+
+If there are no marks, try one end: the wrong end just leaves the ring dark
+(both pigtails carry 5 V and GND, so nothing is harmed). On the tested ring
+the lead is **red = 5 V, black = GND, green = data**; check yours against
+the pad labels.
+
+1. **Data resistor:** 470 Ω (yellow, violet, brown) from **c12** (any free hole in row 12, a–c, is the same strip) to an
+   empty row on the left (rows 17–23 are free). Plug the input pigtail's
+   **green** (DIN) wire into that row, with a male jumper if the pigtail
+   has sockets. (Adafruit suggests the resistor at the ring end; with the
+   ring's short lead it works here on the board, as tested.)
+2. **1000 µF:** across the **L+** and **L−** rails near those rows,
+   **stripe (−) to L−**. That's fine for testing; for the finished reader,
+   solder it across the ring's 5 V and GND at the input instead, legs short
+   and sleeved.
+3. **Power:** the pigtail's **red** and **black** wires go to port 4 of the
+   hubs in the next step (extend them with 22 AWG and lever-connector ends,
+   **11 mm** stripped, if they're short).
+4. ✅ **Check** with the meter: the ring's red to black gives no steady
+   beep; **L+–L−** only a short chirp from the capacitor; **c12** to the
+   green wire reads **about 470 Ω**.
+
+**A ring with bare pads** (no lead) is soldered as in
+[breadboard step 5](../reader-breadboard/build.md#step-5-wire-the-led-ring):
+red to **5V**, black to **GND**, the 1000 µF across the pads and the 470 Ω
+in series with a yellow data wire at **DIN**, which then goes straight into
+**c12**. Use flux, and tin the pad and the wire first.
 
 ### 16. Power: PD trigger and hubs (tested 18 Nov 2026)
 
@@ -241,7 +270,7 @@ lever-connector hubs:
   | 1 | PD trigger **+** | PD trigger **−** |
   | 2 | **L+** rail (near row 25) | **L−** rail (near row 26) |
   | 3 | Amplifier **f24** (remove the L+ → f24 jumper) | Amplifier **f23** (remove the L− → f23 jumper) |
-  | 4 | Ring 5V | Ring GND |
+  | 4 | Ring red (5 V) | Ring black (GND) |
   | 5 | ESP32 5V (a wire soldered to the holder's 5V pad; remove its 5V → L+ jumper) | ESP32 GND (soldered to the holder's GND pad) |
 
   - **Keep a short ground jumper from the ESP32 to the breadboard**
@@ -258,11 +287,15 @@ lever-connector hubs:
    hub to GND: **4.75–5.25 V**. Unplug the charger, clip the ESP32's 5 V back,
    plug the charger in again.
 2. The reader comes online in Home Assistant, the start-up sound plays and
-   the idle glow shows. Set **LED count** to your ring's (35), and for an
-   RGBW ring **Ring type** to match its white LEDs (the reader restarts).
-   Turn on **Ring**: red, green and blue at 100 % on all LEDs. If red and
+   the idle glow shows. The ring's red to black reads about **5 V** (5.1 V
+   on the tested build). Check **LED count** is 35 (step 1), and for an
+   RGBW ring set **Ring type** to match its white LEDs (the reader
+   restarts). Turn on **Ring**: red, green and blue at 100 % on all LEDs,
+   then press **Test welcome** for the welcome colour. If red and
    green are swapped, set **LED colour order** to RGB. Flicker or random
-   colours: check the data path (d11, c12, the 470 Ω at DIN) and the grounds.
+   colours: check the data path (d11, c12, the 470 Ω, the ring's **input**
+   end) and the grounds. Dark ring: the lead may be on the output (DOUT)
+   end; see step 15.
 3. Tap a known band: the ring pulses in the welcome colour with the tap-in
    sound; an unknown band gets two red pulses and the error sound.
 
@@ -270,9 +303,10 @@ lever-connector hubs:
 
 1. **Ring** white at 100 %, **Speaker** volume 100 %, press **Test welcome**
    for a minute, then tap bands.
-2. The 5 V hub stays **at least 4.75 V** (tested: never below **4.95 V**, the
-   sound stayed clean); the reader doesn't restart (no start-up sound, it
-   stays online); nothing gets more than barely warm.
+2. The 5 V hub stays **at least 4.75 V**; the reader doesn't restart (no
+   start-up sound, it stays online); nothing gets more than barely warm.
+   (Tested before the ring was fitted: never below **4.95 V**, the sound
+   stayed clean at 100 %. Still to repeat with the ring.)
 
 ### 19. Final checks and the case
 
@@ -281,6 +315,22 @@ then fit everything in its case: no metal between the PN532's antenna and the
 band, and the ESP32 and its USB port out of reach (see
 [docs/security.md](../../docs/security.md)). Repeat the NFC and Bluetooth
 checks with it closed up.
+
+### If an update fails
+
+A firmware update that doesn't start properly is rolled back: the reader
+restarts on the version it had (as 0.10.9 did on the tested build). To see
+why, plug USB into the ESP32-S3's **UART** port without taking it out of the
+circuit (unclip its 5 V wire from the hub first, as always) and read the
+log in the web installer's **Logs & console** (press **RST** to see
+start-up), or over Wi-Fi in ESPHome's logs.
+
+### Bands lighting up across the room
+
+**Light up MagicBand+** reaches every MagicBand+ nearby, not only the one on
+the reader. Even at the lowest **Band light-up power** (−24 dBm) bands
+within about a metre still light: that's how Bluetooth works, and no
+setting stops it. Turn **Light up MagicBand+** off if that's unwanted.
 
 ### Other tag automations
 
