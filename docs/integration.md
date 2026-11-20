@@ -140,7 +140,7 @@ everything, read live from Home Assistant.
   readers welcome their bands in it, on the ring and on their MagicBand+),
   and **Enrol bands** (the next bands tapped that nobody owns become theirs;
   a banner shows the time left and a Stop button).
-- **Recent taps:** the last 30 taps, welcomed, denied or enrolled
+- **Recent taps:** the last 300 taps, 10 at a time (**Newer** and **Older** page through them), welcomed, denied or enrolled
   (administrators only).
 - **Readers** and **bridges:** status, firmware and their settings (fast mode,
   Bluetooth proxy, response mode, sound, ring and so on). Each reader's
@@ -162,6 +162,13 @@ everything, read live from Home Assistant.
 
 The page is for Home Assistant **administrators** (it manages who the
 readers let in).
+
+**Light shows:** `magicband.play_show` plays one of the readers' ten light
+shows (`show`, or `Random`) on every reader or the ones you pick
+(`device_id`), and the blueprint **MagicbHAnds: light show on a schedule**
+plays one every hour (or every few hours) between two times of day:
+Settings → Automations & scenes → Blueprints → *MagicbHAnds: light show on a
+schedule* → Create automation.
 
 It finds everything by device and attribute, so new bands, readers and
 bridges appear by themselves. Changes go through the integration's own

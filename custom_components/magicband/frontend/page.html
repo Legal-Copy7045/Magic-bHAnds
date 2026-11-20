@@ -44,6 +44,7 @@ details.more{margin-top:8px}details.more summary{cursor:pointer;font-size:13px;c
 .tw-body{fill:#1d1b26}.tw-pad{fill:#2a2836;stroke:#3a3748;stroke-width:1}
 .tw-t1{font:700 13px "Instrument Sans",sans-serif;fill:#c9c6d8;text-anchor:middle;letter-spacing:.12em}.tw-t2{font:500 10px "Instrument Sans",sans-serif;fill:#8d89a3;text-anchor:middle}
 .tw-side{display:flex;flex-direction:column;gap:2px;min-width:0}.tw-cap{font:600 15px "Instrument Sans",sans-serif}
+.pager{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:10px;flex-wrap:wrap}
 .sgs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,265px),1fr));gap:10px;margin-top:10px}
 .sg{border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:var(--sunk,var(--surface));min-width:0}
 .sg h4{margin:0;font:600 12px "Instrument Sans",sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
@@ -141,7 +142,7 @@ h2.sec{font:400 34px/1.1 var(--mbh-display)!important}h3.grp{font:400 26px var(-
 <section class="tc"><div id="people"></div>
   <div class="form" id="addp"></div><div class="msg" id="people-msg"></div></section>
 
-<h2 class="sec">Recent taps <small>newest first</small></h2>
+<h2 class="sec">Recent taps <small>newest first, 10 a page</small></h2>
 <section class="tc"><div id="hist"></div></section>
 
 <h2 class="sec">Readers</h2>
@@ -154,7 +155,7 @@ h2.sec{font:400 34px/1.1 var(--mbh-display)!important}h3.grp{font:400 26px var(-
 <script>
 // ───────── discovery: devices by model, sensors by their attributes (no entity ids written down) ─────────
 const BRIDGE_MODELS=/^magicband-(bridge|bp2-poe)$/, READER_MODEL=/^magicband-reader$/;
-let LIST=null, BT=null, HIST=null, HIST_ERR=null, BUSY={}, ARM={}, LAST_LOAD=0, LAST_TAP=null, BATT={}, BATT_AT=0;
+let LIST=null, BT=null, HIST=null, HIST_ERR=null, HIST_PAGE=0, HIST_PER=10, BUSY={}, ARM={}, LAST_LOAD=0, LAST_TAP=null, BATT={}, BATT_AT=0;
 const DAYS=['mon','tue','wed','thu','fri','sat','sun'], DAY_LABEL={mon:'Mo',tue:'Tu',wed:'We',thu:'Th',fri:'Fr',sat:'Sa',sun:'Su'};
 const COLOURS=()=>(LIST&&LIST.colours)||['White','Warm white','Red','Orange','Yellow','Green','Cyan','Blue','Purple','Pink','Magenta'];
 const listBand=nfc=>((LIST&&LIST.bands)||[]).find(x=>x.band===nfc)||null;
@@ -375,8 +376,12 @@ function enrolBar(I){ const us=H().state('sensor.magicband_unknown_bands'), en=u
   const left=Math.max(0,Math.round((Date.parse(en.until)-Date.now())/1000));
   $('enrol').innerHTML=`<div class="enrolbar"><b>Enrolling bands for ${esc(en.person||'someone')}</b><span class="sub2">tap them on any reader · about ${Math.ceil(left/60)} min left · ${Number(en.count)||0} added</span><button class="btn sm" id="enrol-stop">Stop</button></div>`;
   $('enrol-stop').onclick=()=>act(mb('stop_enrolment',{}),'es',null,'').then(load); }
-function histList(I){ const L=HIST||[];
-  $('hist').innerHTML=L.length?`<div style="overflow-x:auto"><table class="t"><tr><th>When</th><th>Band</th><th>Reader</th><th></th></tr>${L.map(t=>`<tr><td>${esc(rel(t.time))}</td><td>${esc(t.name||t.band)}${t.person?' <span class="sub2">'+esc(t.person)+'</span>':''}</td><td>${esc(t.reader||'–')}</td><td>${t.enrolled?'<span class="tag yes">enrolled</span>':t.allowed?'<span class="tag yes">welcomed</span>':'<span class="tag no">denied</span>'}</td></tr>`).join('')}</table></div>`
+// Recent taps: 10 a page, Newer / Older.
+function bindPager(){ document.querySelectorAll('#hist [data-hp]').forEach(x=>x.onclick=()=>{ HIST_PAGE+=parseInt(x.dataset.hp,10)||0; histList(); bindPager(); }); }
+function histList(I){ const all=HIST||[], pages=Math.max(1,Math.ceil(all.length/HIST_PER)); HIST_PAGE=Math.min(Math.max(0,HIST_PAGE),pages-1);
+  const from=HIST_PAGE*HIST_PER, L=all.slice(from,from+HIST_PER);
+  const pager=pages>1?`<div class="pager"><button class="btn sm" data-hp="-1"${HIST_PAGE?'':' disabled'}>‹ Newer</button><span class="sub2">${from+1}–${from+L.length} of ${all.length}${all.length>=300?'+':''} · page ${HIST_PAGE+1} of ${pages}</span><button class="btn sm" data-hp="1"${HIST_PAGE<pages-1?'':' disabled'}>Older ›</button></div>`:'';
+  $('hist').innerHTML=L.length?`<div style="overflow-x:auto"><table class="t"><tr><th>When</th><th>Band</th><th>Reader</th><th></th></tr>${L.map(t=>`<tr><td>${esc(rel(t.time))}</td><td>${esc(t.name||t.band)}${t.person?' <span class="sub2">'+esc(t.person)+'</span>':''}</td><td>${esc(t.reader||'–')}</td><td>${t.enrolled?'<span class="tag yes">enrolled</span>':t.allowed?'<span class="tag yes">welcomed</span>':'<span class="tag no">denied</span>'}</td></tr>`).join('')}</table></div>${pager}`
     :`<p class="muted" style="margin:0">${HIST?'No taps yet.':!HIST_ERR?'Loading…':/not allowed/i.test(HIST_ERR)?"This page's host doesn't allow the tap history yet; it's on the MagicbHAnds page in the sidebar."
       :/unauthori[sz]ed|admin/i.test(HIST_ERR)?'Only administrators can see the tap history.':'Couldn’t load the tap history: '+esc(HIST_ERR)}</p>`; }
 const SYNC_LABEL={up_to_date:'up to date',failed:'not applied',unconfirmed:'sent (update the reader to confirm)',offline:'reader offline',waiting:'waiting'};
@@ -394,8 +399,43 @@ function readerCards(I,RD,B){ $('readers').innerHTML=RD.map(d=>{ const p=l=>pick
       <div class="row"><span>Light up MagicBand+</span>${tg(p(['switch','Light up MagicBand+']),'Light up MagicBand+')}</div>
       <div class="row"><span>Ring light</span>${tg(ring,'Ring light')}</div>
       <div class="row"><span>Speaker volume</span>${sp?`<span><input type="range" min="0" max="100" value="${vol!=null?Math.round(vol*100):50}" data-vol="${esc(sp)}"${avail(sp)?'':' disabled'}> <span class="sub2">${vol!=null?Math.round(vol*100)+'%':''}</span></span>`:'<span class="muted">–</span>'}</div>
-      <div class="btns">${bt(p(['button','Test welcome']),'Test welcome')}${(()=>{ const r=p(['button','Restart']); return r?`<button class="btn sm ${ARM['rs'+r]?'arm':''}" data-restart="${esc(r)}"${avail(r)?'':' disabled'}>${ARM['rs'+r]?'Tap again to restart':'Restart'}</button>`:''; })()}</div>
+      <div class="btns">${bt(p(['button','Test welcome']),'Test welcome')}${bt(p(['button','Play show']),'Play show')}${(()=>{ const r=p(['button','Restart']); return r?`<button class="btn sm ${ARM['rs'+r]?'arm':''}" data-restart="${esc(r)}"${avail(r)?'':' disabled'}>${ARM['rs'+r]?'Tap again to restart':'Restart'}</button>`:''; })()}</div>
       <details class="more" data-k="${esc(d.id)}"><summary>Ring and tap settings</summary>${readerSettings(p)}</details></section>`; }).join('')||'<p class="muted">No MagicBand readers found (ESPHome model magicband-reader).</p>'; }
+
+// The readers' light shows, a copy of components/magicband/shows.h for the live ring: keep the two in step.
+const SHOW_NAMES=['Rainbow rush','Fireworks','Comet chase','Colour parade','Twinkle','Heartbeat','Ocean','Fire','Pinwheel','Confetti'];
+const SHOW_MS=[3100,5000,4000,4300,5000,4300,5000,4500,4500,4500];
+function showHash(a,b){ let h=(Math.imul(a+1,2654435761)^Math.imul(b,40503))>>>0; h=(h^(h>>>13))>>>0; h=Math.imul(h,0x5bd1e995)>>>0; h=(h^(h>>>15))>>>0; return h; }
+function showHue(h){ h=(h-Math.floor(h))*6; const k=n=>{ const v=(n+h)%6, m=Math.min(v,4-v); return 1-Math.max(0,Math.min(1,m)); }; return [k(5),k(3),k(1)]; }
+// [rgb 0-1, level 0-1] per LED, or null once the show has ended.
+function renderShow(show,t,n){
+  const out=Array.from({length:n},()=>[[0,0,0],0]); if(show<0||show>=SHOW_NAMES.length||n<=0||t>=SHOW_MS[show]) return null;
+  const cl=x=>x<0?0:x>1?1:x, fr=x=>x-Math.floor(x), T=t, D=SHOW_MS[show];
+  const put=(i,c,v)=>{ i=((i%n)+n)%n; v=cl(v); if((c[0]+c[1]+c[2])*v>(out[i][0][0]+out[i][0][1]+out[i][0][2])*out[i][1]) out[i]=[c,v]; };
+  const env=(a,b)=>cl(a>0?T/a:1)*cl(b>0?(D-T)/b:1);
+  if(show===0){
+    if(T<900){ const q=T/900, pos=q*q*2*n, tail=Math.max(4,Math.floor(n/3)); for(let c=0;c<2;c++){ const head=pos+c*n/2; for(let k=0;k<tail;k++){ const f=1-k/tail; put(Math.floor(head)-k,showHue((head-k)/n+c*.5),f*f); } } }
+    else if(T<1800){ const q=(T-900)/900, v=.35+.65*Math.sin(q*1.5708); for(let i=0;i<n;i++) put(i,showHue(i/n+q*1.5),v); }
+    else if(T<2350){ const q=(T-1800)/550, f=Math.floor(t/50); for(let i=0;i<n;i++){ const h=showHash(i,f); if((h&7)===0) put(i,[1,1,1],1-.5*q); else if((h&7)<5) put(i,showHue(((h>>>8)&255)/255),.86*(1-.4*q)); } }
+    else { const q=(T-2350)/750; for(let i=0;i<n;i++) put(i,showHue(i/n+1.35+q*.3),.78*(1-q)*(1-q)); } }
+  else if(show===1){ for(let k=0;k<6;k++){ const age=T-k*750; if(age<0||age>1200) continue; const centre=showHash(k,1)%n, c=showHue((showHash(k,2)&1023)/1024), radius=age/700*(n/4), fade=1-age/1200;
+      for(let d=0;d<=Math.floor(radius)&&d<=Math.floor(n/2);d++){ const edge=1-(radius-d)/(radius+1), v=fade*(.35+.65*edge); put(centre+d,c,v); put(centre-d,c,v); }
+      if(age<500){ const r=Math.floor(radius); if(showHash(k,Math.floor(t/40))&1) put(centre+r+1,[1,1,1],1-age/500); if(showHash(k+7,Math.floor(t/40))&1) put(centre-r-1,[1,1,1],1-age/500); } } }
+  else if(show===2){ const e=env(300,400), sp=[1,1.6,-1.25], hu=[0,.33,.62], tail=Math.max(3,Math.floor(n/4));
+    for(let c=0;c<3;c++){ const head=T/1000*sp[c]*n+c*n/3, dir=sp[c]>0?1:-1; for(let k=0;k<tail;k++){ const f=1-k/tail; put(Math.floor(head)-dir*k,showHue(hu[c]+k*.01),e*f*f); } } }
+  else if(show===3){ const C=[[1,0,0],[1,.4,0],[1,.85,0],[0,1,.1],[0,.3,1],[.6,0,1]], k=Math.floor(T/600), e=T>3700?cl((4300-T)/600):1, under=k>0?C[(k-1)%6]:[0,0,0], lit=k<6?Math.floor((T-k*600)/600*n):n;
+    for(let i=0;i<n;i++){ if(k>=6) put(i,C[5],e); else if(i<=lit) put(i,C[k],e); else if(k>0) put(i,under,e); } }
+  else if(show===4){ const e=env(500,700); for(let i=0;i<n;i++){ const h=showHash(i,99), per=900+(h%800), ph=((h>>>10)%1000)/1000, s=Math.sin(6.2832*(T/per+ph)), v=s>0?s*s*s:0, kd=(h>>>20)%3;
+      put(i,kd===0?[1,1,1]:kd===1?[.55,.7,1]:[1,.75,.35],e*(.05+.95*v)); } }
+  else if(show===5){ const p=T%1400; let v=0; if(p<220) v=Math.sin(Math.PI*p/220); else if(p>=300&&p<560) v=.7*Math.sin(Math.PI*(p-300)/260);
+    for(let i=0;i<n;i++){ const d=Math.abs(i/n-.5)*2; put(i,[1,.08,.25],v*(.45+.55*d)); } }
+  else if(show===6){ const e=env(500,600); for(let i=0;i<n;i++){ const w=.5+.5*Math.sin(6.2832*(i/n*2-T/1500)), w2=.5+.5*Math.sin(6.2832*(i/n*3+T/2300)), m=cl(.6*w+.4*w2); put(i,[0,.15+.65*m,.6+.1*m],e*(.3+.7*m)); } }
+  else if(show===7){ const e=env(400,700), f0=Math.floor(t/70), f=(T-f0*70)/70; for(let i=0;i<n;i++){ const a=(showHash(i,f0)&255)/255, b=(showHash(i,f0+1)&255)/255, d=1-Math.abs(i/n-.5)*2, ht=cl((a+(b-a)*f)*.55+d*.5);
+      put(i,[1,ht*ht*.75,ht*ht*ht*ht*.15],e*(.25+.75*ht)); } }
+  else if(show===8){ const q=T/D, turn=3*(q-Math.sin(6.2832*q)/6.2832), e=env(250,500); for(let i=0;i<n;i++){ const a=fr(i/n+turn)*4, arm=Math.floor(a), ins=a-arm; if(ins<.12) continue; put(i,showHue(arm/4+T/4000),e*(.4+.6*ins)); } }
+  else if(show===9){ const e=T>3800?cl((4500-T)/700):1, f0=Math.floor(t/60), ch=Math.floor(2600/n);
+    for(let i=0;i<n;i++) for(let b=0;b<14&&b<=f0;b++){ const h=showHash(i,f0-b); if(h%1000<ch){ put(i,showHue(((h>>>12)&1023)/1024),e*(1-b/14)); break; } } }
+  return out; }
 
 // A live twin of the reader's ring: it draws what the ring is doing from the reader's Ring light
 // (on/off, effect, colour, brightness) and its settings, so a tap shows here as it happens:
@@ -437,13 +477,14 @@ function twinFrame(){
       let lv=0; if(k<num('Welcome pulses',1)) lv=q<fi?q/fi:q<fi+ho?1:q<fi+ho+fo?1-(q-fi-ho)/fo:0; L.fill(br*lv); cap='Welcome'+(tw.dataset.band?', '+tw.dataset.band:''); }
     else if(eff==='Pulse'){ const om=num('Pulse time',0.45)*1000, gm=om/3, k=Math.floor(t/(om+gm)), q=t%(om+gm);
       L.fill(k<num('Denied pulses',2)&&q<om?br*Math.sin(Math.PI*q/om):0); cap='Not allowed'; sub=tw.dataset.band||''; }
+    else if(SHOW_NAMES.includes(eff)){ cap='Light show: '+eff; const R=renderShow(SHOW_NAMES.indexOf(eff),t,n); tw._cols=R?R.map(x=>x[0].map(v=>v*255)):null; if(R) R.forEach((x,i)=>L[i]=x[1]); }
     else if(eff==='Offline'){ L.fill(0.15+0.85*(0.5-0.5*Math.cos(2*Math.PI*t/3000))); cap='Waiting for Home Assistant'; }
     else if(eff==='Warm glow'){ rgb=[255,196,120]; L.fill(num(night?'Idle glow at night':'Idle glow',30)/100); sub=night?'Night glow':'Idle glow'; }
     else { L.fill(br); if(eff==='None') sub=night?'Night glow':'Idle glow'; else cap='Effect: '+eff; }
-    const col=`rgb(${rgb.map(v=>Math.round(v)).join(',')})`;
-    for(let i=0;i<n;i++){ const v=Math.max(0,Math.min(1,L[i])), d=tw._leds[i], g=tw._glow[i];
+    const col=`rgb(${rgb.map(v=>Math.round(v)).join(',')})`, cols=SHOW_NAMES.includes(eff)&&on?tw._cols:null;
+    for(let i=0;i<n;i++){ const v=Math.max(0,Math.min(1,L[i])), d=tw._leds[i], g=tw._glow[i], c=cols&&cols[i]?`rgb(${cols[i].map(Math.round).join(',')})`:col;
       if(v<0.01){ d.setAttribute('fill','var(--tw-off)'); d.setAttribute('fill-opacity','1'); g.setAttribute('fill-opacity','0'); }
-      else { d.setAttribute('fill',col); d.setAttribute('fill-opacity',(0.25+0.75*v).toFixed(2)); g.setAttribute('fill',col); g.setAttribute('fill-opacity',(0.9*v).toFixed(2)); } }
+      else { d.setAttribute('fill',c); d.setAttribute('fill-opacity',(0.25+0.75*v).toFixed(2)); g.setAttribute('fill',c); g.setAttribute('fill-opacity',(0.9*v).toFixed(2)); } }
     const spS=tw.dataset.sp?S(tw.dataset.sp):null; if(spS&&spS.state==='playing') sub=(sub?sub+' · ':'')+'♪ sound';
     if(tw._cap.textContent!==cap) tw._cap.textContent=cap; if(tw._sub.textContent!==(sub||' ')) tw._sub.textContent=sub||' ';
   }); } catch(e){ console.error(e); }
@@ -452,7 +493,7 @@ requestAnimationFrame(twinFrame);
 
 // The reader's ring and tap settings, grouped. p([domain, name]) finds the reader's entity.
 const SWATCH={White:'#f4f4f5','Warm white':'#ffd8a0',Red:'#ef4444',Orange:'#f97316',Yellow:'#facc15',Green:'#22c55e',Cyan:'#22d3ee',Blue:'#3b82f6',Purple:'#8b5cf6',Pink:'#f472b6',Magenta:'#d946ef'};
-function setCtl(e,dom){ if(!e) return null; if(dom==='select') return selectFor(e); const u=A(e).unit_of_measurement; return `<span class="nu">${numberFor(e)}<span class="sub2">${u?esc(u):''}</span></span>`; }
+function setCtl(e,dom){ if(!e) return null; if(dom==='select') return selectFor(e); if(dom==='switch') return tg(e,A(e).friendly_name||''); const u=A(e).unit_of_measurement; return `<span class="nu">${numberFor(e)}<span class="sub2">${u?esc(u):''}</span></span>`; }
 function hm(mins){ mins=((Math.round(mins)%1440)+1440)%1440; return String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0'); }
 function sunMins(attr){ const s=S('sun.sun'), v=s&&s.attributes?s.attributes[attr]:null, t=v?new Date(v):null; return t&&!isNaN(t)?t.getHours()*60+t.getMinutes():null; }
 function readerSettings(p){
@@ -468,7 +509,7 @@ function readerSettings(p){
   if(![fi,ho,fo].some(isNaN)){ const tot=Math.max(fi+ho+fo,0.1), W=150, H=26, x=t=>(t/tot*W).toFixed(1);
     shape=`<div class="shape"><svg viewBox="0 0 ${W} ${H+2}" width="${W}" height="${H+2}" aria-hidden="true"><polygon points="0,${H+1} ${x(fi)},1 ${x(fi+ho)},1 ${W},${H+1}" fill="${wc}" fill-opacity=".35" stroke="${wc}" stroke-width="1.5"/></svg><span class="sub2">${fi} s up · ${ho} s on · ${fo} s fade, ${(fi+ho+fo).toFixed(2).replace(/\.?0+$/,'')} s in all</span></div>`; }
   const G=[
-    ['Ring',[['select','Ring type','Type'],['number','LED count','LEDs'],['select','LED colour order','Colour order'],['number','LED brightness','Brightness']],
+    ['Ring',[['select','Ring type','Type'],['number','LED count','LEDs'],['select','LED colour order','Colour order'],['number','LED brightness','Brightness'],['select','Startup show','Start-up show'],['select','Show','Play show plays']],
       'Changing the type restarts the reader. RGBW rings have a white LED in each pixel.'],
     ['Waiting for a band',[['select','Idle colour','Colour'],['number','Idle glow','Glow (0 = off)']],'Pulses amber instead while Home Assistant is away.'],
     ['Night',[['number','Idle glow at night','Glow'],['select','Night mode','Night is'],
@@ -525,13 +566,14 @@ function bridgeCards(I,BR){ $('bridges').innerHTML=BR.map(d=>{ const p=(dom,l)=>
 function wire(){ document.querySelectorAll('[data-tg]').forEach(x=>x.onclick=()=>{ const e=x.dataset.tg, dom=e.split('.')[0]; act(H().call(dom,S(e).state==='on'?'turn_off':'turn_on',e),e); });
   document.querySelectorAll('[data-press]').forEach(x=>x.onclick=()=>act(H().call('button','press',x.dataset.press),x.dataset.press));
   document.querySelectorAll('[data-restart]').forEach(x=>x.onclick=()=>{ const e=x.dataset.restart; if(!armed('rs'+e)) return; act(H().call('button','press',e),e); });
+  bindPager();
   document.querySelectorAll('[data-sel]').forEach(x=>x.onchange=()=>act(H().call('select','select_option',x.dataset.sel,{option:x.value}),x.dataset.sel));
   document.querySelectorAll('[data-num]').forEach(x=>x.onchange=()=>{ const v=parseFloat(x.value); if(!isFinite(v)) return; act(H().call('number','set_value',x.dataset.num,{value:v}),x.dataset.num); });
   document.querySelectorAll('[data-vol]').forEach(x=>x.onchange=()=>act(H().call('media_player','volume_set',x.dataset.vol,{volume_level:+x.value/100}),x.dataset.vol)); }
 
 // the integration's own lists (people ids, Bluetooth halves); refreshed every minute and after any change
 async function load(){ if(!H()||!H().service) return; LAST_LOAD=Date.now();
-  try{ const [l,b,h]=await Promise.all([mb('list',{},true),mb('list_bluetooth_bands',{},true),mb('history',{count:30},true).then(r=>{ HIST_ERR=null; return r; },e=>{ HIST_ERR=String((e&&e.message)||e); return null; })]); LIST=l; BT=b; HIST=h&&h.taps; }catch(e){ console.error('magicband list',e); }
+  try{ const [l,b,h]=await Promise.all([mb('list',{},true),mb('list_bluetooth_bands',{},true),mb('history',{count:300},true).then(r=>{ HIST_ERR=null; return r; },e=>{ HIST_ERR=String((e&&e.message)||e); return null; })]); LIST=l; BT=b; HIST=h&&h.taps; }catch(e){ console.error('magicband list',e); }
   loadBattery(); render(); }
 // 7 days of each band's battery, for the sparklines (refreshed every 15 minutes)
 async function loadBattery(){ if(Date.now()-BATT_AT<15*60000||!H().ws) return; BATT_AT=Date.now();

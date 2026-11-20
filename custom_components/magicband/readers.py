@@ -42,6 +42,13 @@ OFFLINE_REPAIR_AFTER = timedelta(minutes=15)
 CONFIRMING_FIRMWARE = (0, 10, 4)  # readers that reply whether they applied the list
 SIGNAL_READER_STATUS = f"{DOMAIN}_reader_status"
 
+# The readers' light shows (0.10.17+), as in components/magicband/shows.h.
+SHOW_NAMES = (
+    "Rainbow rush", "Fireworks", "Comet chase", "Colour parade", "Twinkle",
+    "Heartbeat", "Ocean", "Fire", "Pinwheel", "Confetti",
+)
+SHOW_SERVICE_SUFFIX = "_play_show"
+
 # States of a reader's "Allowed list" sensor.
 UP_TO_DATE = "up_to_date"
 FAILED = "failed"
@@ -106,6 +113,27 @@ def firmware_version(device: dr.DeviceEntry) -> tuple[int, ...] | None:
 def list_size(uids: list[str]) -> int:
     """Characters the reader needs for this list (",UID,UID,")."""
     return 1 + sum(len(u) + 1 for u in uids)
+
+
+async def async_play_show(hass: HomeAssistant, show: str, device_ids: list[str] | None = None) -> dict[str, Any]:
+    """Plays a light show ("Random" or one of SHOW_NAMES) on the readers (all of them, or these devices).
+
+    Returns {"played": [reader names], "skipped": [names of readers that are offline or too old]}.
+    """
+    played: list[str] = []
+    skipped: list[str] = []
+    for device in reader_devices(hass):
+        if device_ids and device.id not in device_ids:
+            continue
+        name = device.name_by_user or device.name or "MagicBand reader"
+        node = node_name(hass, device)
+        service = _service_for(node, SHOW_SERVICE_SUFFIX) if node else None
+        if service is None or not hass.services.has_service("esphome", service):
+            skipped.append(name)
+            continue
+        await hass.services.async_call("esphome", service, {"show": show}, blocking=True)
+        played.append(name)
+    return {"played": played, "skipped": skipped}
 
 
 @dataclass

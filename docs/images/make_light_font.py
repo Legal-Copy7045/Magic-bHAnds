@@ -32,6 +32,7 @@ def main() -> None:
     top = cff.topDictIndex[0]
     glyphs = font.getGlyphSet()
     width = ERODE * font["head"].unitsPerEm
+    nominal = getattr(top.Private, "nominalWidthX", 0)
     thinned = {}
     for name in font.getGlyphOrder():
         glyph = glyphs[name]
@@ -45,7 +46,10 @@ def main() -> None:
         edge.convertConicsToQuads()
         # Shift left by what each side lost and narrow the advance to match.
         advance = max(0, round(glyph.width - width))
-        pen = T2CharStringPen(advance, glyphs)
+        # CFF stores a glyph's width relative to the font's nominalWidthX; renderers
+        # that read it from the CFF (DirectWrite on Windows) must get the same width
+        # as the hmtx table below.
+        pen = T2CharStringPen(advance - nominal, glyphs)
         pathops.op(path, edge, pathops.PathOp.DIFFERENCE).draw(TransformPen(pen, (1, 0, 0, 1, -width / 2, 0)))
         thinned[name] = pen.getCharString(private=top.Private, globalSubrs=cff.GlobalSubrs)
         font["hmtx"][name] = (advance, font["hmtx"][name][1])  # the left edge moves back to where it was
