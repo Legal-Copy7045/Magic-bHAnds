@@ -140,7 +140,7 @@ everything, read live from Home Assistant.
   readers welcome their bands in it, on the ring and on their MagicBand+),
   and **Enrol bands** (the next bands tapped that nobody owns become theirs;
   a banner shows the time left and a Stop button).
-- **Recent taps:** the last 30 taps, welcomed, denied or enrolled
+- **Recent taps:** the last 300 taps, 10 at a time (**Newer** and **Older** page through them), welcomed, denied or enrolled
   (administrators only).
 - **Readers** and **bridges:** status, firmware and their settings (fast mode,
   Bluetooth proxy, response mode, sound, ring and so on). Each reader's

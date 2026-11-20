@@ -24,6 +24,8 @@ Home Assistant integration share one version number.
 ### MagicbHAnds page
 - Each reader card has a **Play show** button, **Start-up show** and
   **Show** are in the Ring settings, and the live ring plays the shows too.
+- **Recent taps** shows 10 at a time, with **Newer** and **Older** to page
+  through the last 300.
 
 ### Fixed
 - **Colours turned cool white as they faded.** The tail of the chasing
