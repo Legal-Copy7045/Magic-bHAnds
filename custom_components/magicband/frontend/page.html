@@ -44,6 +44,7 @@ details.more{margin-top:8px}details.more summary{cursor:pointer;font-size:13px;c
 .tw-body{fill:#1d1b26}.tw-pad{fill:#2a2836;stroke:#3a3748;stroke-width:1}
 .tw-t1{font:700 13px "Instrument Sans",sans-serif;fill:#c9c6d8;text-anchor:middle;letter-spacing:.12em}.tw-t2{font:500 10px "Instrument Sans",sans-serif;fill:#8d89a3;text-anchor:middle}
 .tw-side{display:flex;flex-direction:column;gap:2px;min-width:0}.tw-cap{font:600 15px "Instrument Sans",sans-serif}
+.pager{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:10px;flex-wrap:wrap}
 .sgs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,265px),1fr));gap:10px;margin-top:10px}
 .sg{border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:var(--sunk,var(--surface));min-width:0}
 .sg h4{margin:0;font:600 12px "Instrument Sans",sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
@@ -141,7 +142,7 @@ h2.sec{font:400 34px/1.1 var(--mbh-display)!important}h3.grp{font:400 26px var(-
 <section class="tc"><div id="people"></div>
   <div class="form" id="addp"></div><div class="msg" id="people-msg"></div></section>
 
-<h2 class="sec">Recent taps <small>newest first</small></h2>
+<h2 class="sec">Recent taps <small>newest first, 10 a page</small></h2>
 <section class="tc"><div id="hist"></div></section>
 
 <h2 class="sec">Readers</h2>
@@ -154,7 +155,7 @@ h2.sec{font:400 34px/1.1 var(--mbh-display)!important}h3.grp{font:400 26px var(-
 <script>
 // ───────── discovery: devices by model, sensors by their attributes (no entity ids written down) ─────────
 const BRIDGE_MODELS=/^magicband-(bridge|bp2-poe)$/, READER_MODEL=/^magicband-reader$/;
-let LIST=null, BT=null, HIST=null, HIST_ERR=null, BUSY={}, ARM={}, LAST_LOAD=0, LAST_TAP=null, BATT={}, BATT_AT=0;
+let LIST=null, BT=null, HIST=null, HIST_ERR=null, HIST_PAGE=0, HIST_PER=10, BUSY={}, ARM={}, LAST_LOAD=0, LAST_TAP=null, BATT={}, BATT_AT=0;
 const DAYS=['mon','tue','wed','thu','fri','sat','sun'], DAY_LABEL={mon:'Mo',tue:'Tu',wed:'We',thu:'Th',fri:'Fr',sat:'Sa',sun:'Su'};
 const COLOURS=()=>(LIST&&LIST.colours)||['White','Warm white','Red','Orange','Yellow','Green','Cyan','Blue','Purple','Pink','Magenta'];
 const listBand=nfc=>((LIST&&LIST.bands)||[]).find(x=>x.band===nfc)||null;
@@ -375,8 +376,12 @@ function enrolBar(I){ const us=H().state('sensor.magicband_unknown_bands'), en=u
   const left=Math.max(0,Math.round((Date.parse(en.until)-Date.now())/1000));
   $('enrol').innerHTML=`<div class="enrolbar"><b>Enrolling bands for ${esc(en.person||'someone')}</b><span class="sub2">tap them on any reader · about ${Math.ceil(left/60)} min left · ${Number(en.count)||0} added</span><button class="btn sm" id="enrol-stop">Stop</button></div>`;
   $('enrol-stop').onclick=()=>act(mb('stop_enrolment',{}),'es',null,'').then(load); }
-function histList(I){ const L=HIST||[];
-  $('hist').innerHTML=L.length?`<div style="overflow-x:auto"><table class="t"><tr><th>When</th><th>Band</th><th>Reader</th><th></th></tr>${L.map(t=>`<tr><td>${esc(rel(t.time))}</td><td>${esc(t.name||t.band)}${t.person?' <span class="sub2">'+esc(t.person)+'</span>':''}</td><td>${esc(t.reader||'–')}</td><td>${t.enrolled?'<span class="tag yes">enrolled</span>':t.allowed?'<span class="tag yes">welcomed</span>':'<span class="tag no">denied</span>'}</td></tr>`).join('')}</table></div>`
+// Recent taps: 10 a page, Newer / Older.
+function bindPager(){ document.querySelectorAll('#hist [data-hp]').forEach(x=>x.onclick=()=>{ HIST_PAGE+=parseInt(x.dataset.hp,10)||0; histList(); bindPager(); }); }
+function histList(I){ const all=HIST||[], pages=Math.max(1,Math.ceil(all.length/HIST_PER)); HIST_PAGE=Math.min(Math.max(0,HIST_PAGE),pages-1);
+  const from=HIST_PAGE*HIST_PER, L=all.slice(from,from+HIST_PER);
+  const pager=pages>1?`<div class="pager"><button class="btn sm" data-hp="-1"${HIST_PAGE?'':' disabled'}>‹ Newer</button><span class="sub2">${from+1}–${from+L.length} of ${all.length}${all.length>=300?'+':''} · page ${HIST_PAGE+1} of ${pages}</span><button class="btn sm" data-hp="1"${HIST_PAGE<pages-1?'':' disabled'}>Older ›</button></div>`:'';
+  $('hist').innerHTML=L.length?`<div style="overflow-x:auto"><table class="t"><tr><th>When</th><th>Band</th><th>Reader</th><th></th></tr>${L.map(t=>`<tr><td>${esc(rel(t.time))}</td><td>${esc(t.name||t.band)}${t.person?' <span class="sub2">'+esc(t.person)+'</span>':''}</td><td>${esc(t.reader||'–')}</td><td>${t.enrolled?'<span class="tag yes">enrolled</span>':t.allowed?'<span class="tag yes">welcomed</span>':'<span class="tag no">denied</span>'}</td></tr>`).join('')}</table></div>${pager}`
     :`<p class="muted" style="margin:0">${HIST?'No taps yet.':!HIST_ERR?'Loading…':/not allowed/i.test(HIST_ERR)?"This page's host doesn't allow the tap history yet; it's on the MagicbHAnds page in the sidebar."
       :/unauthori[sz]ed|admin/i.test(HIST_ERR)?'Only administrators can see the tap history.':'Couldn’t load the tap history: '+esc(HIST_ERR)}</p>`; }
 const SYNC_LABEL={up_to_date:'up to date',failed:'not applied',unconfirmed:'sent (update the reader to confirm)',offline:'reader offline',waiting:'waiting'};
@@ -561,13 +566,14 @@ function bridgeCards(I,BR){ $('bridges').innerHTML=BR.map(d=>{ const p=(dom,l)=>
 function wire(){ document.querySelectorAll('[data-tg]').forEach(x=>x.onclick=()=>{ const e=x.dataset.tg, dom=e.split('.')[0]; act(H().call(dom,S(e).state==='on'?'turn_off':'turn_on',e),e); });
   document.querySelectorAll('[data-press]').forEach(x=>x.onclick=()=>act(H().call('button','press',x.dataset.press),x.dataset.press));
   document.querySelectorAll('[data-restart]').forEach(x=>x.onclick=()=>{ const e=x.dataset.restart; if(!armed('rs'+e)) return; act(H().call('button','press',e),e); });
+  bindPager();
   document.querySelectorAll('[data-sel]').forEach(x=>x.onchange=()=>act(H().call('select','select_option',x.dataset.sel,{option:x.value}),x.dataset.sel));
   document.querySelectorAll('[data-num]').forEach(x=>x.onchange=()=>{ const v=parseFloat(x.value); if(!isFinite(v)) return; act(H().call('number','set_value',x.dataset.num,{value:v}),x.dataset.num); });
   document.querySelectorAll('[data-vol]').forEach(x=>x.onchange=()=>act(H().call('media_player','volume_set',x.dataset.vol,{volume_level:+x.value/100}),x.dataset.vol)); }
 
 // the integration's own lists (people ids, Bluetooth halves); refreshed every minute and after any change
 async function load(){ if(!H()||!H().service) return; LAST_LOAD=Date.now();
-  try{ const [l,b,h]=await Promise.all([mb('list',{},true),mb('list_bluetooth_bands',{},true),mb('history',{count:30},true).then(r=>{ HIST_ERR=null; return r; },e=>{ HIST_ERR=String((e&&e.message)||e); return null; })]); LIST=l; BT=b; HIST=h&&h.taps; }catch(e){ console.error('magicband list',e); }
+  try{ const [l,b,h]=await Promise.all([mb('list',{},true),mb('list_bluetooth_bands',{},true),mb('history',{count:300},true).then(r=>{ HIST_ERR=null; return r; },e=>{ HIST_ERR=String((e&&e.message)||e); return null; })]); LIST=l; BT=b; HIST=h&&h.taps; }catch(e){ console.error('magicband list',e); }
   loadBattery(); render(); }
 // 7 days of each band's battery, for the sparklines (refreshed every 15 minutes)
 async function loadBattery(){ if(Date.now()-BATT_AT<15*60000||!H().ws) return; BATT_AT=Date.now();
