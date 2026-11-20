@@ -709,7 +709,25 @@ def _register_services(hass: HomeAssistant) -> None:
             if url := snapshots.signed_url(hass, tap.get("snapshot")):
                 tap["snapshot_url"] = url
             taps.append(tap)
-        return {"taps": taps, "cameras": _data().registry.reader_cameras}
+        entry = hass.config_entries.async_loaded_entries(DOMAIN)[0]
+        return {
+            "taps": taps,
+            "cameras": _data().registry.reader_cameras,
+            "snapshot_days": entry.options.get(CONF_SNAPSHOT_DAYS, snapshots.DEFAULT_DAYS),
+        }
+
+    async def set_snapshot_days(call: ServiceCall) -> None:
+        """How long tap pictures are kept (the same setting as Configure → Settings)."""
+        entry = hass.config_entries.async_loaded_entries(DOMAIN)[0]
+        hass.config_entries.async_update_entry(entry, options={**entry.options, CONF_SNAPSHOT_DAYS: call.data["days"]})
+
+    async_register_admin_service(
+        hass,
+        DOMAIN,
+        "set_snapshot_days",
+        set_snapshot_days,
+        vol.Schema({vol.Required("days"): vol.All(vol.Coerce(int), vol.Range(min=1, max=365))}),
+    )
 
     async def set_reader_camera(call: ServiceCall) -> None:
         """Link a reader to a camera (a picture with each tap), or unlink it (no camera)."""

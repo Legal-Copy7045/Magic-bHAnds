@@ -504,3 +504,11 @@ def test_old_snapshots_are_pruned(hass: HomeAssistant, tmp_path) -> None:
     (today / ("c" * 32 + ".jpg")).write_bytes(b"x")
     assert snapshots.prune(hass, 30) == 1
     assert not old.exists() and today.exists()
+
+
+
+async def test_snapshot_days_can_be_set_from_the_page(hass: HomeAssistant, setup_integration) -> None:
+    await hass.services.async_call(DOMAIN, "set_snapshot_days", {"days": 7}, blocking=True)
+    assert hass.config_entries.async_entries(DOMAIN)[0].options["snapshot_days"] == 7
+    resp = await hass.services.async_call(DOMAIN, "history", {}, blocking=True, return_response=True)
+    assert resp["snapshot_days"] == 7

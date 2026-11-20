@@ -15,7 +15,8 @@ Home Assistant integration share one version number.
   are kept in `magicbhands_snapshots` in the config folder (not the public
   `www`), shown only to administrators through short-lived signed links,
   and deleted after 30 days (**Keep tap snapshots for** in MagicbHAnds →
-  Configure → Settings).
+  Configure → Settings, or next to **Recent taps** on the page; admin-only
+  `magicband.set_snapshot_days`).
 
 ## [0.10.22] - 2026-11-20
 

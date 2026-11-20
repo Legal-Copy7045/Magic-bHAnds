@@ -529,6 +529,16 @@
           "description": "The camera that sees the reader. Empty: no pictures."
         }
       }
+    },
+    "set_snapshot_days": {
+      "name": "Keep tap pictures for",
+      "description": "How many days pictures from readers' cameras are kept (admins only). The same setting as Configure → Settings.",
+      "fields": {
+        "days": {
+          "name": "Days",
+          "description": "1 to 365."
+        }
+      }
     }
   },
   "issues": {
