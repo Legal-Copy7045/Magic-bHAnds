@@ -3,6 +3,29 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.20] - 2026-11-20
+
+### Security
+- **Readers are paired with MagicbHAnds.** Any Home Assistant user can call
+  ESPHome actions, so a non-admin could give a reader a new allowed list or
+  answer an "Ask Home Assistant" tap. Now the integration pairs each reader
+  with a secret key (kept where only administrators can read it), and a
+  paired reader refuses `set_known_bands`, `set_band_colours`, `accept` and
+  `deny` without it (a refused list leaves the current one in place). Its
+  **Allow last band** button does nothing once paired. A paired reader takes
+  a new key only within 10 minutes of a power-on, so after reinstalling Home
+  Assistant, unplug the reader for a few seconds. New **Paired with
+  MagicbHAnds** sensor on the reader.
+- **`magicband.answer`** (administrators and automations): answers a reader
+  in "Ask Home Assistant" mode, with the key. Use it instead of the reader's
+  own accept / deny actions.
+- **Bridges limit their own airtime.** `magicband.send`'s limit could be
+  sidestepped by writing the bridge's Command entity or calling its actions,
+  and a stream of commands kept the bridge broadcasting and its Bluetooth
+  proxy from scanning. The bridge now earns half a second of broadcasting
+  per second (up to 30 s), whatever sends the commands, and scans while it
+  waits.
+
 ## [0.10.19] - 2026-11-20
 
 ### Security

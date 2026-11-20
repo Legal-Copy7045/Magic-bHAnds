@@ -360,3 +360,42 @@ async def test_play_show_is_limited_per_reader(hass: HomeAssistant, setup_integr
     for _ in range(14):
         await hass.services.async_call(DOMAIN, "play_show", {}, blocking=True)
     assert len(shows) == 12  # MAX_SHOWS_PER_MINUTE: the rest are skipped
+
+
+
+# ---------------------------------------------------------------------------- pairing (0.10.20+ readers)
+
+
+def _paired_reader(hass: HomeAssistant, node: str = "lounge-reader") -> dict[str, list[ServiceCall]]:
+    calls: dict[str, list[ServiceCall]] = {"pair": [], "bands": [], "colours": [], "accept": [], "deny": []}
+    prefix = node.replace("-", "_")
+    for name, suffix in (("pair", "pair"), ("bands", "set_known_bands"), ("colours", "set_band_colours"),
+                         ("accept", "accept"), ("deny", "deny")):
+        hass.services.async_register("esphome", f"{prefix}_{suffix}", lambda c, n=name: calls[n].append(c))
+    return calls
+
+
+async def test_readers_are_paired_and_get_the_key(hass: HomeAssistant, setup_integration, reader_device) -> None:
+    calls = _paired_reader(hass)
+    await _person_with_band(hass)
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    key = hass.config_entries.async_entries(DOMAIN)[0].data["reader_key"]
+    assert len(key) == 64
+    assert calls["pair"][-1].data == {"key": key}
+    assert calls["bands"][-1].data["key"] == key and calls["colours"][-1].data["key"] == key
+
+
+async def test_older_readers_get_no_key(hass: HomeAssistant, setup_integration, reader_device) -> None:
+    calls = _reader_calls(hass)  # no pair action: firmware before 0.10.20
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    assert "key" not in calls["bands"][-1].data
+
+
+async def test_answer_uses_the_key(hass: HomeAssistant, setup_integration, reader_device) -> None:
+    calls = _paired_reader(hass)
+    await hass.services.async_call(DOMAIN, "answer", {"device_id": reader_device.id, "allow": True}, blocking=True)
+    await hass.services.async_call(DOMAIN, "answer", {"device_id": reader_device.id, "allow": False}, blocking=True)
+    key = hass.config_entries.async_entries(DOMAIN)[0].data["reader_key"]
+    assert calls["accept"][-1].data == {"key": key} and calls["deny"][-1].data == {"key": key}
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(DOMAIN, "answer", {"device_id": "nope", "allow": True}, blocking=True)
