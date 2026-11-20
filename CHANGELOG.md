@@ -3,6 +3,18 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.16] - 2026-11-20
+
+### Branding
+- **One wordmark everywhere.** The lighter Waltograph is now a middle
+  weight (thinned less) and keeps the original letter spacing (thinning had
+  opened up the gaps), and the extra letter-spacing is gone. The MagicbHAnds
+  page, the dashboard copy and the web installer use the same size (44-64
+  px heading, 34 px section, 26 px sub-headings) and weight: the page's
+  shared header style was making it bold and smaller. Logos re-rendered.
+
+No firmware change.
+
 ## [0.10.15] - 2026-11-20
 
 ### MagicbHAnds page
