@@ -155,7 +155,7 @@ h2.sec{font:400 34px/1.1 var(--mbh-display)!important}h3.grp{font:400 26px var(-
 <script>
 // ───────── discovery: devices by model, sensors by their attributes (no entity ids written down) ─────────
 const BRIDGE_MODELS=/^magicband-(bridge|bp2-poe)$/, READER_MODEL=/^magicband-reader$/;
-let ENROL_ON='', CAMS=null, LIST=null, BT=null, HIST=null, HIST_ERR=null, HIST_PAGE=0, HIST_PER=10, BUSY={}, ARM={}, LAST_LOAD=0, LAST_TAP=null, BATT={}, BATT_AT=0;
+let ENROL_ON='', CAMS=null, SNAP_DAYS=null, LIST=null, BT=null, HIST=null, HIST_ERR=null, HIST_PAGE=0, HIST_PER=10, BUSY={}, ARM={}, LAST_LOAD=0, LAST_TAP=null, BATT={}, BATT_AT=0;
 const DAYS=['mon','tue','wed','thu','fri','sat','sun'], DAY_LABEL={mon:'Mo',tue:'Tu',wed:'We',thu:'Th',fri:'Fr',sat:'Sa',sun:'Su'};
 const COLOURS=()=>(LIST&&LIST.colours)||['White','Warm white','Red','Orange','Yellow','Green','Cyan','Blue','Purple','Pink','Magenta'];
 const listBand=nfc=>((LIST&&LIST.bands)||[]).find(x=>x.band===nfc)||null;
@@ -381,12 +381,14 @@ function enrolBar(I){ const us=H().state('sensor.magicband_unknown_bands'), en=u
   $('enrol-stop').onclick=()=>act(mb('stop_enrolment',{}),'es',null,'').then(load); }
 // Recent taps: 10 a page, Newer / Older.
 function bindPager(){ document.querySelectorAll('#hist [data-hp]').forEach(x=>x.onclick=()=>{ HIST_PAGE+=parseInt(x.dataset.hp,10)||0; histList(); bindPager(); });
+  document.querySelectorAll('#hist [data-snapdays]').forEach(x=>x.onchange=()=>{ const v=parseInt(x.value,10); if(!(v>=1&&v<=365)){ x.value=SNAP_DAYS??30; return; } act(mb('set_snapshot_days',{days:v}),'sd').then(load); });
   document.querySelectorAll('#hist [data-snap]').forEach(x=>x.onclick=()=>{ const o=document.createElement('div'); o.id='snappop';
     o.innerHTML=`<img src="${esc(x.dataset.snap)}" alt="Picture of this tap">`; o.onclick=()=>o.remove(); document.body.appendChild(o); }); }
 function histList(I){ const all=HIST||[], pages=Math.max(1,Math.ceil(all.length/HIST_PER)); HIST_PAGE=Math.min(Math.max(0,HIST_PAGE),pages-1);
   const from=HIST_PAGE*HIST_PER, L=all.slice(from,from+HIST_PER);
   const pager=pages>1?`<div class="pager"><button class="btn sm" data-hp="-1"${HIST_PAGE?'':' disabled'}>‹ Newer</button><span class="sub2">${from+1}–${from+L.length} of ${all.length}${all.length>=300?'+':''} · page ${HIST_PAGE+1} of ${pages}</span><button class="btn sm" data-hp="1"${HIST_PAGE<pages-1?'':' disabled'}>Older ›</button></div>`:'';
-  $('hist').innerHTML=L.length?`<div style="overflow-x:auto"><table class="t"><tr><th>When</th><th>Band</th><th>Reader</th><th></th>${L.some(t=>t.snapshot_url)?'<th>Picture</th>':''}</tr>${L.map(t=>`<tr><td>${esc(rel(t.time))}</td><td>${esc(t.name||t.band)}${t.person?' <span class="sub2">'+esc(t.person)+'</span>':''}</td><td>${esc(t.reader||'–')}</td><td>${t.enrolled?'<span class="tag yes">enrolled</span>':t.allowed?'<span class="tag yes">welcomed</span>':'<span class="tag no">denied</span>'}</td>${L.some(x=>x.snapshot_url)?`<td>${t.snapshot_url?`<img class="snap" src="${esc(t.snapshot_url)}" data-snap="${esc(t.snapshot_url)}" alt="Picture of this tap" loading="lazy">`:''}</td>`:''}</tr>`).join('')}</table></div>${pager}`
+  const keep=CAMS&&Object.keys(CAMS).length?`<div class="bar" style="margin:0 0 8px"><label>Camera pictures are kept for <input type="text" inputmode="numeric" size="3" data-snapdays value="${esc(SNAP_DAYS??30)}"> days</label><span class="sub2">click a picture to enlarge it; set each reader's camera on its card</span></div>`:'';
+  $('hist').innerHTML=L.length?keep+`<div style="overflow-x:auto"><table class="t"><tr><th>When</th><th>Band</th><th>Reader</th><th></th>${L.some(t=>t.snapshot_url)?'<th>Picture</th>':''}</tr>${L.map(t=>`<tr><td>${esc(rel(t.time))}</td><td>${esc(t.name||t.band)}${t.person?' <span class="sub2">'+esc(t.person)+'</span>':''}</td><td>${esc(t.reader||'–')}</td><td>${t.enrolled?'<span class="tag yes">enrolled</span>':t.allowed?'<span class="tag yes">welcomed</span>':'<span class="tag no">denied</span>'}</td>${L.some(x=>x.snapshot_url)?`<td>${t.snapshot_url?`<img class="snap" src="${esc(t.snapshot_url)}" data-snap="${esc(t.snapshot_url)}" alt="Picture of this tap" loading="lazy">`:''}</td>`:''}</tr>`).join('')}</table></div>${pager}`
     :`<p class="muted" style="margin:0">${HIST?'No taps yet.':!HIST_ERR?'Loading…':/not allowed/i.test(HIST_ERR)?"This page's host doesn't allow the tap history yet; it's on the MagicbHAnds page in the sidebar."
       :/unauthori[sz]ed|admin/i.test(HIST_ERR)?'Only administrators can see the tap history.':'Couldn’t load the tap history: '+esc(HIST_ERR)}</p>`; }
 const SYNC_LABEL={up_to_date:'up to date',failed:'not applied',unconfirmed:'sent (update the reader to confirm)',offline:'reader offline',waiting:'waiting'};
@@ -628,7 +630,7 @@ function wire(){ document.querySelectorAll('[data-tg]').forEach(x=>x.onclick=()=
 
 // the integration's own lists (people ids, Bluetooth halves); refreshed every minute and after any change
 async function load(){ if(!H()||!H().service) return; LAST_LOAD=Date.now();
-  try{ const [l,b,h]=await Promise.all([mb('list',{},true),mb('list_bluetooth_bands',{},true),mb('history',{count:300},true).then(r=>{ HIST_ERR=null; return r; },e=>{ HIST_ERR=String((e&&e.message)||e); return null; })]); LIST=l; BT=b; HIST=h&&h.taps; CAMS=h?(h.cameras||{}):CAMS; }catch(e){ console.error('magicband list',e); }
+  try{ const [l,b,h]=await Promise.all([mb('list',{},true),mb('list_bluetooth_bands',{},true),mb('history',{count:300},true).then(r=>{ HIST_ERR=null; return r; },e=>{ HIST_ERR=String((e&&e.message)||e); return null; })]); LIST=l; BT=b; HIST=h&&h.taps; CAMS=h?(h.cameras||{}):CAMS; SNAP_DAYS=h&&h.snapshot_days!=null?h.snapshot_days:SNAP_DAYS; }catch(e){ console.error('magicband list',e); }
   loadBattery(); render(); }
 // 7 days of each band's battery, for the sparklines (refreshed every 15 minutes)
 async function loadBattery(){ if(Date.now()-BATT_AT<15*60000||!H().ws) return; BATT_AT=Date.now();

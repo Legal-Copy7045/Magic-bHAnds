@@ -94,6 +94,14 @@ set_reader_camera:
         entity:
           domain: camera
 
+set_snapshot_days:
+  fields:
+    days:
+      required: true
+      default: 30
+      selector:
+        number: {min: 1, max: 365, step: 1, mode: box, unit_of_measurement: days}
+
 pair_reader:
   fields:
     device_id:
