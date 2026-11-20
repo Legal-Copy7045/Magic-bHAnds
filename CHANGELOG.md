@@ -3,6 +3,28 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.15] - 2026-11-20
+
+### MagicbHAnds page
+- **Reader settings redesigned.** The reader card's fold-out, now **Ring and
+  tap settings**, holds every ring and tap setting in groups: **Ring** (type,
+  LED count, colour order, brightness), **Waiting for a band** (idle colour
+  and glow), **Night** (glow and when: the set hours, or sunset and sunrise
+  with their offsets; it shows tonight's times), **Checking a band**,
+  **Welcome** (with a picture of the fade in, stay on and fade out) and
+  **Denied**. Numbers show their units, and only the night settings that
+  apply to the chosen night mode are shown.
+- LED colour order is on the page now too.
+- **A live twin of each reader's ring.** Each reader card shows its ring,
+  with the real number of LEDs, doing what the real one does: the idle or
+  night glow, the chasing circles while a band is read, then the welcome
+  (with the person's name) or the denied pulses, the amber "waiting for Home
+  Assistant" pulse, and a note while it plays a sound. It follows the
+  reader's Ring light and settings, so it updates as soon as Home Assistant
+  hears from the reader.
+
+No firmware change.
+
 ## [0.10.14] - 2026-11-20
 
 ### Reader
