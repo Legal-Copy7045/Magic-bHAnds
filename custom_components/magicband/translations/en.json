@@ -496,11 +496,21 @@
     },
     "unpair_reader": {
       "name": "Unpair a reader",
-      "description": "Release a reader from this Home Assistant's key, for example before moving it to another Home Assistant. It pairs again with whichever MagicbHAnds syncs it next. Administrators only.",
+      "description": "Release a reader from this Home Assistant's key, for example before moving it to another Home Assistant. This Home Assistant then leaves it alone (no allowed list, no pairing) until you take it back with Take back a reader. Administrators only.",
       "fields": {
         "device_id": {
           "name": "Reader",
           "description": "The reader to release."
+        }
+      }
+    },
+    "pair_reader": {
+      "name": "Take back a reader",
+      "description": "Manage a reader released with Unpair a reader again: it pairs with this Home Assistant (tap a band on it to confirm). Administrators only.",
+      "fields": {
+        "device_id": {
+          "name": "Reader",
+          "description": "The released reader."
         }
       }
     }
@@ -521,6 +531,10 @@
     "battery_low": {
       "title": "{band} needs charging",
       "description": "Its battery is at {battery}%. This clears itself once the band has been charged. Set the reminder level under MagicbHAnds → Configure → Settings."
+    },
+    "reader_pairing": {
+      "title": "Tap a band on {reader} to pair it",
+      "description": "MagicbHAnds is pairing with {reader} for the first time. So that no one else can claim it, a reader only finishes pairing when someone taps a band (any band) on it: the ring breathes blue while it waits, for up to 2 minutes, and turns green when paired. That tap does nothing else. If the ring isn't blue, press Sync (or wait a few minutes) and tap then.\n\nIf Repairs says another pairing request is waiting instead, don't tap: someone else asked first. Wait 2 minutes and sync again."
     }
   }
 }

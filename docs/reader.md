@@ -238,6 +238,20 @@ MagicBand+**, for example to turn on the lounge lights.
 | **Free memory**, **Largest free block**, **Loop time** (diagnostic) | Early warning of memory trouble or a busy reader, every 5 minutes |
 | plus the MagicBand bridge entities | MagicBand light, Buzz, Command, Prefix mode and so on |
 
+### Pairing with MagicbHAnds
+
+With the MagicbHAnds integration, each reader is **paired** with it (reader
+firmware 0.10.20 and later), so only MagicbHAnds can change who the reader
+lets in. The first time, the ring **breathes blue** and Settings → Repairs
+asks you to **tap any band on the reader** within 2 minutes; the ring turns
+green and the reader is paired (that tap does nothing else). The **Paired
+with MagicbHAnds** sensor shows it. A paired reader keeps its pairing through
+restarts, power cuts and updates. To move it to another Home Assistant, call
+`magicband.unpair_reader` first (this Home Assistant then leaves it alone;
+`magicband.pair_reader` takes it back), or erase it over USB with the web
+installer.
+See [security.md](security.md).
+
 ### No waiting on Home Assistant
 
 Everything the reader does is handled on the reader itself: reading the band,

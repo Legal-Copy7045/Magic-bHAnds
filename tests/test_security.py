@@ -180,6 +180,7 @@ ADMIN_ONLY = [
     ("history", {}),
     ("answer", {"device_id": "x", "allow": True}),
     ("unpair_reader", {"device_id": "x"}),
+    ("pair_reader", {"device_id": "x"}),
 ]
 
 
@@ -188,7 +189,7 @@ async def test_access_changes_and_band_lists_need_an_admin(
     hass: HomeAssistant, setup_integration, hass_read_only_user: MockUser, service: str, data: dict
 ) -> None:
     await hass.services.async_call(DOMAIN, "add_person", {"name": "Andrew"}, blocking=True)
-    response = service in ("list", "list_bluetooth_bands", "list_heard", "history")
+    response = service in ("list", "list_bluetooth_bands", "list_heard", "history", "pair_reader")
     with pytest.raises(Unauthorized):
         await hass.services.async_call(
             DOMAIN, service, data, blocking=True, context=Context(user_id=hass_read_only_user.id), return_response=response
@@ -441,6 +442,33 @@ int main() {
     exe = src.with_suffix("")
     subprocess.run(["g++", "-std=c++17", "-o", str(exe), str(src)], check=True, capture_output=True)
     assert subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout == "10110010111"
+
+
+def test_first_pairing_needs_a_tap_on_the_reader() -> None:
+    """Nobody elsewhere in Home Assistant can claim a new reader: a first pairing waits for a band tap."""
+    if shutil.which("g++") is None:
+        pytest.skip("no C++ compiler")
+    src = Path(tempfile.mkdtemp()) / "first.cpp"
+    src.write_text(
+        f'#include <cstdio>\n#include "{REPO / "components" / "magicband" / "reader_key.h"}"\n'
+        """using namespace esphome::magicband;
+int main() {
+  ReaderKey k{}, pending{};
+  uint32_t until = 0;
+  const std::string ha(64, 'a'), other(64, 'b');
+  std::printf("%d", reader_request_pair(k, pending, until, other, 1000) == PAIRING_PENDING);  // someone else asks first
+  std::printf("%d", reader_paired(k));                                                           // not paired yet
+  std::printf("%d", reader_request_pair(k, pending, until, ha, 2000) == PAIRING_PENDING);    // refused: one is waiting
+  std::printf("%d", reader_confirm_pair(k, pending, until, 1000 + PAIR_CONFIRM_MS + 1));       // a late tap confirms nothing
+  std::printf("%d", reader_request_pair(k, pending, until, ha, 1000 + PAIR_CONFIRM_MS + 2) == PAIRING_PENDING);  // after expiry
+  std::printf("%d", reader_confirm_pair(k, pending, until, 1000 + PAIR_CONFIRM_MS + 10));      // the tap
+  std::printf("%d", reader_key_ok(k, ha));
+  std::printf("%d", reader_request_pair(k, pending, until, ha, 999999).empty());              // paired: fine
+}
+""")
+    exe = src.with_suffix("")
+    subprocess.run(["g++", "-std=c++17", "-o", str(exe), str(src)], check=True, capture_output=True)
+    assert subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout == "10001111"
 
 
 @pytest.mark.parametrize("bad", ["TEST", "0453652AC05F8", "04É3652AC05F80", "0453652AC05F80;rm"])
