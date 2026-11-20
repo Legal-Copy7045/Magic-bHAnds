@@ -49,7 +49,7 @@ In short:
 |---|---|
 | ESP32-S3 dev board | ESP32-S3-DevKitC-1 **N16R8** layout (Lonely Binary N16R8, or Espressif) |
 | NFC reader | **PN532 NFC module V3** (AITRIP, Elechouse or similar), switches set to **I²C** (1 ON, 2 OFF), powered from **5 V**, with two 4.7 kΩ pull-ups to 3.3 V |
-| LED ring | Any **5 V WS2812B ring** big enough for the PN532 to sit inside (the guides use a 35-LED ring, 78 mm inside; Adafruit's NeoPixel Ring 24 also works). For a housing a ring won't fit, a flexible strip works too: [LED options](../hardware/shopping-list.md#if-a-ring-wont-fit-flexible-led-options) |
+| LED ring | Any **5 V WS2812B ring** big enough for the PN532 to sit inside (the guides use a 35-LED ring, 78 mm inside; Adafruit's NeoPixel Ring 24 also works), or an SK6812 **RGBW** ring wired the same way. For a housing a ring won't fit, a flexible strip works too: [LED options](../hardware/shopping-list.md#if-a-ring-wont-fit-flexible-led-options) |
 | Amplifier + speaker | **MAX98357A** I²S amplifier kit with a **4 Ω 3 W speaker** (or Adafruit's 3006 breakout and 3351 speaker) |
 | Level shifter | **SN74AHCT125N** DIP for the LED data line, 470 Ω at the ring end |
 | Power | **USB-C charger, 20 W or more**, through a CH224K **USB-C PD trigger set to 5 V** (or Adafruit's HUSB238 set to 5 V 3 A) |
@@ -143,7 +143,8 @@ the reader's device page in Home Assistant, under **Configuration**, set:
 
 - **LED count** (1–100, default 24): the number of LEDs in your ring or
   strip. Above 24 the reader caps their output at 24 ÷ count (35 LEDs: 68 %)
-  so full white stays within the 20 W supply.
+  so full white stays within the 20 W supply. An RGBW ring draws more per
+  LED, so its cap is 18 ÷ count (35 LEDs: 51 %).
 - **LED colour order:** GRB for most NeoPixels and generic WS2812B rings; RGB
   for Adafruit's silicone neon-like strip (4310). If green shows as red,
   switch it.
@@ -156,6 +157,8 @@ the reader's device page in Home Assistant, under **Configuration**, set:
   warm white / neutral white / cool white** for an SK6812 RGBW ring (pick the
   one matching its white LEDs). White and Warm white then use the white LED.
   The reader restarts when you change it. Set **LED count** too (35, 32, ...).
+  The RGBW white mixes (how much colour is added to the white LED for White
+  and Warm white) are first guesses until they've been tried on real rings.
 - **Idle glow at night** (0–100 %, default 10 %) with **Night from** (default
   22) and **Night until** (default 6), whole hours in the reader's local time
   (from Home Assistant): the idle glow used at night. Set both hours the same

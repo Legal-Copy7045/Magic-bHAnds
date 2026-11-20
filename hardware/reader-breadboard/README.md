@@ -239,7 +239,9 @@ Checked against `esphome/magicband-reader.yaml` and ESPHome's source:
   count** (1–100) and **LED colour order** (GRB/RGB) are settings on the
   device page. Up to 24 LEDs there's no brightness cap, which is why the
   supply is sized for full white; above 24 the reader caps the output at
-  24 ÷ count, so full white stays at 1.44 A.
+  24 ÷ count, so full white stays at 1.44 A. **Ring type** (RGB, or RGBW
+  warm/neutral/cool white) selects an SK6812 RGBW ring, capped at 18 LEDs'
+  worth (80 mA each with everything on).
 - **I²S:** LRCLK GPIO5, BCLK GPIO6, DOUT GPIO7, external DAC, mono. The
   MAX98357A needs no MCLK. *Not verified:* whether ESPHome's mono mode fills
   one I²S slot or both. If only one, the (L+R)/2 mix halves the level, which

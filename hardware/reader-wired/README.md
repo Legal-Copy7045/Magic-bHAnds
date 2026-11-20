@@ -166,6 +166,8 @@ Perma-Proto later without changing a single hole.
 
 ![Compact solderless wiring](../../docs/reader-compact.svg)
 
+**Building it? Follow the [compact step-by-step build](../reader-compact/build.md).**
+
 What changes from point-to-point:
 
 | Connection | Holes |

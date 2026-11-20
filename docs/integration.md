@@ -13,7 +13,15 @@ Manages **people** and their **bands** for your MagicBand readers:
   automations.
 - Adds a **Send MagicBand effect** action (`magicband.send`) that lights up or
   buzzes bands through every bridge, or the ones you pick.
-- Installs the **MagicBand+ notification** blueprint and keeps it up to date.
+- Installs the **MagicBand+ notification** and **charge me reminder**
+  blueprints and keeps them up to date.
+- Per band: an **access schedule** (time window, days, expiry) and a **band
+  type** (MagicBand+ or standard MagicBand). Per person: a **welcome
+  colour** for the ring and their MagicBand+.
+- **Enrolment**, **tap history**, MagicBand+ **battery** levels with charge
+  reminders, and problems (a reader offline, a list it rejected, a low
+  battery) in **Settings → Repairs**.
+- A **MagicbHAnds** sidebar page for administrators.
 
 Example: Nana isn't a Home Assistant user, so she's just "Nana" with one band.
 Jackie is linked to `person.jackie` and has two bands, "blue" and "plus".
@@ -52,6 +60,11 @@ tap is welcomed.
 the MagicbHAnds page (or `magicband.enrol`): for the next 5 minutes (up to
 15) every band tapped that nobody owns becomes theirs. Bands that already
 belong to someone are never taken.
+
+Up to **100 unassigned bands** are kept: beyond that, the longest-unseen
+ones without an owner or nickname are dropped (tap one again to bring it
+back). Only real NFC IDs (4, 7 or 10 bytes) are recorded, so the reader's
+**Test welcome** never shows up as a band.
 
 The **Configure** menu also has **Add a person**, **Edit a person** (rename,
 link or unlink an HA person, or turn **Allowed in** off to block all their
@@ -378,7 +391,8 @@ yet*.
 **Range:** "nearby" means within range of a Bluetooth adapter or proxy that
 Home Assistant uses. Adding proxies (any bridge's **Bluetooth proxy**
 switch) extends it. Beacons are stored, so presence and history survive a
-restart.
+restart. At most 25 Bluetooth bands that aren't linked or owned are kept
+(the longest-unheard are dropped first).
 
 ### Charge reminders
 
