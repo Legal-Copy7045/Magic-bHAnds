@@ -122,6 +122,11 @@ def list_size(uids: list[str]) -> int:
     return 1 + sum(len(u) + 1 for u in uids)
 
 
+def _manager(hass: HomeAssistant) -> "ReaderManager | None":
+    entries = hass.config_entries.async_loaded_entries(DOMAIN)
+    return entries[0].runtime_data.readers if entries else None
+
+
 MAX_SHOWS_PER_MINUTE = 12  # per reader: play_show is open to every user
 
 
@@ -139,6 +144,8 @@ async def async_play_show(
     now = time.monotonic()
     for device in reader_devices(hass):
         if device_ids and device.id not in device_ids:
+            continue
+        if (manager := _manager(hass)) and manager.registry.reader_released(device.id):
             continue
         name = device.name_by_user or device.name or "MagicBand reader"
         node = node_name(hass, device)
@@ -210,6 +217,11 @@ class ReaderManager:
 
         for device in reader_devices(self.hass):
             status = self._status(device)
+            if self.registry.reader_released(device.id):
+                # Released with unpair_reader: left alone (no list, no pairing) so another
+                # Home Assistant can pair it. magicband.pair_reader takes it back.
+                status.state, status.error = OFFLINE, "Released: not managed by this Home Assistant"
+                continue
             node = node_name(self.hass, device)
             service = _service_for(node, READER_SET_SERVICE_SUFFIX) if node else None
             if service is None or not self.hass.services.has_service("esphome", service):
@@ -288,6 +300,18 @@ class ReaderManager:
         await self.hass.services.async_call(
             "esphome", _service_for(node, "_unpair"), {"key": self.key}, blocking=True, context=context
         )
+        # Stop syncing it, or the next sync would ask to pair it again (and, while that request
+        # waits, block the Home Assistant it's moving to).
+        self.registry.set_reader_released(device_id, True)
+        self._issue(f"reader_pairing_{device_id}", False, "reader_pairing", {})
+        self._issue(f"reader_sync_failed_{device_id}", False, "reader_sync_failed", {})
+
+    async def async_reclaim(self, device_id: str) -> dict[str, Any]:
+        """Manage a released reader again (pair_reader): it pairs on this sync (a band tap confirms)."""
+        if not is_reader_device(self.hass, device_id):
+            raise ServiceValidationError("That device isn't a MagicBand reader")
+        self.registry.set_reader_released(device_id, False)
+        return await self.async_sync()
 
     async def async_answer(self, device_id: str, allow: bool, context: Context | None = None) -> None:
         """Answer a reader in "Ask Home Assistant" mode (its accept / deny action, with the key)."""
@@ -295,6 +319,8 @@ class ReaderManager:
         node = node_name(self.hass, device) if device and is_reader_device(self.hass, device_id) else None
         if node is None:
             raise ServiceValidationError("That device isn't a MagicBand reader")
+        if self.registry.reader_released(device_id):
+            raise ServiceValidationError("This reader was released (unpair_reader); pair_reader takes it back")
         service = _service_for(node, "_accept" if allow else "_deny")
         if not self.hass.services.has_service("esphome", service):
             raise ServiceValidationError("The reader isn't connected")
@@ -316,6 +342,10 @@ class ReaderManager:
         devices = {d.id: d for d in reader_devices(self.hass)}
         for device_id, device in devices.items():
             status = self._status(device)
+            if self.registry.reader_released(device_id):  # another Home Assistant's now: no repairs here
+                self._offline_since.pop(device_id, None)
+                ir.async_delete_issue(self.hass, DOMAIN, f"reader_offline_{device_id}")
+                continue
             node = node_name(self.hass, device)
             online = node is not None and self.hass.services.has_service(
                 "esphome", _service_for(node, READER_SET_SERVICE_SUFFIX)

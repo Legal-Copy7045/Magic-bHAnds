@@ -14,6 +14,12 @@ Home Assistant integration share one version number.
   waits, the reader refuses any other key, so MagicbHAnds notices if someone
   else asked first. Repairs walks you through it. Readers that are already
   paired aren't affected.
+- **A released reader stays released.** After `magicband.unpair_reader`,
+  the next periodic sync asked to pair the reader again, so the same Home
+  Assistant reclaimed it (or, with tap-confirmed pairing, kept another Home
+  Assistant from pairing it). A released reader is now remembered and left
+  alone: no pairing, allowed list, answers, light shows or offline repairs.
+  The new admin-only **`magicband.pair_reader`** takes it back.
 
 ## [0.10.21] - 2026-11-20
 

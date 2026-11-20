@@ -496,11 +496,21 @@
     },
     "unpair_reader": {
       "name": "Unpair a reader",
-      "description": "Release a reader from this Home Assistant's key, for example before moving it to another Home Assistant. It pairs again with whichever MagicbHAnds syncs it next. Administrators only.",
+      "description": "Release a reader from this Home Assistant's key, for example before moving it to another Home Assistant. This Home Assistant then leaves it alone (no allowed list, no pairing) until you take it back with Take back a reader. Administrators only.",
       "fields": {
         "device_id": {
           "name": "Reader",
           "description": "The reader to release."
+        }
+      }
+    },
+    "pair_reader": {
+      "name": "Take back a reader",
+      "description": "Manage a reader released with Unpair a reader again: it pairs with this Home Assistant (tap a band on it to confirm). Administrators only.",
+      "fields": {
+        "device_id": {
+          "name": "Reader",
+          "description": "The released reader."
         }
       }
     }

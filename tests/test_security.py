@@ -180,6 +180,7 @@ ADMIN_ONLY = [
     ("history", {}),
     ("answer", {"device_id": "x", "allow": True}),
     ("unpair_reader", {"device_id": "x"}),
+    ("pair_reader", {"device_id": "x"}),
 ]
 
 
@@ -188,7 +189,7 @@ async def test_access_changes_and_band_lists_need_an_admin(
     hass: HomeAssistant, setup_integration, hass_read_only_user: MockUser, service: str, data: dict
 ) -> None:
     await hass.services.async_call(DOMAIN, "add_person", {"name": "Andrew"}, blocking=True)
-    response = service in ("list", "list_bluetooth_bands", "list_heard", "history")
+    response = service in ("list", "list_bluetooth_bands", "list_heard", "history", "pair_reader")
     with pytest.raises(Unauthorized):
         await hass.services.async_call(
             DOMAIN, service, data, blocking=True, context=Context(user_id=hass_read_only_user.id), return_response=response

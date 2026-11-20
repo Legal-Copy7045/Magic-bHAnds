@@ -410,6 +410,25 @@ async def test_unpair_reader_uses_the_key(hass: HomeAssistant, setup_integration
 
 
 
+async def test_a_released_reader_is_left_alone_until_taken_back(
+    hass: HomeAssistant, setup_integration, reader_device
+) -> None:
+    calls = _paired_reader(hass)
+    hass.services.async_register("esphome", "lounge_reader_unpair", lambda c: None)
+    shows: list[ServiceCall] = []
+    hass.services.async_register("esphome", "lounge_reader_play_show", lambda c: shows.append(c))
+    await hass.services.async_call(DOMAIN, "unpair_reader", {"device_id": reader_device.id}, blocking=True)
+    pairs, lists = len(calls["pair"]), len(calls["bands"])
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    await hass.services.async_call(DOMAIN, "play_show", {}, blocking=True)
+    assert len(calls["pair"]) == pairs and len(calls["bands"]) == lists and not shows  # no re-pairing
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(DOMAIN, "answer", {"device_id": reader_device.id, "allow": True}, blocking=True)
+    await hass.services.async_call(DOMAIN, "pair_reader", {"device_id": reader_device.id}, blocking=True, return_response=True)
+    assert len(calls["pair"]) == pairs + 1 and len(calls["bands"]) == lists + 1
+
+
+
 async def test_first_pairing_asks_for_a_tap(hass: HomeAssistant, setup_integration, reader_device) -> None:
     from homeassistant.exceptions import HomeAssistantError
 
