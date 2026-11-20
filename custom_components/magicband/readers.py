@@ -24,6 +24,7 @@ import time
 from typing import Any
 
 from homeassistant.core import Context, HomeAssistant, callback
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import device_registry as dr, entity_registry as er, issue_registry as ir
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util import dt as dt_util
@@ -51,6 +52,8 @@ SHOW_NAMES = (
     "Aurora", "Candy cane", "Thunderstorm", "Sunrise", "Disco",
 )
 SHOW_SERVICE_SUFFIX = "_play_show"
+PAIR_SERVICE_SUFFIX = "_pair"  # readers from 0.10.20: the protected actions then need the key
+CONF_READER_KEY = "reader_key"
 
 # States of a reader's "Allowed list" sensor.
 UP_TO_DATE = "up_to_date"
@@ -173,9 +176,10 @@ class ReaderStatus:
 class ReaderManager:
     """Sends readers their allowed list and keeps track of how each one is doing."""
 
-    def __init__(self, hass: HomeAssistant, registry: MagicBandRegistry) -> None:
+    def __init__(self, hass: HomeAssistant, registry: MagicBandRegistry, key: str | None = None) -> None:
         self.hass = hass
         self.registry = registry
+        self.key = key
         self.statuses: dict[str, ReaderStatus] = {}
         self._offline_since: dict[str, datetime] = {}
         self._last_sent: tuple | None = None
@@ -211,8 +215,13 @@ class ReaderManager:
                 status.state, status.error = OFFLINE, None
                 continue
             sent += 1
+            keyed = self._keyed(node)
             try:
-                await self.hass.services.async_call("esphome", service, {"bands": bands}, blocking=True)
+                if keyed:
+                    await self._pair(node)
+                await self.hass.services.async_call(
+                    "esphome", service, {"bands": bands, **({"key": self.key} if keyed else {})}, blocking=True
+                )
             except Exception as err:  # noqa: BLE001 - one reader shouldn't stop the rest
                 failed += 1
                 failed_names.append(status.name)
@@ -227,7 +236,10 @@ class ReaderManager:
             status.colours = self.hass.services.has_service("esphome", colour_service)
             if status.colours and status.state != FAILED:
                 try:
-                    await self.hass.services.async_call("esphome", colour_service, {"colours": colour_list}, blocking=True)
+                    await self.hass.services.async_call(
+                        "esphome", colour_service, {"colours": colour_list, **({"key": self.key} if keyed else {})},
+                        blocking=True,
+                    )
                 except Exception as err:  # noqa: BLE001 - colours are cosmetic
                     _LOGGER.warning("Reader %s didn't take the welcome colours: %s", status.name, err)
             self._issue(
@@ -240,6 +252,28 @@ class ReaderManager:
         async_dispatcher_send(self.hass, SIGNAL_READER_STATUS)
         _LOGGER.debug("Synced %d allowed band(s) to %d reader(s), %d failed", len(uids), sent, failed)
         return {"readers": sent, "applied": sent - failed, "failed": failed_names}
+
+    def _keyed(self, node: str) -> bool:
+        """Whether this reader's firmware supports pairing (0.10.20+): then its protected actions need the key."""
+        return bool(self.key) and self.hass.services.has_service("esphome", _service_for(node, PAIR_SERVICE_SUFFIX))
+
+    async def _pair(self, node: str) -> None:
+        """Pair the reader with this integration's key (a no-op if it already has it)."""
+        await self.hass.services.async_call(
+            "esphome", _service_for(node, PAIR_SERVICE_SUFFIX), {"key": self.key}, blocking=True
+        )
+
+    async def async_answer(self, device_id: str, allow: bool, context: Context | None = None) -> None:
+        """Answer a reader in "Ask Home Assistant" mode (its accept / deny action, with the key)."""
+        device = dr.async_get(self.hass).async_get(device_id)
+        node = node_name(self.hass, device) if device and is_reader_device(self.hass, device_id) else None
+        if node is None:
+            raise ServiceValidationError("That device isn't a MagicBand reader")
+        service = _service_for(node, "_accept" if allow else "_deny")
+        if not self.hass.services.has_service("esphome", service):
+            raise ServiceValidationError("The reader isn't connected")
+        data = {"key": self.key} if self._keyed(node) else {}
+        await self.hass.services.async_call("esphome", service, data, blocking=True, context=context)
 
     def schedule_changed(self, now: datetime | None = None) -> bool:
         """Whether the allowed list or colours differ from what was last sent (a schedule opened or closed)."""

@@ -65,14 +65,33 @@ notifications and Home Assistant's own tag entities show them to every
 logged-in user. Only give Home Assistant accounts to people you'd trust with
 a copy of the bands.
 
+**Readers are paired with MagicbHAnds** (reader firmware 0.10.20 and
+later). The integration gives each reader a secret key the first time it
+syncs and keeps it where only administrators can read it. A paired reader
+then only takes a new allowed list, welcome colours, or an "Ask Home
+Assistant" answer (`set_known_bands`, `set_band_colours`, `accept`, `deny`)
+when the key comes with it, and its **Allow last band** button does nothing
+(manage bands in MagicbHAnds). So other Home Assistant users, who can call
+any ESPHome action, can't add a band to a reader. A paired reader takes a new
+key only in the first 10 minutes after it's plugged in (a power-on, not a
+restart, which any user can trigger): if you reinstall Home Assistant or
+MagicbHAnds, unplug the reader for a few seconds and it pairs again. Until a
+reader has been paired, anyone could pair it first; add new readers promptly.
+The **Paired with MagicbHAnds** sensor on the reader shows its state.
+
 Home Assistant users who aren't administrators can still use the readers'
-and bridges' own controls: response mode, "Allow last band", the Command
-entity, and the readers' ESPHome actions (`set_known_bands`, `accept`,
-`deny`), which change the reader's own list until the next sync (at most 10
-minutes). The reader's own decision only drives its lights, sound and its
-"Band scan" event entity, so **don't open a lock from the reader's event
-entity**; use the `magicband_tap` event, whose `allowed` comes from Home
-Assistant.
+and bridges' own controls: a reader's **Response mode** (e.g. *Welcome every
+band*), the bridges' Command entity and actions, and (on readers that aren't
+paired) the readers' ESPHome actions. The reader's own decision only drives
+its lights, sound and its "Band scan" event entity, so **don't open a lock
+from the reader's event entity**; use the `magicband_tap` event, whose
+`allowed` comes from Home Assistant.
+
+**Bridges limit their own airtime** (firmware 0.10.20 and later), however the
+commands arrive (`magicband.send`, the Command entity or the bridge's
+actions): they earn half a second of broadcasting for every second, up to
+30 seconds, so a stream of commands can't keep a bridge on air and its
+Bluetooth proxy keeps scanning at least about half the time.
 
 **Automatic Bluetooth pairing never changes access.** If linking a band would
 give an NFC tag a new owner (and so let it in), it's left for an
@@ -141,8 +160,8 @@ band is welcomed in, not whether it's let in.
 - A bridge broadcasts one command for at most 60 seconds, and
   `magicband.send` sends at most 30 commands a minute to each bridge (raw
   `command:` dicts have the same time limits as the normal fields). Writing
-  a bridge's Command entity directly is limited only by the firmware's
-  60-second cap.
+  a bridge's Command entity directly skips that limit, but the bridge's own
+  airtime budget (above) still applies.
 
 ## Privacy
 

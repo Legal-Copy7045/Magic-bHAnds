@@ -3,6 +3,7 @@
 #include "esphome/components/esp32_ble/ble.h"
 #include "esphome/core/component.h"
 #include "shows.h"
+#include "reader_key.h"
 
 #ifdef USE_ESP32
 
@@ -27,6 +28,14 @@ static constexpr size_t MAX_PAYLOAD_LEN = 24;
 /// user can write the Command entity), and while broadcasting the Bluetooth
 /// proxy may be paused, so a huge duration_ms must not tie the radio up.
 static constexpr uint32_t MAX_DURATION_MS = 60000;
+/// Airtime budget, whatever sends the commands (the integration, the Command
+/// entity or the device's actions): broadcasting earns AIRTIME_RATE ms of air
+/// per ms that passes, up to AIRTIME_MAX_MS, so the bridge broadcasts at most
+/// about half the time and its Bluetooth proxy keeps scanning. A full budget
+/// still allows one MAX_DURATION_MS broadcast.
+static constexpr float AIRTIME_RATE = 0.5f;
+static constexpr float AIRTIME_MAX_MS = 30000.0f;
+static constexpr float AIRTIME_START_MS = 1500.0f;  // needed to start a command
 
 /// Palette indexes (5-bit). Community-sourced; see docs/protocol.md.
 enum Color : uint8_t {
@@ -213,6 +222,9 @@ class MagicBand : public Component {
   uint32_t fast_warmup_ms_{0};
   uint32_t last_broadcast_end_{0};
   bool ever_broadcast_{false};
+  float airtime_ms_{AIRTIME_MAX_MS};
+  uint32_t airtime_at_{0};
+  bool airtime_warned_{false};
   int tx_power_dbm_{9};
 
   // Light entity debounce

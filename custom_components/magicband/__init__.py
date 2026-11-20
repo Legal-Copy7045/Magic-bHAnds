@@ -15,6 +15,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 import logging
+import secrets
 import time
 from typing import Any
 
@@ -58,7 +59,7 @@ from .panel import CONF_SIDEBAR, async_remove_panel, async_setup_panel
 from .bridges import ANIMATIONS, EFFECTS, async_send, find_bridges
 from .history import TapHistory
 from .listener import BandListener
-from .readers import READER_LIST_CAPACITY, ReaderManager, is_reader_device  # noqa: F401 - re-exported
+from .readers import CONF_READER_KEY, READER_LIST_CAPACITY, ReaderManager, is_reader_device  # noqa: F401 - re-exported
 from .registry import Band, MagicBandRegistry, display_uid, parse_uid
 
 _LOGGER = logging.getLogger(__name__)
@@ -110,7 +111,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
         hass.config_entries.async_update_entry(entry, title="MagicbHAnds")
     registry = MagicBandRegistry(hass)
     await registry.async_load()
-    readers = ReaderManager(hass, registry)
+    if not entry.data.get(CONF_READER_KEY):
+        # The key readers are paired with (readers.py): kept in the config entry,
+        # which only administrators can read.
+        hass.config_entries.async_update_entry(entry, data={**entry.data, CONF_READER_KEY: secrets.token_hex(32)})
+    readers = ReaderManager(hass, registry, entry.data[CONF_READER_KEY])
     history = TapHistory(hass)
     await history.async_load()
 
@@ -532,6 +537,18 @@ def _register_services(hass: HomeAssistant) -> None:
             }
         ),
         supports_response=SupportsResponse.OPTIONAL,
+    )
+
+    async def answer(call: ServiceCall) -> None:
+        """Answer a reader in "Ask Home Assistant" mode (admin-only: it decides the reader's welcome)."""
+        await _data().readers.async_answer(call.data["device_id"], call.data["allow"], call.context)
+
+    async_register_admin_service(
+        hass,
+        DOMAIN,
+        "answer",
+        answer,
+        vol.Schema({vol.Required("device_id"): cv.string, vol.Required("allow"): cv.boolean}),
     )
     async_register_admin_service(
         hass, DOMAIN, "list", list_bands, supports_response=SupportsResponse.ONLY)
