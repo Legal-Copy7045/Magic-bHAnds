@@ -444,3 +444,63 @@ async def test_first_pairing_asks_for_a_tap(hass: HomeAssistant, setup_integrati
     hass.services.async_register("esphome", "lounge_reader_pair", lambda c: None)  # tapped: now paired
     await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
     assert ir.async_get(hass).async_get_issue(DOMAIN, f"reader_pairing_{reader_device.id}") is None
+
+
+
+# ---------------------------------------------------------------------------- tap snapshots (optional)
+
+
+async def test_taps_on_a_reader_with_a_camera_get_a_snapshot(
+    hass: HomeAssistant, setup_integration, reader_device, monkeypatch, tmp_path
+) -> None:
+    from custom_components.magicband import snapshots
+
+    captured: list[str] = []
+
+    async def fake_capture(hass_, camera):
+        captured.append(camera)
+        return "20261120/" + "a" * 32
+
+    monkeypatch.setattr(snapshots, "async_capture", fake_capture)
+    await _person_with_band(hass)
+    _tap(hass, TAG, reader_device.id)  # no camera yet: nothing captured
+    await hass.async_block_till_done()
+    assert captured == []
+
+    await hass.services.async_call(
+        DOMAIN, "set_reader_camera", {"device_id": reader_device.id, "camera": "camera.front_door"}, blocking=True
+    )
+    _tap(hass, TAG, reader_device.id)
+    await hass.async_block_till_done()
+    assert captured == ["camera.front_door"]
+    taps = (await hass.services.async_call(DOMAIN, "history", {}, blocking=True, return_response=True))["taps"]
+    assert taps[0]["snapshot"] == "20261120/" + "a" * 32
+    assert taps[0]["snapshot_url"].startswith("/api/magicband/snapshot/20261120/") and "authSig=" in taps[0]["snapshot_url"]
+    assert "snapshot" not in taps[1]
+
+    await hass.services.async_call(DOMAIN, "set_reader_camera", {"device_id": reader_device.id}, blocking=True)
+    _tap(hass, TAG, reader_device.id)
+    await hass.async_block_till_done()
+    assert len(captured) == 1  # unlinked: no more pictures
+
+
+def test_snapshot_ids_cant_escape_the_folder(hass: HomeAssistant) -> None:
+    from custom_components.magicband import snapshots
+
+    for bad in ("../../secrets", "20261120/../x", "2026112/" + "a" * 32, "20261120/" + "g" * 32, ""):
+        assert snapshots._path(hass, bad) is None
+    assert snapshots._path(hass, "20261120/" + "0" * 32) is not None
+
+
+def test_old_snapshots_are_pruned(hass: HomeAssistant, tmp_path) -> None:
+    from custom_components.magicband import snapshots
+
+    hass.config.config_dir = str(tmp_path)
+    old = tmp_path / snapshots.FOLDER / "20000101"
+    old.mkdir(parents=True)
+    (old / ("b" * 32 + ".jpg")).write_bytes(b"x")
+    today = tmp_path / snapshots.FOLDER / dt_util.now().strftime("%Y%m%d")
+    today.mkdir()
+    (today / ("c" * 32 + ".jpg")).write_bytes(b"x")
+    assert snapshots.prune(hass, 30) == 1
+    assert not old.exists() and today.exists()

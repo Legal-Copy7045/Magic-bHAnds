@@ -3,6 +3,20 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.23] - 2026-11-20
+
+### Home Assistant
+- **A picture with each tap (optional).** Link a reader to a camera (any
+  Home Assistant camera, e.g. a Ring doorbell's live view) on its card on the
+  MagicbHAnds page, or with the admin-only `magicband.set_reader_camera`.
+  Every tap on that reader then saves a picture, in the background so the
+  tap and any unlock aren't delayed, and the **Recent taps** list shows it
+  (click for full size). Readers without a camera work as before. Pictures
+  are kept in `magicbhands_snapshots` in the config folder (not the public
+  `www`), shown only to administrators through short-lived signed links,
+  and deleted after 30 days (**Keep tap snapshots for** in MagicbHAnds →
+  Configure → Settings).
+
 ## [0.10.22] - 2026-11-20
 
 ### Security

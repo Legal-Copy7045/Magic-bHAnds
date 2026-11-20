@@ -141,6 +141,12 @@ everything, read live from Home Assistant.
   readers welcome their bands in it, on the ring and on their MagicBand+),
   and **Enrol bands** (the next bands tapped that nobody owns become theirs;
   a banner shows the time left and a Stop button).
+- **Camera (optional):** each reader card has a **Camera** choice. Pick a
+  camera that sees the reader (a Ring doorbell's live view works) and every
+  tap on that reader saves a picture, shown in **Recent taps**. Leave it on
+  **No camera** if you don't have one. Pictures are kept for 30 days
+  (Configure → Settings), in `magicbhands_snapshots` in the config folder,
+  and only administrators can see them.
 - **Recent taps:** the last 300 taps, 10 at a time (**Newer** and **Older** page through them), welcomed, denied or enrolled
   (administrators only).
 - **Readers** and **bridges:** status, firmware and their settings (fast mode,

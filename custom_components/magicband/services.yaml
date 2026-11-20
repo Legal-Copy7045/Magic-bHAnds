@@ -80,6 +80,20 @@ remove_band:
 
 sync:
 
+set_reader_camera:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          filter:
+            - integration: esphome
+              model: magicband-reader
+    camera:
+      selector:
+        entity:
+          domain: camera
+
 pair_reader:
   fields:
     device_id:

@@ -36,6 +36,7 @@ from homeassistant.util import dt as dt_util
 from .const import (
     ATTR_WELCOME_COLOUR,
     CONF_BATTERY_LEVEL,
+    CONF_SNAPSHOT_DAYS,
     DEFAULT_BATTERY_LEVEL,
     READER_COLOURS,
     WEEKDAYS,
@@ -57,6 +58,7 @@ from .beacons import BeaconTracker
 from .blueprint_installer import async_install_blueprints
 from .panel import CONF_SIDEBAR, async_remove_panel, async_setup_panel
 from .bridges import ANIMATIONS, EFFECTS, async_send, find_bridges
+from . import snapshots
 from .history import TapHistory
 from .listener import BandListener
 from .readers import CONF_READER_KEY, READER_LIST_CAPACITY, ReaderManager, is_reader_device  # noqa: F401 - re-exported
@@ -178,6 +180,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
         readers.check_health()
         if data.enrolment is not None and dt_util.utcnow() >= data.enrolment.until:
             _end_enrolment(hass, data)
+        if _now.minute == 7:  # hourly: old tap snapshots go
+            days = entry.options.get(CONF_SNAPSHOT_DAYS, snapshots.DEFAULT_DAYS)
+            hass.async_add_executor_job(snapshots.prune, hass, days)
 
     data.unsubs.append(async_track_time_interval(hass, _every_minute, timedelta(minutes=1)))
 
@@ -193,6 +198,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
 
     _register_services(hass)
     await async_install_blueprints(hass)
+    snapshots.async_register_view(hass)
     await async_setup_panel(hass, entry.options.get(CONF_SIDEBAR, True))
     data.unsubs.append(entry.add_update_listener(_options_updated))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -260,8 +266,18 @@ def _handle_scan(hass: HomeAssistant, data: MagicBandData, tag_id: str, device_i
             "enrolled": enrolled,
         },
     )
-    data.history.add(band=band.display, name=name, person=person.name if person else None, reader=reader,
-                     allowed=allowed, enrolled=enrolled)
+    entry = data.history.add(band=band.display, name=name, person=person.name if person else None, reader=reader,
+                             allowed=allowed, enrolled=enrolled)
+    if camera := data.registry.reader_camera(device_id):
+        # Optional: a picture of who tapped, from the camera linked to this reader (in the
+        # background, so the tap and any unlock aren't held up).
+        async def _snapshot() -> None:
+            if snap := await snapshots.async_capture(hass, camera):
+                entry["snapshot"] = snap
+                data.history.changed()
+                async_dispatcher_send(hass, SIGNAL_UPDATED)
+
+        hass.async_create_background_task(_snapshot(), f"{DOMAIN}_snapshot")
     async_dispatcher_send(hass, SIGNAL_UPDATED)
     if device_id:
         async_dispatcher_send(hass, SIGNAL_READER_TAP, device_id, band.uid, allowed)
@@ -687,7 +703,32 @@ def _register_services(hass: HomeAssistant) -> None:
         _end_enrolment(hass, _data())
 
     async def history(call: ServiceCall) -> dict[str, Any]:
-        return {"taps": _data().history.recent(call.data.get("count", 50))}
+        taps = []
+        for tap in _data().history.recent(call.data.get("count", 50)):
+            tap = dict(tap)
+            if url := snapshots.signed_url(hass, tap.get("snapshot")):
+                tap["snapshot_url"] = url
+            taps.append(tap)
+        return {"taps": taps, "cameras": _data().registry.reader_cameras}
+
+    async def set_reader_camera(call: ServiceCall) -> None:
+        """Link a reader to a camera (a picture with each tap), or unlink it (no camera)."""
+        data = _data()
+        device_id, camera = call.data["device_id"], call.data.get("camera") or None
+        if not is_reader_device(hass, device_id):
+            raise ServiceValidationError("That device isn't a MagicBand reader")
+        if camera and not camera.startswith("camera."):
+            raise ServiceValidationError("Pick a camera entity")
+        data.registry.set_reader_camera(device_id, camera)
+        async_dispatcher_send(hass, SIGNAL_UPDATED)
+
+    async_register_admin_service(
+        hass,
+        DOMAIN,
+        "set_reader_camera",
+        set_reader_camera,
+        vol.Schema({vol.Required("device_id"): cv.string, vol.Optional("camera"): vol.Any(None, "", cv.entity_id)}),
+    )
 
     async_register_admin_service(
         hass,
