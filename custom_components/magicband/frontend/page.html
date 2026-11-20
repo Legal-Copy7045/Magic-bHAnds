@@ -40,8 +40,8 @@ table.t{width:100%;border-collapse:collapse;font-size:13px}table.t td,table.t th
 table.t th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-top:0}
 details.more{margin-top:8px}details.more summary{cursor:pointer;font-size:13px;color:var(--ink-2)}
 .set{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;align-items:center;font-size:13px;margin-top:8px}
-.twin{display:flex;gap:14px;align-items:center;margin:4px 0 10px;--tw-off:#3b3848}.twin svg{flex:none}
-.twin.mini{margin:0;gap:12px}.twin.mini .tw-cap{font-size:14px}.hero-twin{min-width:0}.tw-live{display:flex;gap:6px;align-items:center}
+.twin{display:flex;gap:14px;align-items:center;margin:4px 0 10px;--tw-off:#71747b;--tw-face:#8b8d92}.twin svg{flex:none}
+.seg{display:inline-flex;gap:4px;margin-top:6px}.seg .btn.on{background:var(--page);color:#fff;border-color:var(--page)}.twin.mini{margin:0;gap:12px}.twin.mini .tw-cap{font-size:14px}.hero-twin{min-width:0}.tw-live{display:flex;gap:6px;align-items:center}
 .tw-side{display:flex;flex-direction:column;gap:2px;min-width:0}.tw-cap{font:600 15px "Instrument Sans",sans-serif}
 .pager{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:10px;flex-wrap:wrap}
 .sgs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,265px),1fr));gap:10px;margin-top:10px}
@@ -458,28 +458,41 @@ const TWIN_SET=[['number','LED count'],['number','Circle time'],['number','Circl
   ['number','Welcome fade out'],['number','Welcome pulses'],['number','Denied pulses'],['number','Pulse time'],['number','Idle glow'],
   ['number','Idle glow at night'],['select','Night mode'],['number','Night from'],['number','Night until'],['number','Night starts after sunset'],['number','Night ends after sunrise'],['binary_sensor','Night now']];
 const TWIN_START={};
+let TWIN_STYLE='leds'; try{ TWIN_STYLE=localStorage.getItem('mbh-twin-style')==='diffused'?'diffused':'leds'; }catch(e){}
 // The emblem in the middle of the twin's pad: a page that hosts this one can set
 // window.MBH_READER_EMBLEM to its own SVG (drawn in a 100 x 100 box; trusted host code,
 // never data). The default is a contactless "tap here" mark.
-const TWIN_EMBLEM=`<g fill="none" stroke="#c9c6d8" stroke-width="5" stroke-linecap="round" opacity=".85"><path d="M44 34a22 22 0 0 1 0 32"/><path d="M55 25a34 34 0 0 1 0 50"/><path d="M66 16a46 46 0 0 1 0 68"/></g><circle cx="32" cy="50" r="6" fill="#c9c6d8" opacity=".85"/>`;
+const TWIN_EMBLEM=`<g fill="none" stroke="#f4efe6" stroke-width="6" stroke-linecap="round"><path d="M44 34a22 22 0 0 1 0 32"/><path d="M55 25a34 34 0 0 1 0 50"/><path d="M66 16a46 46 0 0 1 0 68"/></g><circle cx="32" cy="50" r="6" fill="#f4efe6"/>`;
 function twinHTML(p,ring,sp,on,band,size){ if(!ring) return '';
   const ids={}; TWIN_SET.forEach(([dom,l])=>{ const e=p([dom,l]); if(e) ids[l]=e; });
   let n=Math.round(parseFloat(ids['LED count']?S(ids['LED count']).state:'24')); if(!(n>=1&&n<=100)) n=24;
   const R=55, r=Math.max(1.5,Math.min(5.5,Math.PI*R/n*0.6)), pts=Array.from({length:n},(_,i)=>{ const a=-Math.PI/2+i*2*Math.PI/n; return [(70+R*Math.cos(a)).toFixed(1),(70+R*Math.sin(a)).toFixed(1)]; });
-  const dots=()=>pts.map(([x,y])=>`<circle cx="${x}" cy="${y}" r="${r.toFixed(1)}"/>`).join('');
+  const pt=a=>[(70+R*Math.cos(a)).toFixed(2),(70+R*Math.sin(a)).toFixed(2)], diff=TWIN_STYLE==='diffused';
+  // individual LEDs, or (diffused) one arc per LED that blends into its neighbours
+  const dots=()=>diff?Array.from({length:n},(_,i)=>{ const a0=-Math.PI/2+(i-0.55)*2*Math.PI/n, a1=-Math.PI/2+(i+0.55)*2*Math.PI/n, [x0,y0]=pt(a0), [x1,y1]=pt(a1);
+      return `<path d="M${x0} ${y0}A${R} ${R} 0 0 1 ${x1} ${y1}" fill="none" stroke-width="9" stroke-linecap="butt"/>`; }).join('')
+    :pts.map(([x,y])=>`<circle cx="${x}" cy="${y}" r="${r.toFixed(1)}"/>`).join('');
   const k=String(ring).replace(/[^a-z0-9]/gi,'')+(size||0), px=size||132, emb=(typeof window!=='undefined'&&window.MBH_READER_EMBLEM)||TWIN_EMBLEM;
   return `<div class="twin${size?' mini':''}" data-twin="${esc(ring)}" data-ids="${esc(JSON.stringify(ids))}" data-sp="${esc(sp||'')}" data-on="${on?1:0}" data-band="${esc(band)}">
     <svg viewBox="0 0 140 140" width="${px}" height="${px}" role="img" aria-label="The reader's ring, live"><defs>
       <filter id="twb${k}" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>
-      <radialGradient id="twh${k}" cx="50%" cy="38%" r="65%"><stop offset="0" stop-color="#3a3944"/><stop offset=".7" stop-color="#1c1b22"/><stop offset="1" stop-color="#0e0e13"/></radialGradient>
-      <radialGradient id="twp${k}" cx="45%" cy="35%" r="70%"><stop offset="0" stop-color="#34333d"/><stop offset="1" stop-color="#15141a"/></radialGradient></defs>
-    <circle cx="70" cy="70" r="69" fill="url(#twh${k})" stroke="#55535f" stroke-width="1.2"/>
-    <circle cx="70" cy="70" r="${R+8}" fill="none" stroke="#0a0a0e" stroke-width="3" opacity=".7"/>
+      <radialGradient id="twh${k}" cx="34%" cy="28%" r="78%"><stop offset="0" stop-color="#f4f3ef"/><stop offset=".35" stop-color="#c9c7bf"/><stop offset=".75" stop-color="#8f8d86"/><stop offset=".95" stop-color="#5d5b56"/><stop offset="1" stop-color="#4a4844"/></radialGradient>
+      <radialGradient id="twp${k}" cx="42%" cy="35%" r="75%"><stop offset="0" stop-color="#a4a6ab"/><stop offset=".7" stop-color="#8b8d92"/><stop offset="1" stop-color="#74767b"/></radialGradient>
+      <radialGradient id="twr${k}" cx="50%" cy="50%" r="50%"><stop offset=".78" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".35"/></radialGradient>
+      <pattern id="tws${k}" width="3" height="140" patternUnits="userSpaceOnUse" patternTransform="rotate(-25)"><rect width="1" height="140" fill="#fff" opacity=".06"/></pattern></defs>
+    <circle cx="70" cy="70" r="69" fill="url(#twh${k})"/>
+    <circle cx="70" cy="70" r="69" fill="url(#tws${k})"/>
+    <circle cx="70" cy="70" r="69" fill="url(#twr${k})"/>
+    <ellipse cx="36" cy="34" rx="17" ry="10" fill="#fff" opacity=".55" transform="rotate(-40 36 34)" filter="url(#twb${k})"/>
+    <g transform="translate(80 70) scale(.78 .96) translate(-70 -70)">
+    <circle cx="70" cy="70" r="${R+8}" fill="#3a3936" opacity=".55" transform="translate(-9 1)"/>
+    <circle cx="70" cy="70" r="${R+8}" fill="#b9b8b2" transform="translate(-4 0)"/>
+    <circle cx="70" cy="70" r="${R+6}" fill="#6a6d73" stroke="#a9acb2" stroke-width="1"/>
     <g class="tw-glow" filter="url(#twb${k})">${dots()}</g><g class="tw-leds">${dots()}</g>
-    <circle cx="70" cy="70" r="${R-9}" fill="url(#twp${k})" stroke="#4a4955" stroke-width="1.5"/>
-    <path d="M${70-(R-14)} 62a${R-14} ${R-14} 0 0 1 ${2*(R-14)} 0" fill="none" stroke="#fff" stroke-opacity=".07" stroke-width="3" stroke-linecap="round"/>
-    <svg x="${70-(R-17)}" y="${70-(R-17)}" width="${2*(R-17)}" height="${2*(R-17)}" viewBox="0 0 100 100" class="tw-emblem">${emb}</svg></svg>
-    <div class="tw-side"><b class="tw-cap">&nbsp;</b><span class="tw-sub sub2">&nbsp;</span>${size?'<span class="tw-live sub2"><span class="dot" id="ldot"></span> <span id="lstatus">Connecting to Home Assistant…</span></span>':''}</div></div>`; }
+    <circle cx="70" cy="70" r="${R-6}" fill="url(#twp${k})" stroke="#b7bac0" stroke-width="1.5"/>
+    <path d="M${70-(R-13)} 60a${R-13} ${R-13} 0 0 1 ${2*(R-13)} 0" fill="none" stroke="#fff" stroke-opacity=".10" stroke-width="3" stroke-linecap="round"/>
+    <svg x="${70-(R-17)}" y="${70-(R-17)}" width="${2*(R-17)}" height="${2*(R-17)}" viewBox="0 0 100 100" class="tw-emblem">${emb}</svg></g></svg>
+    <div class="tw-side"><b class="tw-cap">&nbsp;</b><span class="tw-sub sub2">&nbsp;</span>${size?'<span class="tw-live sub2"><span class="dot" id="ldot"></span> <span id="lstatus">Connecting to Home Assistant…</span></span>':`<span class="seg"><button class="btn sm${diff?'':' on'}" data-twstyle="leds">LEDs</button><button class="btn sm${diff?' on':''}" data-twstyle="diffused">Diffused</button></span>`}</div></div>`; }
 function twinNight(ids){ const nn=ids['Night now']&&S(ids['Night now']); if(nn&&(nn.state==='on'||nn.state==='off')) return nn.state==='on';  // the reader's own answer
   const g=l=>ids[l]&&S(ids[l])?S(ids[l]).state:null, f=l=>parseFloat(g(l))||0, now=new Date(), m=now.getHours()*60+now.getMinutes();
   let from=f('Night from')*60, until=f('Night until')*60;
@@ -488,7 +501,7 @@ function twinNight(ids){ const nn=ids['Night now']&&S(ids['Night now']); if(nn&&
   return from!==until&&(from<until?(m>=from&&m<until):(m>=from||m<until)); }
 function twinFrame(){
   try { document.querySelectorAll('[data-twin]').forEach(tw=>{
-    if(!tw._leds){ tw._leds=[...tw.querySelectorAll('.tw-leds circle')]; tw._glow=[...tw.querySelectorAll('.tw-glow circle')]; tw._ids=JSON.parse(tw.dataset.ids||'{}'); tw._cap=tw.querySelector('.tw-cap'); tw._sub=tw.querySelector('.tw-sub'); }
+    if(!tw._leds){ tw._leds=[...tw.querySelectorAll('.tw-leds circle,.tw-leds path')]; tw._glow=[...tw.querySelectorAll('.tw-glow circle,.tw-glow path')]; tw._ids=JSON.parse(tw.dataset.ids||'{}'); tw._cap=tw.querySelector('.tw-cap'); tw._sub=tw.querySelector('.tw-sub'); }
     const ring=tw.dataset.twin, st=S(ring), ids=tw._ids, n=tw._leds.length, num=(l,d)=>{ const v=ids[l]&&S(ids[l])?parseFloat(S(ids[l]).state):NaN; return isFinite(v)?v:d; };
     const a=(st&&st.attributes)||{}, eff=a.effect||'None', on=!!st&&st.state==='on', key=(st&&st.last_updated)+'|'+eff+'|'+(st&&st.state);
     if(!TWIN_START[ring]||TWIN_START[ring].k!==key){ const age=TWIN_START[ring]||!st?0:Math.max(0,Date.now()-Date.parse(st.last_updated)||0); TWIN_START[ring]={k:key,t:performance.now()-age}; }
@@ -509,8 +522,9 @@ function twinFrame(){
     else { L.fill(br); if(eff==='None') sub=night?'Night glow':'Idle glow'; else cap='Effect: '+eff; }
     const col=`rgb(${rgb.map(v=>Math.round(v)).join(',')})`, cols=SHOW_NAMES.includes(eff)&&on?tw._cols:null;
     for(let i=0;i<n;i++){ const v=Math.max(0,Math.min(1,L[i])), d=tw._leds[i], g=tw._glow[i], c=cols&&cols[i]?`rgb(${cols[i].map(Math.round).join(',')})`:col;
-      if(v<0.01){ d.setAttribute('fill','var(--tw-off)'); d.setAttribute('fill-opacity','1'); g.setAttribute('fill-opacity','0'); }
-      else { d.setAttribute('fill',c); d.setAttribute('fill-opacity',(0.25+0.75*v).toFixed(2)); g.setAttribute('fill',c); g.setAttribute('fill-opacity',(0.9*v).toFixed(2)); } }
+      const P=d.tagName==='path'?'stroke':'fill';
+      if(v<0.01){ d.setAttribute(P,'var(--tw-off)'); d.setAttribute(P+'-opacity','1'); g.setAttribute(P+'-opacity','0'); }
+      else { d.setAttribute(P,c); d.setAttribute(P+'-opacity',(0.25+0.75*v).toFixed(2)); g.setAttribute(P,c); g.setAttribute(P+'-opacity',(0.9*v).toFixed(2)); } }
     const spS=tw.dataset.sp?S(tw.dataset.sp):null; if(spS&&spS.state==='playing') sub=(sub?sub+' · ':'')+'♪ sound';
     if(tw._cap.textContent!==cap) tw._cap.textContent=cap; if(tw._sub.textContent!==(sub||' ')) tw._sub.textContent=sub||' ';
   }); } catch(e){ console.error(e); }
@@ -601,6 +615,7 @@ function wire(){ document.querySelectorAll('[data-tg]').forEach(x=>x.onclick=()=
   document.querySelectorAll('[data-press]').forEach(x=>x.onclick=()=>act(H().call('button','press',x.dataset.press),x.dataset.press));
   document.querySelectorAll('[data-restart]').forEach(x=>x.onclick=()=>{ const e=x.dataset.restart; if(!armed('rs'+e)) return; act(H().call('button','press',e),e); });
   bindPager();
+  document.querySelectorAll('[data-twstyle]').forEach(x=>x.onclick=()=>{ TWIN_STYLE=x.dataset.twstyle; try{ localStorage.setItem('mbh-twin-style',TWIN_STYLE); }catch(e){} render(); });
   document.querySelectorAll('[data-sel]').forEach(x=>x.onchange=()=>{ x.blur(); act(H().call('select','select_option',x.dataset.sel,{option:x.value}),x.dataset.sel); });
   document.querySelectorAll('[data-num]').forEach(x=>x.onchange=()=>{ const v=parseFloat(x.value); if(!isFinite(v)) return; act(H().call('number','set_value',x.dataset.num,{value:v}),x.dataset.num); });
   document.querySelectorAll('[data-vol]').forEach(x=>x.onchange=()=>act(H().call('media_player','volume_set',x.dataset.vol,{volume_level:+x.value/100}),x.dataset.vol)); }
