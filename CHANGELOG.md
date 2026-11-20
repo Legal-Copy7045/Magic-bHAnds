@@ -3,6 +3,28 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.18] - 2026-11-20
+
+### Reader
+- **Seven more light shows** (17 in all): **Penguins** (gold arcs spinning
+  round a black ring, then gold flashes with white sparkle), **Goal** (three
+  hard red pulses, like the bands' red flash for a goal), **Aurora**, **Candy
+  cane**, **Thunderstorm**, **Sunrise** and **Disco**. They're in Startup
+  show, Show, `magicband.play_show` and the schedule blueprint.
+- **Night now:** a new diagnostic sensor that's on while the night idle glow
+  applies, so you can see Night mode (set hours or sunset to sunrise with its
+  offsets) at work.
+
+### MagicbHAnds page
+- **Choosing from a drop-down takes effect on the page at once.** The page
+  held off redrawing while a drop-down still had focus, so picking **Sunset
+  to sunrise** didn't show its offset settings (or anything else) until you
+  clicked elsewhere.
+- The Night settings say whether the night glow is on now (from the
+  reader), and explain the offsets: 120 = 2 hours after, −120 = 2 hours
+  before.
+- The live ring plays the new shows and follows the reader's Night now.
+
 ## [0.10.17] - 2026-11-20
 
 ### Reader

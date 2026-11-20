@@ -47,13 +47,15 @@ inline void put_dimmed(light::ESPColorView led, Color c, uint8_t level) {
 
 namespace shows {
 
-static const int COUNT = 10;
+static const int COUNT = 17;
 static const char *const NAMES[COUNT] = {
-    "Rainbow rush", "Fireworks", "Comet chase", "Colour parade", "Twinkle",
-    "Heartbeat",    "Ocean",     "Fire",        "Pinwheel",      "Confetti",
+    "Rainbow rush", "Fireworks", "Comet chase", "Colour parade", "Twinkle",     "Heartbeat",
+    "Ocean",        "Fire",      "Pinwheel",    "Confetti",      "Penguins",    "Goal",
+    "Aurora",       "Candy cane", "Thunderstorm", "Sunrise",     "Disco",
 };
 // How long each show runs (ms); it ends dark.
-static const uint32_t DURATION_MS[COUNT] = {3100, 5000, 4000, 4300, 5000, 4300, 5000, 4500, 4500, 4500};
+static const uint32_t DURATION_MS[COUNT] = {3100, 5000, 4000, 4300, 5000, 4300, 5000, 4500, 4500,
+                                            4500, 4800, 2900, 5500, 4500, 5000, 5000, 4500};
 
 inline int index_of(const char *name) {
   for (int i = 0; i < COUNT; i++)
@@ -251,6 +253,104 @@ inline bool render_show(int show, uint32_t t, int n, uint8_t *rgb) {
             break;
           }
         }
+      break;
+    }
+    case 10: {  // Penguins: black and gold. Gold arcs spin round a black ring, then two gold flashes and a sparkle
+      const RGB gold = {1, 0.68f, 0.06f};
+      if (T < 2800) {
+        const float q = T / 2800, turn = 1.6f * q * q;
+        const float e = clamp01(T / 300);
+        for (int i = 0; i < n; i++) {
+          const float a = frac((float) i / n + turn) * 3;  // three arcs
+          const float inside = a - floorf(a);
+          if (inside < 0.45f) put(i, gold, e * (0.35f + 0.65f * sinf(3.1416f * inside / 0.45f)));
+        }
+      } else if (T < 4000) {
+        const float p = fmodf(T - 2800, 600) / 600;
+        const float v = sinf(3.1416f * p);
+        const uint32_t fr = t / 45;
+        for (int i = 0; i < n; i++) {
+          put(i, gold, v);
+          if ((hash(i, fr) & 15) == 0) put(i, {1, 1, 1}, v);  // white sparkles in the flash
+        }
+      } else {
+        const float q = (T - 4000) / 800;
+        for (int i = 0; i < n; i++)
+          if ((hash(i, 7) & 3) == 0) put(i, gold, (1 - q) * 0.8f);
+      }
+      break;
+    }
+    case 11: {  // Goal: three hard red pulses, like the bands' red flash for a goal
+      const float beat = 900, p = fmodf(T, beat);
+      float v = 0;
+      if (T < 3 * beat) {
+        if (p < 80) v = p / 80;
+        else if (p < 380) v = 1;
+        else if (p < 750) v = 1 - (p - 380) / 370;
+      }
+      for (int i = 0; i < n; i++) put(i, {1, 0, 0}, v);
+      break;
+    }
+    case 12: {  // Aurora: green, teal and violet curtains drifting and shimmering
+      const float e = env(700, 900);
+      for (int i = 0; i < n; i++) {
+        const float x = (float) i / n;
+        const float a = 0.5f + 0.5f * sinf(6.2832f * (x * 1.5f + T / 3100));
+        const float b = 0.5f + 0.5f * sinf(6.2832f * (x * 2.5f - T / 2200) + 1.3f);
+        const float shimmer = 0.85f + 0.15f * sinf(T / 90 + i * 1.7f);
+        const RGB c = {0.45f * b, 0.35f + 0.65f * a, 0.35f + 0.45f * (1 - a) + 0.2f * b};
+        put(i, c, e * shimmer * (0.25f + 0.75f * clamp01(0.6f * a + 0.5f * b)));
+      }
+      break;
+    }
+    case 13: {  // Candy cane: red and white stripes spinning faster, then slowing
+      const float q = T / DURATION_MS[show];
+      const float turn = 2.5f * (q - sinf(6.2832f * q) / 6.2832f);
+      const float e = env(250, 500);
+      for (int i = 0; i < n; i++) {
+        const float a = frac((float) i / n + turn) * 8;  // eight stripes
+        const bool red = ((int) a) % 2 == 0;
+        put(i, red ? RGB{1, 0, 0.05f} : RGB{1, 1, 1}, e * (red ? 1.0f : 0.75f));
+      }
+      break;
+    }
+    case 14: {  // Thunderstorm: a dark, rolling blue sky split by lightning
+      const float e = env(400, 600);
+      float flash = 0;
+      const float strikes[3] = {1100, 2600, 3900};
+      for (float s0 : strikes) {
+        const float d = T - s0;
+        if (d >= 0 && d < 90) flash = 1;
+        else if (d >= 160 && d < 230) flash = 0.7f;  // the second flicker of a strike
+        else if (d >= 230 && d < 600) flash = flash > 0.3f * (1 - (d - 230) / 370) ? flash : 0.3f * (1 - (d - 230) / 370);
+      }
+      for (int i = 0; i < n; i++) {
+        const float cloud = 0.5f + 0.5f * sinf(6.2832f * ((float) i / n * 2 + T / 2600));
+        put(i, {0.05f, 0.1f, 0.45f}, e * (0.12f + 0.25f * cloud));
+        if (flash > 0) put(i, {0.85f, 0.9f, 1}, flash);
+      }
+      break;
+    }
+    case 15: {  // Sunrise: the ring warms from the bottom up, deep red to orange to golden white
+      const float q = T / DURATION_MS[show];
+      const float e = T > 4300 ? clamp01((5000 - T) / 700) : 1;
+      for (int i = 0; i < n; i++) {
+        const float h = fabsf((float) i / n - 0.5f) * 2;  // 1 at the top, 0 at the bottom
+        const float lift = clamp01(q * 1.6f - (1 - h) * 0.6f);
+        const RGB c = {1, clamp01(lift * 0.85f), clamp01(lift * lift * 0.55f)};
+        put(i, c, e * clamp01(0.15f + lift));
+      }
+      break;
+    }
+    case 16: {  // Disco: six segments jumping to new colours on the beat, pulsing
+      const uint32_t beat = t / 250;
+      const float p = (T - beat * 250.0f) / 250;
+      const float e = T > 4000 ? clamp01((4500 - T) / 500) : 1;
+      for (int i = 0; i < n; i++) {
+        const int seg = i * 6 / n;
+        const uint32_t h = hash(seg, beat);
+        put(i, hue((h & 1023) / 1024.0f), e * (0.45f + 0.55f * (1 - p)));
+      }
       break;
     }
   }
