@@ -132,6 +132,7 @@ class _Data:
     people: dict[str, Person] = field(default_factory=dict)
     bands: dict[str, Band] = field(default_factory=dict)
     released_readers: set[str] = field(default_factory=set)  # device ids released with unpair_reader
+    reader_cameras: dict[str, str] = field(default_factory=dict)  # reader device id -> camera entity (snapshots)
 
 
 _BAND_FIELDS = set(Band.__dataclass_fields__)
@@ -181,13 +182,18 @@ class MagicBandRegistry:
                 _LOGGER.warning("Band %r isn't a valid NFC ID; it's kept but never allowed in", band.uid)
             bands[band.uid] = band
         released = {d for d in raw.get("released_readers", []) or [] if isinstance(d, str)}
-        self._data = _Data(people=people, bands=bands, released_readers=released)
+        cameras = {
+            d: c for d, c in (raw.get("reader_cameras") or {}).items()
+            if isinstance(d, str) and isinstance(c, str) and c.startswith("camera.")
+        } if isinstance(raw.get("reader_cameras"), dict) else {}
+        self._data = _Data(people=people, bands=bands, released_readers=released, reader_cameras=cameras)
 
     def _serialize(self) -> dict:
         return {
             "people": [asdict(p) for p in self._data.people.values()],
             "bands": [asdict(b) for b in self._data.bands.values()],
             "released_readers": sorted(self._data.released_readers),
+            "reader_cameras": dict(self._data.reader_cameras),
         }
 
     @callback
@@ -205,6 +211,23 @@ class MagicBandRegistry:
             self._data.released_readers.add(device_id)
         else:
             self._data.released_readers.discard(device_id)
+        self._save()
+
+    # ------------------------------------------------------------------ snapshot cameras (optional)
+
+    def reader_camera(self, device_id: str | None) -> str | None:
+        return self._data.reader_cameras.get(device_id) if device_id else None
+
+    @property
+    def reader_cameras(self) -> dict[str, str]:
+        return dict(self._data.reader_cameras)
+
+    @callback
+    def set_reader_camera(self, device_id: str, camera: str | None) -> None:
+        if camera:
+            self._data.reader_cameras[device_id] = camera
+        else:
+            self._data.reader_cameras.pop(device_id, None)
         self._save()
 
     async def async_flush(self) -> None:
