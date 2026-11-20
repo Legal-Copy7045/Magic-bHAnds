@@ -1,5 +1,9 @@
 # Build the MagicBand Reader on a breadboard: step by step
 
+**Status:** reviewed against the datasheets, **not yet built** as laid out
+here. The same circuit, on a smaller breadboard, has been built and tested:
+the [compact build](../reader-compact/build.md).
+
 Every step, in order, with a check after each stage. Don't skip the
 checks: each one catches a mistake before it can damage a part. Hole names
 (`c30`, `L+24`) match the [diagram](../../docs/reader-breadboard.svg) and the
@@ -125,7 +129,10 @@ The ring's pads are small: use flux, tin the pad and the wire first, then
 join them quickly.
 
 1. Identify the pads: **DIN** (or IN), **5V** (VCC), **GND**. Ignore DOUT
-   (OUT): nothing connects there.
+   (OUT): nothing connects there. A ring that came with leads needs no
+   soldering: see the compact build's
+   [step 15](../reader-compact/build.md#15-the-ring-power-off) for telling
+   the input lead from the output one.
 2. **Power wires:** solder a red wire (40 cm) to **5V** and a black wire (40 cm)
    to **GND**. Strip **11 mm** at the other end for the hubs.
 3. **1000 µF:** solder it across the 5V and GND pads (or the wires right at

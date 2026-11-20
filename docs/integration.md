@@ -13,8 +13,9 @@ Manages **people** and their **bands** for your MagicBand readers:
   automations.
 - Adds a **Send MagicBand effect** action (`magicband.send`) that lights up or
   buzzes bands through every bridge, or the ones you pick.
-- Installs the **MagicBand+ notification** and **charge me reminder**
-  blueprints and keeps them up to date.
+- Installs the **MagicBand+ notification**, **charge me reminder** and
+  **light show on a schedule** blueprints and keeps them up to date.
+- Plays the readers' **light shows** (`magicband.play_show`).
 - Per band: an **access schedule** (time window, days, expiry) and a **band
   type** (MagicBand+ or standard MagicBand). Per person: a **welcome
   colour** for the ring and their MagicBand+.
@@ -149,12 +150,15 @@ everything, read live from Home Assistant.
   card also shows health tiles: Wi-Fi strength and network, how long it's
   been up and why it last restarted, CPU temperature, free memory, loop time
   and IP address (firmware 0.10.5 or later; the SCREEK BP2-POE's own sensors
-  too). Each reader card starts with a **live twin of its ring**: the same number
+  too). The header shows the first reader's ring, live. Each reader card starts with a **live twin of its ring**: the same number
   of LEDs, showing what the real ring shows (idle or night glow, the chase
   while a band is read, the welcome with the person's name, the denied
   pulses, the amber offline pulse), so a tap appears on the page as it
-  happens. Each reader's **Ring and tap settings** fold-out has all its ring and
-  tap settings in groups: Ring (type, LED count, colour order, brightness),
+  happens. (A page that embeds this one can put its own emblem in
+  the middle of the twin by setting `window.MBH_READER_EMBLEM` to SVG drawn in a
+  100 × 100 box.) Each reader's **Ring and tap settings** fold-out has all its ring and
+  tap settings in groups: Ring (type, LED count, colour order, brightness,
+  start-up show and the show **Play show** plays),
   Waiting for a band, Night (set hours or sunset to sunrise, with tonight's
   times), Checking a band, Welcome (with a picture of its shape) and Denied.
   They're the same settings as on the reader's device page; see
@@ -225,12 +229,15 @@ Example: flash red three times when your team scores.
 
 ## The blueprints
 
-The integration installs two blueprints for you:
+The integration installs three blueprints for you:
 
 - **MagicBand+ notification**: light up and buzz bands when something
   happens.
 - **MagicbHAnds: charge me reminder**: a phone notification when a MagicBand+
   battery drops to the reminder level (see [Charge reminders](#charge-reminders)).
+- **MagicbHAnds: light show on a schedule**: plays one of the readers' light
+  shows every hour or every few hours between two times of day (see
+  [Light shows](#management-page) above).
 
 They go in `blueprints/automation/magicband/`, or, if you'd already imported
 one from GitHub, that copy is updated in place. Each integration update
@@ -292,8 +299,8 @@ Actions that change who's allowed in, or list band IDs, need a Home Assistant
 **administrator**: `add_person`, `update_person`, `remove_person`,
 `assign_band`, `unassign_band`, `remove_band`, `set_band_access`, `enrol`,
 `stop_enrolment`, `list`, `history`, `link_bluetooth`, `unlink_bluetooth`,
-`forget_bluetooth`, `list_bluetooth_bands` and `list_heard`. `send`, `sync` and `list_bridges` work for any user; `send`
-only targets MagicBand bridges. See [security.md](security.md).
+`forget_bluetooth`, `list_bluetooth_bands` and `list_heard`. `send`, `sync`, `play_show` and `list_bridges` work for any user; `send`
+only targets MagicBand bridges, and `play_show` only plays a light show. See [security.md](security.md).
 
 | Action | Fields |
 |---|---|
@@ -310,6 +317,7 @@ only targets MagicBand bridges. See [security.md](security.md).
 | `magicband.sync` | Push the allowed list to all readers now. Returns `readers`, `applied` and `failed` (readers that refused it; from 0.10.4 a reader replies whether it stored the list) |
 | `magicband.list` | Returns all people (with welcome colours) and bands (with access schedules), the readers' status, any enrolment, and the welcome colours |
 | `magicband.send` | Sends an effect through the bridges (see above) |
+| `magicband.play_show` | `show` (one of the 17 shows, or `Random`, the default), `device_id` (readers; empty = all): plays it on the ring (reader firmware 0.10.17 or later). Returns `played` and `skipped` |
 | `magicband.list_bridges` | Returns every bridge's Command entity |
 | `magicband.list_heard` | Returns recent MagicBand+ Bluetooth traffic heard (last 30), and the last 200 band messages |
 | `magicband.list_bluetooth_bands` | Returns every MagicBand+ recognised over Bluetooth, with its battery history, signal per adapter, changing bits and last 50 raw beacons |

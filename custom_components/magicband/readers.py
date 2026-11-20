@@ -15,13 +15,15 @@ that stay offline show in Home Assistant's Repairs.
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 import logging
 import re
+import time
 from typing import Any
 
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import Context, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr, entity_registry as er, issue_registry as ir
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.util import dt as dt_util
@@ -116,13 +118,21 @@ def list_size(uids: list[str]) -> int:
     return 1 + sum(len(u) + 1 for u in uids)
 
 
-async def async_play_show(hass: HomeAssistant, show: str, device_ids: list[str] | None = None) -> dict[str, Any]:
+MAX_SHOWS_PER_MINUTE = 12  # per reader: play_show is open to every user
+
+
+async def async_play_show(
+    hass: HomeAssistant, show: str, device_ids: list[str] | None = None, context: Context | None = None
+) -> dict[str, Any]:
     """Plays a light show ("Random" or one of SHOW_NAMES) on the readers (all of them, or these devices).
 
-    Returns {"played": [reader names], "skipped": [names of readers that are offline or too old]}.
+    Returns {"played": [reader names], "skipped": [names of readers that are offline, too old,
+    busy (more than MAX_SHOWS_PER_MINUTE) or that failed]}.
     """
     played: list[str] = []
     skipped: list[str] = []
+    times: dict[str, deque[float]] = hass.data.setdefault(f"{DOMAIN}_show_times", {})
+    now = time.monotonic()
     for device in reader_devices(hass):
         if device_ids and device.id not in device_ids:
             continue
@@ -132,8 +142,20 @@ async def async_play_show(hass: HomeAssistant, show: str, device_ids: list[str] 
         if service is None or not hass.services.has_service("esphome", service):
             skipped.append(name)
             continue
-        await hass.services.async_call("esphome", service, {"show": show}, blocking=True)
-        played.append(name)
+        recent = times.setdefault(device.id, deque())
+        while recent and now - recent[0] >= 60:
+            recent.popleft()
+        if len(recent) >= MAX_SHOWS_PER_MINUTE:
+            skipped.append(name)
+            continue
+        recent.append(now)
+        try:
+            await hass.services.async_call("esphome", service, {"show": show}, blocking=True, context=context)
+        except Exception as err:  # noqa: BLE001 - one reader shouldn't stop the rest
+            _LOGGER.warning("Reader %s didn't play the light show: %s", name, err)
+            skipped.append(name)
+        else:
+            played.append(name)
     return {"played": played, "skipped": skipped}
 
 

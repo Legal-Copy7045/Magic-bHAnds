@@ -276,6 +276,12 @@ enrol:
       example: Nana's band
       selector:
         text:
+    device_id:
+      selector:
+        device:
+          filter:
+            - integration: esphome
+              model: magicband-reader
 
 stop_enrolment:
 

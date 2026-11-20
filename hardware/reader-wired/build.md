@@ -3,10 +3,14 @@
 > Building the **compact (solderless)** version on a 400-point breadboard?
 > It has [its own guide](../reader-compact/build.md).
 
+**Status:** reviewed against the datasheets, **not yet built**. The
+[compact build](../reader-compact/build.md) uses the same interface-board
+holes and has been built and tested.
+
 Every step, in order, with checks along the way. **Build the
-[breadboard version](../reader-breadboard/build.md) first**: these builds
-use the same parts and settings, and a working breadboard tells you every
-part is good.
+[breadboard](../reader-breadboard/build.md) or
+[compact](../reader-compact/build.md) version first**: these builds use the
+same parts and settings, and a working one tells you every part is good.
 
 Hole names on the interface board (`c6`, `L+25`) match the
 [interface board picture](../../docs/reader-interface-board.svg) and the

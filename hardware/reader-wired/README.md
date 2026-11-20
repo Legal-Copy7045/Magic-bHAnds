@@ -157,7 +157,8 @@ c6 and c7 each to c2 read 4.7 kΩ.
 
 ## Compact (solderless) version
 
-The point-to-point build with nothing soldered except the ring's wires: the
+The point-to-point build with nothing soldered except the PN532's header
+(and the ring's wires, if it has no leads of its own): the
 interface board is a **400-point half-size breadboard**, which has the same
 holes as the Perma-Proto (rows 1–30, columns a–j, a rail pair each side), so
 the [layout above](#perma-proto-layout) goes in hole for hole with jumpers.
@@ -180,7 +181,11 @@ What changes from point-to-point:
 | Amplifier power from the hubs | 5 V hub → **f24**, GND hub → **f23** (not via the rails) |
 | PN532 | Male-to-female jumpers: SDA **c6**, SCL **c7**, VCC **L+4**, GND **L−3**. Or, as on the tested build, its soldered right-angle header straight into **a24–a27** (GND, VCC, SDA, SCL), then jumpers from those rows to L−, L+, c6 and c7 |
 
-Everything else (the hubs, the ring, the PD trigger) is as above. The rails
+Everything else (the hubs, the ring, the PD trigger) is as above. On the
+tested build the ring came with a lead, so its 470 Ω goes on the board (from
+**b12** to a free row, then the ring's DIN wire) and its 1000 µF across the
+rails for testing; the diagram shows them at the ring, where they go in a
+finished reader. The rails
 carry the ESP32, PN532 and level shifter (≤ 0.7 A, as on the full
 breadboard); the amplifier and ring get their own wires from the hubs.
 

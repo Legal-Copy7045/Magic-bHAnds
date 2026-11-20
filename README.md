@@ -19,7 +19,7 @@ integration that ties them up.
 |---|---|---|---|
 | **Part 1: [MagicBand Bridge](docs/bridge.md)** | Lights up and buzzes bands from automations: any colour, animations, vibration patterns | MagicBand+ (Bluetooth) | An ESP32-S3 board, nothing else |
 | **Part 2: [MagicBand Reader](docs/reader.md)** | A park-style tap point. Two white circles chase round the ring, Home Assistant knows whose band it is, a green glow (welcome) or two red pulses (denied) with sound, and a MagicBand+ lights up too | Original MagicBands and MagicBand+ (NFC) | ESP32-S3, PN532 NFC reader, LED ring (or strip), amplifier and speaker, powered by a USB-C charger. [Shopping list](hardware/shopping-list.md) |
-| **[MagicbHAnds integration](docs/integration.md)** (HACS) | People and their bands (with or without a Home Assistant user), a log of every tap, the *Send MagicBand effect* action and the automation blueprint | Both | None |
+| **[MagicbHAnds integration](docs/integration.md)** (HACS) | People and their bands (with or without a Home Assistant user), a log of every tap, the *Send MagicBand effect* action and the automation blueprints | Both | None |
 
 ## Quick start
 
@@ -75,7 +75,10 @@ Then:
   [compact (solderless)](hardware/reader-compact/build.md)
 - Any LED count (1–100), RGB or SK6812 RGBW rings, and the whole tap
   sequence (colours, circles, welcome and denied timings, a dimmer idle glow
-  at night) set from the reader's device page
+  at night, by set hours or sunset to sunrise) set from the reader's device
+  page
+- 17 light shows, played at start-up, from the device page, from
+  `magicband.play_show` or on a schedule (blueprint)
 - Health sensors (Wi-Fi signal, memory, loop time, CPU temperature, restart
   reason) for spotting trouble
 - Runs from one USB-C charger (20 W or more)
@@ -151,10 +154,10 @@ it on `main`. It tags `v<VERSION>` and publishes the GitHub Release.
 - This is for home tinkering. Don't run it anywhere near the parks.
 - The reader builds have been reviewed against the parts' datasheets. The
   [compact build](hardware/reader-compact/build.md)
-  has been built and tested on the USB-C PD supply (power, NFC, sound, load
-  test), and its 35-LED ring is wired and lights correctly (idle glow, all
-  LEDs, colours, 5.1 V); the full tap sequence on the ring is still to be
-  confirmed. The breadboard, terminal-base and point-to-point
+  has been built and tested on the USB-C PD supply (power, NFC, sound at
+  100 %, a load test before the ring was fitted), and its 35-LED ring is
+  wired and lights correctly (idle glow, all LEDs, colours, 5.1 V); the tap
+  sequence and the load test with the ring are still to be confirmed. The breadboard, terminal-base and point-to-point
   builds have been reviewed but not built.
   Follow each build's staged tests, which check voltages before anything is
   connected to the ESP32.
