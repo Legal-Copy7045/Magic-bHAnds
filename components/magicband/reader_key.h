@@ -6,9 +6,11 @@
 // can't use them. A reader with no key (never paired, or not used with the
 // integration) works as before.
 //
-// A paired reader takes a new key only in the first PAIR_WINDOW_MS after a real
-// power-on (unplugging it), not after a software restart, which any Home
-// Assistant user can trigger.
+// A paired reader never takes a different key over the network: only the key
+// holder can release it (unpair), or someone with the reader in hand can erase
+// it over USB (the web installer's "Erase device"), which anyone with USB access
+// could do anyway. So no Home Assistant user can take a reader over, even right
+// after it restarts or loses power.
 
 #include <array>
 #include <cctype>
@@ -20,7 +22,6 @@ namespace esphome {
 namespace magicband {
 
 static constexpr size_t READER_KEY_SIZE = 65;  // 64 hex characters + terminator
-static constexpr uint32_t PAIR_WINDOW_MS = 10 * 60 * 1000;
 using ReaderKey = std::array<char, READER_KEY_SIZE>;
 
 inline bool reader_paired(const ReaderKey &stored) { return stored[0] != 0; }
@@ -41,17 +42,30 @@ inline bool reader_key_ok(const ReaderKey &stored, const std::string &given) {
 
 // Pairs with `key` (32-64 hex characters). Returns "" when paired (or already
 // paired with this key), else why not.
-inline std::string reader_pair(ReaderKey &stored, const std::string &key, bool in_window) {
+inline std::string reader_pair(ReaderKey &stored, const std::string &key) {
   if (key.size() < 32 || key.size() > READER_KEY_SIZE - 1)
     return "The key must be 32 to 64 hex characters";
   for (char c : key)
     if (!std::isxdigit(static_cast<unsigned char>(c)))
       return "The key must be 32 to 64 hex characters";
-  if (reader_paired(stored) && !reader_key_ok(stored, key) && !in_window)
-    return "This reader is paired with another key. Unplug it for a few seconds, then it accepts a new key "
-           "for 10 minutes";
+  if (reader_paired(stored)) {
+    if (reader_key_ok(stored, key))
+      return "";
+    return "This reader is paired with another key. Release it from the Home Assistant that paired it "
+           "(magicband.unpair_reader), or erase it over USB with the web installer (Erase device) and add it again";
+  }
   stored.fill(0);
   memcpy(stored.data(), key.data(), key.size());
+  return "";
+}
+
+// Releases the pairing; needs the current key. Returns "" when done.
+inline std::string reader_unpair(ReaderKey &stored, const std::string &key) {
+  if (!reader_paired(stored))
+    return "";
+  if (!reader_key_ok(stored, key))
+    return "Wrong key";
+  stored.fill(0);
   return "";
 }
 
