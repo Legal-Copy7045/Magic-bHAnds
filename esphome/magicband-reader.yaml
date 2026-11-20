@@ -21,7 +21,7 @@
 substitutions:
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.10.23"
+  project_version: "0.10.24"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -681,6 +681,116 @@ light:
             magicband::shows::render_show(16, millis() - start, n, buf);
             for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
       - addressable_lambda:
+          name: "Birthday"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(17, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
+          name: "New Year"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(18, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
+          name: "Valentine"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(19, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
+          name: "St Patrick"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(20, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
+          name: "Easter"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(21, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
+          name: "Stars and Stripes"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(22, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
+          name: "Halloween"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(23, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
+          name: "Thanksgiving"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(24, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
+          name: "Hanukkah"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(25, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
+          name: "Christmas"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(26, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
+          name: "Stamp"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(27, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
           name: "Spin"
           update_interval: 25ms
           lambda: |-
@@ -832,6 +942,17 @@ select:
       - "Thunderstorm"
       - "Sunrise"
       - "Disco"
+      - "Birthday"
+      - "New Year"
+      - "Valentine"
+      - "St Patrick"
+      - "Easter"
+      - "Stars and Stripes"
+      - "Halloween"
+      - "Thanksgiving"
+      - "Hanukkah"
+      - "Christmas"
+      - "Stamp"
   # The light show "Play show" plays (Random = a different one each time).
   - platform: template
     id: show_choice
@@ -860,6 +981,17 @@ select:
       - "Thunderstorm"
       - "Sunrise"
       - "Disco"
+      - "Birthday"
+      - "New Year"
+      - "Valentine"
+      - "St Patrick"
+      - "Easter"
+      - "Stars and Stripes"
+      - "Halloween"
+      - "Thanksgiving"
+      - "Hanukkah"
+      - "Christmas"
+      - "Stamp"
   # When "Idle glow at night" applies: between "Night from" and "Night until",
   # or from sunset to sunrise (each moved by its offset in minutes). The sun
   # times come from Home Assistant's sun; until it has sent them, the set
@@ -1577,16 +1709,23 @@ script:
                   lambda: 'return !id(show_on);'
                 then:
                   - script.execute: reader_idle_glow
-  # Plays a light show by name ("Random" or an unknown name: any of them).
+  # Plays a light show by name ("Random" or an unknown name: any everyday one).
   # A tap during it takes over the ring; playing another restarts.
   - id: play_show
     mode: restart
     parameters:
       show: string
     then:
+      # A show sent straight after a tap (a holiday or birthday celebration)
+      # waits for the welcome to finish.
+      - wait_until:
+          condition:
+            not:
+              script.is_running: band_tapped
+          timeout: 20s
       - lambda: |-
           int k = magicband::shows::index_of(show.c_str());
-          if (k < 0) k = esp_random() % magicband::shows::COUNT;
+          if (k < 0) k = esp_random() % magicband::shows::RANDOM_COUNT;
           id(show_index) = k;
           ESP_LOGI("reader", "Light show: %s", magicband::shows::NAMES[k]);
       - globals.set: {id: show_on, value: "true"}

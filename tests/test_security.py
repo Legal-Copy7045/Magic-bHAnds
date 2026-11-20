@@ -165,6 +165,8 @@ ADMIN_ONLY = [
     ("add_person", {"name": "Mallory"}),
     ("update_person", {"person": "Andrew", "allowed": True}),
     ("remove_person", {"person": "Andrew"}),
+    ("set_guest_pass", {"person": "Andrew", "uses": 5}),
+    ("set_settings", {"lockdown": False}),
     ("assign_band", {"band": TAG, "person": "Andrew"}),
     ("unassign_band", {"band": TAG}),
     ("remove_band", {"band": TAG}),

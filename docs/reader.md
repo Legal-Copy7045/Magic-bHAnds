@@ -226,7 +226,7 @@ MagicBand+**, for example to turn on the lounge lights.
 | **Sound** | Chimes on/off |
 | **Test welcome** | Plays the welcome sequence without a band |
 | **Play show** | Plays the light show chosen in **Show** (or a random one) |
-| **Show** | Which show **Play show** plays: Random, or Rainbow rush, Fireworks, Comet chase, Colour parade, Twinkle, Heartbeat, Ocean, Fire, Pinwheel, Confetti, Penguins (black and gold), Goal (three red pulses), Aurora, Candy cane, Thunderstorm, Sunrise or Disco |
+| **Show** | Which show **Play show** plays: Random (one of the everyday shows), or Rainbow rush, Fireworks, Comet chase, Colour parade, Twinkle, Heartbeat, Ocean, Fire, Pinwheel, Confetti, Penguins (black and gold), Goal (three red pulses), Aurora, Candy cane, Thunderstorm, Sunrise, Disco; the celebration shows Birthday, New Year, Valentine, St Patrick, Easter, Stars and Stripes, Halloween, Thanksgiving, Hanukkah and Christmas; or Stamp (a new passport badge). The MagicbHAnds integration plays the celebration shows after a welcome on the day (see [integration.md](integration.md#celebrations-and-the-tap-passport)); a show sent during a tap waits for the welcome to finish |
 | **Startup show** | The show played when the reader starts: Off, Random or one show (default Rainbow rush) |
 | **Allowed list** (diagnostic) | From the MagicbHAnds integration: whether this reader has the current allowed list (*Up to date*, *Not applied*, *Reader offline* …) |
 | **ESPHome name** (diagnostic) | The reader's ESPHome name; the integration uses it to find the reader's actions |

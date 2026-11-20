@@ -2,8 +2,9 @@ blueprint:
   name: "MagicbHAnds: light show on a schedule"
   description: >-
     Plays one of the readers' light shows every hour (or every few hours),
-    on the hour, between two times of day. Pick a show or Random for a
-    different one each time. Needs reader firmware 0.10.17 or later. A band
+    on the hour, between two times of day. Pick a show, Random for a
+    different one each time, or Today for today's holiday show (Random on
+    other days). Needs reader firmware 0.10.17 or later. A band
     tapped during a show takes over the ring as usual.
     Source: github.com/Legal-Copy7045/Magic-bHAnds
   domain: automation
@@ -14,7 +15,7 @@ blueprint:
       default: Random
       selector:
         select:
-          options: [Random, Rainbow rush, Fireworks, Comet chase, Colour parade, Twinkle, Heartbeat, Ocean, Fire, Pinwheel, Confetti, Penguins, Goal, Aurora, Candy cane, Thunderstorm, Sunrise, Disco]
+          options: [Random, Today, Rainbow rush, Fireworks, Comet chase, Colour parade, Twinkle, Heartbeat, Ocean, Fire, Pinwheel, Confetti, Penguins, Goal, Aurora, Candy cane, Thunderstorm, Sunrise, Disco, Birthday, New Year, Valentine, St Patrick, Easter, Stars and Stripes, Halloween, Thanksgiving, Hanukkah, Christmas]
     every:
       name: Every (hours)
       description: 1 = every hour, 2 = every other hour, and so on (on the hour).
