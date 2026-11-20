@@ -30,9 +30,13 @@ Home Assistant integration share one version number.
   on the page are escaped as well (defence in depth).
 
 ### MagicbHAnds page
-- **The live twin looks like a park reader:** a dark round housing, the
-  light ring, and a raised pad with an emblem in the middle. A page that
-  hosts this one can set its own emblem (`window.MBH_READER_EMBLEM`).
+- **The live twin looks like a park reader:** a brushed-silver ball with a
+  flat grey face, seen slightly from the side, with the light ring around
+  the face and an emblem in the middle. A page that hosts this one can set
+  its own emblem (`window.MBH_READER_EMBLEM`, SVG in a 100 × 100 box; the
+  face colour is `var(--tw-face)`).
+- **LEDs or Diffused:** each reader card can show the ring as individual
+  LEDs or as a smooth, diffused band of light (remembered in the browser).
 - **The header shows the reader's ring, live,** in place of the "Status"
   line, with what it's doing and whether the page is live.
 
