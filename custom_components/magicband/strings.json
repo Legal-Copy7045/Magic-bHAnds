@@ -479,6 +479,20 @@
           "description": "Up to 300."
         }
       }
+    },
+    "answer": {
+      "name": "Answer a reader",
+      "description": "In the reader's \"Ask Home Assistant\" mode, welcome or deny the band just tapped (within 3 seconds of the tap). Administrators and automations only.",
+      "fields": {
+        "device_id": {
+          "name": "Reader",
+          "description": "The reader that's waiting for an answer."
+        },
+        "allow": {
+          "name": "Allow",
+          "description": "On: welcome. Off: deny."
+        }
+      }
     }
   },
   "issues": {

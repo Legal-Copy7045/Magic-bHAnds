@@ -82,6 +82,17 @@ void MagicBand::dump_config() {
 void MagicBand::loop() {
   const uint32_t now = millis();
 
+  // Airtime budget (see AIRTIME_RATE): earned all the time, spent while on air.
+  const uint32_t dt = now - this->airtime_at_;
+  this->airtime_at_ = now;
+  this->airtime_ms_ += dt * AIRTIME_RATE;
+  if (this->state_ == State::CONFIGURING || this->state_ == State::ADVERTISING)
+    this->airtime_ms_ -= dt;
+  if (this->airtime_ms_ > AIRTIME_MAX_MS)
+    this->airtime_ms_ = AIRTIME_MAX_MS;
+  if (this->airtime_ms_ < 0)
+    this->airtime_ms_ = 0;
+
   if (this->light_pending_ && now - this->light_changed_at_ >= LIGHT_DEBOUNCE_MS) {
     this->light_pending_ = false;
     if (this->light_on_) {
@@ -96,7 +107,18 @@ void MagicBand::loop() {
   switch (this->state_) {
     case State::IDLE:
       if (!this->queue_.empty() && esp32_ble::global_ble != nullptr && esp32_ble::global_ble->is_active()) {
-        this->start_next_();
+        if (this->airtime_ms_ >= AIRTIME_START_MS) {
+          this->airtime_warned_ = false;
+          this->start_next_();
+        } else {
+          // Out of airtime: scan while the budget refills, then carry on.
+          if (!this->airtime_warned_) {
+            ESP_LOGW(TAG, "Broadcasting too much: waiting for airtime (%u queued)", (unsigned) this->queue_.size());
+            this->airtime_warned_ = true;
+          }
+          if (this->scan_paused_)
+            this->resume_scan_();
+        }
       } else if (this->queue_.empty() && this->scan_paused_) {
         this->resume_scan_();
       }
@@ -108,7 +130,8 @@ void MagicBand::loop() {
       }
       break;
     case State::ADVERTISING:
-      if (this->stop_requested_ || now - this->state_since_ >= this->current_.duration_ms) {
+      if (this->stop_requested_ || now - this->state_since_ >= this->current_.duration_ms ||
+          this->airtime_ms_ <= 0) {
         this->request_stop_();
       } else if ((this->swap_in_burst_ || this->ping_in_burst_) && now - this->last_swap_ >= SLOT_MS) {
         // Swap the advertisement data in place while advertising.

@@ -21,7 +21,7 @@
 substitutions:
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.10.19"
+  project_version: "0.10.20"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -57,6 +57,10 @@ esphome:
     then:
       # Everything is set up now, so the ring's settings can be applied.
       - globals.set: {id: ring_ready, value: "true"}
+      - lambda: 'id(powered_on) = esp_reset_reason() == ESP_RST_POWERON;'
+      - binary_sensor.template.publish:
+          id: paired
+          state: !lambda 'return magicband::reader_paired(id(pair_key));'
       - script.execute: apply_ring_settings
       # The start-up light show ("Startup show"), then the idle glow.
       - if:
@@ -145,14 +149,58 @@ api:
               - script.execute:
                   id: play_show
                   show: !lambda 'return show;'
-    # For "Ask Home Assistant" mode: an automation on the tag scan calls one
-    # of these within 3 seconds (esphome.magicband_reader_<suffix>_accept / _deny).
+    # The MagicbHAnds integration pairs with the reader (components/magicband/
+    # reader_key.h): afterwards accept, deny, set_known_bands and
+    # set_band_colours need its key, so other Home Assistant users can't use
+    # them. A paired reader takes a new key only within 10 minutes of being
+    # plugged in (a power-on, not a restart).
+    - action: pair
+      variables:
+        key: string
+      then:
+        - lambda: |-
+            const bool window = id(powered_on) && millis() < magicband::PAIR_WINDOW_MS;
+            id(sync_error) = magicband::reader_pair(id(pair_key), key, window);
+            if (id(sync_error).empty()) ESP_LOGI("reader", "Paired with MagicbHAnds");
+            else ESP_LOGW("reader", "Not paired: %s", id(sync_error).c_str());
+        - binary_sensor.template.publish:
+            id: paired
+            state: !lambda 'return magicband::reader_paired(id(pair_key));'
+        - api.respond:
+            success: !lambda 'return id(sync_error).empty();'
+            error_message: !lambda 'return id(sync_error);'
+    # For "Ask Home Assistant" mode: answers within 3 seconds of a tap. With the
+    # integration, automations use magicband.answer (it adds the key).
     - action: accept
+      variables:
+        key: string
       then:
-        - globals.set: {id: decision, value: "1"}
+        - if:
+            condition:
+              lambda: 'return magicband::reader_key_ok(id(pair_key), key);'
+            then:
+              - globals.set: {id: decision, value: "1"}
+              - api.respond:
+                  success: true
+            else:
+              - api.respond:
+                  success: false
+                  error_message: "Wrong key: this reader is paired with MagicbHAnds; use magicband.answer"
     - action: deny
+      variables:
+        key: string
       then:
-        - globals.set: {id: decision, value: "2"}
+        - if:
+            condition:
+              lambda: 'return magicband::reader_key_ok(id(pair_key), key);'
+            then:
+              - globals.set: {id: decision, value: "2"}
+              - api.respond:
+                  success: true
+            else:
+              - api.respond:
+                  success: false
+                  error_message: "Wrong key: this reader is paired with MagicbHAnds; use magicband.answer"
     # Used by the MagicBand integration to replace the reader's allowed list.
     # bands: comma-separated band IDs (04-53-65-.. or 0453652A..: 4, 7 or 10
     # bytes of hex). A list that can't be applied in full (a malformed ID, or
@@ -162,8 +210,14 @@ api:
     - action: set_known_bands
       variables:
         bands: string
+        key: string
       then:
         - lambda: |-
+            if (!magicband::reader_key_ok(id(pair_key), key)) {  // keeps the current list
+              id(sync_error) = "Wrong key: this reader is paired with MagicbHAnds";
+              ESP_LOGW("reader", "Refused a band list with the wrong key");
+              return;
+            }
             std::string out = ",";
             std::string cur;
             std::string err;
@@ -206,8 +260,13 @@ api:
     - action: set_band_colours
       variables:
         colours: string
+        key: string
       then:
         - lambda: |-
+            if (!magicband::reader_key_ok(id(pair_key), key)) {
+              id(sync_error) = "Wrong key: this reader is paired with MagicbHAnds";
+              return;
+            }
             static const char *const NAMES[] = {"White", "Warm white", "Red", "Orange", "Yellow", "Green", "Cyan", "Blue", "Purple", "Pink", "Magenta"};
             std::string out = ",";
             std::string err;
@@ -668,6 +727,12 @@ globals:
     type: std::array<char, 3200>
     restore_value: true
     update_interval: 5s
+  - id: pair_key          # the MagicbHAnds integration's key ("" = not paired; see the pair action)
+    type: magicband::ReaderKey
+    restore_value: true
+  - id: powered_on        # this boot was a power-on (not a restart): a new key may pair
+    type: bool
+    initial_value: "false"
   - id: sync_error        # why the last set_known_bands failed ("" = applied)
     type: std::string
   # Each allowed band's owner's welcome colour: ",UID=Colour,UID=Colour,"
@@ -1222,6 +1287,12 @@ number:
       - script.execute: update_night
 
 binary_sensor:
+  # Paired with the MagicbHAnds integration (see the pair action).
+  - platform: template
+    id: paired
+    name: "Paired with MagicbHAnds"
+    icon: mdi:key-link
+    entity_category: diagnostic
   # Whether the night idle glow applies now (Night mode, its hours or the sun).
   - platform: template
     id: night_now
@@ -1747,6 +1818,10 @@ button:
             if (std::isxdigit(static_cast<unsigned char>(c)))
               key += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
           if (key.size() != 8 && key.size() != 14 && key.size() != 20) return;  // not a band ID (e.g. the test button)
+          if (magicband::reader_paired(id(pair_key))) {  // MagicbHAnds decides who's allowed
+            ESP_LOGW("reader", "This reader is paired with MagicbHAnds: allow bands there");
+            return;
+          }
           std::string list(id(known_list).data());
           if (list.empty()) list = ",";
           if (list.find("," + key + ",") != std::string::npos) return;
