@@ -52,7 +52,8 @@ SHOW_NAMES = (
     "Aurora", "Candy cane", "Thunderstorm", "Sunrise", "Disco",
 )
 SHOW_SERVICE_SUFFIX = "_play_show"
-PAIR_SERVICE_SUFFIX = "_pair"  # readers from 0.10.20: the protected actions then need the key
+PAIR_SERVICE_SUFFIX = "_pair"
+PAIRING_PENDING = "PAIRING_PENDING"  # the reader's reply while a first pairing waits for its tap  # readers from 0.10.20: the protected actions then need the key
 CONF_READER_KEY = "reader_key"
 
 # States of a reader's "Allowed list" sensor.
@@ -218,7 +219,7 @@ class ReaderManager:
             keyed = self._keyed(node)
             try:
                 if keyed:
-                    await self._pair(node)
+                    await self._pair_or_wait(device, status.name, node)
                 await self.hass.services.async_call(
                     "esphome", service, {"bands": bands, **({"key": self.key} if keyed else {})}, blocking=True
                 )
@@ -262,6 +263,19 @@ class ReaderManager:
         await self.hass.services.async_call(
             "esphome", _service_for(node, PAIR_SERVICE_SUFFIX), {"key": self.key}, blocking=True
         )
+
+    async def _pair_or_wait(self, device: dr.DeviceEntry, name: str, node: str) -> None:
+        """Pair the reader. A reader that's never been paired waits for a band tap on it to confirm
+        (reader_key.h): until then a repair says so, and the list is sent anyway (an unpaired reader
+        takes it). Any other refusal is raised."""
+        try:
+            await self._pair(node)
+        except Exception as err:
+            if PAIRING_PENDING not in str(err):
+                raise
+            self._issue(f"reader_pairing_{device.id}", True, "reader_pairing", {"reader": name})
+            return
+        self._issue(f"reader_pairing_{device.id}", False, "reader_pairing", {"reader": name})
 
     async def async_unpair(self, device_id: str, context: Context | None = None) -> None:
         """Release a reader from this integration's key (to move it to another Home Assistant)."""
@@ -324,7 +338,7 @@ class ReaderManager:
             if device_id not in devices:
                 self.statuses.pop(device_id)
                 self._offline_since.pop(device_id, None)
-                for issue in (f"reader_offline_{device_id}", f"reader_sync_failed_{device_id}"):
+                for issue in (f"reader_offline_{device_id}", f"reader_sync_failed_{device_id}", f"reader_pairing_{device_id}"):
                     ir.async_delete_issue(self.hass, DOMAIN, issue)
         async_dispatcher_send(self.hass, SIGNAL_READER_STATUS)
 

@@ -22,6 +22,10 @@ namespace esphome {
 namespace magicband {
 
 static constexpr size_t READER_KEY_SIZE = 65;  // 64 hex characters + terminator
+// First pairing waits this long for a band tap on the reader to confirm it.
+static constexpr uint32_t PAIR_CONFIRM_MS = 2 * 60 * 1000;
+// Returned by reader_request_pair while a first pairing waits for its tap.
+static constexpr const char *PAIRING_PENDING = "PAIRING_PENDING: tap any band on the reader within 2 minutes to finish pairing";
 using ReaderKey = std::array<char, READER_KEY_SIZE>;
 
 inline bool reader_paired(const ReaderKey &stored) { return stored[0] != 0; }
@@ -57,6 +61,40 @@ inline std::string reader_pair(ReaderKey &stored, const std::string &key) {
   stored.fill(0);
   memcpy(stored.data(), key.data(), key.size());
   return "";
+}
+
+// First pairing needs someone at the reader: the key waits as `pending` until a
+// band is tapped on the reader (reader_confirm_pair) within PAIR_CONFIRM_MS. A
+// Home Assistant user elsewhere can't tap, so can't claim a new reader; and a
+// pending key can't be replaced by another until it expires, so the
+// integration notices (its own request is refused) instead of someone else's
+// key being confirmed unnoticed.
+// Returns "" when paired (already, with this key), PAIRING_PENDING when waiting
+// for the tap, else why not.
+inline std::string reader_request_pair(ReaderKey &stored, ReaderKey &pending, uint32_t &pending_until,
+                                       const std::string &key, uint32_t now) {
+  if (reader_paired(stored))
+    return reader_pair(stored, key);  // the same key: fine; another: refused
+  ReaderKey check{};
+  const std::string err = reader_pair(check, key);  // validates the key's format
+  if (!err.empty())
+    return err;
+  const bool waiting = reader_paired(pending) && static_cast<int32_t>(pending_until - now) > 0;
+  if (waiting && !reader_key_ok(pending, key))
+    return "Another pairing request is already waiting on this reader (not from this key). Don't tap a band: "
+           "wait 2 minutes and try again";
+  pending = check;
+  pending_until = now + PAIR_CONFIRM_MS;
+  return PAIRING_PENDING;
+}
+
+// A band was tapped: if a first pairing is waiting, this confirms it. Returns true when it did.
+inline bool reader_confirm_pair(ReaderKey &stored, ReaderKey &pending, uint32_t pending_until, uint32_t now) {
+  if (reader_paired(stored) || !reader_paired(pending) || static_cast<int32_t>(pending_until - now) <= 0)
+    return false;
+  stored = pending;
+  pending.fill(0);
+  return true;
 }
 
 // Releases the pairing; needs the current key. Returns "" when done.

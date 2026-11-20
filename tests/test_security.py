@@ -443,6 +443,33 @@ int main() {
     assert subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout == "10110010111"
 
 
+def test_first_pairing_needs_a_tap_on_the_reader() -> None:
+    """Nobody elsewhere in Home Assistant can claim a new reader: a first pairing waits for a band tap."""
+    if shutil.which("g++") is None:
+        pytest.skip("no C++ compiler")
+    src = Path(tempfile.mkdtemp()) / "first.cpp"
+    src.write_text(
+        f'#include <cstdio>\n#include "{REPO / "components" / "magicband" / "reader_key.h"}"\n'
+        """using namespace esphome::magicband;
+int main() {
+  ReaderKey k{}, pending{};
+  uint32_t until = 0;
+  const std::string ha(64, 'a'), other(64, 'b');
+  std::printf("%d", reader_request_pair(k, pending, until, other, 1000) == PAIRING_PENDING);  // someone else asks first
+  std::printf("%d", reader_paired(k));                                                           // not paired yet
+  std::printf("%d", reader_request_pair(k, pending, until, ha, 2000) == PAIRING_PENDING);    // refused: one is waiting
+  std::printf("%d", reader_confirm_pair(k, pending, until, 1000 + PAIR_CONFIRM_MS + 1));       // a late tap confirms nothing
+  std::printf("%d", reader_request_pair(k, pending, until, ha, 1000 + PAIR_CONFIRM_MS + 2) == PAIRING_PENDING);  // after expiry
+  std::printf("%d", reader_confirm_pair(k, pending, until, 1000 + PAIR_CONFIRM_MS + 10));      // the tap
+  std::printf("%d", reader_key_ok(k, ha));
+  std::printf("%d", reader_request_pair(k, pending, until, ha, 999999).empty());              // paired: fine
+}
+""")
+    exe = src.with_suffix("")
+    subprocess.run(["g++", "-std=c++17", "-o", str(exe), str(src)], check=True, capture_output=True)
+    assert subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout == "10001111"
+
+
 @pytest.mark.parametrize("bad", ["TEST", "0453652AC05F8", "04É3652AC05F80", "0453652AC05F80;rm"])
 def test_reader_rejects_malformed_lists(tmp_path: Path, bad: str) -> None:
     exe = _reader_firmware(tmp_path)

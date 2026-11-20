@@ -3,6 +3,18 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.22] - 2026-11-20
+
+### Security
+- **First pairing needs someone at the reader.** A reader that had never
+  been paired took the first key it was sent, so another Home Assistant user
+  could claim a new reader before MagicbHAnds did. Now a first pairing
+  waits (the ring breathes blue, for up to 2 minutes) until a band is tapped
+  on the reader; that tap only confirms the pairing. While one request
+  waits, the reader refuses any other key, so MagicbHAnds notices if someone
+  else asked first. Repairs walks you through it. Readers that are already
+  paired aren't affected.
+
 ## [0.10.21] - 2026-11-20
 
 ### Security
