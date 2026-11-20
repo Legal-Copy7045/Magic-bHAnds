@@ -3,6 +3,29 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.17] - 2026-11-20
+
+### Reader
+- **Start-up light show:** about three seconds of colour when the reader
+  starts: two rainbow comets race round the ring and speed up, the whole
+  ring becomes a spinning rainbow that swells, bursts into white and
+  coloured sparkles, then fades into the idle glow. **Startup light show**
+  (a switch, on by default) turns it off at start-up; the **Play startup
+  show** button plays it any time, from Home Assistant or automations. A
+  tap during it takes over the ring as usual.
+
+### MagicbHAnds page
+- The reader card has a **Startup show** button, the **Start-up light
+  show** switch is in the Ring settings, and the live ring plays the show
+  too.
+
+### Fixed
+- **The wordmark was widely spaced on Windows.** The lighter Waltograph
+  stored each letter's width twice and the two copies disagreed: Linux
+  browsers read the right one, Windows read one nearly twice as wide (which
+  also made the gaps between words look tiny). Both now match, and a test
+  checks it.
+
 ## [0.10.16] - 2026-11-20
 
 ### Branding

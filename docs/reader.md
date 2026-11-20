@@ -224,6 +224,8 @@ MagicBand+**, for example to turn on the lounge lights.
 | **Band light-up power** | How far that light-up reaches, −24 to 0 dBm (default −12). A broadcast can't be addressed to one band, so every MagicBand+ in range reacts: lower it until only the band on the reader lights up. Each −6 dB roughly halves the reach |
 | **Sound** | Chimes on/off |
 | **Test welcome** | Plays the welcome sequence without a band |
+| **Play startup show** | Plays the start-up light show (about 3 s of rainbow comets, a spinning rainbow and sparkles); use it in automations too, with `button.press` |
+| **Startup light show** | On (default): play the light show when the reader starts. Off: go straight to the idle glow |
 | **Allowed list** (diagnostic) | From the MagicbHAnds integration: whether this reader has the current allowed list (*Up to date*, *Not applied*, *Reader offline* …) |
 | **ESPHome name** (diagnostic) | The reader's ESPHome name; the integration uses it to find the reader's actions |
 | **Firmware** | Update entity: new firmware appears here and installs over Wi-Fi |
