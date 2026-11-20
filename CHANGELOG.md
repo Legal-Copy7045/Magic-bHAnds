@@ -15,6 +15,13 @@ Home Assistant integration share one version number.
   **Denied**. Numbers show their units, and only the night settings that
   apply to the chosen night mode are shown.
 - LED colour order is on the page now too.
+- **A live twin of each reader's ring.** Each reader card shows its ring,
+  with the real number of LEDs, doing what the real one does: the idle or
+  night glow, the chasing circles while a band is read, then the welcome
+  (with the person's name) or the denied pulses, the amber "waiting for Home
+  Assistant" pulse, and a note while it plays a sound. It follows the
+  reader's Ring light and settings, so it updates as soon as Home Assistant
+  hears from the reader.
 
 No firmware change.
 
