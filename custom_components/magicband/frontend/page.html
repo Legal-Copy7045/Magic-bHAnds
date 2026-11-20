@@ -403,8 +403,8 @@ function readerCards(I,RD,B){ $('readers').innerHTML=RD.map(d=>{ const p=l=>pick
       <details class="more" data-k="${esc(d.id)}"><summary>Ring and tap settings</summary>${readerSettings(p)}</details></section>`; }).join('')||'<p class="muted">No MagicBand readers found (ESPHome model magicband-reader).</p>'; }
 
 // The readers' light shows, a copy of components/magicband/shows.h for the live ring: keep the two in step.
-const SHOW_NAMES=['Rainbow rush','Fireworks','Comet chase','Colour parade','Twinkle','Heartbeat','Ocean','Fire','Pinwheel','Confetti'];
-const SHOW_MS=[3100,5000,4000,4300,5000,4300,5000,4500,4500,4500];
+const SHOW_NAMES=['Rainbow rush','Fireworks','Comet chase','Colour parade','Twinkle','Heartbeat','Ocean','Fire','Pinwheel','Confetti','Penguins','Goal','Aurora','Candy cane','Thunderstorm','Sunrise','Disco'];
+const SHOW_MS=[3100,5000,4000,4300,5000,4300,5000,4500,4500,4500,4800,2900,5500,4500,5000,5000,4500];
 function showHash(a,b){ let h=(Math.imul(a+1,2654435761)^Math.imul(b,40503))>>>0; h=(h^(h>>>13))>>>0; h=Math.imul(h,0x5bd1e995)>>>0; h=(h^(h>>>15))>>>0; return h; }
 function showHue(h){ h=(h-Math.floor(h))*6; const k=n=>{ const v=(n+h)%6, m=Math.min(v,4-v); return 1-Math.max(0,Math.min(1,m)); }; return [k(5),k(3),k(1)]; }
 // [rgb 0-1, level 0-1] per LED, or null once the show has ended.
@@ -435,6 +435,18 @@ function renderShow(show,t,n){
   else if(show===8){ const q=T/D, turn=3*(q-Math.sin(6.2832*q)/6.2832), e=env(250,500); for(let i=0;i<n;i++){ const a=fr(i/n+turn)*4, arm=Math.floor(a), ins=a-arm; if(ins<.12) continue; put(i,showHue(arm/4+T/4000),e*(.4+.6*ins)); } }
   else if(show===9){ const e=T>3800?cl((4500-T)/700):1, f0=Math.floor(t/60), ch=Math.floor(2600/n);
     for(let i=0;i<n;i++) for(let b=0;b<14&&b<=f0;b++){ const h=showHash(i,f0-b); if(h%1000<ch){ put(i,showHue(((h>>>12)&1023)/1024),e*(1-b/14)); break; } } }
+  else if(show===10){ const gold=[1,.68,.06];
+    if(T<2800){ const q=T/2800, turn=1.6*q*q, e=cl(T/300); for(let i=0;i<n;i++){ const a=fr(i/n+turn)*3, ins=a-Math.floor(a); if(ins<.45) put(i,gold,e*(.35+.65*Math.sin(3.1416*ins/.45))); } }
+    else if(T<4000){ const p=((T-2800)%600)/600, v=Math.sin(3.1416*p), f0=Math.floor(t/45); for(let i=0;i<n;i++){ put(i,gold,v); if((showHash(i,f0)&15)===0) put(i,[1,1,1],v); } }
+    else { const q=(T-4000)/800; for(let i=0;i<n;i++) if((showHash(i,7)&3)===0) put(i,gold,(1-q)*.8); } }
+  else if(show===11){ const p=T%900; let v=0; if(T<2700){ v=p<80?p/80:p<380?1:p<750?1-(p-380)/370:0; } for(let i=0;i<n;i++) put(i,[1,0,0],v); }
+  else if(show===12){ const e=env(700,900); for(let i=0;i<n;i++){ const x=i/n, a=.5+.5*Math.sin(6.2832*(x*1.5+T/3100)), b=.5+.5*Math.sin(6.2832*(x*2.5-T/2200)+1.3), sh=.85+.15*Math.sin(T/90+i*1.7);
+      put(i,[.45*b,.35+.65*a,.35+.45*(1-a)+.2*b],e*sh*(.25+.75*cl(.6*a+.5*b))); } }
+  else if(show===13){ const q=T/D, turn=2.5*(q-Math.sin(6.2832*q)/6.2832), e=env(250,500); for(let i=0;i<n;i++){ const a=fr(i/n+turn)*8, red=Math.floor(a)%2===0; put(i,red?[1,0,.05]:[1,1,1],e*(red?1:.75)); } }
+  else if(show===14){ const e=env(400,600); let fl=0; for(const s0 of [1100,2600,3900]){ const d=T-s0; if(d>=0&&d<90) fl=1; else if(d>=160&&d<230) fl=.7; else if(d>=230&&d<600) fl=Math.max(fl,.3*(1-(d-230)/370)); }
+    for(let i=0;i<n;i++){ const cloud=.5+.5*Math.sin(6.2832*(i/n*2+T/2600)); put(i,[.05,.1,.45],e*(.12+.25*cloud)); if(fl>0) put(i,[.85,.9,1],fl); } }
+  else if(show===15){ const q=T/D, e=T>4300?cl((5000-T)/700):1; for(let i=0;i<n;i++){ const h=Math.abs(i/n-.5)*2, lift=cl(q*1.6-(1-h)*.6); put(i,[1,cl(lift*.85),cl(lift*lift*.55)],e*cl(.15+lift)); } }
+  else if(show===16){ const bt=Math.floor(t/250), p=(T-bt*250)/250, e=T>4000?cl((4500-T)/500):1; for(let i=0;i<n;i++){ const seg=Math.floor(i*6/n), h=showHash(seg,bt); put(i,showHue((h&1023)/1024),e*(.45+.55*(1-p))); } }
   return out; }
 
 // A live twin of the reader's ring: it draws what the ring is doing from the reader's Ring light
@@ -442,7 +454,7 @@ function renderShow(show,t,n){
 // the chase while the band is read, then the welcome or the denied pulses.
 const TWIN_SET=[['number','LED count'],['number','Circle time'],['number','Circle tail'],['number','Welcome fade in'],['number','Welcome hold'],
   ['number','Welcome fade out'],['number','Welcome pulses'],['number','Denied pulses'],['number','Pulse time'],['number','Idle glow'],
-  ['number','Idle glow at night'],['select','Night mode'],['number','Night from'],['number','Night until'],['number','Night starts after sunset'],['number','Night ends after sunrise']];
+  ['number','Idle glow at night'],['select','Night mode'],['number','Night from'],['number','Night until'],['number','Night starts after sunset'],['number','Night ends after sunrise'],['binary_sensor','Night now']];
 const TWIN_START={};
 function twinHTML(p,ring,sp,on,band){ if(!ring) return '';
   const ids={}; TWIN_SET.forEach(([dom,l])=>{ const e=p([dom,l]); if(e) ids[l]=e; });
@@ -455,7 +467,8 @@ function twinHTML(p,ring,sp,on,band){ if(!ring) return '';
     <g class="tw-glow" filter="url(#twb)">${dots()}</g><g class="tw-leds">${dots()}</g>
     <text x="70" y="68" class="tw-t1">TAP</text><text x="70" y="83" class="tw-t2">here</text></svg>
     <div class="tw-side"><b class="tw-cap">&nbsp;</b><span class="tw-sub sub2">&nbsp;</span></div></div>`; }
-function twinNight(ids){ const g=l=>ids[l]&&S(ids[l])?S(ids[l]).state:null, f=l=>parseFloat(g(l))||0, now=new Date(), m=now.getHours()*60+now.getMinutes();
+function twinNight(ids){ const nn=ids['Night now']&&S(ids['Night now']); if(nn&&(nn.state==='on'||nn.state==='off')) return nn.state==='on';  // the reader's own answer
+  const g=l=>ids[l]&&S(ids[l])?S(ids[l]).state:null, f=l=>parseFloat(g(l))||0, now=new Date(), m=now.getHours()*60+now.getMinutes();
   let from=f('Night from')*60, until=f('Night until')*60;
   if(g('Night mode')==='Sunset to sunrise'){ const ss=sunMins('next_setting'), sr=sunMins('next_rising'); if(ss!=null&&sr!=null){ from=ss+f('Night starts after sunset'); until=sr+f('Night ends after sunrise'); } }
   from=((from%1440)+1440)%1440; until=((until%1440)+1440)%1440;
@@ -515,7 +528,7 @@ function readerSettings(p){
     ['Night',[['number','Idle glow at night','Glow'],['select','Night mode','Night is'],
       ...(sunMode?[['number','Night starts after sunset','Starts after sunset'],['number','Night ends after sunrise','Ends after sunrise']]
                  :[['number','Night from','From (hour)'],['number','Night until','Until (hour)']])],
-      night+(sunMode?' Negative minutes = before.':'')],
+      (v('binary_sensor','Night now')!=null?(v('binary_sensor','Night now')==='on'?'Night glow is on now. ':'Day glow now. '):'')+night+(sunMode?' Offsets are minutes: 120 = 2 hours after, −120 = 2 hours before.':'')],
     ['Checking a band',[['select','Checking colour','Colour'],['number','Checking circles','Circles'],['number','Circle time','Each circle'],['number','Circle tail','Tail (0 = auto)']]],
     ['Welcome',[['select','Welcome colour','Colour'],['number','Welcome fade in','Fade in'],['number','Welcome hold','Stay on'],['number','Welcome fade out','Fade out'],['number','Welcome pulses','Repeat']],
       'A person\'s own welcome colour (People) replaces this colour for their bands.',shape],
@@ -567,7 +580,7 @@ function wire(){ document.querySelectorAll('[data-tg]').forEach(x=>x.onclick=()=
   document.querySelectorAll('[data-press]').forEach(x=>x.onclick=()=>act(H().call('button','press',x.dataset.press),x.dataset.press));
   document.querySelectorAll('[data-restart]').forEach(x=>x.onclick=()=>{ const e=x.dataset.restart; if(!armed('rs'+e)) return; act(H().call('button','press',e),e); });
   bindPager();
-  document.querySelectorAll('[data-sel]').forEach(x=>x.onchange=()=>act(H().call('select','select_option',x.dataset.sel,{option:x.value}),x.dataset.sel));
+  document.querySelectorAll('[data-sel]').forEach(x=>x.onchange=()=>{ x.blur(); act(H().call('select','select_option',x.dataset.sel,{option:x.value}),x.dataset.sel); });
   document.querySelectorAll('[data-num]').forEach(x=>x.onchange=()=>{ const v=parseFloat(x.value); if(!isFinite(v)) return; act(H().call('number','set_value',x.dataset.num,{value:v}),x.dataset.num); });
   document.querySelectorAll('[data-vol]').forEach(x=>x.onchange=()=>act(H().call('media_player','volume_set',x.dataset.vol,{volume_level:+x.value/100}),x.dataset.vol)); }
 
@@ -648,7 +661,7 @@ const SX_ANIMS=[['rainbow','Rainbow'],['color_cycle','Colour cycle'],['lightning
 function sxBridges(I,BR){ const sel=$('sx-bridge'); if(!sel) return; const L=BR.map(d=>[pick(I,d,'text','Command'),dname(d)]).filter(x=>x[0]);
   const h='<option value="">Every bridge (whole house)</option>'+L.map(([e,n])=>`<option value="${esc(e)}">${esc(n)}</option>`).join('');
   if(sel.__h!==h){ const v=sel.value; sel.innerHTML=h; sel.__h=h; sel.value=L.some(x=>x[0]===v)?v:''; } }
-let editing=false; document.addEventListener('focusin',e=>{ editing=/^(INPUT|SELECT)$/.test(e.target.tagName); }); document.addEventListener('focusout',()=>{ editing=false; });
+let editing=false; document.addEventListener('focusin',e=>{ editing=e.target.tagName==='INPUT'&&!/^(checkbox|radio|range|button|submit)$/.test(e.target.type); }); document.addEventListener('focusout',()=>{ editing=false; });
 function render(){ if(!H()||!H().live()) return; if(editing) return;   // never redraw under someone typing
   const lt=H().state('sensor.magicband_last_tap'); if(lt&&lt.state!==LAST_TAP){ const first=LAST_TAP===null; LAST_TAP=lt.state; if(!first) setTimeout(load,800); }
   const I=index(), D=H().devices(), BR=D.filter(d=>BRIDGE_MODELS.test(d.model||'')).sort((a,b)=>dname(a).localeCompare(dname(b))), RD=D.filter(d=>READER_MODEL.test(d.model||''));
