@@ -89,8 +89,9 @@ inline RGB hue(float h) {
 
 // Fills rgb (3 bytes per LED) with show `show` at t ms. Returns false once it has ended.
 inline bool render_show(int show, uint32_t t, int n, uint8_t *rgb) {
+  if (n <= 0) return false;
   memset(rgb, 0, n * 3);
-  if (show < 0 || show >= COUNT || n <= 0 || t >= DURATION_MS[show]) return false;
+  if (show < 0 || show >= COUNT || t >= DURATION_MS[show]) return false;
   const float T = t;
   auto put = [&](int i, RGB c, float v) {  // brightest wins where shows overlap
     i = ((i % n) + n) % n;

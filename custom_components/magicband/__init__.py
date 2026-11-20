@@ -11,9 +11,11 @@ allowed bands to every reader so they can answer instantly on their own.
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 import logging
+import time
 from typing import Any
 
 import voluptuous as vol
@@ -64,6 +66,7 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.SELECT, Platform.SENSOR]
 
 EVENT_TAG_SCANNED = "tag_scanned"
+MAX_SYNCS_PER_MINUTE = 6
 MAX_ENROL_MINUTES = 15
 SIGNAL_ENROLMENT = f"{DOMAIN}_enrolment"
 EVENT_ENROLLED = "magicband_enrolled"
@@ -77,6 +80,7 @@ class Enrolment:
     until: datetime
     label: str | None = None
     count: int = 0
+    device_id: str | None = None  # only taps on this reader enrol (None: any reader)
 
 
 @dataclass
@@ -228,9 +232,11 @@ def _handle_scan(hass: HomeAssistant, data: MagicBandData, tag_id: str, device_i
             persistent_notification.async_dismiss(hass, f"{DOMAIN}_unknown_{old}")
             data.beacons.unlink_nfc(old)
     band, is_new = registry.record_scan(tag_id, reader)
-    enrolled = _maybe_enrol(hass, data, band.uid)
+    enrolled = _maybe_enrol(hass, data, band.uid, device_id)
     person = registry.get_person(band.person_id)
-    allowed = registry.band_allowed(band.uid)
+    # The tap that enrols a band never counts as allowed: it was an unknown band
+    # a moment ago, so it mustn't open anything. Its next tap is let in.
+    allowed = False if enrolled else registry.band_allowed(band.uid)
     name = data.beacons.band_display_name(band.uid)
 
     hass.bus.async_fire(
@@ -275,10 +281,12 @@ def _handle_scan(hass: HomeAssistant, data: MagicBandData, tag_id: str, device_i
 
 
 @callback
-def _maybe_enrol(hass: HomeAssistant, data: MagicBandData, uid: str) -> bool:
-    """Give a band nobody owns to the person being enrolled, if enrolment is on."""
+def _maybe_enrol(hass: HomeAssistant, data: MagicBandData, uid: str, device_id: str | None = None) -> bool:
+    """Give a band nobody owns to the person being enrolled, if enrolment is on (and it's on that reader)."""
     enrolment = data.enrolment
     if enrolment is None:
+        return False
+    if enrolment.device_id and device_id != enrolment.device_id:
         return False
     if dt_util.utcnow() >= enrolment.until:
         _end_enrolment(hass, data)
@@ -315,7 +323,13 @@ def enrolment_state(data: MagicBandData) -> dict[str, Any] | None:
     if enrolment is None:
         return None
     person = data.registry.get_person(enrolment.person_id)
-    return {"person": person.name if person else None, "until": enrolment.until.isoformat(), "count": enrolment.count}
+    return {
+        "person": person.name if person else None,
+        "until": enrolment.until.isoformat(),
+        "count": enrolment.count,
+        "reader": _reader_name(data.readers.hass, enrolment.device_id) if enrolment.device_id else None,
+        "reader_device_id": enrolment.device_id,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -416,7 +430,16 @@ def _register_services(hass: HomeAssistant) -> None:
         registry = _get_registry(hass)
         registry.remove_band(_resolve_band(registry, call.data[ATTR_BAND]))
 
+    sync_times: deque[float] = deque()
+
     async def sync(call: ServiceCall) -> dict[str, Any]:
+        # Open to every user, so limited: each sync calls every reader.
+        now = time.monotonic()
+        while sync_times and now - sync_times[0] >= 60:
+            sync_times.popleft()
+        if len(sync_times) >= MAX_SYNCS_PER_MINUTE:
+            raise ServiceValidationError(f"Too many syncs: at most {MAX_SYNCS_PER_MINUTE} a minute")
+        sync_times.append(now)
         return await async_sync_readers(hass, _get_registry(hass))
 
     async def list_bands(call: ServiceCall) -> dict[str, Any]:
@@ -494,7 +517,7 @@ def _register_services(hass: HomeAssistant) -> None:
         devices = call.data.get("device_id") or None
         if isinstance(devices, str):
             devices = [devices]
-        return await async_play_show(hass, call.data.get("show", "Random"), devices)
+        return await async_play_show(hass, call.data.get("show", "Random"), devices, call.context)
 
     from .readers import SHOW_NAMES
 
@@ -609,10 +632,14 @@ def _register_services(hass: HomeAssistant) -> None:
         data = _data()
         person = _resolve_person(data.registry, call.data[ATTR_PERSON])
         minutes = call.data.get("minutes", 5)
+        device_id = call.data.get("device_id") or None
+        if device_id and not is_reader_device(hass, device_id):
+            raise ServiceValidationError("That device isn't a MagicBand reader")
         data.enrolment = Enrolment(
             person_id=person.id,
             until=dt_util.utcnow() + timedelta(minutes=minutes),
             label=(call.data.get(ATTR_LABEL) or "").strip() or None,
+            device_id=device_id,
         )
         persistent_notification.async_dismiss(hass, f"{DOMAIN}_enrolment")
         async_dispatcher_send(hass, SIGNAL_ENROLMENT)
@@ -651,6 +678,7 @@ def _register_services(hass: HomeAssistant) -> None:
                 vol.Required(ATTR_PERSON): cv.string,
                 vol.Optional("minutes", default=5): vol.All(vol.Coerce(int), vol.Range(min=1, max=MAX_ENROL_MINUTES)),
                 vol.Optional(ATTR_LABEL): cv.string,
+                vol.Optional("device_id"): cv.string,
             }
         ),
         supports_response=SupportsResponse.OPTIONAL,

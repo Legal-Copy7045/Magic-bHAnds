@@ -15,7 +15,6 @@ from homeassistant.core import CoreState, HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
 
-BLUEPRINT_FILE = "magicband_notify.yaml"
 SOURCE_MARKER = "github.com/Legal-Copy7045/Magic-bHAnds"
 PRIMARY_DIR = ("blueprints", "automation", "magicband")
 IMPORTED_DIR = ("blueprints", "automation", "Legal-Copy7045")

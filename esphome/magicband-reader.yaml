@@ -21,7 +21,7 @@
 substitutions:
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.10.18"
+  project_version: "0.10.19"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -1584,7 +1584,12 @@ script:
       - text_sensor.template.publish:
           id: last_band
           state: !lambda 'return uid;'
-      - homeassistant.tag_scanned: !lambda 'return uid;'
+      # Not for "Test welcome": automations that react to any tag scan would fire.
+      - if:
+          condition:
+            lambda: 'return uid != "TEST";'
+          then:
+            - homeassistant.tag_scanned: !lambda 'return uid;'
       - globals.set: {id: decision, value: "0"}
       # The owner's welcome colour, if Home Assistant gave this band one.
       - lambda: |-

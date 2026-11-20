@@ -49,6 +49,12 @@ jobs:
   build:
     needs: versions
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Provenance for the firmware published to Pages on main (what Home
+      # Assistant's update entities download), not only for releases.
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -98,6 +104,12 @@ jobs:
             bridge=esphome/.esphome/build/magicband-bridge/build=esphome/magicband-bridge.yaml \
             reader=esphome/.esphome/build/magicband-reader/build=esphome/magicband-reader.yaml \
             bp2=esphome/.esphome/build/screek-bp2-poe/build=esphome/screek-bp2-poe.yaml
+
+      - name: Attest the published firmware
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: _site/**/*.bin
 
       - name: Upload Pages artifact
         if: github.ref == 'refs/heads/main'
@@ -162,6 +174,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
+
+      # Only commits on main are released, whatever started the run (a pushed
+      # v* tag on another branch would otherwise become an attested release).
+      - name: Check the commit is on main
+        run: |
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "::error::$GITHUB_SHA isn't on main"; exit 1; }
 
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
