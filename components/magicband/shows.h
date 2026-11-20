@@ -1,5 +1,5 @@
 #pragma once
-// The reader's light shows: ten short, colourful sequences for the LED ring
+// The reader's light shows: short, colourful sequences for the LED ring
 // (the start-up show, the "Play show" button and the play_show action).
 //
 // Each show is a pure function of time: render_show(show, t_ms, n, rgb) fills
@@ -47,15 +47,23 @@ inline void put_dimmed(light::ESPColorView led, Color c, uint8_t level) {
 
 namespace shows {
 
-static const int COUNT = 17;
+static const int COUNT = 28;
 static const char *const NAMES[COUNT] = {
-    "Rainbow rush", "Fireworks", "Comet chase", "Colour parade", "Twinkle",     "Heartbeat",
-    "Ocean",        "Fire",      "Pinwheel",    "Confetti",      "Penguins",    "Goal",
-    "Aurora",       "Candy cane", "Thunderstorm", "Sunrise",     "Disco",
+    "Rainbow rush", "Fireworks", "Comet chase", "Colour parade", "Twinkle", "Heartbeat", "Ocean",
+    "Fire", "Pinwheel", "Confetti", "Penguins", "Goal", "Aurora", "Candy cane", "Thunderstorm",
+    "Sunrise", "Disco",
+    // Celebrations (the integration plays these after a welcome on the day; see holidays.py)
+    "Birthday", "New Year", "Valentine", "St Patrick", "Easter", "Stars and Stripes", "Halloween",
+    "Thanksgiving", "Hanukkah", "Christmas",
+    // A new passport badge (passport.py)
+    "Stamp",
 };
+// "Random" picks from the everyday shows (the first RANDOM_COUNT), not the celebrations.
+static const int RANDOM_COUNT = 17;
 // How long each show runs (ms); it ends dark.
-static const uint32_t DURATION_MS[COUNT] = {3100, 5000, 4000, 4300, 5000, 4300, 5000, 4500, 4500,
-                                            4500, 4800, 2900, 5500, 4500, 5000, 5000, 4500};
+static const uint32_t DURATION_MS[COUNT] = {3100, 5000, 4000, 4300, 5000, 4300, 5000, 4500, 4500, 4500,
+                                            4800, 2900, 5500, 4500, 5000, 5000, 4500, 5000, 5200, 4600,
+                                            4500, 4800, 4800, 5000, 5000, 5200, 5000, 2800};
 
 inline int index_of(const char *name) {
   for (int i = 0; i < COUNT; i++)
@@ -351,6 +359,214 @@ inline bool render_show(int show, uint32_t t, int n, uint8_t *rgb) {
         const int seg = i * 6 / n;
         const uint32_t h = hash(seg, beat);
         put(i, hue((h & 1023) / 1024.0f), e * (0.45f + 0.55f * (1 - p)));
+      }
+      break;
+    }
+    case 17: {  // Birthday: party-coloured candles light round the ring, flicker, are blown out, then confetti
+      static const RGB C[4] = {{1, 0.35f, 0.6f}, {1, 0.8f, 0.1f}, {0.2f, 0.8f, 1}, {0.5f, 1, 0.2f}};
+      if (T < 4300) {
+        const int lit = T < 1500 ? (int) (T / 1500 * n) : n;
+        const float blow = T < 3300 ? 0 : (T - 3300) / 1000;  // the dark spreads from the top down both sides
+        const uint32_t fr = t / 80;
+        for (int i = 0; i <= lit && i < n; i++) {
+          const float top = fabsf((float) i / n - 0.5f) * 2;  // 1 at the top
+          if (top > 1 - blow) continue;
+          put(i, C[i % 4], 0.75f + 0.25f * ((hash(i, fr) & 255) / 255.0f));
+        }
+      } else {
+        const float q = (T - 4300) / 700;
+        const uint32_t fr = t / 50;
+        for (int i = 0; i < n; i++) {
+          const uint32_t h = hash(i, fr);
+          if ((h & 3) == 0) put(i, C[(h >> 4) % 4], 1 - q);
+        }
+      }
+      break;
+    }
+    case 18: {  // New Year: a 3-2-1 countdown in white, then gold and silver bursts and sparkles
+      if (T < 1800) {
+        const int k = (int) (T / 600);
+        const float p = (T - k * 600.0f) / 600;
+        const float v = p < 0.6f ? 1 : 1 - (p - 0.6f) / 0.4f;
+        const int lit = n * (3 - k) / 3;
+        for (int i = 0; i < lit; i++) put(i, {1, 1, 1}, v);
+      } else {
+        const float e = T > 4600 ? clamp01((5200 - T) / 600) : 1;
+        for (int k = 0; k < 5; k++) {
+          const float age = T - 1800 - k * 650.0f;
+          if (age < 0 || age > 1100) continue;
+          const int centre = hash(k, 31) % n;
+          const RGB c = (k & 1) ? RGB{0.85f, 0.88f, 1} : RGB{1, 0.72f, 0.12f};
+          const float radius = age / 600.0f * (n / 5.0f), fade = 1 - age / 1100.0f;
+          for (int d = 0; d <= (int) radius && d <= n / 2; d++) {
+            const float v = e * fade * (0.4f + 0.6f * (1 - (radius - d) / (radius + 1)));
+            put(centre + d, c, v);
+            put(centre - d, c, v);
+          }
+        }
+        const uint32_t fr = t / 60;
+        for (int i = 0; i < n; i++)
+          if ((hash(i, fr) & 31) == 0) put(i, {1, 0.85f, 0.4f}, e * 0.8f);
+      }
+      break;
+    }
+    case 19: {  // Valentine: pink and red arcs draw a heart from the top down, then it beats
+      const RGB red = {1, 0, 0.12f}, pink = {1, 0.3f, 0.55f};
+      if (T < 1400) {
+        const float q = T / 1400;
+        for (int i = 0; i < n; i++) {
+          const float pos = (float) i / n;  // 0 at the top, 0.5 at the bottom
+          const bool right = pos <= 0.5f;
+          const float along = right ? pos * 2 : (1 - pos) * 2;  // 0 at the top, 1 at the bottom
+          if (along <= q) put(i, right ? pink : red, 0.5f + 0.5f * (1 - (q - along)));
+        }
+      } else {
+        const float p = fmodf(T - 1400, 1100);
+        float v = 0.25f;
+        if (p < 200) v = 0.25f + 0.75f * sinf(3.1416f * p / 200);
+        else if (p >= 280 && p < 520) v = 0.25f + 0.5f * sinf(3.1416f * (p - 280) / 240);
+        const float e = T > 4000 ? clamp01((4600 - T) / 600) : 1;
+        for (int i = 0; i < n; i++) put(i, ((float) i / n <= 0.5f) ? pink : red, e * v);
+      }
+      break;
+    }
+    case 20: {  // St Patrick: rolling shades of green with gold coins glinting
+      const float e = env(400, 600);
+      for (int i = 0; i < n; i++) {
+        const float w = 0.5f + 0.5f * sinf(6.2832f * ((float) i / n * 3 + T / 1800));
+        put(i, {0.05f + 0.25f * w, 0.55f + 0.45f * w, 0.1f * (1 - w)}, e * (0.4f + 0.6f * w));
+      }
+      const uint32_t fr = t / 70;
+      for (int i = 0; i < n; i++)
+        for (int back = 0; back < 6 && back <= (int) fr; back++)
+          if (hash(i, fr - back) % 100 < 3) {
+            put(i, {1, 0.75f, 0.1f}, e * (1 - back / 6.0f));
+            break;
+          }
+      break;
+    }
+    case 21: {  // Easter: six pastel eggs turning slowly round the ring, each hatching with a white flash
+      static const RGB P[6] = {{1, 0.55f, 0.7f}, {1, 0.9f, 0.45f}, {0.5f, 1, 0.7f},
+                               {0.75f, 0.6f, 1}, {0.5f, 0.8f, 1},  {1, 0.7f, 0.5f}};
+      const float e = env(400, 600), turn = T / 6000;
+      for (int i = 0; i < n; i++) {
+        const float a = frac((float) i / n + turn) * 6;
+        const int egg = (int) a;
+        const float inside = a - egg;
+        if (egg > 5 || inside < 0.15f || inside > 0.85f) continue;
+        const float hatch = T - 600 - egg * 600.0f;  // each egg hatches in turn
+        put(i, P[egg], e * (0.55f + 0.45f * sinf(3.1416f * (inside - 0.15f) / 0.7f)));
+        if (hatch >= 0 && hatch < 250) put(i, {1, 1, 1}, e * (1 - hatch / 250));
+      }
+      break;
+    }
+    case 22: {  // Stars and Stripes: red, white and blue fill the ring and spin, then white stars twinkle on blue
+      static const RGB C[3] = {{1, 0, 0.05f}, {1, 1, 1}, {0, 0.2f, 1}};
+      if (T < 1200) {
+        const float q = T / 1200;
+        for (int i = 0; i < n; i++) {
+          const float pos = (float) i / n * 3;
+          const int stripe = (int) pos;
+          if (pos - stripe <= q) put(i, C[stripe], stripe == 1 ? 0.75f : 1);
+        }
+      } else if (T < 3400) {
+        const float q = (T - 1200) / 2200, turn = 1.5f * q * q;
+        for (int i = 0; i < n; i++) {
+          int stripe = (int) (frac((float) i / n + turn) * 3);
+          if (stripe > 2) stripe = 2;
+          put(i, C[stripe], stripe == 1 ? 0.75f : 1);
+        }
+      } else {
+        const float e = T > 4200 ? clamp01((4800 - T) / 600) : 1;
+        for (int i = 0; i < n; i++) {
+          put(i, C[2], e * 0.5f);
+          const uint32_t h = hash(i, 5);
+          const float s = sinf(6.2832f * (T / (500 + h % 400) + (h >> 12) % 100 / 100.0f));
+          if ((h & 3) == 0 && s > 0) put(i, {1, 1, 1}, e * s);
+        }
+      }
+      break;
+    }
+    case 23: {  // Halloween: purple with four flickering orange pumpkins, and sudden ghostly green flashes
+      const float e = env(400, 600), turn = T / 8000;
+      const uint32_t fr = t / 90;
+      const float ghosts[2] = {2000, 3600};
+      float ghost = 0;
+      for (float s0 : ghosts) {
+        const float d = T - s0;
+        if (d >= 0 && d < 300) ghost = 1 - d / 300;
+      }
+      for (int i = 0; i < n; i++) {
+        put(i, {0.45f, 0, 0.8f}, e * 0.35f);
+        const float a = frac((float) i / n + turn) * 4, inside = a - floorf(a);
+        if (inside > 0.3f && inside < 0.7f) put(i, {1, 0.35f, 0}, e * (0.55f + 0.45f * ((hash(i, fr) & 255) / 255.0f)));
+        if (ghost > 0) put(i, {0.55f, 1, 0.55f}, ghost);
+      }
+      break;
+    }
+    case 24: {  // Thanksgiving: autumn leaves drifting down both sides of a warm amber ring
+      static const RGB L[4] = {{1, 0.35f, 0}, {0.85f, 0.1f, 0}, {1, 0.7f, 0.1f}, {0.6f, 0.25f, 0.05f}};
+      const float e = env(500, 700), half = n / 2.0f;
+      for (int i = 0; i < n; i++) put(i, {1, 0.45f, 0.05f}, e * 0.15f);
+      for (int k = 0; k < 12; k++) {
+        const float age = T - (float) (hash(k, 11) % 3600);
+        if (age < 0 || age > 1400) continue;
+        const float along = age / 1400;  // 0 at the top, 1 at the bottom
+        const bool right = hash(k, 12) & 1;
+        const int i = right ? (int) (along * half) : n - 1 - (int) (along * half);
+        const RGB c = L[hash(k, 13) % 4];
+        put(i, c, e * (1 - 0.3f * along));
+        put(right ? i - 1 : i + 1, c, e * 0.4f * (1 - along));  // a short trail above it
+      }
+      break;
+    }
+    case 25: {  // Hanukkah: the shamash at the top lights first, then eight candles one by one, on a blue glow
+      const float e = T > 4600 ? clamp01((5200 - T) / 600) : 1;
+      const uint32_t fr = t / 90;
+      for (int i = 0; i < n; i++) put(i, {0, 0.2f, 1}, e * clamp01((T - 400) / 1500) * 0.3f);
+      for (int c = 0; c < 9; c++) {
+        const float lit = T - 300 - c * 350.0f;
+        if (lit < 0) continue;
+        const float flick = 0.75f + 0.25f * ((hash(c, fr) & 255) / 255.0f);
+        put(c * n / 9, c == 0 ? RGB{1, 0.85f, 0.5f} : RGB{0.85f, 0.9f, 1}, e * clamp01(lit / 200) * flick);
+      }
+      break;
+    }
+    case 26: {  // Christmas: red and green lights chasing round with snow twinkling, then a gold star at the top
+      const float e = env(300, 600);
+      if (T < 3800) {
+        const int step = (int) (T / 220);
+        const uint32_t fr = t / 120;
+        for (int i = 0; i < n; i++) {
+          const int k = (i + step) % 4;
+          if (k == 0) put(i, {1, 0, 0.05f}, e);
+          else if (k == 2) put(i, {0, 1, 0.15f}, e);
+          if ((hash(i, fr) & 31) == 0) put(i, {1, 1, 1}, e * 0.9f);
+        }
+      } else {
+        const float q = (T - 3800) / 1200;
+        for (int i = 0; i < n; i++) {
+          const float top = fabsf((float) i / n - 0.5f) * 2;  // 1 at the top
+          put(i, {1, 0.7f, 0.15f}, e * clamp01((top - 0.8f) * 5) * (0.6f + 0.4f * sinf(q * 12)));
+          put(i, {0, 0.6f, 0.1f}, e * 0.25f * (1 - q));
+        }
+      }
+      break;
+    }
+    case 27: {  // Stamp: a passport stamp for a new badge. Gold sweeps round, a white flash, a sparkling gold glow
+      const RGB gold = {1, 0.72f, 0.1f};
+      if (T < 700) {
+        const int lit = (int) (T / 700 * n);
+        for (int i = 0; i <= lit && i < n; i++) put(i, gold, 0.6f + 0.4f * (float) i / n);
+      } else if (T < 900) {
+        for (int i = 0; i < n; i++) put(i, {1, 1, 1}, 1 - (T - 700) / 400);
+      } else {
+        const float e = T > 2200 ? clamp01((2800 - T) / 600) : 1;
+        const uint32_t fr = t / 50;
+        for (int i = 0; i < n; i++) {
+          put(i, gold, e * 0.7f);
+          if ((hash(i, fr) & 7) == 0) put(i, {1, 1, 0.85f}, e);
+        }
       }
       break;
     }

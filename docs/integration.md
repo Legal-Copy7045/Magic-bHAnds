@@ -62,6 +62,45 @@ the MagicbHAnds page (or `magicband.enrol`): for the next 5 minutes (up to
 15) every band tapped that nobody owns becomes theirs. Bands that already
 belong to someone are never taken.
 
+### Guests
+
+Tick **Guest** when adding someone on the MagicbHAnds page (or
+`magicband.add_person` with `guest: true`), enrol their band, then open
+**Birthday, lockdown, guest pass** under their name to set the pass:
+
+- **Pass starts** and **Pass ends**: their bands work only between these
+  (either can be empty);
+- **Uses left**: how many welcomed taps the pass has (empty: no limit). Each
+  welcome uses one; at 0 the band is taken off the readers' lists;
+- **Each day** from–until and **On** (weekdays): a daily window, e.g. a dog
+  walker on Mon/Wed/Fri 11:00–14:00.
+
+The same with `magicband.set_guest_pass`. The pass is on the person, so it
+covers every band they're given (each band's own access schedule still
+applies too). Uses are counted by Home Assistant as taps arrive; a reader
+that's cut off from Home Assistant keeps its last list, so a pass can go a
+tap or two over while it's offline. Guests don't get a tap passport. Turning
+**Guest** off removes the pass.
+
+### Lockdown
+
+The **Lockdown** section of the page (or `magicband.set_settings`) locks the
+house down so that only the people marked **Gets in during lockdown** (under
+their name) are let in. It applies:
+
+- **Lockdown now**: by hand;
+- **When nobody's home**: while `zone.home` counts nobody home (the people
+  tracked by Home Assistant);
+- **At night**: between two times (default 23:00–06:00);
+- **While an alarm is armed**: while the alarm panel you pick is armed (any
+  armed mode) or triggered.
+
+The readers' lists change within a few seconds of somebody leaving, coming
+home or the alarm changing, and within a minute of the night hours starting
+or ending. **Lockdown** (`binary_sensor.magicbhands_lockdown`) is on during
+lockdown; its `reasons` attribute says why. With nobody marked, nobody gets
+in during lockdown.
+
 Up to **100 unassigned bands** are kept: beyond that, the longest-unseen
 ones without an owner or nickname are dropped (tap one again to bring it
 back). Only real NFC IDs (4, 7 or 10 bytes) are recorded, so the reader's
@@ -249,6 +288,34 @@ They go in `blueprints/automation/magicband/`, or, if you'd already imported
 one from GitHub, that copy is updated in place. Each integration update
 refreshes them and reloads automations, so you never need to re-import them.
 
+## Celebrations and the tap passport
+
+After a welcome, the reader plays one show (reader firmware 0.10.24 or
+later):
+
+1. **Stamp**, if the tap earned a passport badge;
+2. **Birthday**, on the person's birthday (set it under their name, or
+   `update_person` with `birthday: "07-14"`);
+3. the day's holiday show: New Year (31 Dec and 1 Jan), Valentine, St
+   Patrick, Easter, Stars and Stripes (Memorial Day, Independence Day, Labor
+   Day, Veterans Day), Halloween, Thanksgiving, Hanukkah (all eight days) and
+   Christmas (24 and 25 Dec).
+
+Each can be turned off in the **Celebrations** section. The **Coming up**
+buttons preview a show on the reader. `magicband.play_show` with
+`show: Today` plays today's holiday show (or a random everyday one), which
+the light-show blueprint offers too.
+
+The **tap passport** counts every welcomed tap per person (not guests): taps,
+days, the current and best streak of days in a row, and 16 stamps: First
+tap; 10, 50, 100, 250, 500 and 1,000 taps; Early bird (4–7 am); Night owl
+(after 10 pm); Weekender (Saturday and the Sunday after); 7- and 30-day
+streaks; Holiday tap and Holiday hopper (5 different holidays); Birthday tap
+and Four seasons. A new stamp fires **`magicband_badge`** (`person`,
+`person_id`, `ha_person`, `badge`, `name`, `how`, `icon`), shows next to the
+tap in **Recent taps**, and plays the Stamp show. Passports are kept in
+`.storage/magicband.passport`; removing a person removes theirs.
+
 ## Reacting to taps
 
 Every tap on a reader fires a **`magicband_tap`** event:
@@ -267,10 +334,13 @@ data:
   reader_device_id: ...     # match readers by this, not by name
   name: Morgan's MagicBand  # the band's name as shown in Home Assistant
   enrolled: false           # true if this tap enrolled the band
+  celebration: Halloween    # the show played after the welcome, or null
+  badges: []                # passport stamps this tap earned
 ```
 
-`allowed` is Home Assistant's own decision: the owner is allowed in and the
-band's access schedule (if any) allows it now. Taps also appear in the
+`allowed` is Home Assistant's own decision: the owner is allowed in, their
+guest pass and the band's access schedule (if any) allow it now, and the
+house isn't in lockdown (or they get in during lockdown). Taps also appear in the
 **logbook** ("Morgan's MagicBand: welcomed at Lounge reader").
 
 Two more events:
@@ -304,14 +374,16 @@ actions:
 Actions that change who's allowed in, or list band IDs, need a Home Assistant
 **administrator**: `add_person`, `update_person`, `remove_person`,
 `assign_band`, `unassign_band`, `remove_band`, `set_band_access`, `enrol`,
-`stop_enrolment`, `list`, `history`, `link_bluetooth`, `unlink_bluetooth`,
+`stop_enrolment`, `set_guest_pass`, `set_settings`, `list`, `history`, `link_bluetooth`, `unlink_bluetooth`,
 `forget_bluetooth`, `list_bluetooth_bands` and `list_heard`. `send`, `sync`, `play_show` and `list_bridges` work for any user; `send`
 only targets MagicBand bridges, and `play_show` only plays a light show. See [security.md](security.md).
 
 | Action | Fields |
 |---|---|
-| `magicband.add_person` | `name`, `ha_person` (optional), `allowed`, `welcome_colour` (optional) |
-| `magicband.update_person` | `person` (name or ID), `name`, `ha_person` (empty to unlink), `allowed`, `welcome_colour` (one of White, Warm white, Red, Orange, Yellow, Green, Cyan, Blue, Purple, Pink, Magenta; empty for the reader's own) |
+| `magicband.add_person` | `name`, `ha_person` (optional), `allowed`, `welcome_colour` (optional), `guest` (default false) |
+| `magicband.update_person` | `person` (name or ID), `name`, `ha_person` (empty to unlink), `allowed`, `welcome_colour` (one of White, Warm white, Red, Orange, Yellow, Green, Cyan, Blue, Purple, Pink, Magenta; empty for the reader's own), `birthday` (`MM-DD`, empty to clear), `lockdown_exempt` (gets in during lockdown), `guest` (off removes the pass) |
+| `magicband.set_guest_pass` | `person`, `starts` and `ends` (date and time), `uses` (welcomed taps left; empty = no limit), `from` and `until` (daily window), `days`, or `clear: true`. Makes the person a guest |
+| `magicband.set_settings` | `lockdown`, `lockdown_away`, `lockdown_night`, `lockdown_from`, `lockdown_until`, `lockdown_alarm` (an alarm panel, empty for none), `holiday_shows`, `birthday_shows`, `passport`, `passport_shows`. Returns the settings and the current lockdown reasons |
 | `magicband.remove_person` | `person` |
 | `magicband.assign_band` | `band` (ID or `last`), `person`, `label` |
 | `magicband.unassign_band` | `band` |
@@ -321,9 +393,9 @@ only targets MagicBand bridges, and `play_show` only plays a light show. See [se
 | `magicband.stop_enrolment` | Ends enrolment now |
 | `magicband.history` | `count` (up to 300, default 50): returns the latest taps, newest first |
 | `magicband.sync` | Push the allowed list to all readers now. Returns `readers`, `applied` and `failed` (readers that refused it; from 0.10.4 a reader replies whether it stored the list) |
-| `magicband.list` | Returns all people (with welcome colours) and bands (with access schedules), the readers' status, any enrolment, and the welcome colours |
+| `magicband.list` | Returns all people (with welcome colours, birthdays, guest passes, whether they'd get in now, and their passport) and bands (with access schedules), the readers' status, any enrolment, the welcome colours, the house settings, the lockdown reasons, today's holidays and birthdays, and the next holidays |
 | `magicband.send` | Sends an effect through the bridges (see above) |
-| `magicband.play_show` | `show` (one of the 17 shows, or `Random`, the default), `device_id` (readers; empty = all): plays it on the ring (reader firmware 0.10.17 or later). Returns `played` and `skipped` |
+| `magicband.play_show` | `show` (one of the 28 shows; `Random`, the default, for an everyday one; `Today` for today's holiday show), `device_id` (readers; empty = all): plays it on the ring (reader firmware 0.10.17 or later; the celebration shows and Stamp 0.10.24). Returns `played`, `skipped` and `show` |
 | `magicband.list_bridges` | Returns every bridge's Command entity |
 | `magicband.list_heard` | Returns recent MagicBand+ Bluetooth traffic heard (last 30), and the last 200 band messages |
 | `magicband.list_bluetooth_bands` | Returns every MagicBand+ recognised over Bluetooth, with its battery history, signal per adapter, changing bits and last 50 raw beacons |

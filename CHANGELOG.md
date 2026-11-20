@@ -3,6 +3,37 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.24] - 2026-11-20
+
+### Home Assistant
+- **Guest passes.** Tick **Guest** when adding someone, enrol their band, and
+  give them a pass under **Birthday, lockdown, guest pass**: start and end
+  dates and times, a number of welcomed taps (each welcome uses one), and a
+  daily window on chosen weekdays. A band whose pass hasn't started, has
+  ended or is used up is taken off the readers' lists. Admin-only
+  `magicband.set_guest_pass`.
+- **Lockdown.** Only the people marked **Gets in during lockdown** are let in
+  while lockdown is on: by hand, when nobody's home (`zone.home`), during set
+  night hours, or while a chosen alarm panel is armed. New
+  `binary_sensor.magicbhands_lockdown` (attribute `reasons`); settings on the
+  page or with the admin-only `magicband.set_settings`.
+- **Birthdays and holidays.** Set each person's birthday; on the day their
+  welcome is followed by the Birthday show. On holidays (New Year, Valentine's
+  Day, St Patrick's Day, Easter, Memorial Day, Independence Day, Labor Day,
+  Halloween, Veterans Day, Thanksgiving, Hanukkah, Christmas) every welcome is
+  followed by that holiday's show. `play_show` takes `Today`, and so does the
+  light-show blueprint.
+- **Tap passport.** Taps, days, streaks and 16 stamps per person (not
+  guests), shown on the page. A new stamp fires `magicband_badge`, shows in
+  Recent taps, and plays the Stamp show after the welcome.
+- `magicband_tap` events carry `celebration` and `badges`.
+
+### Reader
+- **Eleven new light shows:** Birthday, New Year, Valentine, St Patrick,
+  Easter, Stars and Stripes, Halloween, Thanksgiving, Hanukkah, Christmas and
+  Stamp. **Random** picks only the everyday shows. A show sent during a tap
+  waits for the welcome to finish.
+
 ## [0.10.23] - 2026-11-20
 
 ### Home Assistant

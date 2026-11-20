@@ -17,7 +17,8 @@
                media_player: ['volume_set'], select: ['select_option'], number: ['set_value'], button: ['press'] };
   var SVC = { magicband: ['assign_band', 'unassign_band', 'remove_band', 'add_person', 'update_person', 'remove_person',
                           'link_bluetooth', 'unlink_bluetooth', 'sync', 'send', 'list', 'list_bluetooth_bands',
-                          'set_band_access', 'enrol', 'stop_enrolment', 'history', 'set_reader_camera', 'set_snapshot_days'] };
+                          'set_band_access', 'enrol', 'stop_enrolment', 'history', 'set_reader_camera', 'set_snapshot_days',
+                          'set_guest_pass', 'set_settings', 'play_show'] };
   var NOPRESS = /factory_reset|safe_mode|forget_all/;   // buttons the page may not press
   var idxFor = null, idx = {};
   function nameIndex(h) {
