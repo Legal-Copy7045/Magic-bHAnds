@@ -149,7 +149,12 @@ everything, read live from Home Assistant.
   card also shows health tiles: Wi-Fi strength and network, how long it's
   been up and why it last restarted, CPU temperature, free memory, loop time
   and IP address (firmware 0.10.5 or later; the SCREEK BP2-POE's own sensors
-  too).
+  too). Each reader's **Ring and tap settings** fold-out has all its ring and
+  tap settings in groups: Ring (type, LED count, colour order, brightness),
+  Waiting for a band, Night (set hours or sunset to sunrise, with tonight's
+  times), Checking a band, Welcome (with a picture of its shape) and Denied.
+  They're the same settings as on the reader's device page; see
+  [reader.md](reader.md) for what each does.
 
 The page is for Home Assistant **administrators** (it manages who the
 readers let in).

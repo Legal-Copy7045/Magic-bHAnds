@@ -40,6 +40,11 @@ table.t{width:100%;border-collapse:collapse;font-size:13px}table.t td,table.t th
 table.t th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-top:0}
 details.more{margin-top:8px}details.more summary{cursor:pointer;font-size:13px;color:var(--ink-2)}
 .set{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;align-items:center;font-size:13px;margin-top:8px}
+.sgs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,265px),1fr));gap:10px;margin-top:10px}
+.sg{border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:var(--sunk,var(--surface));min-width:0}
+.sg h4{margin:0;font:600 12px "Instrument Sans",sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.sg .set{margin-top:6px;grid-template-columns:fit-content(13em) minmax(0,1fr)}.sg .set>:nth-child(2n){justify-self:end;max-width:100%}.sg .set select{max-width:190px}.sg .nu{display:inline-flex;gap:4px;align-items:baseline}.sg .nu .sub2{display:inline-block;min-width:2.4em}
+.sg .hint{font-size:11.5px;color:var(--muted);margin:7px 0 0;line-height:1.35}.sg .shape{display:flex;flex-direction:column;gap:2px;margin-top:8px}
 .msg{font-size:12.5px;color:var(--muted);min-height:1em}.msg.ok{color:var(--ok)}.msg.bad{color:var(--bad)}
 .hl{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px;margin:10px 0 2px}
 .hl div{background:var(--sunk);border:1px solid var(--line);border-radius:9px;padding:7px 8px;min-width:0}
@@ -200,7 +205,7 @@ function armed(key){ if(ARM[key]&&ARM[key]>Date.now()){ delete ARM[key]; return 
 const tg=(e,label)=>e?`<button class="tg${S(e).state==='on'?' on':''}" data-tg="${esc(e)}" aria-label="${esc(label)}" title="${esc(label)}"${avail(e)?'':' disabled'}></button>`:'<span class="muted">–</span>';
 const bt=(e,label,cls)=>e?`<button class="btn sm ${cls||''}" data-press="${esc(e)}"${avail(e)&&!BUSY[e]?'':' disabled'}>${esc(label)}</button>`:'';
 function selectFor(e){ if(!e) return '<span class="muted">–</span>'; const a=A(e); return `<select data-sel="${esc(e)}"${avail(e)?'':' disabled'}>${(a.options||[]).map(o=>`<option${o===S(e).state?' selected':''}>${esc(o)}</option>`).join('')}</select>`; }
-function numberFor(e){ if(!e) return '<span class="muted">–</span>'; const a=A(e), v=S(e).state; return `<input type="text" inputmode="decimal" size="5" data-num="${esc(e)}" value="${esc(v)}" title="${esc(a.min??'')}–${esc(a.max??'')}${a.unit_of_measurement?' '+esc(a.unit_of_measurement):''}"${avail(e)?'':' disabled'}>`; }
+function numberFor(e){ if(!e) return '<span class="muted">–</span>'; const a=A(e), raw=S(e).state, n=parseFloat(raw), v=isFinite(n)?String(+n.toFixed(3)):raw; return `<input type="text" inputmode="decimal" size="5" data-num="${esc(e)}" value="${esc(v)}" title="${esc(a.min??'')}–${esc(a.max??'')}${a.unit_of_measurement?' '+esc(a.unit_of_measurement):''}"${avail(e)?'':' disabled'}>`; }
 const personOptions=(P,sel)=>P.map(p=>`<option value="${esc(p.name)}"${p.name===sel?' selected':''}>${esc(p.name)}</option>`).join('');
 function haPeople(){ return Object.keys(H().all()).filter(e=>e.startsWith('person.')&&A(e).user_id&&!/^(mqtt|alexa)/i.test(A(e).friendly_name||'')).map(e=>[e,A(e).friendly_name||e]); }
 function bandName(I,nfc){ const b=bands(I).find(x=>x.nfc===nfc); return b?b.name:null; }
@@ -373,7 +378,6 @@ const SYNC_LABEL={up_to_date:'up to date',failed:'not applied',unconfirmed:'sent
 function readerCards(I,RD,B){ $('readers').innerHTML=RD.map(d=>{ const p=l=>pick(I,d,l[0],l[1]), on=online(I,d);
     const kb=pick(I,d,'sensor','Known bands'), lbS=(I.byDev[d.id]||[]).find(e=>e.startsWith('sensor.')&&'band_id' in A(e))||pick(I,d,'sensor','Last band'), lbV=lbS?S(lbS).state:null;
     const lbName=lbS&&'band_id' in A(lbS)?lbV:(lbV&&bandName(I,lbV)), sp=p(['media_player','Speaker']), vol=sp?A(sp).volume_level:null, ring=p(['light','Ring']);
-    const T=[['select','Idle colour'],['number','Idle glow'],['select','Checking colour'],['number','Checking circles'],['number','Circle time'],['number','Circle tail'],['select','Welcome colour'],['number','Welcome pulses'],['number','Welcome fade in'],['number','Welcome hold'],['number','Welcome fade out'],['select','Denied colour'],['number','Denied pulses'],['number','Pulse time'],['number','LED brightness'],['number','Idle glow at night'],['select','Night mode'],['number','Night from'],['number','Night until'],['number','Night starts after sunset'],['number','Night ends after sunrise'],['number','LED count'],['select','Ring type']];
     return `<section class="tc"><h3><span><span class="dot2 ${on?'':'off'}"></span>${esc(dname(d))}</span><small>${esc(d.area||'no area')}${firmware(I,d)?' · firmware '+esc(firmware(I,d)):''}</small></h3>
       <div class="row"><span>Response mode</span>${selectFor(p(['select','Response mode']))}</div>
       <div class="row"><span>Known bands</span><span class="r">${kb&&avail(kb)?Math.round(num(kb)):'–'}</span></div>
@@ -385,7 +389,41 @@ function readerCards(I,RD,B){ $('readers').innerHTML=RD.map(d=>{ const p=l=>pick
       <div class="row"><span>Ring light</span>${tg(ring,'Ring light')}</div>
       <div class="row"><span>Speaker volume</span>${sp?`<span><input type="range" min="0" max="100" value="${vol!=null?Math.round(vol*100):50}" data-vol="${esc(sp)}"${avail(sp)?'':' disabled'}> <span class="sub2">${vol!=null?Math.round(vol*100)+'%':''}</span></span>`:'<span class="muted">–</span>'}</div>
       <div class="btns">${bt(p(['button','Test welcome']),'Test welcome')}${(()=>{ const r=p(['button','Restart']); return r?`<button class="btn sm ${ARM['rs'+r]?'arm':''}" data-restart="${esc(r)}"${avail(r)?'':' disabled'}>${ARM['rs'+r]?'Tap again to restart':'Restart'}</button>`:''; })()}</div>
-      <details class="more" data-k="${esc(d.id)}"><summary>Tap sequence</summary><div class="set">${T.map(([dom,l])=>{ const e=p([dom,l]); return e?`<span>${esc(l)}</span>${dom==='select'?selectFor(e):numberFor(e)}`:''; }).join('')}</div></details></section>`; }).join('')||'<p class="muted">No MagicBand readers found (ESPHome model magicband-reader).</p>'; }
+      <details class="more" data-k="${esc(d.id)}"><summary>Ring and tap settings</summary>${readerSettings(p)}</details></section>`; }).join('')||'<p class="muted">No MagicBand readers found (ESPHome model magicband-reader).</p>'; }
+
+// The reader's ring and tap settings, grouped. p([domain, name]) finds the reader's entity.
+const SWATCH={White:'#f4f4f5','Warm white':'#ffd8a0',Red:'#ef4444',Orange:'#f97316',Yellow:'#facc15',Green:'#22c55e',Cyan:'#22d3ee',Blue:'#3b82f6',Purple:'#8b5cf6',Pink:'#f472b6',Magenta:'#d946ef'};
+function setCtl(e,dom){ if(!e) return null; if(dom==='select') return selectFor(e); const u=A(e).unit_of_measurement; return `<span class="nu">${numberFor(e)}<span class="sub2">${u?esc(u):''}</span></span>`; }
+function hm(mins){ mins=((Math.round(mins)%1440)+1440)%1440; return String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0'); }
+function sunMins(attr){ const s=S('sun.sun'), v=s&&s.attributes?s.attributes[attr]:null, t=v?new Date(v):null; return t&&!isNaN(t)?t.getHours()*60+t.getMinutes():null; }
+function readerSettings(p){
+  const v=(dom,l)=>{ const e=p([dom,l]); return e&&avail(e)?S(e).state:null; }, f=(l)=>parseFloat(v('number',l));
+  const sunMode=v('select','Night mode')==='Sunset to sunrise';
+  let night='';
+  if(sunMode){ const ss=sunMins('next_setting'), sr=sunMins('next_rising');
+    night=ss==null||sr==null?"Home Assistant's sun isn't available, so the reader uses Night from and Night until."
+      :`Tonight: ${hm(ss+(f('Night starts after sunset')||0))} to ${hm(sr+(f('Night ends after sunrise')||0))} (sunset ${hm(ss)}, sunrise ${hm(sr)}).`; }
+  else { const a=f('Night from'), b=f('Night until'); night=isNaN(a)||isNaN(b)?'':a===b?'Off: the same hour in both keeps Idle glow all day.':`${hm(a*60)} to ${hm(b*60)}.`; }
+  const fi=f('Welcome fade in'), ho=f('Welcome hold'), fo=f('Welcome fade out'), wc=SWATCH[v('select','Welcome colour')]||'var(--ok)';
+  let shape='';
+  if(![fi,ho,fo].some(isNaN)){ const tot=Math.max(fi+ho+fo,0.1), W=150, H=26, x=t=>(t/tot*W).toFixed(1);
+    shape=`<div class="shape"><svg viewBox="0 0 ${W} ${H+2}" width="${W}" height="${H+2}" aria-hidden="true"><polygon points="0,${H+1} ${x(fi)},1 ${x(fi+ho)},1 ${W},${H+1}" fill="${wc}" fill-opacity=".35" stroke="${wc}" stroke-width="1.5"/></svg><span class="sub2">${fi} s up · ${ho} s on · ${fo} s fade, ${(fi+ho+fo).toFixed(2).replace(/\.?0+$/,'')} s in all</span></div>`; }
+  const G=[
+    ['Ring',[['select','Ring type','Type'],['number','LED count','LEDs'],['select','LED colour order','Colour order'],['number','LED brightness','Brightness']],
+      'Changing the type restarts the reader. RGBW rings have a white LED in each pixel.'],
+    ['Waiting for a band',[['select','Idle colour','Colour'],['number','Idle glow','Glow (0 = off)']],'Pulses amber instead while Home Assistant is away.'],
+    ['Night',[['number','Idle glow at night','Glow'],['select','Night mode','Night is'],
+      ...(sunMode?[['number','Night starts after sunset','Starts after sunset'],['number','Night ends after sunrise','Ends after sunrise']]
+                 :[['number','Night from','From (hour)'],['number','Night until','Until (hour)']])],
+      night+(sunMode?' Negative minutes = before.':'')],
+    ['Checking a band',[['select','Checking colour','Colour'],['number','Checking circles','Circles'],['number','Circle time','Each circle'],['number','Circle tail','Tail (0 = auto)']]],
+    ['Welcome',[['select','Welcome colour','Colour'],['number','Welcome fade in','Fade in'],['number','Welcome hold','Stay on'],['number','Welcome fade out','Fade out'],['number','Welcome pulses','Repeat']],
+      'A person\'s own welcome colour (People) replaces this colour for their bands.',shape],
+    ['Denied',[['select','Denied colour','Colour'],['number','Denied pulses','Pulses'],['number','Pulse time','Each pulse']]],
+  ];
+  const html=G.map(([title,rows,hint,extra])=>{ const r=rows.map(([dom,l,lab])=>{ const c=setCtl(p([dom,l]),dom); return c?`<span title="${esc(l)}">${esc(lab)}</span>${c}`:''; }).join('');
+    return r?`<div class="sg"><h4>${esc(title)}</h4><div class="set">${r}</div>${extra||''}${hint?`<p class="hint">${esc(hint)}</p>`:''}</div>`:''; }).join('');
+  return html?`<div class="sgs">${html}</div>`:'<p class="muted">This reader\'s firmware has no ring settings.</p>'; }
 
 // Health tiles from the device's diagnostic sensors (reader, bridge and BP2 names), whichever it has
 function healthTiles(I,d){ const g=(...ls)=>{ for(const l of ls){ const e=pick(I,d,'sensor',l); if(e&&avail(e)&&!/unknown|unavailable/.test(S(e).state)) return e; } return null; };
