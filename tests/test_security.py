@@ -179,6 +179,7 @@ ADMIN_ONLY = [
     ("stop_enrolment", {}),
     ("history", {}),
     ("answer", {"device_id": "x", "allow": True}),
+    ("unpair_reader", {"device_id": "x"}),
 ]
 
 
@@ -358,7 +359,7 @@ int main(int argc, char **argv) {
   const char *k = std::getenv("KEY");
   const std::string key = k ? k : "";
   set_known_bands(argv[1], "");
-  if (const char *p = std::getenv("PAIR")) magicband::reader_pair(pair_key, p, false);
+  if (const char *p = std::getenv("PAIR")) magicband::reader_pair(pair_key, p);
   set_known_bands(argv[2], key);
   std::printf("LIST=%%s\nERROR=%%s\n", known_list.data(), sync_error.c_str());
 }
@@ -414,7 +415,7 @@ def test_paired_reader_refuses_a_list_without_its_key(tmp_path: Path) -> None:
 
 
 def test_pairing_rules() -> None:
-    """A paired reader takes a new key only in its power-on window (reader_key.h, compiled on the host)."""
+    """A paired reader never takes another key over the network; only the key holder releases it (reader_key.h)."""
     if shutil.which("g++") is None:
         pytest.skip("no C++ compiler")
     src = Path(tempfile.mkdtemp()) / "pair.cpp"
@@ -425,19 +426,21 @@ int main() {
   ReaderKey k{};
   const std::string a(64, 'a'), b(64, 'b');
   std::printf("%d", reader_key_ok(k, ""));                    // unpaired: anyone (as before)
-  std::printf("%d", reader_pair(k, "nothex!", false).empty()); // a bad key is refused
-  std::printf("%d", reader_pair(k, a, false).empty());         // first pairing
+  std::printf("%d", reader_pair(k, "nothex!").empty()); // a bad key is refused
+  std::printf("%d", reader_pair(k, a).empty());         // first pairing
   std::printf("%d", reader_key_ok(k, a));
   std::printf("%d", reader_key_ok(k, ""));                     // paired: no key, no entry
-  std::printf("%d", reader_pair(k, b, false).empty());         // another key, outside the window
+  std::printf("%d", reader_pair(k, b).empty());               // another key: never over the network
   std::printf("%d", reader_key_ok(k, a));                      // still the first key
-  std::printf("%d", reader_pair(k, b, true).empty());          // after a power-on: re-paired
+  std::printf("%d", reader_unpair(k, b).empty());              // releasing needs the key
+  std::printf("%d", reader_unpair(k, a).empty());              // the key holder can release it
+  std::printf("%d", reader_pair(k, b).empty());                // then another can pair
   std::printf("%d", reader_key_ok(k, b));
 }
 """)
     exe = src.with_suffix("")
     subprocess.run(["g++", "-std=c++17", "-o", str(exe), str(src)], check=True, capture_output=True)
-    assert subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout == "101100111"
+    assert subprocess.run([str(exe)], check=True, capture_output=True, text=True).stdout == "10110010111"
 
 
 @pytest.mark.parametrize("bad", ["TEST", "0453652AC05F8", "04É3652AC05F80", "0453652AC05F80;rm"])

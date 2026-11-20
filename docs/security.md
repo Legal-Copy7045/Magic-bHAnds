@@ -72,11 +72,15 @@ then only takes a new allowed list, welcome colours, or an "Ask Home
 Assistant" answer (`set_known_bands`, `set_band_colours`, `accept`, `deny`)
 when the key comes with it, and its **Allow last band** button does nothing
 (manage bands in MagicbHAnds). So other Home Assistant users, who can call
-any ESPHome action, can't add a band to a reader. A paired reader takes a new
-key only in the first 10 minutes after it's plugged in (a power-on, not a
-restart, which any user can trigger): if you reinstall Home Assistant or
-MagicbHAnds, unplug the reader for a few seconds and it pairs again. Until a
-reader has been paired, anyone could pair it first; add new readers promptly.
+any ESPHome action, can't add a band to a reader. A paired reader never takes a
+different key over the network, not even right after a restart or a power
+cut: only the key holder can release it (`magicband.unpair_reader`, to move
+it to another Home Assistant), or someone with the reader in hand can erase it
+over USB (the web installer's **Erase device**) and add it again. The key is in
+Home Assistant's backups, so restoring a backup keeps your readers paired. If
+you lose it (a fresh install without a backup), erase the reader over USB.
+Until a reader has been paired, anyone could pair it first; MagicbHAnds pairs
+a reader as soon as it connects, so add new readers promptly.
 The **Paired with MagicbHAnds** sensor on the reader shows its state.
 
 Home Assistant users who aren't administrators can still use the readers'

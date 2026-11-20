@@ -399,3 +399,11 @@ async def test_answer_uses_the_key(hass: HomeAssistant, setup_integration, reade
     assert calls["accept"][-1].data == {"key": key} and calls["deny"][-1].data == {"key": key}
     with pytest.raises(ServiceValidationError):
         await hass.services.async_call(DOMAIN, "answer", {"device_id": "nope", "allow": True}, blocking=True)
+
+
+async def test_unpair_reader_uses_the_key(hass: HomeAssistant, setup_integration, reader_device) -> None:
+    unpairs: list[ServiceCall] = []
+    _paired_reader(hass)
+    hass.services.async_register("esphome", "lounge_reader_unpair", lambda c: unpairs.append(c))
+    await hass.services.async_call(DOMAIN, "unpair_reader", {"device_id": reader_device.id}, blocking=True)
+    assert unpairs[-1].data == {"key": hass.config_entries.async_entries(DOMAIN)[0].data["reader_key"]}

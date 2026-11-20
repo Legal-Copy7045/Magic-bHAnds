@@ -543,6 +543,13 @@ def _register_services(hass: HomeAssistant) -> None:
         """Answer a reader in "Ask Home Assistant" mode (admin-only: it decides the reader's welcome)."""
         await _data().readers.async_answer(call.data["device_id"], call.data["allow"], call.context)
 
+    async def unpair_reader(call: ServiceCall) -> None:
+        """Release a reader's pairing (it re-pairs with whichever MagicbHAnds syncs it next)."""
+        await _data().readers.async_unpair(call.data["device_id"], call.context)
+
+    async_register_admin_service(
+        hass, DOMAIN, "unpair_reader", unpair_reader, vol.Schema({vol.Required("device_id"): cv.string})
+    )
     async_register_admin_service(
         hass,
         DOMAIN,

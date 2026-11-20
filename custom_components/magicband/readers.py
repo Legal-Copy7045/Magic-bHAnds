@@ -263,6 +263,18 @@ class ReaderManager:
             "esphome", _service_for(node, PAIR_SERVICE_SUFFIX), {"key": self.key}, blocking=True
         )
 
+    async def async_unpair(self, device_id: str, context: Context | None = None) -> None:
+        """Release a reader from this integration's key (to move it to another Home Assistant)."""
+        device = dr.async_get(self.hass).async_get(device_id)
+        node = node_name(self.hass, device) if device and is_reader_device(self.hass, device_id) else None
+        if node is None:
+            raise ServiceValidationError("That device isn't a MagicBand reader")
+        if not self._keyed(node):
+            raise ServiceValidationError("The reader isn't connected, or its firmware can't be paired")
+        await self.hass.services.async_call(
+            "esphome", _service_for(node, "_unpair"), {"key": self.key}, blocking=True, context=context
+        )
+
     async def async_answer(self, device_id: str, allow: bool, context: Context | None = None) -> None:
         """Answer a reader in "Ask Home Assistant" mode (its accept / deny action, with the key)."""
         device = dr.async_get(self.hass).async_get(device_id)

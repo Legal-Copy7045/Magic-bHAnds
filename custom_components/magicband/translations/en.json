@@ -493,6 +493,16 @@
           "description": "On: welcome. Off: deny."
         }
       }
+    },
+    "unpair_reader": {
+      "name": "Unpair a reader",
+      "description": "Release a reader from this Home Assistant's key, for example before moving it to another Home Assistant. It pairs again with whichever MagicbHAnds syncs it next. Administrators only.",
+      "fields": {
+        "device_id": {
+          "name": "Reader",
+          "description": "The reader to release."
+        }
+      }
     }
   },
   "issues": {
