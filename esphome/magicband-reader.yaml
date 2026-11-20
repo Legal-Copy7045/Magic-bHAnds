@@ -21,7 +21,7 @@
 substitutions:
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.10.13"
+  project_version: "0.10.14"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -480,11 +480,39 @@ globals:
     restore_value: true
   - id: welcome_name      # the colour this tap is welcomed in
     type: std::string
-  - id: night             # inside the "Night from"-"Night until" hours (see update_night)
+  - id: night             # inside the night hours (see update_night)
     type: bool
     initial_value: "false"
+  # Today's sunset and sunrise, minutes after local midnight, from Home
+  # Assistant's sun (sun.sun). Kept through restarts, so "Sunset to sunrise"
+  # keeps working while Home Assistant is away; -1 = not known yet.
+  - id: sunset_min
+    type: int
+    restore_value: true
+    initial_value: "-1"
+  - id: sunrise_min
+    type: int
+    restore_value: true
+    initial_value: "-1"
 
 select:
+  # When "Idle glow at night" applies: between "Night from" and "Night until",
+  # or from sunset to sunrise (each moved by its offset in minutes). The sun
+  # times come from Home Assistant's sun; until it has sent them, the set
+  # hours are used.
+  - platform: template
+    id: night_mode
+    name: "Night mode"
+    icon: mdi:weather-night
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_option: "Set hours"
+    options:
+      - "Set hours"
+      - "Sunset to sunrise"
+    on_value:
+      - script.execute: update_night
   # How far the welcome's light-up reaches. Every MagicBand+ in range reacts,
   # so lower it until only the band on the reader lights up. Each -6 dB
   # roughly halves the reach; -24 dBm is about arm's length or less.
@@ -900,6 +928,38 @@ number:
     mode: box
     on_value:
       - script.execute: update_night
+  # "Sunset to sunrise": minutes after sunset that night starts, and after
+  # sunrise that it ends (negative = before).
+  - platform: template
+    id: night_after_sunset
+    name: "Night starts after sunset"
+    icon: mdi:weather-sunset-down
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: 0
+    min_value: -240
+    max_value: 240
+    step: 5
+    unit_of_measurement: "min"
+    mode: box
+    on_value:
+      - script.execute: update_night
+  - platform: template
+    id: night_after_sunrise
+    name: "Night ends after sunrise"
+    icon: mdi:weather-sunset-up
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: 0
+    min_value: -240
+    max_value: 240
+    step: 5
+    unit_of_measurement: "min"
+    mode: box
+    on_value:
+      - script.execute: update_night
 
 switch:
   - platform: template
@@ -990,6 +1050,28 @@ sensor:
       return n;
 
 text_sensor:
+  # Sunset and sunrise from Home Assistant's sun, for "Night mode". Reading a
+  # state needs no permission to perform actions.
+  - platform: homeassistant
+    id: sun_next_setting
+    entity_id: sun.sun
+    attribute: next_setting
+    internal: true
+    on_value:
+      - script.execute:
+          id: sun_time
+          iso: !lambda 'return x;'
+          rising: false
+  - platform: homeassistant
+    id: sun_next_rising
+    entity_id: sun.sun
+    attribute: next_rising
+    internal: true
+    on_value:
+      - script.execute:
+          id: sun_time
+          iso: !lambda 'return x;'
+          rising: true
   - platform: debug
     reset_reason:
       name: "Reset reason"
@@ -1117,14 +1199,50 @@ script:
       - lambda: |-
           auto t = id(ha_time).now();
           bool n = false;
-          int from = (int) id(night_from).state, until = (int) id(night_until).state;
+          auto num = [](float v) { return std::isnan(v) ? 0 : static_cast<int>(v); };
+          int from, until;  // minutes after midnight
+          if (id(night_mode).current_option() == "Sunset to sunrise" && id(sunset_min) >= 0 && id(sunrise_min) >= 0) {
+            from = id(sunset_min) + num(id(night_after_sunset).state);
+            until = id(sunrise_min) + num(id(night_after_sunrise).state);
+          } else {
+            from = num(id(night_from).state) * 60;
+            until = num(id(night_until).state) * 60;
+          }
+          from = (from % 1440 + 1440) % 1440;
+          until = (until % 1440 + 1440) % 1440;
           if (t.is_valid() && from != until) {
-            int h = t.hour;
-            n = from < until ? (h >= from && h < until) : (h >= from || h < until);
+            const int m = t.hour * 60 + t.minute;
+            n = from < until ? (m >= from && m < until) : (m >= from || m < until);
           }
           if (n == id(night)) return;
           id(night) = n;
           if (id(ring_ready) && !id(band_tapped).is_running()) id(reader_idle).execute();
+  # Stores a sun time from Home Assistant ("2026-11-20T21:41:07.123+00:00")
+  # as minutes after local midnight.
+  - id: sun_time
+    mode: queued
+    parameters:
+      iso: string
+      rising: bool
+    then:
+      - lambda: |-
+          int y, mo, d, h, mi;
+          if (sscanf(iso.c_str(), "%d-%d-%dT%d:%d", &y, &mo, &d, &h, &mi) != 5) return;
+          int off = 0;  // the string's UTC offset, minutes
+          const size_t n = iso.size();
+          if (n >= 6 && (iso[n - 6] == '+' || iso[n - 6] == '-') && iso[n - 3] == ':')
+            off = (atoi(iso.substr(n - 5, 2).c_str()) * 60 + atoi(iso.substr(n - 2, 2).c_str())) * (iso[n - 6] == '-' ? -1 : 1);
+          // Days since 1970-01-01 (Howard Hinnant's days_from_civil).
+          y -= mo <= 2;
+          const int era = (y >= 0 ? y : y - 399) / 400, yoe = y - era * 400;
+          const int doy = (153 * (mo > 2 ? mo - 3 : mo + 9) + 2) / 5 + d - 1;
+          const int days = era * 146097 + yoe * 365 + yoe / 4 - yoe / 100 + doy - 719468;
+          const time_t epoch = static_cast<time_t>(days) * 86400 + h * 3600 + mi * 60 - off * 60;
+          const auto local = ESPTime::from_epoch_local(epoch);
+          const int mins = local.hour * 60 + local.minute;
+          if (rising) id(sunrise_min) = mins; else id(sunset_min) = mins;
+          ESP_LOGD("reader", "Sun%s at %02d:%02d", rising ? "rise" : "set", local.hour, local.minute);
+      - script.execute: update_night
   - id: reader_idle_glow
     then:
       - if:

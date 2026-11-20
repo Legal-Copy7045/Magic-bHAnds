@@ -163,6 +163,13 @@ the reader's device page in Home Assistant, under **Configuration**, set:
   22) and **Night until** (default 6), whole hours in the reader's local time
   (from Home Assistant): the idle glow used at night. Set both hours the same
   to use **Idle glow** all day.
+- **Night mode** (default **Set hours**): when night is. **Set hours** uses
+  **Night from** and **Night until**. **Sunset to sunrise** follows Home
+  Assistant's sun instead, moved by **Night starts after sunset** and **Night
+  ends after sunrise** (minutes, −240 to 240, default 0; negative = before),
+  e.g. 30 and −30 for night from half an hour after sunset to half an hour
+  before sunrise. The reader keeps the last sun times through restarts and
+  uses the set hours until it has had them.
 - In **Warm white** the idle glow is mixed specially so it keeps its colour
   when dim (the Ring light shows the "Warm glow" effect at 100 %); its
   dimmest is a little brighter than the other colours' dimmest.

@@ -296,7 +296,7 @@ On the device page, under **Configuration**:
 | **Ring type** | RGB (default), or RGBW warm / neutral / cool white for an SK6812 RGBW ring; changing it restarts the reader |
 | **LED brightness** | Scales everything the ring shows (5–100 %) |
 | **Idle glow** / **Idle colour** | The glow between taps (default 30 %, White; 0 = off) |
-| **Idle glow at night**, **Night from**, **Night until** | A dimmer glow at night (default 10 %, 22:00 to 06:00; the same hour in both = off) |
+| **Idle glow at night**, **Night mode**, **Night from**, **Night until** | A dimmer glow at night (default 10 %, 22:00 to 06:00; the same hour in both = off). **Night mode** **Sunset to sunrise** follows the sun instead, with an offset in minutes for each end |
 | **Sound** / speaker volume | Turn sounds on or off; set the volume on the *Speaker* entity |
 | **Light up MagicBand+** | Whether a MagicBand+ lights up (in the welcome colour) on a welcome |
 | **Response mode** | Who's welcomed (step 20) |
