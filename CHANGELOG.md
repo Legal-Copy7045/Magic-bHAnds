@@ -3,6 +3,48 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.19] - 2026-11-20
+
+### Security
+- **The tap that enrols a band no longer counts as allowed.** During
+  enrolment, an unknown band tapped on any reader was given to the person
+  being enrolled and reported `allowed: true` on that same tap, so an unlock
+  automation could open the door for a stranger's tag. That tap is now
+  `allowed: false` (with `enrolled: true`); the band's next tap is let in.
+- **Enrolment can be limited to one reader** (`device_id` on
+  `magicband.enrol`, and **Enrol bands tapped on** on the page; with one
+  reader the page uses it).
+- **`magicband.play_show`** is limited to 12 shows a minute per reader,
+  keeps the caller's context (the logbook shows who), and one reader failing
+  no longer stops the rest. **`magicband.sync`** is limited to 6 a minute.
+- **No "Factory Reset" button on the SCREEK BP2-POE:** any Home Assistant
+  user could press it, and a reset board accepts the next client that brings
+  a new encryption key.
+- **"Test welcome"** no longer sends a tag scan to Home Assistant, so it
+  can't set off automations that react to any tag.
+- **CI:** releases are only made from commits on `main`, and the firmware
+  published to the site on every `main` build (what the update entities
+  download) now carries build-provenance attestations too.
+- Tests now cover every admin-only action and check that only `send`,
+  `sync`, `play_show` and `list_bridges` are open to every user. A few numbers
+  on the page are escaped as well (defence in depth).
+
+### MagicbHAnds page
+- **The live twin looks like a park reader:** a dark round housing, the
+  light ring, and a raised pad with an emblem in the middle. A page that
+  hosts this one can set its own emblem (`window.MBH_READER_EMBLEM`).
+- **The header shows the reader's ring, live,** in place of the "Status"
+  line, with what it's doing and whether the page is live.
+
+### Docs
+- The build guides were checked against the real compact build: the
+  35-LED ring's lead and how to tell its input end, the resistor and
+  capacitor on the breadboard, 5.1 V at the ring, LED count 35, what to do
+  if an update fails, and bands lighting up across the room. Builds that
+  haven't been made yet are marked "reviewed, not built".
+- `docs/security.md` lists the actions open to every user and their limits,
+  and explains enrolment.
+
 ## [0.10.18] - 2026-11-20
 
 ### Reader

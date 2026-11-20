@@ -272,8 +272,14 @@
       "name": "Play a light show",
       "description": "Play one of the readers' light shows on the ring (reader firmware 0.10.17 or later). A band tapped during it takes over.",
       "fields": {
-        "show": {"name": "Show", "description": "Which show, or Random for a different one each time."},
-        "device_id": {"name": "Readers", "description": "The readers to play it on. Leave empty for every reader."}
+        "show": {
+          "name": "Show",
+          "description": "Which show, or Random for a different one each time."
+        },
+        "device_id": {
+          "name": "Readers",
+          "description": "The readers to play it on. Leave empty for every reader."
+        }
       }
     },
     "list": {
@@ -453,6 +459,10 @@
         "label": {
           "name": "Nickname",
           "description": "Optional; each band gets it with a number (\"Nana's band 1\")."
+        },
+        "device_id": {
+          "name": "Reader",
+          "description": "Only bands tapped on this reader are enrolled (recommended: the one you're standing at). Leave empty for any reader."
         }
       }
     },

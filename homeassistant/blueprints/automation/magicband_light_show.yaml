@@ -1,0 +1,66 @@
+blueprint:
+  name: "MagicbHAnds: light show on a schedule"
+  description: >-
+    Plays one of the readers' light shows every hour (or every few hours),
+    on the hour, between two times of day. Pick a show or Random for a
+    different one each time. Needs reader firmware 0.10.17 or later. A band
+    tapped during a show takes over the ring as usual.
+    Source: github.com/Legal-Copy7045/Magic-bHAnds
+  domain: automation
+  source_url: https://github.com/Legal-Copy7045/Magic-bHAnds/blob/main/custom_components/magicband/blueprints/magicband_light_show.yaml
+  input:
+    show:
+      name: Show
+      default: Random
+      selector:
+        select:
+          options: [Random, Rainbow rush, Fireworks, Comet chase, Colour parade, Twinkle, Heartbeat, Ocean, Fire, Pinwheel, Confetti, Penguins, Goal, Aurora, Candy cane, Thunderstorm, Sunrise, Disco]
+    every:
+      name: Every (hours)
+      description: 1 = every hour, 2 = every other hour, and so on (on the hour).
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 12
+          mode: box
+    from_time:
+      name: From
+      description: No shows before this time.
+      default: "08:00:00"
+      selector:
+        time:
+    until_time:
+      name: Until
+      description: No shows from this time on.
+      default: "22:00:00"
+      selector:
+        time:
+    readers:
+      name: Readers
+      description: The readers to play it on. Leave empty for every reader.
+      default: []
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: esphome
+              model: magicband-reader
+mode: single
+variables:
+  every: !input every
+  readers: !input readers
+triggers:
+  - trigger: time_pattern
+    minutes: 0
+conditions:
+  - condition: time
+    after: !input from_time
+    before: !input until_time
+  - condition: template
+    value_template: "{{ now().hour % (every | int(1)) == 0 }}"
+actions:
+  - action: magicband.play_show
+    data:
+      show: !input show
+      device_id: "{{ readers }}"

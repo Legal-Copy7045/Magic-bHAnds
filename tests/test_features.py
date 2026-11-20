@@ -130,6 +130,36 @@ async def test_enrolment_gives_the_next_unowned_bands_to_one_person(
     assert registry.get_band("04AABBCCDD0003").person_id is None
 
 
+async def test_the_enrolling_tap_never_counts_as_allowed(
+    hass: HomeAssistant, setup_integration, reader_device
+) -> None:
+    taps = []
+    hass.bus.async_listen("magicband_tap", lambda e: taps.append(e.data))
+    await hass.services.async_call(DOMAIN, "add_person", {"name": "Alice"}, blocking=True)
+    await hass.services.async_call(DOMAIN, "enrol", {"person": "Alice"}, blocking=True)
+    _tap(hass, "04AABBCCDD0001", reader_device.id)
+    await hass.async_block_till_done()
+    assert taps[-1]["enrolled"] is True and taps[-1]["allowed"] is False  # it was unknown a moment ago
+    _tap(hass, "04AABBCCDD0001", reader_device.id)
+    await hass.async_block_till_done()
+    assert taps[-1]["enrolled"] is False and taps[-1]["allowed"] is True  # its next tap is let in
+
+
+async def test_enrolment_can_be_limited_to_one_reader(hass: HomeAssistant, setup_integration, reader_device) -> None:
+    door = make_esphome_device(hass, "door-reader", "magicband-reader", "Front door")
+    await hass.services.async_call(DOMAIN, "add_person", {"name": "Alice"}, blocking=True)
+    await hass.services.async_call(DOMAIN, "enrol", {"person": "Alice", "device_id": reader_device.id}, blocking=True)
+    _tap(hass, "04AABBCCDD0009", door.id)  # someone at the front door
+    await hass.async_block_till_done()
+    registry = _data(hass).registry
+    assert registry.get_band("04AABBCCDD0009").person_id is None
+    _tap(hass, "04AABBCCDD0001", reader_device.id)
+    await hass.async_block_till_done()
+    assert registry.get_band("04AABBCCDD0001").person_id is not None
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(DOMAIN, "enrol", {"person": "Alice", "device_id": "not-a-reader"}, blocking=True)
+
+
 async def test_enrolment_is_limited_and_can_be_stopped(hass: HomeAssistant, setup_integration) -> None:
     await hass.services.async_call(DOMAIN, "add_person", {"name": "Alice"}, blocking=True)
     with pytest.raises(Exception):  # noqa: B017 - voluptuous refuses more than 15 minutes
@@ -307,6 +337,7 @@ async def test_play_show_goes_to_every_online_reader(
         DOMAIN, "play_show", {"show": "Fireworks"}, blocking=True, return_response=True
     )
     assert [c.data["show"] for c in shows] == ["Fireworks"]
+    assert shows[0].context is not None
     assert result["skipped"] == ["Hall reader"] and len(result["played"]) == 1
     await hass.services.async_call(DOMAIN, "play_show", {"device_id": [reader_device.id]}, blocking=True)
     assert shows[-1].data["show"] == "Random"
@@ -320,3 +351,12 @@ def test_show_names_match_the_firmware() -> None:
     header = (Path(__file__).parents[1] / "components" / "magicband" / "shows.h").read_text()
     names = re.search(r"NAMES\[COUNT\] = \{(.*?)\};", header, re.S).group(1)
     assert tuple(re.findall(r'"([^"]+)"', names)) == SHOW_NAMES
+
+
+
+async def test_play_show_is_limited_per_reader(hass: HomeAssistant, setup_integration, reader_device) -> None:
+    shows: list[ServiceCall] = []
+    hass.services.async_register("esphome", "lounge_reader_play_show", lambda c: shows.append(c))
+    for _ in range(14):
+        await hass.services.async_call(DOMAIN, "play_show", {}, blocking=True)
+    assert len(shows) == 12  # MAX_SHOWS_PER_MINUTE: the rest are skipped

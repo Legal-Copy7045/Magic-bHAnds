@@ -41,8 +41,7 @@ table.t th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:va
 details.more{margin-top:8px}details.more summary{cursor:pointer;font-size:13px;color:var(--ink-2)}
 .set{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;align-items:center;font-size:13px;margin-top:8px}
 .twin{display:flex;gap:14px;align-items:center;margin:4px 0 10px;--tw-off:#3b3848}.twin svg{flex:none}
-.tw-body{fill:#1d1b26}.tw-pad{fill:#2a2836;stroke:#3a3748;stroke-width:1}
-.tw-t1{font:700 13px "Instrument Sans",sans-serif;fill:#c9c6d8;text-anchor:middle;letter-spacing:.12em}.tw-t2{font:500 10px "Instrument Sans",sans-serif;fill:#8d89a3;text-anchor:middle}
+.twin.mini{margin:0;gap:12px}.twin.mini .tw-cap{font-size:14px}.hero-twin{min-width:0}.tw-live{display:flex;gap:6px;align-items:center}
 .tw-side{display:flex;flex-direction:column;gap:2px;min-width:0}.tw-cap{font:600 15px "Instrument Sans",sans-serif}
 .pager{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:10px;flex-wrap:wrap}
 .sgs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,265px),1fr));gap:10px;margin-top:10px}
@@ -93,7 +92,7 @@ h2.sec{font:400 34px/1.1 var(--mbh-display)!important}h3.grp{font:400 26px var(-
   <div class="eyebrow">MagicbHAnds · live</div>
   <div class="brand"><svg class="mbh-logo" viewBox="0 0 512 512" aria-hidden="true"><defs> <linearGradient id="mbh-band" x1="0" y1="0.2" x2="1" y2="0.8"> <stop offset="0" stop-color="#8B5CF6"/> <stop offset="0.5" stop-color="#3B82F6"/> <stop offset="1" stop-color="#14B8A6"/> </linearGradient> <linearGradient id="mbh-back" x1="0" y1="0" x2="1" y2="0"> <stop offset="0" stop-color="#4C2F9E"/> <stop offset="1" stop-color="#1D4E9E"/> </linearGradient> <radialGradient id="mbh-glow" cx="0.5" cy="0.5" r="0.5"> <stop offset="0" stop-color="#4ADE80" stop-opacity="0.75"/> <stop offset="1" stop-color="#4ADE80" stop-opacity="0"/> </radialGradient> </defs> <g transform="rotate(-16 226 318)"> <ellipse cx="226" cy="318" rx="160" ry="102" fill="none" stroke="url(#mbh-back)" stroke-width="56"/> <path d="M66 318 A160 102 0 0 0 386 318" fill="none" stroke="url(#mbh-band)" stroke-width="62"/> <path d="M100 344 A140 84 0 0 0 352 344" fill="none" stroke="#ffffff" stroke-opacity="0.3" stroke-width="9" stroke-linecap="round"/> <circle cx="226" cy="420" r="70" fill="url(#mbh-glow)"/> <rect x="186" y="394" width="80" height="52" rx="21" fill="#ffffff"/> <circle cx="226" cy="420" r="12" fill="#22C55E"/> </g> <g fill="none" stroke-linecap="round" stroke-width="24"> <path d="M378 128 A56 56 0 0 1 434 184" stroke="#3B82F6"/> <path d="M380 62 A120 120 0 0 1 498 180" stroke="#8B5CF6"/> </g> <path d="M110 60 L123 101 L164 114 L123 127 L110 168 L97 127 L56 114 L97 101 Z" fill="#FBBF24"/> <circle cx="186" cy="74" r="10" fill="#FBBF24"/></svg><h1>Magicb<span class="ha">HA</span>nds</h1></div>
   <p class="sub">The bands, who wears which, the readers that check them in and the bridges that hear them over Bluetooth. Everything is found by device and attribute, so new bands, readers and bridges appear on their own.</p>
-</div><div class="art"><span class="l">Status</span><span class="n"><span class="dot" id="ldot"></span> <span id="lstatus">Connecting to Home Assistant…</span></span></div></header>
+</div><div class="art hero-twin" id="hero-twin"><span class="l">Status</span><span class="n"><span class="dot" id="ldot"></span> <span id="lstatus">Connecting to Home Assistant…</span></span></div></header>
 <div class="kpis" id="kpis"></div>
 
 <div class="grid" style="margin-bottom:6px">
@@ -155,7 +154,7 @@ h2.sec{font:400 34px/1.1 var(--mbh-display)!important}h3.grp{font:400 26px var(-
 <script>
 // ───────── discovery: devices by model, sensors by their attributes (no entity ids written down) ─────────
 const BRIDGE_MODELS=/^magicband-(bridge|bp2-poe)$/, READER_MODEL=/^magicband-reader$/;
-let LIST=null, BT=null, HIST=null, HIST_ERR=null, HIST_PAGE=0, HIST_PER=10, BUSY={}, ARM={}, LAST_LOAD=0, LAST_TAP=null, BATT={}, BATT_AT=0;
+let ENROL_ON='', LIST=null, BT=null, HIST=null, HIST_ERR=null, HIST_PAGE=0, HIST_PER=10, BUSY={}, ARM={}, LAST_LOAD=0, LAST_TAP=null, BATT={}, BATT_AT=0;
 const DAYS=['mon','tue','wed','thu','fri','sat','sun'], DAY_LABEL={mon:'Mo',tue:'Tu',wed:'We',thu:'Th',fri:'Fr',sat:'Sa',sun:'Su'};
 const COLOURS=()=>(LIST&&LIST.colours)||['White','Warm white','Red','Orange','Yellow','Green','Cyan','Blue','Purple','Pink','Magenta'];
 const listBand=nfc=>((LIST&&LIST.bands)||[]).find(x=>x.band===nfc)||null;
@@ -227,7 +226,7 @@ function unknownJob(I,P,unk){ const lt=svcSensor(I,e=>e.startsWith('sensor.')&&'
   const last=lt&&!/unknown|unavailable/.test(S(lt).state)?`<p class="sub2" style="margin:8px 0 0">Last tap: <b>${esc(la.person||'unknown band')}</b>${la.band?' ('+esc(la.band)+')':''} on ${esc(la.reader||'a reader')}, ${esc(rel(S(lt).state))}${la.allowed===false?' <span class="tag no">denied</span>':''}.</p>`:'';
   if(!unk.length){ $('unknown').innerHTML=`<p class="muted" style="margin:10px 0 0">No new bands waiting. Tap a band nobody owns on a reader and it appears here.</p>`+last; return; }
   $('unknown').innerHTML=unk.map((u,i)=>{ const id=u.band||u.id||u, key='u'+i;
-    return `<div class="item"><div class="t"><span>${esc(id)}</span><span class="sub2">${u.last_seen||u.first_seen?'tapped '+esc(rel(u.last_seen||u.first_seen)):''}${u.reader||u.last_reader?' on '+esc(u.reader||u.last_reader):''}${u.scans?' · '+u.scans+' taps':''}</span></div>
+    return `<div class="item"><div class="t"><span>${esc(id)}</span><span class="sub2">${u.last_seen||u.first_seen?'tapped '+esc(rel(u.last_seen||u.first_seen)):''}${u.reader||u.last_reader?' on '+esc(u.reader||u.last_reader):''}${u.scans?' · '+(Number(u.scans)||0)+' taps':''}</span></div>
       <div class="form"><select data-u-person="${key}"><option value="">Whose band?</option>${personOptions(P)}<option value="__new">+ Someone new…</option></select>
       <input type="text" data-u-new="${key}" placeholder="Their name" hidden><input type="text" data-u-label="${key}" placeholder="Nickname, e.g. Castle (optional)">
       <button class="btn pri" data-u-go="${key}" data-band="${esc(id)}"${BUSY[key]?' disabled':''}>Assign</button></div><div class="msg" id="msg-${key}"></div></div>`; }).join('')+last;
@@ -256,7 +255,7 @@ function linkJob(I,B,P){ const btOnly=((BT&&BT.bluetooth_bands)||[]).filter(b=>!
   $('link').innerHTML=btOnly.map((b,i)=>{ const key='l'+i;
     // best guess: an NFC band of the same person with no Bluetooth yet, else any NFC-only band
     const guess=nfcOnly.find(x=>b.person&&x.person===b.person)||(nfcOnly.length===1?nfcOnly[0]:null);
-    return `<div class="item"><div class="t"><span>${esc(b.name||b.id)}</span><span class="sub2">${b.nearby?'nearby · ':''}heard ${esc(rel(b.last_seen))}${b.heard_by?' by '+esc(b.heard_by):''}${b.battery!=null?' · battery '+b.battery+'%':''}</span></div>
+    return `<div class="item"><div class="t"><span>${esc(b.name||b.id)}</span><span class="sub2">${b.nearby?'nearby · ':''}heard ${esc(rel(b.last_seen))}${b.heard_by?' by '+esc(b.heard_by):''}${b.battery!=null?' · battery '+esc(b.battery)+'%':''}</span></div>
       <div class="form"><select data-l-to="${key}"><option value="">Link to…</option>
         ${nfcOnly.length?`<optgroup label="NFC bands with no Bluetooth">${nfcOnly.map(x=>`<option value="band:${esc(x.nfc)}"${guess&&guess.nfc===x.nfc?' selected':''}>${esc(x.name)}${x.person?' ('+esc(x.person)+')':''}</option>`).join('')}</optgroup>`:''}
         <optgroup label="Or a person (their band)">${P.map(p=>`<option value="person:${esc(p.name)}">${esc(p.name)}</option>`).join('')}</optgroup></select>
@@ -309,13 +308,13 @@ function bandCard(b,P){ { const s=b.s, nearOn=s.near&&S(s.near).state==='on', ba
     return `<section class="tc band"><div class="nh"><b>${esc(b.name)}</b><span class="sub2">${s.near?`<span class="dot2 ${nearOn?'':'unk'}"></span>${nearOn?'nearby':'away'}`:''}</span></div>
       <dl class="kv"><dt>Owner</dt><dd>${esc(b.person||'nobody yet')}${b.label?' · '+esc(b.label):''}${t.allowed===false?' <span class="tag no">not allowed</span>':''}</dd>
       <dt>NFC ID</dt><dd>${b.nfc?esc(b.nfc):'<span class="muted">not tapped yet (Bluetooth only)</span>'}</dd>
-      <dt>Last tap</dt><dd>${s.tap?esc(rel(S(s.tap).state))+(t.reader?' · '+esc(t.reader):'')+(t.scans?' · '+t.scans+' taps':''):'<span class="muted">–</span>'}</dd>
+      <dt>Last tap</dt><dd>${s.tap?esc(rel(S(s.tap).state))+(t.reader?' · '+esc(t.reader):'')+(t.scans?' · '+(Number(t.scans)||0)+' taps':''):'<span class="muted">–</span>'}</dd>
       <dt>Battery</dt><dd>${bat!=null?`<span class="bat"><i style="width:${Math.max(0,Math.min(100,bat))}%;background:${batC}"></i></span>${Math.round(bat)}%${spark(s.bat,b.name)}`:'<span class="muted">–</span>'}</dd>
       <dt>Closest</dt><dd>${cl?esc(cl):hb&&!/unknown|unavailable/.test(hb)?esc(hb)+' <span class="muted">(last heard)</span>':b.hasBt?'<span class="muted">not heard lately</span>':b.type==='classic'?'<span class="muted">no Bluetooth (standard MagicBand)</span>':'<span class="muted">no Bluetooth yet</span>'}${s.seen?' · '+esc(rel(S(s.seen).state)):''}</dd>
       <dt>Bluetooth</dt><dd>${b.btid?esc(b.btid):'<span class="muted">not linked</span>'}</dd>
       ${b.nfc?`<dt>Access</dt><dd>${esc(accessText(listBand(b.nfc)))}</dd>`:''}
       ${b.s.type?`<dt>Type</dt><dd><select data-sel="${esc(b.s.type)}"${avail(b.s.type)?'':' disabled'}>${Object.entries(TYPE_LABEL).map(([k,v])=>`<option value="${k}"${k===b.type?' selected':''}>${esc(v)}</option>`).join('')}</select></dd>`:''}</dl>
-      ${Object.keys(by).length?`<div class="chips">${Object.entries(by).sort((x,y)=>y[1]-x[1]).map(([k,v])=>`<span class="chip${best&&best[0]===k?' best':''}">${esc(k.replace(/^MagicBand Bridge BT /,'Bridge '))} <b>${v} dBm</b></span>`).join('')}</div>`:''}
+      ${Object.keys(by).length?`<div class="chips">${Object.entries(by).sort((x,y)=>y[1]-x[1]).map(([k,v])=>`<span class="chip${best&&best[0]===k?' best':''}">${esc(k.replace(/^MagicBand Bridge BT /,'Bridge '))} <b>${esc(v)} dBm</b></span>`).join('')}</div>`:''}
       <details class="more" data-k="${esc(b.d.id)}"><summary>Manage</summary>
         ${b.nfc?`<div class="form"><label>Owner</label><select data-own="${key}"><option value="">nobody</option>${personOptions(P,b.person)}</select><input type="text" data-lab="${key}" value="${esc(b.label||'')}" placeholder="Nickname"><button class="btn sm" data-own-go="${key}" data-band="${esc(b.nfc)}">Save</button></div>`:''}
         ${b.nfc?accessForm(key,b.nfc,listBand(b.nfc)):''}
@@ -352,8 +351,10 @@ function sendBar(){ const B=[['Wake','wake',{effect:'wake'}],['Ping','ping',{eff
   $('send').innerHTML=B.map(([l,k])=>`<button class="btn" data-send="${k}"${BUSY['s'+k]?' disabled':''}>${esc(l)}</button>`).join('');
   document.querySelectorAll('[data-send]').forEach(x=>x.onclick=()=>{ const b=B.find(y=>y[1]===x.dataset.send); act(mb('send',b[2],true),'s'+b[1],$('send-msg'),b[0]+' sent.'); }); }
 
-function peopleTable(I,P){ const HP=haPeople();
-  $('people').innerHTML=P.length?`<div style="overflow-x:auto"><table class="t"><tr><th>Name</th><th>Home Assistant person</th><th>Allowed</th><th>Welcome colour</th><th>Bands</th><th>Last tap</th><th></th></tr>${P.map((p,i)=>{ const key='p'+i, L=listPerson(p.name)||{};
+function peopleTable(I,P){ const HP=haPeople(), RDS=H().devices().filter(d=>READER_MODEL.test(d.model||''));
+  if(ENROL_ON&&!RDS.some(d=>d.id===ENROL_ON)) ENROL_ON='';
+  const enrolOn=RDS.length?`<p class="sub2" style="margin:0 0 8px"><label>Enrol bands tapped on <select data-enrol-on>${RDS.length>1?`<option value=""${ENROL_ON?'':' selected'}>any reader</option>`:''}${RDS.map(d=>`<option value="${esc(d.id)}"${d.id===ENROL_ON||(!ENROL_ON&&RDS.length===1)?' selected':''}>${esc(dname(d))}</option>`).join('')}</select></label> — only bands nobody owns; the tap that enrols a band doesn't open anything.</p>`:'';
+  $('people').innerHTML=P.length?enrolOn+`<div style="overflow-x:auto"><table class="t"><tr><th>Name</th><th>Home Assistant person</th><th>Allowed</th><th>Welcome colour</th><th>Bands</th><th>Last tap</th><th></th></tr>${P.map((p,i)=>{ const key='p'+i, L=listPerson(p.name)||{};
     return `<tr><td><b>${esc(p.name)}</b></td><td><select data-ha="${key}" data-p="${esc(p.name)}"><option value="">–</option>${HP.map(([e,n])=>`<option value="${esc(e)}"${e===p.ha?' selected':''}>${esc(n)}</option>`).join('')}</select></td>
       <td><button class="tg${p.allowed?' on':''}" data-allow="${esc(p.name)}" aria-label="Allowed"></button></td>
       <td><select data-wc="${esc(p.name)}"><option value="">Reader's colour</option>${COLOURS().map(c=>`<option${c===L.welcome_colour?' selected':''}>${esc(c)}</option>`).join('')}</select></td>
@@ -367,14 +368,15 @@ function peopleTable(I,P){ const HP=haPeople();
     $('sync').onclick=()=>act(mb('sync',{},true),'sync',$('people-msg'),'Allowed list sent to the readers.'); }
   document.querySelectorAll('[data-allow]').forEach(x=>x.onclick=()=>act(mb('update_person',{person:x.dataset.allow,allowed:!x.classList.contains('on')}),'al',$('people-msg'),'Saved. Push to readers to apply it.'));
   document.querySelectorAll('[data-wc]').forEach(x=>x.onchange=()=>act(mb('update_person',{person:x.dataset.wc,welcome_colour:x.value}),'wc',$('people-msg'),'Saved. The readers welcome '+x.dataset.wc+' in '+(x.value||'their own colour')+'.').then(load));
-  document.querySelectorAll('[data-enrol]').forEach(x=>x.onclick=()=>act(mb('enrol',{person:x.dataset.enrol,minutes:5},true),'en',$('people-msg'),'Tap '+x.dataset.enrol+"'s bands on a reader now (5 minutes).").then(load));
+  document.querySelectorAll('[data-enrol-on]').forEach(x=>x.onchange=()=>{ ENROL_ON=x.value; x.blur(); });
+  document.querySelectorAll('[data-enrol]').forEach(x=>x.onclick=()=>act(mb('enrol',Object.assign({person:x.dataset.enrol,minutes:5},(()=>{ const s=document.querySelector('[data-enrol-on]'), id=s?s.value:''; return id?{device_id:id}:{}; })()),true),'en',$('people-msg'),'Tap '+x.dataset.enrol+"'s bands on a reader now (5 minutes).").then(load));
   document.querySelectorAll('[data-ha]').forEach(x=>x.onchange=()=>act(mb('update_person',Object.assign({person:x.dataset.p},x.value?{ha_person:x.value}:{ha_person:''})),'ha',$('people-msg'),'Saved.'));
   document.querySelectorAll('[data-rmp]').forEach(x=>x.onclick=()=>{ if(!armed('rp'+x.dataset.rmp)) return; act(mb('remove_person',{person:x.dataset.p}),'rp',$('people-msg'),x.dataset.p+' removed.'); }); }
 
 function enrolBar(I){ const us=H().state('sensor.magicband_unknown_bands'), en=us&&us.attributes&&us.attributes.enrolling;
   if(!en){ $('enrol').innerHTML=''; return; }
   const left=Math.max(0,Math.round((Date.parse(en.until)-Date.now())/1000));
-  $('enrol').innerHTML=`<div class="enrolbar"><b>Enrolling bands for ${esc(en.person||'someone')}</b><span class="sub2">tap them on any reader · about ${Math.ceil(left/60)} min left · ${Number(en.count)||0} added</span><button class="btn sm" id="enrol-stop">Stop</button></div>`;
+  $('enrol').innerHTML=`<div class="enrolbar"><b>Enrolling bands for ${esc(en.person||'someone')}</b><span class="sub2">tap them on ${en.reader?esc(en.reader):'any reader'} · about ${Math.ceil(left/60)} min left · ${Number(en.count)||0} added</span><button class="btn sm" id="enrol-stop">Stop</button></div>`;
   $('enrol-stop').onclick=()=>act(mb('stop_enrolment',{}),'es',null,'').then(load); }
 // Recent taps: 10 a page, Newer / Older.
 function bindPager(){ document.querySelectorAll('#hist [data-hp]').forEach(x=>x.onclick=()=>{ HIST_PAGE+=parseInt(x.dataset.hp,10)||0; histList(); bindPager(); }); }
@@ -456,17 +458,28 @@ const TWIN_SET=[['number','LED count'],['number','Circle time'],['number','Circl
   ['number','Welcome fade out'],['number','Welcome pulses'],['number','Denied pulses'],['number','Pulse time'],['number','Idle glow'],
   ['number','Idle glow at night'],['select','Night mode'],['number','Night from'],['number','Night until'],['number','Night starts after sunset'],['number','Night ends after sunrise'],['binary_sensor','Night now']];
 const TWIN_START={};
-function twinHTML(p,ring,sp,on,band){ if(!ring) return '';
+// The emblem in the middle of the twin's pad: a page that hosts this one can set
+// window.MBH_READER_EMBLEM to its own SVG (drawn in a 100 x 100 box; trusted host code,
+// never data). The default is a contactless "tap here" mark.
+const TWIN_EMBLEM=`<g fill="none" stroke="#c9c6d8" stroke-width="5" stroke-linecap="round" opacity=".85"><path d="M44 34a22 22 0 0 1 0 32"/><path d="M55 25a34 34 0 0 1 0 50"/><path d="M66 16a46 46 0 0 1 0 68"/></g><circle cx="32" cy="50" r="6" fill="#c9c6d8" opacity=".85"/>`;
+function twinHTML(p,ring,sp,on,band,size){ if(!ring) return '';
   const ids={}; TWIN_SET.forEach(([dom,l])=>{ const e=p([dom,l]); if(e) ids[l]=e; });
   let n=Math.round(parseFloat(ids['LED count']?S(ids['LED count']).state:'24')); if(!(n>=1&&n<=100)) n=24;
-  const R=56, r=Math.max(1.6,Math.min(6,Math.PI*R/n*0.62)), pts=Array.from({length:n},(_,i)=>{ const a=-Math.PI/2+i*2*Math.PI/n; return [(70+R*Math.cos(a)).toFixed(1),(70+R*Math.sin(a)).toFixed(1)]; });
+  const R=55, r=Math.max(1.5,Math.min(5.5,Math.PI*R/n*0.6)), pts=Array.from({length:n},(_,i)=>{ const a=-Math.PI/2+i*2*Math.PI/n; return [(70+R*Math.cos(a)).toFixed(1),(70+R*Math.sin(a)).toFixed(1)]; });
   const dots=()=>pts.map(([x,y])=>`<circle cx="${x}" cy="${y}" r="${r.toFixed(1)}"/>`).join('');
-  return `<div class="twin" data-twin="${esc(ring)}" data-ids="${esc(JSON.stringify(ids))}" data-sp="${esc(sp||'')}" data-on="${on?1:0}" data-band="${esc(band)}">
-    <svg viewBox="0 0 140 140" width="132" height="132" role="img" aria-label="The reader's ring, live"><defs><filter id="twb" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter></defs>
-    <circle cx="70" cy="70" r="68" class="tw-body"/><circle cx="70" cy="70" r="${R-11}" class="tw-pad"/>
-    <g class="tw-glow" filter="url(#twb)">${dots()}</g><g class="tw-leds">${dots()}</g>
-    <text x="70" y="68" class="tw-t1">TAP</text><text x="70" y="83" class="tw-t2">here</text></svg>
-    <div class="tw-side"><b class="tw-cap">&nbsp;</b><span class="tw-sub sub2">&nbsp;</span></div></div>`; }
+  const k=String(ring).replace(/[^a-z0-9]/gi,'')+(size||0), px=size||132, emb=(typeof window!=='undefined'&&window.MBH_READER_EMBLEM)||TWIN_EMBLEM;
+  return `<div class="twin${size?' mini':''}" data-twin="${esc(ring)}" data-ids="${esc(JSON.stringify(ids))}" data-sp="${esc(sp||'')}" data-on="${on?1:0}" data-band="${esc(band)}">
+    <svg viewBox="0 0 140 140" width="${px}" height="${px}" role="img" aria-label="The reader's ring, live"><defs>
+      <filter id="twb${k}" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>
+      <radialGradient id="twh${k}" cx="50%" cy="38%" r="65%"><stop offset="0" stop-color="#3a3944"/><stop offset=".7" stop-color="#1c1b22"/><stop offset="1" stop-color="#0e0e13"/></radialGradient>
+      <radialGradient id="twp${k}" cx="45%" cy="35%" r="70%"><stop offset="0" stop-color="#34333d"/><stop offset="1" stop-color="#15141a"/></radialGradient></defs>
+    <circle cx="70" cy="70" r="69" fill="url(#twh${k})" stroke="#55535f" stroke-width="1.2"/>
+    <circle cx="70" cy="70" r="${R+8}" fill="none" stroke="#0a0a0e" stroke-width="3" opacity=".7"/>
+    <g class="tw-glow" filter="url(#twb${k})">${dots()}</g><g class="tw-leds">${dots()}</g>
+    <circle cx="70" cy="70" r="${R-9}" fill="url(#twp${k})" stroke="#4a4955" stroke-width="1.5"/>
+    <path d="M${70-(R-14)} 62a${R-14} ${R-14} 0 0 1 ${2*(R-14)} 0" fill="none" stroke="#fff" stroke-opacity=".07" stroke-width="3" stroke-linecap="round"/>
+    <svg x="${70-(R-17)}" y="${70-(R-17)}" width="${2*(R-17)}" height="${2*(R-17)}" viewBox="0 0 100 100" class="tw-emblem">${emb}</svg></svg>
+    <div class="tw-side"><b class="tw-cap">&nbsp;</b><span class="tw-sub sub2">&nbsp;</span>${size?'<span class="tw-live sub2"><span class="dot" id="ldot"></span> <span id="lstatus">Connecting to Home Assistant…</span></span>':''}</div></div>`; }
 function twinNight(ids){ const nn=ids['Night now']&&S(ids['Night now']); if(nn&&(nn.state==='on'||nn.state==='off')) return nn.state==='on';  // the reader's own answer
   const g=l=>ids[l]&&S(ids[l])?S(ids[l]).state:null, f=l=>parseFloat(g(l))||0, now=new Date(), m=now.getHours()*60+now.getMinutes();
   let from=f('Night from')*60, until=f('Night until')*60;
@@ -503,6 +516,14 @@ function twinFrame(){
   }); } catch(e){ console.error(e); }
   requestAnimationFrame(twinFrame); }
 requestAnimationFrame(twinFrame);
+
+// The header shows the first reader's ring, live, in place of a plain status line.
+function heroTwin(I,RD){ const d=RD[0], el=$('hero-twin'); if(!d||!el) return;
+  const p=l=>pick(I,d,l[0],l[1]), ring=p(['light','Ring']); if(!ring) return;
+  const lbS=(I.byDev[d.id]||[]).find(e=>e.startsWith('sensor.')&&'band_id' in A(e))||pick(I,d,'sensor','Last band'), lbV=lbS?S(lbS).state:null;
+  const band=lbV&&!/unknown|unavailable/.test(lbV)?(lbS&&'band_id' in A(lbS)?lbV:(bandName(I,lbV)||lbV)):'';
+  const live=H()&&H().live();
+  el.innerHTML=twinHTML(p,ring,p(['media_player','Speaker']),online(I,d),band,96).replace('Connecting to Home Assistant…',live?'Live from Home Assistant':'Connecting to Home Assistant…').replace('class="dot" id="ldot"',live?'class="dot on" id="ldot"':'class="dot" id="ldot"'); }
 
 // The reader's ring and tap settings, grouped. p([domain, name]) finds the reader's entity.
 const SWATCH={White:'#f4f4f5','Warm white':'#ffd8a0',Red:'#ef4444',Orange:'#f97316',Yellow:'#facc15',Green:'#22c55e',Cyan:'#22d3ee',Blue:'#3b82f6',Purple:'#8b5cf6',Pink:'#f472b6',Magenta:'#d946ef'};
@@ -667,10 +688,10 @@ function render(){ if(!H()||!H().live()) return; if(editing) return;   // never 
   const I=index(), D=H().devices(), BR=D.filter(d=>BRIDGE_MODELS.test(d.model||'')).sort((a,b)=>dname(a).localeCompare(dname(b))), RD=D.filter(d=>READER_MODEL.test(d.model||''));
   const B=bands(I).sort((a,b)=>String(a.person||'~').localeCompare(String(b.person||'~'))||a.name.localeCompare(b.name)), P=people(I);
   const us=svcSensor(I,e=>/unknown_bands$/.test(e)||(e.startsWith('sensor.')&&'bands' in A(e)&&!('allowed' in A(e)))), unk=us?(A(us).bands||[]):[];
-  [()=>kpis(I,B,P,BR,RD,unk),()=>unknownJob(I,P,unk),()=>linkJob(I,B,P),()=>bandCards(I,B,P),sendBar,()=>peopleTable(I,P),()=>enrolBar(I),()=>histList(I),()=>readerCards(I,RD,B),()=>bridgeCards(I,BR),()=>sxBridges(I,BR),wire].forEach(f=>{ try{ f(); }catch(e){ console.error(e); } }); }
-// each section is redrawn only when its content changed, and an open fold-out (Manage, Tap sequence) stays open
+  [()=>kpis(I,B,P,BR,RD,unk),()=>unknownJob(I,P,unk),()=>linkJob(I,B,P),()=>bandCards(I,B,P),sendBar,()=>peopleTable(I,P),()=>enrolBar(I),()=>histList(I),()=>readerCards(I,RD,B),()=>heroTwin(I,RD),()=>bridgeCards(I,BR),()=>sxBridges(I,BR),wire].forEach(f=>{ try{ f(); }catch(e){ console.error(e); } }); }
+// each section is redrawn only when its content changed, and an open fold-out (Manage, Ring and tap settings) stays open
 (()=>{ const D=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML');
-  ['kpis','unknown','link','bands','send','people','readers','bridges','hist','enrol'].forEach(id=>{ const el=$(id); if(!el) return;
+  ['kpis','unknown','link','bands','send','people','readers','bridges','hist','enrol','hero-twin'].forEach(id=>{ const el=$(id); if(!el) return;
     Object.defineProperty(el,'innerHTML',{configurable:true,get(){ return D.get.call(el); },set(v){ if(el.__h===v) return;
       const open=[...el.querySelectorAll('details[data-k]')].filter(x=>x.open).map(x=>x.dataset.k);
       D.set.call(el,v); el.__h=v; open.forEach(k=>{ const x=[...el.querySelectorAll('details[data-k]')].find(y=>y.dataset.k===k); if(x) x.open=true; }); }}); }); })();
