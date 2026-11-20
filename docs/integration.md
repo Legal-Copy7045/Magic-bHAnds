@@ -163,6 +163,13 @@ everything, read live from Home Assistant.
 The page is for Home Assistant **administrators** (it manages who the
 readers let in).
 
+**Light shows:** `magicband.play_show` plays one of the readers' ten light
+shows (`show`, or `Random`) on every reader or the ones you pick
+(`device_id`), and the blueprint **MagicbHAnds: light show on a schedule**
+plays one every hour (or every few hours) between two times of day:
+Settings → Automations & scenes → Blueprints → *MagicbHAnds: light show on a
+schedule* → Create automation.
+
 It finds everything by device and attribute, so new bands, readers and
 bridges appear by themselves. Changes go through the integration's own
 actions.

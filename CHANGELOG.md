@@ -6,20 +6,32 @@ Home Assistant integration share one version number.
 ## [0.10.17] - 2026-11-20
 
 ### Reader
-- **Start-up light show:** about three seconds of colour when the reader
-  starts: two rainbow comets race round the ring and speed up, the whole
-  ring becomes a spinning rainbow that swells, bursts into white and
-  coloured sparkles, then fades into the idle glow. **Startup light show**
-  (a switch, on by default) turns it off at start-up; the **Play startup
-  show** button plays it any time, from Home Assistant or automations. A
-  tap during it takes over the ring as usual.
+- **Ten light shows** for the ring, each a few seconds of colour: Rainbow
+  rush, Fireworks, Comet chase, Colour parade, Twinkle, Heartbeat, Ocean,
+  Fire, Pinwheel and Confetti (`components/magicband/shows.h`).
+- **Startup show** (a setting): the show played when the reader starts:
+  Off, Random or one show (default Rainbow rush).
+- **Show** and **Play show**: pick a show (or Random) and press the button
+  to play it; the reader's `play_show` action plays one by name. A band
+  tapped during a show takes over the ring as usual.
+
+### Home Assistant
+- **`magicband.play_show`** plays a show (or Random) on every reader or the
+  ones you pick, for automations and scripts.
+- **Blueprint "MagicbHAnds: light show on a schedule"**: a show every hour
+  (or every few hours) on the hour, between two times of day.
 
 ### MagicbHAnds page
-- The reader card has a **Startup show** button, the **Start-up light
-  show** switch is in the Ring settings, and the live ring plays the show
-  too.
+- Each reader card has a **Play show** button, **Start-up show** and
+  **Show** are in the Ring settings, and the live ring plays the shows too.
 
 ### Fixed
+- **Colours turned cool white as they faded.** The tail of the chasing
+  circles, and the end of the welcome and denied fades, went faintly
+  bluish-white in warm white (and other mixed colours): the ring's
+  brightness curve keeps every channel that's on at one step or more, so a
+  very dim warm white became one step of red, green and blue. Channels that
+  should round to nothing now switch off, so fades keep their colour.
 - **The wordmark was widely spaced on Windows.** The lighter Waltograph
   stored each letter's width twice and the two copies disagreed: Linux
   browsers read the right one, Windows read one nearly twice as wide (which

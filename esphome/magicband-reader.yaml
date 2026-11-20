@@ -58,12 +58,14 @@ esphome:
       # Everything is set up now, so the ring's settings can be applied.
       - globals.set: {id: ring_ready, value: "true"}
       - script.execute: apply_ring_settings
-      # The start-up light show ("Startup light show"), then the idle glow.
+      # The start-up light show ("Startup show"), then the idle glow.
       - if:
           condition:
-            switch.is_on: startup_show_enabled
+            lambda: 'return id(startup_show).current_option() != "Off";'
           then:
-            - script.execute: startup_show
+            - script.execute:
+                id: play_show
+                show: !lambda 'return id(startup_show).current_option().str();'
           else:
             - script.execute: reader_idle
       - if:
@@ -127,6 +129,22 @@ api:
         then:
           - script.execute: reader_idle
   actions:
+    # Plays a light show: show = one of the shows in "Show", or "Random".
+    # (esphome.<node>_play_show, or the integration's magicband.play_show.)
+    - action: play_show
+      variables:
+        show: string
+      then:
+        - if:
+            condition:
+              and:
+                - lambda: 'return id(ring_ready);'
+                - not:
+                    script.is_running: band_tapped
+            then:
+              - script.execute:
+                  id: play_show
+                  show: !lambda 'return show;'
     # For "Ask Home Assistant" mode: an automation on the tag scan calls one
     # of these within 3 seconds (esphome.magicband_reader_<suffix>_accept / _deny).
     - action: accept
@@ -357,7 +375,7 @@ light:
             it.all() = Color::BLACK;
             for (int t = 0; t < tail; t++) {
               int i = ((head - t) % n + n) % n;
-              it[i] = current_color * static_cast<uint8_t>(255 - t * (230 / tail));
+              magicband::put_dimmed(it[i], current_color, static_cast<uint8_t>(255 - t * (230 / tail)));
             }
       # Denied: fades up and down `pulse_count` times ("Pulse time" each, a
       # third of that apart), then stays dark.
@@ -374,7 +392,7 @@ light:
             float level = 0.0f;
             if (k < static_cast<uint32_t>(id(pulse_count)) && p < on_ms)
               level = sinf(3.14159265f * p / on_ms);
-            it.all() = current_color * static_cast<uint8_t>(level * 255.0f);
+            for (int i = 0; i < it.size(); i++) magicband::put_dimmed(it[i], current_color, static_cast<uint8_t>(level * 255.0f));
       # Welcome: up in "Welcome fade in", on for "Welcome hold", down in
       # "Welcome fade out"; `pulse_count` times ("Welcome pulses"), 0.2 s apart.
       - addressable_lambda:
@@ -393,58 +411,109 @@ light:
               else if (p < in + hold) level = 1.0f;
               else if (p < in + hold + out) level = 1.0f - static_cast<float>(p - in - hold) / out;
             }
-            it.all() = current_color * static_cast<uint8_t>(level * 255.0f);
-      # The start-up light show (see startup_show), about 3 s: two rainbow
-      # comets race round the ring and speed up, the whole ring becomes a
-      # spinning rainbow that swells, bursts into white and coloured sparkles,
-      # then settles and fades into the idle glow.
+            for (int i = 0; i < it.size(); i++) magicband::put_dimmed(it[i], current_color, static_cast<uint8_t>(level * 255.0f));
+      # The light shows (components/magicband/shows.h): played at start-up
+      # ("Startup show"), by "Play show" and by the play_show action.
       - addressable_lambda:
-          name: "Startup"
+          name: "Rainbow rush"
           update_interval: 16ms
           lambda: |-
             static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
             if (initial_run) start = millis();
-            const uint32_t t = millis() - start;
-            const int n = it.size();
-            if (n == 0) return;
-            auto wheel = [](float h) -> Color {
-              h -= floorf(h);
-              return ESPHSVColor(static_cast<uint8_t>(h * 255.0f), 255, 255).to_rgb();
-            };
-            it.all() = Color::BLACK;
-            if (t < 900) {
-              // Two rainbow comets, half a ring apart, accelerating through two laps.
-              const float p = t / 900.0f, pos = p * p * 2.0f * n;
-              const int tail = std::max(4, n / 3);
-              for (int c = 0; c < 2; c++) {
-                const float head = pos + c * n / 2.0f;
-                for (int k = 0; k < tail; k++) {
-                  const int i = ((static_cast<int>(head) - k) % n + n) % n;
-                  const float f = 1.0f - static_cast<float>(k) / tail;
-                  it[i] = wheel((head - k) / n + c * 0.5f) * static_cast<uint8_t>(255.0f * f * f);
-                }
-              }
-            } else if (t < 1800) {
-              // The whole ring as a rainbow, spinning and swelling to full brightness.
-              const float p = (t - 900) / 900.0f;
-              const uint8_t level = static_cast<uint8_t>(255.0f * (0.35f + 0.65f * sinf(p * 1.5708f)));
-              for (int i = 0; i < n; i++) it[i] = wheel(static_cast<float>(i) / n + p * 1.5f) * level;
-            } else if (t < 2350) {
-              // Sparkle burst: white flashes among coloured twinkles, changing every 50 ms.
-              const float p = (t - 1800) / 550.0f;
-              const uint32_t frame = t / 50;
-              for (int i = 0; i < n; i++) {
-                uint32_t h = (i + 1) * 2654435761u ^ frame * 40503u;
-                h ^= h >> 13; h *= 0x5bd1e995u; h ^= h >> 15;
-                if ((h & 7) == 0) it[i] = Color(255, 255, 255) * static_cast<uint8_t>(255.0f * (1.0f - 0.5f * p));
-                else if ((h & 7) < 5) it[i] = wheel(((h >> 8) & 255) / 255.0f) * static_cast<uint8_t>(220.0f * (1.0f - 0.4f * p));
-              }
-            } else if (t < 3050) {
-              // Settle: a slow rainbow that fades away.
-              const float p = (t - 2350) / 700.0f;
-              const uint8_t level = static_cast<uint8_t>(200.0f * (1.0f - p) * (1.0f - p));
-              for (int i = 0; i < n; i++) it[i] = wheel(static_cast<float>(i) / n + 1.35f + p * 0.3f) * level;
-            }
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(0, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
+          name: "Fireworks"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(1, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
+          name: "Comet chase"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(2, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
+          name: "Colour parade"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(3, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
+          name: "Twinkle"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(4, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
+          name: "Heartbeat"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(5, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
+          name: "Ocean"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(6, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
+          name: "Fire"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(7, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
+          name: "Pinwheel"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(8, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
+          name: "Confetti"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(9, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
       - addressable_lambda:
           name: "Spin"
           update_interval: 25ms
@@ -455,7 +524,7 @@ light:
             it.all() = Color::BLACK;
             for (int t = 0; t < 8; t++) {
               int i = ((pos - t) % n + n) % n;
-              it[i] = current_color * static_cast<uint8_t>(255 - t * 30);
+              magicband::put_dimmed(it[i], current_color, static_cast<uint8_t>(255 - t * 30));
             }
             pos = (pos + 1) % n;
       - addressable_lambda:
@@ -465,7 +534,7 @@ light:
             static uint16_t phase = 0;
             phase = (phase + 3) % 512;
             uint8_t level = phase < 256 ? phase : 511 - phase;
-            it.all() = current_color * static_cast<uint8_t>(20 + level / 2);
+            for (int i = 0; i < it.size(); i++) magicband::put_dimmed(it[i], current_color, static_cast<uint8_t>(20 + level / 2));
 
 # ---------------------------------------------------------------------------
 # Sound: MAX98357A I2S amplifier + small speaker, playing your own sound files
@@ -538,9 +607,12 @@ globals:
     restore_value: true
   - id: welcome_name      # the colour this tap is welcomed in
     type: std::string
-  - id: show_on           # the start-up light show is playing (see startup_show)
+  - id: show_on           # a light show is playing (see play_show)
     type: bool
     initial_value: "false"
+  - id: show_index        # which one (components/magicband/shows.h)
+    type: int
+    initial_value: "0"
   - id: night             # inside the night hours (see update_night)
     type: bool
     initial_value: "false"
@@ -557,6 +629,49 @@ globals:
     initial_value: "-1"
 
 select:
+  # The light show played when the reader starts (Off, Random or one show).
+  - platform: template
+    id: startup_show
+    name: "Startup show"
+    icon: mdi:creation
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_option: "Rainbow rush"
+    options:
+      - "Off"
+      - "Random"
+      - "Rainbow rush"
+      - "Fireworks"
+      - "Comet chase"
+      - "Colour parade"
+      - "Twinkle"
+      - "Heartbeat"
+      - "Ocean"
+      - "Fire"
+      - "Pinwheel"
+      - "Confetti"
+  # The light show "Play show" plays (Random = a different one each time).
+  - platform: template
+    id: show_choice
+    name: "Show"
+    icon: mdi:palette-swatch-variant
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_option: "Random"
+    options:
+      - "Random"
+      - "Rainbow rush"
+      - "Fireworks"
+      - "Comet chase"
+      - "Colour parade"
+      - "Twinkle"
+      - "Heartbeat"
+      - "Ocean"
+      - "Fire"
+      - "Pinwheel"
+      - "Confetti"
   # When "Idle glow at night" applies: between "Night from" and "Night until",
   # or from sunset to sunrise (each moved by its offset in minutes). The sun
   # times come from Home Assistant's sun; until it has sent them, the set
@@ -1023,14 +1138,6 @@ number:
       - script.execute: update_night
 
 switch:
-  # Play the start-up light show when the reader starts.
-  - platform: template
-    id: startup_show_enabled
-    name: "Startup light show"
-    icon: mdi:creation
-    entity_category: config
-    optimistic: true
-    restore_mode: RESTORE_DEFAULT_ON
   - platform: template
     id: light_up_band
     name: "Light up MagicBand+"
@@ -1268,16 +1375,24 @@ script:
                   lambda: 'return !id(show_on);'
                 then:
                   - script.execute: reader_idle_glow
-  # About three seconds of colour when the reader starts ("Startup light
-  # show"), or on "Play startup show". A tap during it takes over the ring.
-  - id: startup_show
+  # Plays a light show by name ("Random" or an unknown name: any of them).
+  # A tap during it takes over the ring; playing another restarts.
+  - id: play_show
+    mode: restart
+    parameters:
+      show: string
     then:
+      - lambda: |-
+          int k = magicband::shows::index_of(show.c_str());
+          if (k < 0) k = esp_random() % magicband::shows::COUNT;
+          id(show_index) = k;
+          ESP_LOGI("reader", "Light show: %s", magicband::shows::NAMES[k]);
       - globals.set: {id: show_on, value: "true"}
       - script.execute:
           id: ring_on
-          effect: "Startup"
+          effect: !lambda 'return std::string(magicband::shows::NAMES[id(show_index)]);'
           level: 1.0
-      - delay: 3100ms
+      - delay: !lambda 'return magicband::shows::DURATION_MS[id(show_index)] + 100;'
       - globals.set: {id: show_on, value: "false"}
       - if:
           condition:
@@ -1575,8 +1690,9 @@ button:
       - script.execute:
           id: band_tapped
           uid: "TEST"
+  # Plays the light show chosen in "Show".
   - platform: template
-    name: "Play startup show"
+    name: "Play show"
     icon: mdi:creation
     on_press:
       - if:
@@ -1586,7 +1702,9 @@ button:
               - not:
                   script.is_running: band_tapped
           then:
-            - script.execute: startup_show
+            - script.execute:
+                id: play_show
+                show: !lambda 'return id(show_choice).current_option().str();'
   - platform: restart
     name: "Restart"
     entity_category: diagnostic
