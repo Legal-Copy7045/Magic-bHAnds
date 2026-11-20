@@ -32,9 +32,15 @@ class TapHistory:
         self.taps = [t for t in taps if isinstance(t, dict)][:MAX_TAPS]
 
     @callback
-    def add(self, **tap: Any) -> None:
+    def add(self, **tap: Any) -> dict[str, Any]:
         tap.setdefault("time", dt_util.utcnow().isoformat())
         self.taps = [tap, *self.taps][:MAX_TAPS]
+        self._store.async_delay_save(lambda: {"taps": self.taps}, 5.0)
+        return tap
+
+    @callback
+    def changed(self) -> None:
+        """An entry was updated in place (e.g. its snapshot arrived)."""
         self._store.async_delay_save(lambda: {"taps": self.taps}, 5.0)
 
     async def async_flush(self) -> None:

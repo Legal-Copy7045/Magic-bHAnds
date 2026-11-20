@@ -181,6 +181,8 @@ ADMIN_ONLY = [
     ("answer", {"device_id": "x", "allow": True}),
     ("unpair_reader", {"device_id": "x"}),
     ("pair_reader", {"device_id": "x"}),
+    ("set_reader_camera", {"device_id": "x", "camera": "camera.front"}),
+    ("set_snapshot_days", {"days": 7}),
 ]
 
 
