@@ -5,8 +5,9 @@
     python3 docs/images/make_light_font.py
 
 Waltograph is quite heavy at heading sizes. This thins every glyph by eroding its
-outline by 1.25 % of the em (the outline minus a 2.5 %-wide stroke along it) and
-writes custom_components/magicband/frontend/fonts/waltograph42-light.otf, named
+outline by 0.7 % of the em (the outline minus a 1.4 %-wide stroke along it),
+then takes the same amount off each side of the glyph's advance so the letters
+keep their original spacing (thinning alone would open up the gaps), and writes custom_components/magicband/frontend/fonts/waltograph42-light.otf, named
 "Waltograph Light (MagicbHAnds)".
 
 Waltograph is by Justin Callaghan (mickeyavenue.com), released under Creative
@@ -17,11 +18,12 @@ same licence: see waltograph.txt and license.txt next to it.
 from pathlib import Path
 
 from fontTools.pens.t2CharStringPen import T2CharStringPen
+from fontTools.pens.transformPen import TransformPen
 from fontTools.ttLib import TTFont
 import pathops
 
 FONTS = Path(__file__).resolve().parents[2] / "custom_components" / "magicband" / "frontend" / "fonts"
-ERODE = 0.025  # stroke width as a fraction of the em; the glyph loses half of it on each side
+ERODE = 0.014  # stroke width as a fraction of the em; the glyph loses half of it on each side
 
 
 def main() -> None:
@@ -41,9 +43,12 @@ def main() -> None:
         edge = pathops.Path(path)
         edge.stroke(width, pathops.LineCap.ROUND_CAP, pathops.LineJoin.ROUND_JOIN, 4)
         edge.convertConicsToQuads()
-        pen = T2CharStringPen(glyph.width, glyphs)
-        pathops.op(path, edge, pathops.PathOp.DIFFERENCE).draw(pen)
+        # Shift left by what each side lost and narrow the advance to match.
+        advance = max(0, round(glyph.width - width))
+        pen = T2CharStringPen(advance, glyphs)
+        pathops.op(path, edge, pathops.PathOp.DIFFERENCE).draw(TransformPen(pen, (1, 0, 0, 1, -width / 2, 0)))
         thinned[name] = pen.getCharString(private=top.Private, globalSubrs=cff.GlobalSubrs)
+        font["hmtx"][name] = (advance, font["hmtx"][name][1])  # the left edge moves back to where it was
     for name, charstring in thinned.items():  # after all are drawn: composites use the originals
         top.CharStrings[name] = charstring
     family = "Waltograph Light (MagicbHAnds)"

@@ -34,7 +34,7 @@ def build(mode: str) -> str:
     return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}">
   <style>@font-face{{font-family:"Waltograph";src:url("{FONT}") format("opentype")}}</style>
   <svg x="0" y="0" width="{H}" height="{H}" viewBox="0 0 512 512">{inner}</svg>
-  <text x="276" y="182" font-family="Waltograph" font-size="166" letter-spacing="3"
+  <text x="276" y="182" font-family="Waltograph" font-size="172"
         fill="{TEXT[mode]}">Magicb<tspan dx="12" fill="{HA}">HA</tspan><tspan dx="6">nds</tspan></text>
 </svg>
 """

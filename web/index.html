@@ -32,15 +32,15 @@
     body::before { content: ""; display: block; height: 5px; background: linear-gradient(90deg, #8b5cf6, #3b82f6, #14b8a6); }
     main { max-width: 860px; margin: 0 auto; padding: 32px 16px 64px; display: grid; gap: 22px; }
     header { display: flex; gap: 16px; align-items: center; }
-    header img { width: 84px; height: 84px; flex: none; }
-    h1 { font: 400 clamp(2.6rem, 9vw, 3.6rem)/1 var(--display); margin: 0; letter-spacing: .02em; }
-    h1 b { color: var(--ha); font-weight: 400; margin: 0 .03em 0 .06em; }
+    header img { width: clamp(52px, 8vw, 72px); height: auto; flex: none; }
+    h1 { font: 400 clamp(44px, 7vw, 64px)/1 var(--display); margin: 0; letter-spacing: 0; font-synthesis: none; }
+    h1 b { color: var(--ha); font-weight: 400; margin: 0 .02em 0 .05em; }
     .version { color: var(--muted); margin: 4px 0 0; }
     .lede { margin: 0; max-width: 66ch; }
     .products { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
     .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px; min-width: 0; }
-    .card h2 { font: 400 2rem/1.1 var(--display); margin: 0 0 6px; }
-    .card h3 { font: 400 1.75rem/1.15 var(--display); margin: 0 0 8px; }
+    .card h2 { font: 400 34px/1.1 var(--display); margin: 0 0 6px; }
+    .card h3 { font: 400 26px/1.15 var(--display); margin: 0 0 8px; }
     .tag { display: inline-block; font-size: .78rem; font-weight: 600; background: var(--chip); border-radius: 999px; padding: 2px 10px; margin-bottom: 10px; }
     .product p { margin: 0 0 12px; }
     ol, ul { padding-left: 1.2rem; margin: 6px 0 0; display: grid; gap: 6px; }
