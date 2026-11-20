@@ -521,6 +521,10 @@
     "battery_low": {
       "title": "{band} needs charging",
       "description": "Its battery is at {battery}%. This clears itself once the band has been charged. Set the reminder level under MagicbHAnds → Configure → Settings."
+    },
+    "reader_pairing": {
+      "title": "Tap a band on {reader} to pair it",
+      "description": "MagicbHAnds is pairing with {reader} for the first time. So that no one else can claim it, a reader only finishes pairing when someone taps a band (any band) on it: the ring breathes blue while it waits, for up to 2 minutes, and turns green when paired. That tap does nothing else. If the ring isn't blue, press Sync (or wait a few minutes) and tap then.\n\nIf Repairs says another pairing request is waiting instead, don't tap: someone else asked first. Wait 2 minutes and sync again."
     }
   }
 }

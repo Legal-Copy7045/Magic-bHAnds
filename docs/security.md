@@ -79,8 +79,12 @@ it to another Home Assistant), or someone with the reader in hand can erase it
 over USB (the web installer's **Erase device**) and add it again. The key is in
 Home Assistant's backups, so restoring a backup keeps your readers paired. If
 you lose it (a fresh install without a backup), erase the reader over USB.
-Until a reader has been paired, anyone could pair it first; MagicbHAnds pairs
-a reader as soon as it connects, so add new readers promptly.
+**First pairing needs a tap on the reader**, so nobody elsewhere in Home
+Assistant can claim a new reader: when MagicbHAnds first pairs with it, the
+ring breathes blue and Repairs asks you to tap any band on it within 2
+minutes; the tap finishes pairing (and does nothing else). While a request
+waits, the reader refuses any other key, so if someone else asked first,
+MagicbHAnds says so: don't tap, wait 2 minutes and sync again.
 The **Paired with MagicbHAnds** sensor on the reader shows its state.
 
 Home Assistant users who aren't administrators can still use the readers'

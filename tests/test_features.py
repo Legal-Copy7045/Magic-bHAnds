@@ -407,3 +407,21 @@ async def test_unpair_reader_uses_the_key(hass: HomeAssistant, setup_integration
     hass.services.async_register("esphome", "lounge_reader_unpair", lambda c: unpairs.append(c))
     await hass.services.async_call(DOMAIN, "unpair_reader", {"device_id": reader_device.id}, blocking=True)
     assert unpairs[-1].data == {"key": hass.config_entries.async_entries(DOMAIN)[0].data["reader_key"]}
+
+
+
+async def test_first_pairing_asks_for_a_tap(hass: HomeAssistant, setup_integration, reader_device) -> None:
+    from homeassistant.exceptions import HomeAssistantError
+
+    calls = _paired_reader(hass)
+
+    def pending(call):
+        raise HomeAssistantError("PAIRING_PENDING: tap any band on the reader within 2 minutes to finish pairing")
+
+    hass.services.async_register("esphome", "lounge_reader_pair", pending)
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    assert ir.async_get(hass).async_get_issue(DOMAIN, f"reader_pairing_{reader_device.id}") is not None
+    assert calls["bands"]  # the list still goes to the (unpaired) reader
+    hass.services.async_register("esphome", "lounge_reader_pair", lambda c: None)  # tapped: now paired
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    assert ir.async_get(hass).async_get_issue(DOMAIN, f"reader_pairing_{reader_device.id}") is None
