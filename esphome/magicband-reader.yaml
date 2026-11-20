@@ -21,7 +21,7 @@
 substitutions:
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.10.21"
+  project_version: "0.10.22"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -158,9 +158,15 @@ api:
         key: string
       then:
         - lambda: |-
-            id(sync_error) = magicband::reader_pair(id(pair_key), key);
-            if (id(sync_error).empty()) ESP_LOGI("reader", "Paired with MagicbHAnds");
-            else ESP_LOGW("reader", "Not paired: %s", id(sync_error).c_str());
+            id(sync_error) = magicband::reader_request_pair(id(pair_key), id(pending_key), id(pending_until), key, millis());
+            if (id(sync_error).empty()) ESP_LOGD("reader", "Paired with MagicbHAnds");
+            else ESP_LOGW("reader", "Pairing: %s", id(sync_error).c_str());
+        # Waiting for the confirming tap: the ring breathes blue meanwhile.
+        - if:
+            condition:
+              lambda: 'return id(sync_error) == magicband::PAIRING_PENDING;'
+            then:
+              - script.execute: pair_wait
         - binary_sensor.template.publish:
             id: paired
             state: !lambda 'return magicband::reader_paired(id(pair_key));'
@@ -365,9 +371,29 @@ pn532_i2c:
   update_interval: 250ms
   on_tag:
     then:
-      - script.execute:
-          id: band_tapped
-          uid: !lambda 'return x;'
+      # A band tapped while a first pairing waits confirms it (and does nothing else).
+      - if:
+          condition:
+            lambda: 'return magicband::reader_confirm_pair(id(pair_key), id(pending_key), id(pending_until), millis());'
+          then:
+            - logger.log:
+                format: "Paired with MagicbHAnds (confirmed by a tap on the reader)"
+                level: INFO
+            - binary_sensor.template.publish:
+                id: paired
+                state: true
+            - script.stop: pair_wait
+            - lambda: 'id(rgb) = {0.0f, 1.0f, 0.3f, 0.0f};'
+            - script.execute:
+                id: ring_on
+                effect: "Welcome"
+                level: 1.0
+            - delay: 2s
+            - script.execute: reader_idle
+          else:
+            - script.execute:
+                id: band_tapped
+                uid: !lambda 'return x;'
 
 # ---------------------------------------------------------------------------
 # LEDs: one WS2812B ring (data via the 74AHCT125 level shifter)
@@ -741,6 +767,11 @@ globals:
   - id: pair_key          # the MagicbHAnds integration's key ("" = not paired; see the pair action)
     type: magicband::ReaderKey
     restore_value: true
+  - id: pending_key       # a first pairing waiting for its confirming tap (not kept through restarts)
+    type: magicband::ReaderKey
+  - id: pending_until
+    type: uint32_t
+    initial_value: "0"
   - id: sync_error        # why the last set_known_bands failed ("" = applied)
     type: std::string
   # Each allowed band's owner's welcome colour: ",UID=Colour,UID=Colour,"
@@ -1654,6 +1685,27 @@ script:
                       level: !lambda 'return (id(night) ? id(idle_glow_night).state : id(idle_glow).state) / 100.0f;'
           else:
             - light.turn_off: ring
+
+  # A first pairing is waiting for a band tap (see the pair action): the ring
+  # breathes blue for up to 2 minutes, then goes back to normal.
+  - id: pair_wait
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: 'return id(ring_ready);'
+          then:
+            - lambda: 'id(rgb) = {0.0f, 0.35f, 1.0f, 0.0f};'
+            - script.execute:
+                id: ring_on
+                effect: "Offline"
+                level: 0.8
+      - delay: 2min
+      - if:
+          condition:
+            lambda: 'return id(ring_ready);'
+          then:
+            - script.execute: reader_idle
 
   - id: band_tapped
     mode: single            # ignore taps while a sequence is playing
