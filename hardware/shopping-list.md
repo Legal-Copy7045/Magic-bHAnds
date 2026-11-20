@@ -2,7 +2,8 @@
 
 The build guides
 ([breadboard](reader-breadboard/build.md),
-[terminal base and point-to-point](reader-wired/build.md)) are written for
+[terminal base and point-to-point](reader-wired/build.md),
+[compact](reader-compact/build.md)) are written for
 the generic parts in the first table. Every part has an Adafruit
 equivalent, listed after it, checked against its Adafruit product page or
 guide. Mix and match: the [generic alternatives](#generic-alternatives)
@@ -14,7 +15,7 @@ table says what to check on any listing.
 |---|---|---|---|
 | 1 | ESP32-S3 dev board | **Lonely Binary ESP32-S3 N16R8** (DevKitC-1 layout; 16 MB flash, 8 MB octal PSRAM). The IPEX version needs its antenna fitted | The reader |
 | 1 | NFC reader | **PN532 NFC module V3** (AITRIP, Elechouse or similar), 4-pin header | Reading bands |
-| 1 | LED ring | **WS2812B ring, 35 LEDs, 5 V**, 78 mm inside | The PN532 sits inside it. Set **LED count** to 35 |
+| 1 | LED ring | **WS2812B ring, 35 LEDs, 5 V**, 78 mm inside | The PN532 sits inside it. Set **LED count** to 35. An SK6812 RGBW ring also works ([below](#if-a-ring-wont-fit-flexible-led-options)) |
 | 1 | Amplifier and speaker | **MAX98357A I²S amplifier kit** with a **4 Ω 3 W speaker** (5-pin PH2.0 socket, PH2.0-to-Dupont cable, PH2.0 speaker socket) | Sound |
 | 1 | Level shifter | **SN74AHCT125N** (DIP-14) | LED data, 3.3 V → 5 V |
 | 1 | Resistor kit | ¼ W assortment with **470 Ω** and **4.7 kΩ** | LED data resistor, 2 I²C pull-ups |
@@ -177,7 +178,8 @@ lines, and wire to the end marked as the input (arrows point away from it).
   so it can't share the reader's 5 V supply.
 - **LED Dots and Pebble strands (3630, 5225, 4560 and similar):** one LED
   every 50–100 mm, so only 2–4 LEDs on a small loop.
-- **RGBW strips:** the firmware drives RGB LEDs.
+- **RGBW strips:** none are listed here. An SK6812 RGBW strip should work
+  like an RGBW ring (set **Ring type**), but hasn't been tried.
 - **144 LED/m strips** (e.g. [2970](https://www.adafruit.com/product/2970)):
   usable, but a 60 mm loop would hold 27 LEDs:
   cut to 24, or keep 27 (the reader caps them at 88 %).
@@ -234,7 +236,7 @@ more, such as Adafruit's
 
 | Load | Worst case |
 |---|---|
-| LED ring at full white: 24 LEDs × 60 mA (Adafruit); a bigger ring, such as 35 LEDs, is capped by the firmware to the same | 1.44 A |
+| LED ring at full white: 24 LEDs × 60 mA (Adafruit); a bigger ring, such as 35 LEDs, is capped by the firmware to the same (an RGBW ring to 18 LEDs × 80 mA) | 1.44 A |
 | MAX98357A into 4 Ω at full volume (Adafruit: up to 650 mA) | 0.65 A |
 | ESP32-S3 board (*estimate*) | 0.50 A |
 | PN532 module (*estimate*) | 0.15 A |

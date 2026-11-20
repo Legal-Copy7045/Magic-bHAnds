@@ -18,7 +18,7 @@ integration that ties them up.
 | | What it does | Bands | Hardware |
 |---|---|---|---|
 | **Part 1: [MagicBand Bridge](docs/bridge.md)** | Lights up and buzzes bands from automations: any colour, animations, vibration patterns | MagicBand+ (Bluetooth) | An ESP32-S3 board, nothing else |
-| **Part 2: [MagicBand Reader](docs/reader.md)** | A park-style tap point. Two white circles chase round the ring, Home Assistant knows whose band it is, one green pulse (welcome) or two red (denied) with sound, and a MagicBand+ lights up too | Original MagicBands and MagicBand+ (NFC) | ESP32-S3, PN532 NFC reader, LED ring (or strip), amplifier and speaker, powered by a USB-C charger. [Shopping list](hardware/shopping-list.md) |
+| **Part 2: [MagicBand Reader](docs/reader.md)** | A park-style tap point. Two white circles chase round the ring, Home Assistant knows whose band it is, a green glow (welcome) or two red pulses (denied) with sound, and a MagicBand+ lights up too | Original MagicBands and MagicBand+ (NFC) | ESP32-S3, PN532 NFC reader, LED ring (or strip), amplifier and speaker, powered by a USB-C charger. [Shopping list](hardware/shopping-list.md) |
 | **[MagicbHAnds integration](docs/integration.md)** (HACS) | People and their bands (with or without a Home Assistant user), a log of every tap, the *Send MagicBand effect* action and the automation blueprint | Both | None |
 
 ## Quick start
@@ -26,14 +26,16 @@ integration that ties them up.
 **Building a reader?** Get the parts from the
 [shopping list](hardware/shopping-list.md) and follow a step-by-step
 build: the [breadboard](hardware/reader-breadboard/build.md) first, then the
-[terminal base or point-to-point](hardware/reader-wired/build.md) version.
+[terminal base or point-to-point](hardware/reader-wired/build.md) or the
+[compact (solderless)](hardware/reader-compact/build.md) version.
 Each starts by flashing the bare ESP32 and checks every stage as you go. A
 bridge needs no extra hardware.
 
 1. **Flash the firmware** from the web installer:
    **https://legal-copy7045.github.io/Magic-bHAnds/**. Choose *Install the
    bridge* or *Install the reader*, then enter your Wi-Fi details. No YAML is
-   needed.
+   needed. There's no setup hotspot: Wi-Fi is set (and later changed) over
+   USB with the web installer.
 2. **Add the device** in Home Assistant when it's discovered (ESPHome).
 3. **Install the MagicbHAnds integration** from HACS:
    [![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Legal-Copy7045&repository=Magic-bHAnds&category=integration)
@@ -66,10 +68,16 @@ Then:
 - Reads original MagicBands and MagicBand+ by their NFC ID
 - An LED ring (or a flexible strip for tighter housings), with start-up,
   tap-in and error sounds
-- Three ways to build it, each with a wiring diagram, a hole-by-hole wiring
+- Several ways to build it, each with a wiring diagram, a hole-by-hole wiring
   table and step-by-step instructions with checks:
   [breadboard](hardware/reader-breadboard/build.md),
-  [terminal base and point-to-point](hardware/reader-wired/build.md)
+  [terminal base and point-to-point](hardware/reader-wired/build.md),
+  [compact (solderless)](hardware/reader-compact/build.md)
+- Any LED count (1–100), RGB or SK6812 RGBW rings, and the whole tap
+  sequence (colours, circles, welcome and denied timings, a dimmer idle glow
+  at night) set from the reader's device page
+- Health sensors (Wi-Fi signal, memory, loop time, CPU temperature, restart
+  reason) for spotting trouble
 - Runs from one USB-C charger (20 W or more)
 - Decides green or red on the device, instantly, even with Home Assistant
   offline
@@ -91,6 +99,7 @@ Then:
 - **Charge reminders** for MagicBand+ (Repairs, an event, and a phone
   notification blueprint)
 - A management page in the sidebar for bands, people, readers and bridges
+  (administrators only), with health tiles for each reader and bridge
 - `magicband_tap` events and per-person "last tap" sensors
 - The `magicband.send` action and the bundled blueprints
 - Logs which MagicBand+ devices Home Assistant's Bluetooth hears, and when,
@@ -128,6 +137,7 @@ it on `main`. It tags `v<VERSION>` and publishes the GitHub Release.
 | `hardware/` | [Ways to build the reader](hardware/README.md), the [shopping list](hardware/shopping-list.md) (with generic alternatives), and the power diagram's generator |
 | `hardware/reader-breadboard/` | Breadboard build: step-by-step build, spec and wiring table, and the diagram's generator |
 | `hardware/reader-wired/` | Terminal base and point-to-point builds, with the interface board: step-by-step build and spec |
+| `hardware/reader-compact/` | Compact (solderless) build: step-by-step build |
 | `web/` | The web installer page |
 | `docs/` | Guides: [bridge](docs/bridge.md), [reader](docs/reader.md), [integration](docs/integration.md), [commands](docs/commands.md), [protocol](docs/protocol.md), [SCREEK BP2-POE](docs/screek-bp2-poe.md), [security](docs/security.md); reader wiring diagrams; [ideas for later](docs/ideas.md) |
 | `tests/` | Integration tests |
@@ -142,7 +152,9 @@ it on `main`. It tags `v<VERSION>` and publishes the GitHub Release.
 - The reader builds have been reviewed against the parts' datasheets. The
   [compact build](hardware/reader-compact/build.md)
   has been built and tested on the USB-C PD supply (power, NFC, sound, load
-  test); the ring is next. The breadboard, terminal-base and point-to-point
+  test), and its 35-LED ring is wired and lights correctly (idle glow, all
+  LEDs, colours, 5.1 V); the full tap sequence on the ring is still to be
+  confirmed. The breadboard, terminal-base and point-to-point
   builds have been reviewed but not built.
   Follow each build's staged tests, which check voltages before anything is
   connected to the ESP32.
@@ -246,6 +258,7 @@ python3 hardware/reader-breadboard/make_diagram.py > docs/reader-breadboard.svg
 python3 hardware/reader-wired/make_diagrams.py terminal-base  > docs/reader-terminal-base.svg
 python3 hardware/reader-wired/make_diagrams.py point-to-point > docs/reader-point-to-point.svg
 python3 hardware/reader-wired/make_diagrams.py interface-board > docs/reader-interface-board.svg
+python3 hardware/reader-wired/make_diagrams.py compact        > docs/reader-compact.svg
 python3 hardware/make_power_diagram.py > docs/reader-power.svg
 ```
 

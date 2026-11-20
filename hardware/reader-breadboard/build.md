@@ -75,7 +75,8 @@ Full list with alternatives: [shopping list](../shopping-list.md).
    [docs/security.md](../../docs/security.md)).
 7. On the reader's device page, under **Configuration**, set **LED count**
    to the number of LEDs on your ring (**35**). Leave **LED colour order**
-   on **GRB** for now.
+   on **GRB** for now. For an SK6812 RGBW ring, also set **Ring type** to
+   match its white LEDs (warm, neutral or cool); the reader restarts.
 8. Unplug the USB cable.
 
 ✅ **Check:** the device page shows the reader online. (While it's still on
@@ -184,7 +185,8 @@ anything gets warm. Unplug the charger.
 1. **Clone check first.** Plug in only its **VCC → L+27** and
    **GND → L−28** jumpers, leaving SDA and SCL loose. Plug in the charger
    and measure the loose SDA and SCL jumper ends to GND:
-   - **Below 3.6 V** (typically 2.5–3.3 V, or near 0 V): OK.
+   - **Below 3.6 V** (anything from near 0 V to about 3.3 V; the tested
+     module read 2.3 V and 1.1 V): OK.
    - **Near 5 V: stop.** That clone pulls SDA/SCL up to 5 V and would
      damage the ESP32. Use a different module.
 2. Unplug the charger. Plug in **SDA → c30** and **SCL → c31**.
@@ -224,12 +226,14 @@ unplugged)
 3. Plug in the charger. The ring may flash briefly at power-up; that's
    normal.
 4. Measure IC pin 14 (j34) to pin 7 (a40): **4.75–5.25 V**.
-5. In Home Assistant, the ring should show the soft white **idle glow**.
+5. The ring should show the soft white **idle glow** (**Idle colour**,
+   default White).
    Turn on the **Ring** light and try red, green and blue at 100 %.
 
 ✅ **Check:** all 35 LEDs light, in the right colours.
 - Red shows as green (or the reverse): set **LED colour order** to **RGB**.
 - Only some LEDs light: check **LED count**.
+- White looks tinted or odd on an RGBW ring: check **Ring type**.
 - Flicker or random colours: check the data path (b16 → d35, c36 → 470 Ω →
   DIN), the 74AHCT125's orientation, and that every ground meets at the
   GND hub.
@@ -255,8 +259,9 @@ unplugged)
 **Step 17. Test the sound**
 1. Plug in the charger. Measure VIN to GND at h52/h51: **4.75–5.25 V**.
 2. The **start-up sound** plays.
-3. On the device page, press **Test welcome**: white circles chase round the ring, it pulses green,
-   and the tap-in sound plays.
+3. On the device page, press **Test welcome**: white circles chase round the
+   ring, it glows green for about a second and fades out, and the tap-in
+   sound plays.
 
 ⛔ **Stop if** there's no sound: check LRC, BCLK and DIN aren't swapped,
 and VIN/GND aren't reversed. If the ESP32 restarts when a sound plays, the
@@ -288,10 +293,17 @@ On the device page, under **Configuration**:
 |---|---|
 | **LED count** | LEDs on your ring (35) |
 | **LED colour order** | GRB for most rings; RGB if red and green are swapped |
+| **Ring type** | RGB (default), or RGBW warm / neutral / cool white for an SK6812 RGBW ring; changing it restarts the reader |
 | **LED brightness** | Scales everything the ring shows (5–100 %) |
-| **Idle glow** | The white glow between taps (0 = off) |
+| **Idle glow** / **Idle colour** | The glow between taps (default 30 %, White; 0 = off) |
+| **Idle glow at night**, **Night from**, **Night until** | A dimmer glow at night (default 10 %, 22:00 to 06:00; the same hour in both = off) |
 | **Sound** / speaker volume | Turn sounds on or off; set the volume on the *Speaker* entity |
 | **Light up MagicBand+** | Whether a MagicBand+ lights up (in the welcome colour) on a welcome |
+| **Response mode** | Who's welcomed (step 20) |
+
+The tap sequence (checking circles, welcome and denied colours, pulses and
+timings) is set there too: see the
+[reader guide](../../docs/reader.md#install) for every setting.
 
 ### Step 20. Bands and people
 
@@ -300,9 +312,10 @@ On the device page, under **Configuration**:
    Devices & services**.
 2. Tap each band once. Under **Settings → Tags**, give each one a name.
 3. Allow your bands, either in the MagicbHAnds integration (people and their
-   bands: on the MagicbHAnds page, **Enrol bands** next to a person, then tap
-   their bands one after another) or on the reader: tap a band, then press
-   **Allow last band**.
+   bands: **MagicbHAnds → Configure → Add or assign a band**, or on the
+   MagicbHAnds page, **Enrol bands** next to a person, then tap their bands
+   one after another) or on the reader: tap a band, then press **Allow last
+   band**.
 4. **Response mode** chooses who's welcomed: *Known bands only* (default),
    *Welcome every band*, or *Ask Home Assistant*.
 
@@ -320,9 +333,11 @@ build.
 | ESP32 resets when the ring or sound starts | Supply dipping: charger under 20 W, a thin or long power wire, or the ring/amplifier powered through the breadboard instead of the hubs |
 | `Error sending version command` in the log, or **Last band ID** never changes | Switches not on I²C (1 ON, 2 OFF); SDA/SCL swapped; pull-ups missing; PN532 VCC not on 5 V |
 | Band not read | Band too far: hold it flat on the antenna; no metal between them |
-| Ring dark | Data wire on DOUT instead of DIN; 74AHCT125 in backwards; a21 jumper out; LED count set to 0 |
+| Ring dark | Data wire on DOUT instead of DIN; 74AHCT125 in backwards; a21 jumper out; **LED brightness** or **Idle glow** turned right down |
 | Ring flickers or shows random colours | Grounds not common; 470 Ω missing or at the wrong end; data wire too long or run away from the ring's power pair |
 | Red and green swapped | Set **LED colour order** to RGB |
+| Whites tinted or colours odd on an RGBW ring | Set **Ring type** to RGBW (warm, neutral or cool, to match the ring) |
+| Ring pulses slowly in amber | Home Assistant isn't connected to the reader |
 | Only part of the ring lights | **LED count** too low |
 | No sound | LRC/BCLK/DIN swapped; VIN/GND reversed; speaker not plugged in; **Sound** switched off |
 | Sound distorts at high volume | Supply dipping: check the amplifier's wires go straight to the hubs and the 100 µF is fitted |

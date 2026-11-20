@@ -17,7 +17,7 @@ it to check each later build.
 | 1 | **Breadboard** | **[Build it](reader-breadboard/build.md)** | [Spec](reader-breadboard/README.md), [diagram](../docs/reader-breadboard.svg) | Large | The ring's wires only | Reviewed, first build |
 | 2 | **Lonely Binary terminal base** | **[Build it](reader-wired/build.md)** | [Spec](reader-wired/README.md), [diagram](../docs/reader-terminal-base.svg) | Medium | Interface board, amplifier power, two power wires | Reviewed, not built |
 | 3 | **Point-to-point wiring** | **[Build it](reader-wired/build.md)** | [Spec](reader-wired/README.md), [diagram](../docs/reader-point-to-point.svg) | Small | Interface board, every joint | Reviewed, not built |
-| 3a | **Compact (solderless)**: point-to-point on a 400-point half breadboard | **[Build it](reader-compact/build.md)** | [Spec](reader-wired/README.md#compact-solderless-version), [diagram](../docs/reader-compact.svg) | Small | The PN532 header and the ring's wires only | **Built and tested** on the USB-C PD supply (power, NFC, sound, load test); ring next |
+| 3a | **Compact (solderless)**: point-to-point on a 400-point half breadboard | **[Build it](reader-compact/build.md)** | [Spec](reader-wired/README.md#compact-solderless-version), [diagram](../docs/reader-compact.svg) | Small | The PN532 header and the ring's wires only | **Built and tested** on the USB-C PD supply (power, NFC, sound, load test); 35-LED ring wired and lighting, tap sequence on the ring still to confirm |
 
 All of them use a dev board (ESP32-S3-DevKitC-1 layout, such as the Lonely
 Binary N16R8) and install from the web installer's *Install the reader*
@@ -45,8 +45,10 @@ ESP32's 5 V wire first). The log shows warnings and errors, never band IDs.
    (that means the PN532 isn't answering). Tap a band: **Last band ID** shows
    its ID, and Home Assistant gets a tag scan (Settings → Tags).
 3. **LEDs.** Turn on the **Ring** light in Home Assistant. Every LED lights
-   in the right colour (wrong colours mean a wrong LED count or order;
-   flicker or garbage usually means the level shifter or ground).
+   in the right colour (missing LEDs mean a wrong **LED count**, swapped
+   colours a wrong **LED colour order**, odd whites on an RGBW ring a wrong
+   **Ring type**; flicker or garbage usually means the level shifter or
+   ground).
 4. **Sound.** Restart the device: the start-up sound plays. Then tap a
    known and an unknown band for the tap-in and error sounds.
 5. **Bluetooth.** Tap a known MagicBand+: it lights in the welcome colour
@@ -68,6 +70,8 @@ sound volume, LED behaviour) and raise it as a GitHub issue.
   script that draws its diagram.
 - [`reader-wired/`](reader-wired/README.md): builds 2 and 3, with the
   shared interface board: step-by-step build, spec and diagram script.
+- [`reader-compact/`](reader-compact/build.md): build 3a, step by step (its
+  spec is in `reader-wired/README.md`).
 - [`shopping-list.md`](shopping-list.md): the generic parts the guides use,
   their Adafruit equivalents, wire and tools.
 - [`make_power_diagram.py`](make_power_diagram.py): draws the power

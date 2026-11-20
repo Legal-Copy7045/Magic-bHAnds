@@ -1,6 +1,5 @@
 # Build the compact (solderless) reader: step by step
 
-
 The point-to-point build with **nothing soldered on the breadboard**: the
 interface board is a **400-point half breadboard** at the same holes, and the
 ESP32 stays in its **screwless terminal holder** (or uses female-to-male
@@ -8,8 +7,10 @@ jumpers on its pins). See the [compact diagram](../../docs/reader-compact.svg).
 
 **Tested** (18 Nov 2026): power, the NFC reader (bands read, known bands
 welcomed, unknown denied) and the amplifier at 100 %, first on USB, then on
-the USB-C PD supply with the hubs (lowest reading under load: 4.95 V). Only
-the ring is still to be tested.
+the USB-C PD supply with the hubs (lowest reading under load: 4.95 V).
+19 Nov 2026: the 35-LED ring wired as in step 15 lights correctly (5.1 V at
+its input, idle glow, all 35 LEDs, colours right). Still to confirm: the
+tap sequence on the ring and the load test with it.
 
 **Rules for the whole build**
 
@@ -205,11 +206,30 @@ Leave the amplifier's 5 V (**L+ → f24**) off for now.
 
 ### 15. The ring (power off)
 
+The ring's data comes from the level shifter: **GPIO10 → d11** (74AHCT125
+pin 2) → **c12** (pin 3) → **470 Ω** → ring **DIN**. Its power comes from
+the hubs in the next step, never from the breadboard. These steps are the
+same as [breadboard step 5](../reader-breadboard/build.md#step-5-wire-the-led-ring);
+a generic 35-LED WS2812B ring (78 mm inside) is assumed, and an SK6812 RGBW
+ring wires the same way.
 
-1. Solder the ring's wires with the 470 Ω at DIN and the 1000 µF across its
-   pads ([breadboard step 5](../reader-breadboard/build.md#step-5-wire-the-led-ring)).
-2. Connect its data to **c12** through the 470 Ω. Its power goes to the hubs
-   in the next step (port 4).
+1. Find the pads: **DIN** (or IN), **5V** (VCC), **GND**. Leave **DOUT**
+   (OUT) unconnected. Use flux, and tin the pad and the wire first.
+2. **Power:** solder a red wire to **5V** and a black wire to **GND**
+   (22 AWG stranded, up to 50 cm). Strip **11 mm** at the far ends for the
+   hubs.
+3. **1000 µF** across the ring's input: its legs on the **5V** and **GND**
+   pads (or the wires right at them), **stripe (−) to GND**. Keep the legs
+   short and sleeve them.
+4. **Data:** slide heat shrink onto a yellow wire, solder the **470 Ω** in
+   series between it and **DIN**, at the ring end, and shrink the sleeve
+   over the resistor. Run the yellow wire alongside the power pair.
+5. Tie or hot-glue the three wires to the ring near the pads.
+6. ✅ **Check** with the meter: **5V–GND** gives no steady beep (a short
+   chirp from the capacitor is fine); the yellow wire's free end to **DIN**
+   reads **about 470 Ω**.
+7. Push the yellow wire's free end (tinned, or on a male jumper pin) into
+   **c12**. Its power goes to the hubs in the next step (port 4).
 
 ### 16. Power: PD trigger and hubs (tested 18 Nov 2026)
 
@@ -238,9 +258,11 @@ lever-connector hubs:
    hub to GND: **4.75–5.25 V**. Unplug the charger, clip the ESP32's 5 V back,
    plug the charger in again.
 2. The reader comes online in Home Assistant, the start-up sound plays and
-   the idle glow shows. Turn on **Ring**: red, green and blue at 100 % on all
-   LEDs. Set **LED count** to your ring's, and **LED colour order** if the
-   colours are swapped.
+   the idle glow shows. Set **LED count** to your ring's (35), and for an
+   RGBW ring **Ring type** to match its white LEDs (the reader restarts).
+   Turn on **Ring**: red, green and blue at 100 % on all LEDs. If red and
+   green are swapped, set **LED colour order** to RGB. Flicker or random
+   colours: check the data path (d11, c12, the 470 Ω at DIN) and the grounds.
 3. Tap a known band: the ring pulses in the welcome colour with the tap-in
    sound; an unknown band gets two red pulses and the error sound.
 
