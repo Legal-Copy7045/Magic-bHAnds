@@ -14,7 +14,7 @@ blueprint:
       default: Random
       selector:
         select:
-          options: [Random, Rainbow rush, Fireworks, Comet chase, Colour parade, Twinkle, Heartbeat, Ocean, Fire, Pinwheel, Confetti]
+          options: [Random, Rainbow rush, Fireworks, Comet chase, Colour parade, Twinkle, Heartbeat, Ocean, Fire, Pinwheel, Confetti, Penguins, Goal, Aurora, Candy cane, Thunderstorm, Sunrise, Disco]
     every:
       name: Every (hours)
       description: 1 = every hour, 2 = every other hour, and so on (on the hour).

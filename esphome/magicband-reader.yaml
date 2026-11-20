@@ -21,7 +21,7 @@
 substitutions:
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.10.17"
+  project_version: "0.10.18"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -515,6 +515,76 @@ light:
             magicband::shows::render_show(9, millis() - start, n, buf);
             for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
       - addressable_lambda:
+          name: "Penguins"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(10, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
+          name: "Goal"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(11, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
+          name: "Aurora"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(12, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
+          name: "Candy cane"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(13, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
+          name: "Thunderstorm"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(14, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
+          name: "Sunrise"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(15, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
+          name: "Disco"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            static uint8_t buf[3 * ${ring_max_leds}];
+            if (initial_run) start = millis();
+            const int n = std::min<int>(it.size(), ${ring_max_leds});
+            magicband::shows::render_show(16, millis() - start, n, buf);
+            for (int i = 0; i < n; i++) it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);
+      - addressable_lambda:
           name: "Spin"
           update_interval: 25ms
           lambda: |-
@@ -651,6 +721,13 @@ select:
       - "Fire"
       - "Pinwheel"
       - "Confetti"
+      - "Penguins"
+      - "Goal"
+      - "Aurora"
+      - "Candy cane"
+      - "Thunderstorm"
+      - "Sunrise"
+      - "Disco"
   # The light show "Play show" plays (Random = a different one each time).
   - platform: template
     id: show_choice
@@ -672,6 +749,13 @@ select:
       - "Fire"
       - "Pinwheel"
       - "Confetti"
+      - "Penguins"
+      - "Goal"
+      - "Aurora"
+      - "Candy cane"
+      - "Thunderstorm"
+      - "Sunrise"
+      - "Disco"
   # When "Idle glow at night" applies: between "Night from" and "Night until",
   # or from sunset to sunrise (each moved by its offset in minutes). The sun
   # times come from Home Assistant's sun; until it has sent them, the set
@@ -1137,6 +1221,14 @@ number:
     on_value:
       - script.execute: update_night
 
+binary_sensor:
+  # Whether the night idle glow applies now (Night mode, its hours or the sun).
+  - platform: template
+    id: night_now
+    name: "Night now"
+    icon: mdi:weather-night
+    entity_category: diagnostic
+
 switch:
   - platform: template
     id: light_up_band
@@ -1424,6 +1516,7 @@ script:
             const int m = t.hour * 60 + t.minute;
             n = from < until ? (m >= from && m < until) : (m >= from || m < until);
           }
+          id(night_now).publish_state(n);
           if (n == id(night)) return;
           id(night) = n;
           if (id(ring_ready) && !id(band_tapped).is_running()) id(reader_idle).execute();

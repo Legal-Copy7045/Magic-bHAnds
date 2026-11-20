@@ -163,7 +163,7 @@ everything, read live from Home Assistant.
 The page is for Home Assistant **administrators** (it manages who the
 readers let in).
 
-**Light shows:** `magicband.play_show` plays one of the readers' ten light
+**Light shows:** `magicband.play_show` plays one of the readers' 17 light
 shows (`show`, or `Random`) on every reader or the ones you pick
 (`device_id`), and the blueprint **MagicbHAnds: light show on a schedule**
 plays one every hour (or every few hours) between two times of day:
