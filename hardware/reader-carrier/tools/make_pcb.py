@@ -39,9 +39,9 @@ PLACE = {
     "XJ1": (PIN1_X, ROW1, 270), "XJ3": (PIN1_X, ROW3, 270),
     # Top edge: LED ring and its parts, NFC, amplifier (kit header and Adafruit socket)
     "C5": (12.0, 15.0, 0),
-    "J3": (20.5, 6.5, 0), "U2": (24.5, 15.0, 0), "C4": (24.5, 18.5, 0), "R7": (28.5, 15.0, 90),
+    "J3": (20.5, 6.5, 90), "U2": (24.5, 15.0, 0), "C4": (24.5, 18.5, 0), "R7": (28.5, 15.0, 90),
     "U3": (33.0, 15.0, 0),
-    "J2": (37.0, 6.5, 0), "R5": (40.5, 15.0, 90), "R6": (42.5, 15.0, 90),
+    "J2": (36.0, 6.5, 90), "R5": (39.5, 15.0, 90), "R6": (41.5, 15.0, 90),
     "J4": (51.0, 6.5, 90), "C6": (54.0, 15.5, 0), "C7": (60.0, 15.0, 90),
     "J5": (65.0, 6.5, 90),
     # Left edge: USB-C, PD controller, fuse, TVS, 5 V OK LED, Schottky to the dev board
@@ -224,8 +224,8 @@ def main(out: Path) -> None:
         refs.SetTextSize(pcbnew.VECTOR2I(mm(0.8), mm(0.8)))
         refs.SetTextThickness(mm(0.12))
         refs.SetVisible((part["ref"][0] in "JXUF" or part["ref"].startswith("TP")) and part["ref"] != "J5")
-        if part["ref"].startswith("J") and part["ref"] != "J1":
-            for pad in fp.Pads():  # hand-soldered connector grounds: solid, so a blocked spoke can't starve them
+        if part["ref"].startswith("J"):
+            for pad in fp.Pads():  # connector grounds: solid, so a blocked spoke can't starve them
                 if pad.GetNetname() == "GND":
                     pad.SetZoneConnection(pcbnew.ZONE_CONNECTION_FULL)
         fp.Value().SetVisible(False)
@@ -236,9 +236,9 @@ def main(out: Path) -> None:
     add_pour(board, net("GND"), pcbnew.B_Cu)
 
     # Labels by the connectors (front) and board info (back).
-    add_text(board, "RING 5V DIN GND", 23.0, 1.6, 0.8)
-    add_text(board, "NFC 5V GND SDA SCL", 40.8, 1.6, 0.8)
-    add_text(board, "AMP VIN GND LRC BCLK DIN", 55.5, 11.0, 0.7)
+    add_text(board, "RING 5V DIN GND", 23.0, 3.0, 0.8)
+    add_text(board, "NFC GND 5V SDA SCL", 39.8, 3.0, 0.8)
+    add_text(board, "AMP G V BCL LRC DIN", 56.0, 11.0, 0.7)
     add_text(board, "ADAFRUIT 3006", 72.6, 11.0, 0.7)
     add_text(board, "USB-C 5V", 4.5, 31.0, 0.8, angle=90)
     add_text(board, "5V OK", 22.5, 61.8, 0.7)

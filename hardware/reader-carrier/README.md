@@ -11,8 +11,12 @@ trigger. The parts you already have plug in:
 - the **MAX98357A amplifier kit**, by its own 5-wire cable (or an Adafruit
   3006 breakout straight into a 7-pin socket); the speaker plugs into the
   amplifier as before;
-- the **LED ring** and the **PN532 NFC board**, on leads with JST-XH plugs,
-  so they can go wherever the housing needs them.
+- the **LED ring** and the **PN532 NFC board**, on leads, so they can go
+  wherever the housing needs them.
+
+Every lead keeps the cable it uses on the breadboard: each plugs into a
+2.54 mm female header wired in **that cable's own pin order**, so nothing is
+re-crimped or crossed over.
 
 ![Front and back copper](docs/board.png)
 
@@ -29,7 +33,7 @@ trigger. The parts you already have plug in:
 | | Part | Notes |
 |---|---|---|
 | J1 | USB-C (power only) | On the left edge |
-| U1 | **CH224K** USB PD controller | Asks the charger for **5 V**, and nothing else: CFG1 is tied high on the board, so there's no switch to knock to 20 V. Wired per the datasheet (V2.1, 6.2): 1 kΩ + 1 µF on VDD, 10 kΩ on VBUS |
+| U1 | **CH224K** USB PD controller | Asks the charger for **5 V**, and nothing else: CFG1 is tied high on the board, so there's no switch to knock to 20 V. Wired per the datasheet (V2.1, 6.2): 1 kΩ + 1 µF on VDD, 10 kΩ on VBUS. Its D+/D− are left open (power only: the request goes over CC) |
 | F1 | 3 A resettable fuse (1812) | Between USB-C and everything else |
 | D2 | SMAJ5.0A TVS | Clamps spikes on the 5 V rail |
 | D1 | Green LED, "5V OK" | Lights when the charger has agreed 5 V (CH224K's PG) |
@@ -47,16 +51,17 @@ LEDs 10. The firmware doesn't change: install the standard reader from the
 
 ## Connectors and leads
 
-| | Connector | Pins (1 = square pad) | Goes to | Lead |
+| | Header (2.54 mm female) | Pins, left to right (1 = square pad) | Plug in | Lead length |
 |---|---|---|---|---|
-| J3 | JST-XH 3-pin | 5V, DIN, GND | LED ring | Up to about 1 m. 22 AWG or thicker for 5V and GND |
-| J2 | JST-XH 4-pin | 5V, GND, SDA, SCL | PN532 (I²C mode, switches 1 ON 2 OFF) | Up to about 50 cm. Note the PN532's own header order is GND, VCC, SDA, SCL |
-| J4 | 1×5 pin header | VIN, GND, LRC, BCLK, DIN | Amplifier kit's cable (Dupont ends) | As supplied (about 20 cm) |
-| J5 | 1×7 socket | LRC, BCLK, DIN, GAIN, SD, GND, Vin | Adafruit 3006, *instead of* J4 | — |
-| XJ1, XJ3 | 2 × 1×22 sockets, 22.86 mm apart | DevKitC-1 J1 and J3 | Dev board, **antenna end over the copper-free strip** (pin 1 on the right) | — |
+| J3 | 1×3 | **5V, DIN, GND** | The LED ring's 3-pin plug with its jumper wires: **red, green, black** | Up to about 1 m |
+| J2 | 1×4 | **GND, 5V, SDA, SCL** | The PN532's 4-wire Dupont cable, in the PN532's own order (GND, VCC, SDA, SCL). PN532 switches: 1 ON, 2 OFF (I²C) | Up to about 50 cm |
+| J4 | 1×5 | **G, V, BCL, LRC, DIN** | The amplifier kit's cable, in the order printed by its socket | As supplied (about 20 cm) |
+| J5 | 1×7 | LRC, BCLK, DIN, GAIN, SD, GND, Vin | An Adafruit 3006, *instead of* the kit on J4 | — |
+| XJ1, XJ3 | 2 × 1×22, 22.86 mm apart | DevKitC-1 J1 and J3 | The dev board, **antenna end over the copper-free strip** (pin 1 on the right) | — |
 
-Leads: pre-crimped JST-XH leads (2.5 mm pitch) are the easy way; cut one end
-and solder it to the ring's pads or a Dupont socket for the PN532.
+The cables' male ends push into the headers the same way they push into a
+breadboard. Once everything works, a dab of hot glue along each row keeps
+them from working loose in the box. Labels on the board name every pin.
 
 ## Fitting it in the box
 
@@ -82,10 +87,10 @@ and solder it to the ring's pads or a Dupont socket for the PN532.
 4. In the placement preview, check **U1 (CH224K)** pin 1 and the **USB-C**
    orientation; rotate in the preview if they're off.
 
-**You solder** (through-hole, all on the top side): the two 1×22 female
-sockets, the 1×5 header (and the 1×7 socket only if you use an Adafruit
-3006), the two JST-XH sockets, the 1000 µF and 100 µF capacitors (stripe =
-minus, away from the square pad), and nothing else.
+**You solder** (through-hole, all on the top side): the 2.54 mm female
+headers (two 1×22, one each of 1×3, 1×4 and 1×5; the 1×7 only if you use an
+Adafruit 3006) and the 1000 µF and 100 µF capacitors (stripe = minus, away
+from the square pad). Nothing else.
 
 ## First power-up
 

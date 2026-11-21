@@ -3,7 +3,8 @@
 The "brains" board for the reader: the ESP32-S3-DevKitC-1 (N16R8) plugs into
 two 22-pin sockets, the MAX98357A amplifier kit plugs into a 5-pin header with
 its own cable (or an Adafruit 3006 breakout into the 7-pin socket), and the
-LED ring and PN532 NFC board go on leads (JST-XH). USB-C power with a CH224K
+LED ring and PN532 NFC board go on leads. Every lead plugs into a 2.54 mm
+female header in its own cable's pin order, the way it plugs into a breadboard. USB-C power with a CH224K
 fixed at 5 V (CFG1 high: it can never ask for more), a 3 A resettable fuse, a
 TVS clamp, and a Schottky diode so the dev board's own USB can't back-feed the
 board. GPIOs match esphome/magicband-reader.yaml.
@@ -30,12 +31,13 @@ PARTS = [
          fp="Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12", mpn="TYPE-C-31-M-12", lcsc="C165948", asm="smt",
          pins={"A4": VBUS, "A9": VBUS, "B4": VBUS, "B9": VBUS,
                "A1": GND, "A12": GND, "B1": GND, "B12": GND, "S1": GND,
-               "A5": "CC1", "B5": "CC2", "A6": "USB_DP", "B6": "USB_DP", "A7": "USB_DM", "B7": "USB_DM"}),
+               "A5": "CC1", "B5": "CC2"}),  # D+/D- unused: power only
     dict(ref="U1", sym="MagicbHAnds:CH224K", value="CH224K",
          fp="MagicbHAnds:CH224K_ESSOP-10", mpn="CH224K", lcsc="C970725", asm="smt",
-         pins={"1": "PD_VDD", "2": GND, "3": GND, "4": "USB_DP", "5": "USB_DM", "6": "CC2", "7": "CC1",
+         pins={"1": "PD_VDD", "2": GND, "3": GND, "6": "CC2", "7": "CC1",
                "8": "PD_VSENSE", "9": "PD_CFG1", "10": "PG", "11": GND}),
     # Datasheet 6.2: VDD from VBUS through 1 k with 1 uF; VBUS sense through 10 k.
+    # DP/DM are left open: the 5 V request is made over CC (USB PD) alone.
     dict(ref="R1", sym="Device:R_Small", value="1k", fp=R0402, mpn="0402WGF1001TCE", lcsc="C11702", asm="smt",
          pins={"1": VBUS, "2": "PD_VDD"}),
     dict(ref="C1", sym="Device:C_Small", value="1uF", fp=C0402, mpn="CL05A105KA5NQNC", lcsc="C52923", asm="smt",
@@ -75,9 +77,11 @@ PARTS = [
          pins={"1": V3, "2": "I2C_SDA"}),
     dict(ref="R6", sym="Device:R_Small", value="4.7k", fp=R0402, mpn="0402WGF4701TCE", lcsc="C25900", asm="smt",
          pins={"1": V3, "2": "I2C_SCL"}),
+    # PN532 lead: same order as the PN532's own header (GND VCC SDA SCL), so its
+    # Dupont cable's male ends plug straight in, as they do on the breadboard.
     dict(ref="J2", sym="Connector_Generic:Conn_01x04", value="NFC",
-         fp="Connector_JST:JST_XH_B4B-XH-A_1x04_P2.50mm_Vertical", mpn="B4B-XH-A", lcsc="", asm="tht",
-         pins={"1": V5, "2": GND, "3": "I2C_SDA", "4": "I2C_SCL"}),
+         fp="Connector_PinSocket_2.54mm:PinSocket_1x04_P2.54mm_Vertical", mpn="2.54 mm 1x4 female header", lcsc="", asm="tht",
+         pins={"1": GND, "2": V5, "3": "I2C_SDA", "4": "I2C_SCL"}),
     # --- LED ring (lead): 3.3 V -> 5 V buffer, 470 ohm, bulk capacitor ----------------
     dict(ref="U2", sym="74xGxx:74AHCT1G125", value="74AHCT1G125", fp="Package_TO_SOT_SMD:SOT-23-5",
          mpn="SN74AHCT1G125DBVR", lcsc="", asm="smt",
@@ -88,18 +92,19 @@ PARTS = [
          pins={"1": "LED_5V", "2": "LED_DATA"}),
     dict(ref="C5", sym="Device:C_Polarized_Small", value="1000uF 10V", fp="Capacitor_THT:CP_Radial_D10.0mm_P5.00mm",
          mpn="1000 uF 10 V radial, 10 mm", lcsc="", asm="tht", pins={"1": V5, "2": GND}),
+    # LED ring lead: the ring's 3-pin plug order (red 5V, green DIN, black GND).
     dict(ref="J3", sym="Connector_Generic:Conn_01x03", value="LED ring",
-         fp="Connector_JST:JST_XH_B3B-XH-A_1x03_P2.50mm_Vertical", mpn="B3B-XH-A", lcsc="", asm="tht",
+         fp="Connector_PinSocket_2.54mm:PinSocket_1x03_P2.54mm_Vertical", mpn="2.54 mm 1x3 female header", lcsc="", asm="tht",
          pins={"1": V5, "2": "LED_DATA", "3": GND}),
     # ESD clamp on the lines that leave the box on leads.
     dict(ref="U3", sym="Power_Protection:SRV05-4", value="SRV05-4", fp="Package_TO_SOT_SMD:SOT-23-6",
          mpn="SRV05-4", lcsc="", asm="smt",
          pins={"1": "I2C_SDA", "2": GND, "3": "I2C_SCL", "4": "LED_DATA", "5": V5}),
     # --- Amplifier --------------------------------------------------------------------
-    # The kit's 5-pin cable (Dupont ends) plugs on here; the speaker plugs into the amplifier.
+    # The amplifier kit's cable, in its socket's order (G, V, BCL, LRC, DIN); the speaker plugs into the amplifier.
     dict(ref="J4", sym="Connector_Generic:Conn_01x05", value="Amplifier",
-         fp="Connector_PinHeader_2.54mm:PinHeader_1x05_P2.54mm_Vertical", mpn="2.54 mm 1x5 male header", lcsc="", asm="tht",
-         pins={"1": V5, "2": GND, "3": "I2S_LRC", "4": "I2S_BCLK", "5": "I2S_DIN"}),
+         fp="Connector_PinSocket_2.54mm:PinSocket_1x05_P2.54mm_Vertical", mpn="2.54 mm 1x5 female header", lcsc="", asm="tht",
+         pins={"1": GND, "2": V5, "3": "I2S_BCLK", "4": "I2S_LRC", "5": "I2S_DIN"}),
     # Or an Adafruit 3006 breakout straight into a socket (LRC BCLK DIN GAIN SD GND Vin).
     dict(ref="J5", sym="Connector_Generic:Conn_01x07", value="Adafruit 3006 (alt)",
          fp="Connector_PinSocket_2.54mm:PinSocket_1x07_P2.54mm_Vertical", mpn="2.54 mm 1x7 female header", lcsc="", asm="tht",
