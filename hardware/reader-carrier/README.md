@@ -203,6 +203,9 @@ trigger module. Both ask for 5 V; the 1000 µF sits behind either.
    `cpl.csv` already has JLCPCB's angles for U1, U2 and U3 (its models of those
    parts sit at a different angle from KiCad's). For any other assembler
    (PCBWay and so on) upload **`fab/cpl-kicad.csv`** instead: KiCad's own angles.
+   For PCBWay, upload **`fab/bom-pcbway.csv`** as the BOM: their columns, with
+   quantity per board, manufacturer, package and notes (polarity, and the
+   three parts that mustn't be substituted: U1, F1, J1).
 3. Every part has an LCSC number, checked in stock at JLCPCB on 21 Nov 2026
    (the fewest: the fuse, 250, and the CH224A, about 500). If one has run out, pick the same MPN
    or an equivalent in the parts search; keep R1/R2 matched to the chip
