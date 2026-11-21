@@ -148,3 +148,9 @@ POWER_NETS = {GND: 0.5, V5: 1.2, VBUS: 0.8, "ESP_5V": 0.6, V3: 0.4}
 # (0.028 mm2 at 1 oz). A 0.4 mm drill (0.023 mm2) would be the thinnest point of the path.
 POWER_VIAS = {"+5V": (1.4, 0.8), "VBUS": (1.4, 0.8)}
 POWER_VIA_DEFAULT = (0.8, 0.4)
+# Pads that must be reachable from the fuse through full-width +5V copper only (tracks at the
+# POWER_NETS width, through-hole pads and vias): every load and its bulk capacitor. A neck is
+# fine into a small part that only taps the rail, never in series with one of these.
+# J5 (the alternate amplifier header, 0.65 A) may come through C7's 1.0 mm pad: 0.8 mm is enough.
+POWER_LOADS = {"+5V": ("F1.2", {"J3.1": 1.2, "C5.1": 1.2, "J2.2": 1.2, "J4.2": 1.2, "C6.1": 1.2, "D3.2": 1.2,
+                                "J5.7": 0.8})}

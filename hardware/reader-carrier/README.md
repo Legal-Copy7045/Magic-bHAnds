@@ -140,7 +140,10 @@ than the track, no narrower than that pad, each under 3 mm: the two USB-C VBUS p
 close together for more) and, depending on how the router lays it out, the
 SRV05-4's 5 V pin or the 5V OK LED's resistor (a few mA). `tools/check_widths.py` measures the routed copper,
 lists every neck, and fails the build on any other power track narrower than
-this table. It also checks vias: the 5 V path changes layer only at the
+this table. It also traces the copper from the fuse to every load (the ring,
+amplifier and NFC headers, their capacitors and the dev board's diode) and
+fails unless each is reached at full width, so a neck can only ever feed a
+small part, never sit in the path to a load. It also checks vias: the 5 V path changes layer only at the
 through-hole pins, and any via on VBUS or +5V must have a 0.8 mm drill, so a
 via barrel is never the thinnest copper in the path.
 
