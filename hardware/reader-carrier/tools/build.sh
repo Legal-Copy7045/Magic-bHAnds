@@ -21,6 +21,8 @@ xvfb-run -a java -jar "$FREEROUTING" -de "$WORK/board.dsn" -do "$WORK/board.ses"
 python3 tools/import_ses.py $B.kicad_pcb "$WORK/board.ses"
 python3 tools/make_pcb.py --classes $B.kicad_pcb   # net classes back into the project file (saving the board drops them)
 python3 tools/check_widths.py $B.kicad_pcb
+kicad-cli sch export netlist --format kicadsexpr -o "$WORK/sch.net" $B.kicad_sch >/dev/null
+python3 tools/check_netlist.py $B.kicad_pcb "$WORK/sch.net"
 python3 -c "import pcbnew; b=pcbnew.LoadBoard('$B.kicad_pcb'); pcbnew.WriteDRCReport(b, 'fab/drc.rpt', pcbnew.EDA_UNITS_MILLIMETRES, True)"
 grep '^\*\*' fab/drc.rpt
 grep -q 'Found 0 unconnected pads' fab/drc.rpt || { echo 'unrouted connections: nudge a part in make_pcb.py and run again'; exit 1; }

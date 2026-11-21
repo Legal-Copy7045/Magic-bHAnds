@@ -33,6 +33,7 @@ PIN1_X = 72.0  # both sockets' pin 1 (antenna end) at the right
 # the board end and the module's antenna sticks out 6.29 mm past it, so the antenna spans PIN1_X + 1.57 to
 # PIN1_X + 7.85. The strip starts 0.35 mm past the pin-1 pads (1.7 mm across) and runs to the board edge.
 ANTENNA = (PIN1_X + 1.2, ROW1 - 4.0, W, ROW3 + 4.0)
+VBUS_STUB = 2.6  # mm the VBUS pins' pad-width stubs run back from the pin row before joining
 USB_X = 3.19  # USB-C: peg holes 5.79 mm from the left edge as HRO draws it, so the shell sits ~0.5 mm past the
               # edge and a plug's moulded grip (taller than the socket) can't hit the board before it seats
 
@@ -43,14 +44,14 @@ PLACE = {
     "XJ1": (PIN1_X, ROW1, 270), "XJ3": (PIN1_X, ROW3, 270),
     # Top edge: LED ring and its parts, NFC, amplifier (kit header and Adafruit socket)
     "C5": (12.0, 15.0, 0),
-    "J3": (20.5, 6.5, 90), "U2": (24.5, 15.0, 0), "C4": (24.5, 18.5, 0), "R7": (28.5, 15.0, 90), "R8": (20.8, 15.0, 90),
+    "J3": (20.5, 6.5, 90), "U2": (24.5, 15.0, 0), "C4": (26.6, 12.3, 0), "R7": (28.5, 15.0, 90), "R8": (20.8, 15.0, 90),
     "U3": (32.0, 20.0, 90),
     "J2": (36.0, 6.5, 90), "R5": (39.5, 15.0, 90), "R6": (41.5, 15.0, 90),
     "J4": (51.0, 6.5, 90), "C6": (54.0, 15.5, 0), "C7": (60.0, 15.0, 90),
     "J5": (65.0, 6.5, 90),
     # Left edge: USB-C, PD controller, fuse, TVS, 5 V OK LED, Schottky to the dev board
     "J1": (USB_X, 40.0, 270),
-    "U1": (12.5, 31.5, 0), "R1": (6.5, 26.0, 0), "C1": (9.5, 26.0, 0), "R2": (12.5, 26.0, 0), "R3": (17.0, 31.5, 90),
+    "U1": (12.5, 31.5, 0), "R1": (6.5, 26.0, 0), "C1": (9.5, 26.0, 0), "R2": (12.5, 26.0, 0), "R3": (17.0, 31.5, 90), "R9": (18.3, 31.5, 90),
     "F1": (12.0, 46.5, 90), "D2": (12.0, 54.0, 90), "C2": (17.5, 54.5, 0), "C3": (17.5, 57.5, 0),
     "R4": (19.5, 59.5, 0), "D1": (22.5, 59.5, 180),
     "D3": (24.5, 21.0, 0),
@@ -134,6 +135,23 @@ def add_keepout(board: pcbnew.BOARD, x0, y0, x1, y1) -> None:
     zone.SetLayerSet(ls)
     rect_outline(zone, x0, y0, x1, y1)
     zone.SetZoneName("antenna keep-out")
+    board.Add(zone)
+
+
+def add_no_tracks(board: pcbnew.BOARD, x0, y0, x1, y1, name: str) -> None:
+    """Front layer: no tracks or vias (pads stay, and the ground pour still fills it)."""
+    zone = pcbnew.ZONE(board)
+    zone.SetIsRuleArea(True)
+    zone.SetDoNotAllowCopperPour(False)
+    zone.SetDoNotAllowTracks(True)
+    zone.SetDoNotAllowVias(True)
+    zone.SetDoNotAllowPads(False)
+    zone.SetDoNotAllowFootprints(False)
+    ls = pcbnew.LSET()
+    ls.AddLayer(pcbnew.F_Cu)
+    zone.SetLayerSet(ls)
+    rect_outline(zone, x0, y0, x1, y1)
+    zone.SetZoneName(name)
     board.Add(zone)
 
 
@@ -253,14 +271,54 @@ def main(out: Path) -> None:
             c = pad.GetPosition()
             t = pcbnew.PCB_TRACK(board)
             t.SetStart(c)
-            t.SetEnd(pcbnew.VECTOR2I(c.x + mm(2.2), c.y))
+            t.SetEnd(pcbnew.VECTOR2I(c.x + mm(VBUS_STUB), c.y))
             t.SetWidth(mm(0.6))
             t.SetLayer(pcbnew.F_Cu)
             t.SetNet(net("VBUS"))
             t.SetLocked(True)
             board.Add(t)
+    # ...and a locked full-width track joins the two stubs behind the pin row. The CC pins sit
+    # between the VBUS pins, so that walls them in on the front: each gets a short locked track
+    # to a via, and leaves on the back. Without this the router took a CC line forwards, under
+    # the socket's grounded metal shell, where a scratch in the solder mask would short it.
+    ends = sorted(pad.GetPosition().y for pad in usb.Pads() if pad.GetNumber() in ("A4", "B4"))
+    px = next(pad.GetPosition().x for pad in usb.Pads() if pad.GetNumber() == "A4")
+    join = pcbnew.PCB_TRACK(board)
+    join.SetStart(pcbnew.VECTOR2I(px + mm(VBUS_STUB), ends[0]))
+    join.SetEnd(pcbnew.VECTOR2I(px + mm(VBUS_STUB), ends[1]))
+    join.SetWidth(mm(0.8))
+    join.SetLayer(pcbnew.F_Cu)
+    join.SetNet(net("VBUS"))
+    join.SetLocked(True)
+    board.Add(join)
+    for pad in usb.Pads():
+        if pad.GetNumber() in ("A5", "B5"):
+            c = pad.GetPosition()
+            # straight back past the pad ends, then (B5 only, which sits 0.7 mm from a VBUS stub)
+            # in towards the middle, so the via clears the stub
+            mid = pcbnew.VECTOR2I(c.x + mm(0.95), c.y)
+            end = pcbnew.VECTOR2I(c.x + mm(1.4), c.y - (mm(0.45) if pad.GetNumber() == "B5" else 0))
+            for a, z in ((c, mid), (mid, end)):
+                t = pcbnew.PCB_TRACK(board)
+                t.SetStart(a)
+                t.SetEnd(z)
+                t.SetWidth(mm(0.2))
+                t.SetLayer(pcbnew.F_Cu)
+                t.SetNet(net(pad.GetNetname()))
+                t.SetLocked(True)
+                board.Add(t)
+            v = pcbnew.PCB_VIA(board)
+            v.SetPosition(end)
+            v.SetWidth(mm(0.6))
+            v.SetDrill(mm(0.3))
+            v.SetLayerPair(pcbnew.F_Cu, pcbnew.B_Cu)
+            v.SetNet(net(pad.GetNetname()))
+            v.SetLocked(True)
+            board.Add(v)
     add_outline(board)
     add_keepout(board, *ANTENNA)
+    # No tracks or vias on the front under the USB-C socket's metal shell (it sits on the board).
+    add_no_tracks(board, 0.0, 40.0 - 4.75, USB_X + 2.35, 40.0 + 4.75, "under the USB-C shell")
     add_pour(board, net("GND"), pcbnew.F_Cu)
     add_pour(board, net("GND"), pcbnew.B_Cu)
 
@@ -282,10 +340,11 @@ def main(out: Path) -> None:
         tp = board.FindFootprintByReference(ref)
         add_text(board, name, pcbnew.ToMM(tp.GetPosition().x) - X0, 61.9)
     add_text(board, "ESP32-S3-DevKitC-1, antenna end -->", 54.0, ROW1 + 11.4, 1.0)
+    add_text(board, "3V3 pin this end", PIN1_X - 7.5, ROW1 + 2.4, 1.0)  # a board fitted backwards is damaged
     add_text(board, "no copper", 82.5, ROW1 + 11.4, angle=90)
     add_text(board, "MagicBand Reader carrier v1.0", 45.0, 30.0, 1.5, pcbnew.B_SilkS)
     add_text(board, "github.com/Legal-Copy7045/Magic-bHAnds", 45.0, 33.0, 1.0, pcbnew.B_SilkS)
-    add_text(board, "USB-C fixed at 5 V. Dev-board USB and the charger can't back-feed each other.", 45.0, 36.0, 1.0,
+    add_text(board, "USB-C fixed at 5 V. The dev board's USB can't power the ring or amplifier.", 45.0, 36.0, 1.0,
              pcbnew.B_SilkS)
 
     pcbnew.SaveBoard(str(out), board)
