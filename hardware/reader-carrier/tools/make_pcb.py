@@ -29,7 +29,10 @@ X0, Y0 = 100.0, 80.0  # board origin on the page (mm)
 W, H = 90.0, 64.0
 ROW1, ROW3 = 26.0, 26.0 + 22.86  # dev board socket rows (J1 top, J3 bottom), 0.9 in apart
 PIN1_X = 72.0  # both sockets' pin 1 (antenna end) at the right
-ANTENNA = (75.5, ROW1 - 4.0, W, ROW3 + 4.0)  # copper-free strip under the antenna (x0, y0, x1, y1)
+# Copper-free strip under the antenna (x0, y0, x1, y1). Espressif's DevKitC-1 v1.1 drawing: pin 1 is 1.40 mm
+# from the board end and the module's antenna sticks out 6.3 mm past it, so the antenna spans PIN1_X + 1.4 to
+# PIN1_X + 7.7. The strip starts 0.35 mm past the pin-1 pads (1.7 mm across) and runs to the board edge.
+ANTENNA = (PIN1_X + 1.2, ROW1 - 4.0, W, ROW3 + 4.0)
 USB_X = 3.67  # USB-C: shell face flush with the left edge (HRO draws it ~0.5 mm past; see make_usb_fp.py)
 
 # ref: (x, y, rotation) relative to the board's top-left corner. 270 turns a
@@ -139,7 +142,7 @@ def add_text(board, text, x, y, size=1.0, layer=pcbnew.F_SilkS, angle=0):
     t.SetPosition(pt(x, y))
     t.SetLayer(layer)
     t.SetTextSize(pcbnew.VECTOR2I(mm(size), mm(size)))
-    t.SetTextThickness(mm(max(size * 0.15, 0.12)))
+    t.SetTextThickness(mm(max(size * 0.15, 0.15)))
     t.SetTextAngleDegrees(angle)
     if layer == pcbnew.B_SilkS:
         t.SetMirrored(True)
@@ -161,7 +164,9 @@ def write_project(path: Path) -> None:
     proj = {
         "board": {"design_settings": {"defaults": {}, "rules": {
             "min_clearance": 0.15, "min_track_width": 0.15, "min_via_diameter": 0.5, "min_through_hole_diameter": 0.3,
-            "min_copper_edge_clearance": 0.3, "min_hole_to_hole": 0.25, "min_hole_clearance": 0.25}}},
+            "min_copper_edge_clearance": 0.3, "min_hole_to_hole": 0.25, "min_hole_clearance": 0.25,
+            # JLCPCB: silkscreen under 1.0 mm high or 0.15 mm stroke may not be legible
+            "min_text_height": 1.0, "min_text_thickness": 0.15}}},
         "meta": {"filename": path.name, "version": 1},
         "net_settings": {"classes": classes, "meta": {"version": 3}, "net_colors": None,
                          "netclass_assignments": None, "netclass_patterns": patterns},
@@ -181,8 +186,8 @@ def main(out: Path) -> None:
     ds.m_CopperEdgeClearance = mm(0.3)
     ds.m_HoleToHoleMin = mm(0.25)
     ds.m_HoleClearance = mm(0.25)
-    ds.m_MinSilkTextHeight = mm(0.7)
-    ds.m_MinSilkTextThickness = mm(0.12)
+    ds.m_MinSilkTextHeight = mm(1.0)  # JLCPCB: smaller silkscreen text may not be legible
+    ds.m_MinSilkTextThickness = mm(0.15)
     ds.m_SolderMaskExpansion = mm(0.05)
 
     nets: dict[str, pcbnew.NETINFO_ITEM] = {}
@@ -221,11 +226,11 @@ def main(out: Path) -> None:
             if n is not None:
                 pad.SetNet(net(n))
         refs = fp.Reference()
-        refs.SetTextSize(pcbnew.VECTOR2I(mm(0.8), mm(0.8)))
-        refs.SetTextThickness(mm(0.12))
+        refs.SetTextSize(pcbnew.VECTOR2I(mm(1.0), mm(1.0)))
+        refs.SetTextThickness(mm(0.15))
         refs.SetVisible((part["ref"][0] in "JXUF" or part["ref"].startswith("TP")) and part["ref"] != "J5")
-        if part["ref"].startswith("J"):
-            for pad in fp.Pads():  # connector grounds: solid, so a blocked spoke can't starve them
+        if part["ref"] == "J1":  # reflowed by the assembler: solid, so its small pads get full ground
+            for pad in fp.Pads():
                 if pad.GetNetname() == "GND":
                     pad.SetZoneConnection(pcbnew.ZONE_CONNECTION_FULL)
         fp.Value().SetVisible(False)
@@ -251,18 +256,27 @@ def main(out: Path) -> None:
     add_pour(board, net("GND"), pcbnew.B_Cu)
 
     # Labels by the connectors (front) and board info (back).
-    add_text(board, "RING 5V DIN GND", 23.0, 3.0, 0.8)
-    add_text(board, "NFC GND 5V SDA SCL", 39.8, 3.0, 0.8)
-    add_text(board, "AMP G V BCL LRC DIN", 56.0, 11.0, 0.7)
-    add_text(board, "ADAFRUIT 3006", 72.6, 11.0, 0.7)
-    add_text(board, "USB-C 5V", 4.5, 31.0, 0.8, angle=90)
-    add_text(board, "5V OK", 22.5, 61.8, 0.7)
-    add_text(board, "5V   3V3   GND", 36.0, 62.2, 0.8)
+    # Each lead header: its name beside it, and every pin's name over its own pad (1.0 mm text, so
+    # it prints legibly and stays lined up with the pins).
+    for ref, title, names in (("J3", "RING", ("5V", "DIN", "GND")),
+                              ("J2", "NFC", ("GND", "5V", "SDA", "SCL")),
+                              ("J4", "AMP", ("G", "V", "BCL", "LRC", "DIN"))):
+        pads = sorted(board.FindFootprintByReference(ref).Pads(), key=lambda p: int(p.GetNumber()))
+        xs = [pcbnew.ToMM(p.GetPosition().x) - X0 for p in pads]
+        for x, name in zip(xs, names):  # vertical: three letters at 1.0 mm don't fit across a 2.54 mm pitch
+            add_text(board, name, x, 3.2, angle=90)
+        add_text(board, title, min(xs) - 1.6 - 0.45 * len(title), 3.2)
+    add_text(board, "ADAFRUIT 3006 (pin 1 = LRC)", 72.6, 10.6)
+    add_text(board, "USB-C 5V", 4.8, 31.0, angle=90)
+    add_text(board, "5V OK", 22.5, 61.6)
+    for ref, name in (("TP1", "5V"), ("TP2", "3V3"), ("TP3", "GND")):
+        tp = board.FindFootprintByReference(ref)
+        add_text(board, name, pcbnew.ToMM(tp.GetPosition().x) - X0, 61.9)
     add_text(board, "ESP32-S3-DevKitC-1, antenna end -->", 54.0, ROW1 + 11.4, 1.0)
-    add_text(board, "no copper", 82.5, ROW1 + 11.4, 0.8, angle=90)
+    add_text(board, "no copper", 82.5, ROW1 + 11.4, angle=90)
     add_text(board, "MagicBand Reader carrier v1.0", 45.0, 30.0, 1.5, pcbnew.B_SilkS)
     add_text(board, "github.com/Legal-Copy7045/Magic-bHAnds", 45.0, 33.0, 1.0, pcbnew.B_SilkS)
-    add_text(board, "USB-C fixed at 5 V. Dev-board USB and the charger can't back-feed each other.", 45.0, 36.0, 0.8,
+    add_text(board, "USB-C fixed at 5 V. Dev-board USB and the charger can't back-feed each other.", 45.0, 36.0, 1.0,
              pcbnew.B_SilkS)
 
     pcbnew.SaveBoard(str(out), board)

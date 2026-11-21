@@ -121,10 +121,14 @@ white for long, lower the ring's brightness rather than fit a bigger fuse.
 | +3V3 | 0.4 mm | Pull-ups only |
 | GND | 0.5 mm tracks plus solid pours on both sides | |
 
-At 1 oz copper, 0.8 mm carries about 2.0 A for a 10 °C rise and about 2.8 A
-for 20 °C (IPC-2221, outer layer); at 2 oz it's about 3.3 A for 10 °C.
-**Order 2 oz copper**, so the worst case (≈ 2.75 A, which only happens with
-everything at maximum at once) stays under a 10 °C rise.
+**Standard 1 oz copper.** By IPC-2221 (outer layer), 0.8 mm at 1 oz carries
+about 2.0 A for a 10 °C rise and 2.8 A for 20 °C: the full worst case
+(≈ 2.75 A, everything at maximum at once, which lasts seconds and which the
+firmware's ring cap keeps rare) warms the 5 V track by about 20 °C, and a
+welcome (about 1.4 A) by about 5 °C. 2 oz copper would halve that, but at
+2 oz JLCPCB needs 0.20 mm of solder mask between pads, exactly the gap
+between the USB-C pins, and thicker copper makes the hand-soldered ground
+pins harder to heat, so 1 oz is the better trade.
 
 The only narrower pieces are necks into pads that are themselves narrower
 than the track, each under 2.5 mm: the two USB-C VBUS pins (0.6 mm, too
@@ -150,14 +154,17 @@ check the amplifier lead's G wire first.
   plug and the bend, or use a right-angle USB-C cable.
 - The leads to the Mickey head plug in along the **top edge**.
 - The dev board's antenna end (right) should face away from metal; nothing
-  in the box should sit over it.
+  in the box should sit over it. On the board, copper stops just past the
+  sockets' pin 1: the antenna sticks out about 7.7 mm past pin 1 (Espressif's
+  DevKitC-1 v1.1 drawing), and has no copper under any of it.
 - Height: about 25 mm with the dev board in its sockets (the 1000 µF is
   about 20 mm tall). Use M3 standoffs of 5 mm or more under the board.
 
 ## Ordering (JLCPCB)
 
 1. Upload **`fab/magicband-carrier-gerbers.zip`** at jlcpcb.com: 2 layers,
-   1.6 mm, any colour, **2 oz outer copper** (see Power tracks).
+   1.6 mm, any colour, 1 oz copper (the default; see Power tracks). The zip
+   has separate drill files for plated and non-plated holes.
 2. Turn on **PCB Assembly**, top side, and upload **`fab/bom.csv`** and
    **`fab/cpl.csv`**. They list only the small surface-mount parts.
 3. Every part has an LCSC number, checked in stock at JLCPCB on 21 Nov 2026
@@ -171,7 +178,8 @@ check the amplifier lead's G wire first.
 **You solder** (through-hole, all on the top side): the 2.54 mm female
 headers (two 1×22, one each of 1×3, 1×4 and 1×5; the 1×7 only if you use an
 Adafruit 3006) and the 1000 µF and 100 µF capacitors (stripe = minus, away
-from the square pad). Nothing else.
+from the square pad). Nothing else. The ground pins join the ground copper through
+thermal spokes, so they heat up like the others.
 
 ## Before you order: physical checks
 
@@ -222,7 +230,7 @@ recommended PCB layout LCSC serves for C165948, which allows ±0.05 mm):
 |---|---|---|
 | Pin pitch, pad widths, inner pads | 0.50, 0.30 / 0.60 mm | Same |
 | Peg holes | 2 × Ø0.60, 5.78 mm apart | Same |
-| Shell slots | 8.65 mm apart; back 0.60 × 1.70 (pad 0.90 × 2.00), front 0.60 × 1.40 (pad 0.90 × 1.70) | Same (KiCad's front slots were 1.20 mm long, which could pinch the shell's tabs) |
+| Shell slots | 8.65 mm apart; drills 0.60 × 1.70 at the back, 0.60 × 1.40 at the front; pads 0.90 mm wide | Same drills (KiCad's front slots were 1.20 mm long, which could pinch the shell's tabs); pads 1.12 mm wide, for the 0.26 mm copper ring JLCPCB needs (HRO's 0.90 would leave 0.15 mm) |
 | Outer pads (GND, VBUS) | ±3.20 / ±2.40 mm | ±3.25 / ±2.45 (KiCad's): within the 0.05 mm tolerance, and the room the CC2 track needs |
 | Signal pad length | 1.14 mm, 0.50 mm behind the pegs | 1.45 mm, 0.72 mm behind (KiCad's): HRO's leave 0.20 mm to the peg holes, under the 0.25 mm hole clearance; KiCad's cover all but the front 0.22 mm of HRO's |
 | Board edge | 5.79 mm in front of the pegs, shell ~0.5 mm past it | 6.27 mm: the shell face is flush with the edge |
