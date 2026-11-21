@@ -28,7 +28,7 @@ grep -q 'Found 0 Footprint errors' fab/drc.rpt || { echo 'footprint errors: see 
 rm -rf fab/gerbers && mkdir -p fab/gerbers
 kicad-cli pcb export gerbers --layers F.Cu,B.Cu,F.Paste,F.SilkS,B.SilkS,F.Mask,B.Mask,Edge.Cuts \
   --subtract-soldermask --no-x2 -o fab/gerbers/ $B.kicad_pcb
-kicad-cli pcb export drill --format excellon --drill-origin absolute --excellon-units mm \
+kicad-cli pcb export drill --format excellon --drill-origin absolute --excellon-units mm --excellon-separate-th \
   --generate-map --map-format gerberx2 -o fab/gerbers/ $B.kicad_pcb
 python3 tools/make_fab.py $B.kicad_pcb fab
 (cd fab && rm -f $B-gerbers.zip && zip -qj $B-gerbers.zip gerbers/*)

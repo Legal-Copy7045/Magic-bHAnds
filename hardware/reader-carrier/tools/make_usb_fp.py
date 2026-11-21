@@ -12,9 +12,10 @@ Checked against the drawing, which allows +-0.05 mm on the PCB layout:
   1.14 mm ending 0.50 mm behind, which leaves only 0.20 mm from the outer pads to the peg
   holes (under the 0.25 mm hole clearance). KiCad's pads cover all of HRO's but its front
   0.22 mm, so the leads land fully on copper. Kept.
-- Changed to the drawing: the shell slots (0.60 x 1.70 drill, 0.90 x 2.00 pad at the back;
-  0.60 x 1.40 drill, 0.90 x 1.70 pad at the front, where KiCad's 1.20 mm slot could pinch
-  the shell's front tabs) and the peg holes (0.60 mm).
+- Changed to the drawing: the shell-slot drills (0.60 x 1.70 at the back; 0.60 x 1.40 at
+  the front, where KiCad's 1.20 mm slot could pinch the shell's front tabs) and the peg
+  holes (0.60 mm). The slot pads are 1.12 mm wide rather than HRO's 0.90, for a 0.26 mm
+  copper ring round the slot (JLCPCB's minimum is 0.18 mm at 1 oz, 0.254 mm at 2 oz).
 - The drawing puts the board edge 5.79 mm in front of the peg holes, with the shell about
   0.5 mm past it. This board has it 6.27 mm (make_pcb.py USB_X), the shell face flush with
   the edge, which gives the routing room it needs; a plug still seats fully.
@@ -61,8 +62,10 @@ def pad(m):
         return f'(pad "" np_thru_hole circle (at {x:g} {PEG_Y:g}) (size 0.6 0.6) (drill 0.6){rest}'
     # shell slots: the back pair (y < peg line) and the front pair
     back = y < PEG_Y
-    ys, l, dl = (SLOT_BACK_Y, 2.0, 1.7) if back else (SLOT_FRONT_Y, 1.7, 1.4)
-    return f'(pad "{name}" thru_hole oval (at {x:g} {ys:g}) (size 0.9 {l:g}) (drill oval 0.6 {dl:g}){rest}'
+    # Drill as drawn; pads 1.12 mm wide (HRO draws 0.90) for a 0.26 mm ring: JLCPCB needs 0.18 mm at
+    # 1 oz and 0.254 mm at 2 oz. That still leaves 0.21 mm to the outer signal pads.
+    ys, dl = (SLOT_BACK_Y, 1.7) if back else (SLOT_FRONT_Y, 1.4)
+    return f'(pad "{name}" thru_hole oval (at {x:g} {ys:g}) (size 1.12 {dl + 0.52:g}) (drill oval 0.6 {dl:g}){rest}'
 
 
 PAD = re.compile(r'\(pad "([^"]*)" (smd|np_thru_hole|thru_hole) (\w+) \(at (\S+) (\S+)\) \(size [^)]*\)(?: \(drill[^)]*\))?(.*)')
