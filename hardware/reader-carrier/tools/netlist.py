@@ -10,7 +10,7 @@ TVS clamp, and a Schottky diode so the dev board's own USB can't back-feed the
 board. GPIOs match esphome/magicband-reader.yaml.
 
 Each part: ref, symbol (lib:name; "MagicbHAnds" = tools/lib), value, footprint,
-MPN, LCSC part number ("" where you should pick one in JLCPCB's parts search),
+MPN, LCSC part number (every "smt" part has one; "" for parts you solder),
 assembly ("smt" by JLCPCB, "tht" soldered by hand), and {pin: net}.
 Pins not listed are left unconnected.
 """
