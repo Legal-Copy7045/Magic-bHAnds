@@ -28,7 +28,7 @@ R0402, C0402, C0805 = "Resistor_SMD:R_0402_1005Metric", "Capacitor_SMD:C_0402_10
 PARTS = [
     # --- USB-C power in, PD sink fixed at 5 V ---------------------------------
     dict(ref="J1", sym="Connector:USB_C_Receptacle_USB2.0_16P", value="USB-C (power)",
-         fp="Connector_USB:USB_C_Receptacle_HRO_TYPE-C-31-M-12", mpn="TYPE-C-31-M-12", lcsc="C165948", asm="smt",
+         fp="MagicbHAnds:USB_C_Receptacle_HRO_TYPE-C-31-M-12_EdgeTrim", mpn="TYPE-C-31-M-12", lcsc="C165948", asm="smt",
          pins={"A4": VBUS, "A9": VBUS, "B4": VBUS, "B9": VBUS,
                "A1": GND, "A12": GND, "B1": GND, "B12": GND, "S1": GND,
                "A5": "CC1", "B5": "CC2"}),  # D+/D- unused: power only

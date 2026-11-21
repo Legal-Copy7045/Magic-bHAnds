@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fail if any routed track on a power net is narrower than netlist.POWER_NETS says.
 
-(Short necks into pads are allowed; see below.)
+(Short necks into pads narrower than the track are allowed; see below. Each one is listed.)
 
 DRC only enforces the board-wide minimum (0.15 mm), so a power net routed thin
 would pass it. Run after routing (build.sh does).
@@ -17,30 +17,75 @@ sys.path.insert(0, str(Path(__file__).parent))
 from netlist import POWER_NETS  # noqa: E402
 
 board = pcbnew.LoadBoard(sys.argv[1])
-# A short neck (up to 1.5 mm) where a track enters a pad is allowed: Freerouting
-# narrows the last bit to fit a small part's pin, and the USB-C pins need
-# pad-width stubs. Anywhere else, a power track must be full width.
+# A short neck where a track enters a pad is allowed: Freerouting narrows the last
+# bit to fit a small part's pin (sometimes in two short segments), and the USB-C
+# pins need pad-width stubs. A neck is a run of connected narrow segments, at most
+# 2.5 mm long in all, that ends on a pad of the same net. Anywhere else, a power
+# track must be full width.
+NECK_MM = 2.5
 pads = collections.defaultdict(list)
 for fp in board.GetFootprints():
     for pad in fp.Pads():
-        pads[pad.GetNetname()].append(pad)
+        pads[pad.GetNetname()].append((fp.GetReference(), pad))
 
-
-def neck(t) -> bool:
-    if pcbnew.ToMM(t.GetLength()) > (2.5 if t.IsLocked() else 1.5):
-        return False
-    return any(pad.HitTest(t.GetStart()) or pad.HitTest(t.GetEnd()) for pad in pads[t.GetNetname()])
-
-
-widths = collections.defaultdict(list)
+tracks = collections.defaultdict(list)
 for t in board.GetTracks():
-    if t.GetClass() == "PCB_TRACK" and not neck(t):
-        widths[t.GetNetname()].append(pcbnew.ToMM(t.GetWidth()))
+    if t.GetClass() == "PCB_TRACK":
+        tracks[t.GetNetname()].append(t)
+
+
+def runs(thin):
+    """Group narrow segments that share an end point."""
+    left, out = list(thin), []
+    while left:
+        run = [left.pop()]
+        ends = {(p.x, p.y) for p in (run[0].GetStart(), run[0].GetEnd())}
+        grew = True
+        while grew:
+            grew = False
+            for t in list(left):
+                te = {(p.x, p.y) for p in (t.GetStart(), t.GetEnd())}
+                if te & ends:
+                    run.append(t)
+                    ends |= te
+                    left.remove(t)
+                    grew = True
+        out.append(run)
+    return out
+
+
+def neck_pad(run, net, want):
+    """The pad a neck leads into, if the run is a neck: at most NECK_MM long and ending on a
+    same-net pad that is itself narrower than the full track (so the track can't enter it at
+    full width). A narrow run near a big pad, or anywhere else, isn't a neck."""
+    if sum(pcbnew.ToMM(t.GetLength()) for t in run) > NECK_MM:
+        return None
+    for t in run:
+        for p in (t.GetStart(), t.GetEnd()):
+            for ref, pad in pads[net]:
+                size = pad.GetSize()
+                if pad.HitTest(p) and pcbnew.ToMM(min(size.x, size.y)) < want - 1e-6:
+                    return f"{ref} pad {pad.GetNumber()} ({pcbnew.ToMM(min(size.x, size.y)):.2f} mm wide)"
+    return None
+
+
 bad = False
 for net, want in POWER_NETS.items():
-    got = widths.get(net, [])
-    thin = [w for w in got if w < want - 1e-6]
-    print(f"{net:7} want >= {want} mm: {len(got)} segments, narrowest {min(got) if got else '-'} mm"
-          + (f"  <-- {len(thin)} too narrow" if thin else ""))
-    bad |= bool(thin)
+    got = tracks.get(net, [])
+    thin = [t for t in got if pcbnew.ToMM(t.GetWidth()) < want - 1e-6]
+    necks = [(r, neck_pad(r, net, want)) for r in runs(thin)]
+    necks = [(r, pad) for r, pad in necks if pad is not None]
+    allowed = {id(t) for r, _ in necks for t in r}
+    wrong = [t for t in thin if id(t) not in allowed]
+    full = [pcbnew.ToMM(t.GetWidth()) for t in got if id(t) not in allowed]
+    print(f"{net:7} want >= {want} mm: {len(full)} segments, narrowest {min(full) if full else '-'} mm,"
+          f" {len(necks)} pad necks" + (f"  <-- {len(wrong)} too narrow" if wrong else ""))
+    for r, pad in necks:
+        print(f"          neck into {pad}:"
+              f" {sum(pcbnew.ToMM(t.GetLength()) for t in r):.2f} mm at"
+              f" {min(pcbnew.ToMM(t.GetWidth()) for t in r):.2f} mm")
+    for t in wrong:
+        print(f"          too narrow: {pcbnew.ToMM(t.GetWidth()):.2f} mm, {pcbnew.ToMM(t.GetLength()):.2f} mm long,"
+              f" at ({pcbnew.ToMM(t.GetStart().x) - 100:.1f}, {pcbnew.ToMM(t.GetStart().y) - 80:.1f})")
+    bad |= bool(wrong)
 sys.exit("power tracks narrower than specified" if bad else 0)

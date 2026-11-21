@@ -66,25 +66,64 @@ them from working loose in the box. Labels on the board name every pin.
 
 ## Power tracks
 
-The shared 5 V path carries up to about **2.2 A** in the worst case (ring at
-full white 1.44 A, amplifier at full volume 0.65 A, PN532 0.15 A); in normal
-use it's well under 1 A.
+### Current budget
 
-| Net | Track | Carries |
+Everything runs from the one USB-C input, so the worst case adds every
+maximum at once (the same budget as the [shopping list](../shopping-list.md#current-budget-with-these-parts)):
+
+| Load | Worst case |
+|---|---|
+| LED ring at full white | 1.44 A |
+| Amplifier (MAX98357A into 4 Ω, full volume) | 0.65 A |
+| Dev board (ESP32-S3, Wi-Fi transmit peak; *estimate*) | 0.50 A, through D3 |
+| PN532 (*estimate*) | 0.15 A |
+| Level shifter, pull-ups, LED | 0.01 A |
+| **Total through USB-C, the fuse and the shared 5 V track** | **≈ 2.75 A**, under the charger's 3 A |
+
+**The ring is capped by the firmware, not by its size.** 1.44 A is 24 RGB
+LEDs × 60 mA. With more LEDs the reader scales its output down so full white
+stays at about 1.44 A (24 ÷ LED count: a 35-LED ring runs at up to 68 %; an
+RGBW ring is capped at 18 LEDs × 80 mA). That only works if the reader's
+**LED count** setting matches the ring: set it before the first full-white
+test. Without the cap, 35 LEDs × 60 mA would be 2.1 A for the ring and about
+3.4 A in all, over a 3 A charger.
+
+In normal use the reader draws about 0.3 A idle and about 1.4 A during a
+welcome. The 3 A fuse (5 A trip) is there for a short circuit or a damaged
+lead, not to limit the current; the charger's own 3 A limit and the
+firmware's ring cap do that.
+
+### Track widths
+
+| Net | Track | Carries (worst case) |
 |---|---|---|
-| VBUS (USB-C → fuse) | 0.8 mm | Everything |
-| +5V (fuse → ring, amplifier, NFC, dev board) | 0.8 mm | Up to ~2.2 A |
-| ESP_5V (diode → dev board) | 0.6 mm | ≤ 0.5 A |
+| VBUS (USB-C → fuse) | 0.8 mm | Everything, ≈ 2.75 A |
+| +5V (fuse → ring, amplifier, NFC, and D3 to the dev board) | 0.8 mm | Up to ≈ 2.75 A by the fuse, less further along |
+| ESP_5V (D3 → dev board) | 0.6 mm | ≤ 0.5 A |
 | +3V3 | 0.4 mm | Pull-ups only |
 | GND | 0.5 mm tracks plus solid pours on both sides | |
 
 At 1 oz copper, 0.8 mm carries about 2.0 A for a 10 °C rise and about 2.8 A
-for 20 °C (IPC-2221, outer layer); at **2 oz** it's about 3.3 A for 10 °C.
-**Order 2 oz copper** for the margin (a small extra at JLCPCB). The only
-narrower pieces are short necks (under 1.5 mm) into the pins of the tiny
-parts, and 0.6 mm stubs off the USB-C VBUS pins, which are too close
-together for a wider track. `tools/check_widths.py` fails the build if any
-other power track is narrower than this table.
+for 20 °C (IPC-2221, outer layer); at 2 oz it's about 3.3 A for 10 °C.
+**Order 2 oz copper**, so the worst case (≈ 2.75 A, which only happens with
+everything at maximum at once) stays under a 10 °C rise.
+
+The only narrower pieces are necks into pads that are themselves narrower
+than the track, each under 2.5 mm: the two USB-C VBUS pins (0.6 mm, too
+close together for more) and, depending on how the router lays it out, the
+SRV05-4's 5 V pin or the 5V OK LED's resistor (a few mA). `tools/check_widths.py` measures the routed copper,
+lists every neck, and fails the build on any other power track narrower than
+this table.
+
+### Ground and the speaker
+
+On the breadboard, the sound crackled on the charger until the ESP32 had its
+own ground wire to the amplifier: otherwise the I²S signals' ground return
+ran through the power hub. The board does this in copper: ground pours fill
+both sides (stitched together with vias), the dev board's four GND pins and
+the amplifier header's G pin all join them directly, and the I²S tracks run
+over that ground all the way. There's no jumper to add. If it ever crackles,
+check the amplifier lead's G wire first.
 
 ## Fitting it in the box
 
@@ -108,7 +147,8 @@ other power track is narrower than this table.
    or an equivalent in the parts search; keep R1/R2 matched to the chip
    (0 Ω for a CH224A, 1 kΩ/10 kΩ for a CH224K).
 4. In the placement preview, check **U1 (CH224A)** pin 1 and the **USB-C**
-   orientation; rotate in the preview if they're off.
+   orientation; rotate in the preview if they're off. (Both use footprints
+   from `tools/lib`, so JLCPCB's preview is the place to catch a rotation.)
 
 **You solder** (through-hole, all on the top side): the 2.54 mm female
 headers (two 1×22, one each of 1×3, 1×4 and 1×5; the 1×7 only if you use an
@@ -133,7 +173,8 @@ from the square pad). Nothing else.
    LED lights, **TP2 (3V3) reads 3.2–3.4 V**.
 3. Add the PN532, then the amplifier, then the ring, one at a time, and run
    [the checks for every build](../README.md#checking-a-build-works).
-4. **Full-load test.** Set the ring to full white at full brightness and play
+4. **Full-load test.** Check the reader's **LED count** matches the ring.
+   Set the ring to full white at full brightness and play
    a sound at full volume. Measure 5 V **at the ring and amplifier headers**
    (not only TP1): it should stay above 4.75 V, and the fuse and tracks should
    be no more than warm after a few minutes.
@@ -153,7 +194,9 @@ FREEROUTING=/path/to/freerouting-1.9.0.jar tools/build.sh
 ```
 
 The CH224A/CH224K has no KiCad library part; its symbol and footprint (ESSOP-10 with
-the exposed pad, its only ground) are in `tools/lib/`. The DRC report's
-remaining entries are notices that KiCad's stock libraries aren't configured
-on the build machine. The build stops if anything is unrouted or a power
-track is too narrow.
+the exposed pad, its only ground) are in `tools/lib/`, with the USB-C
+footprint (KiCad's, minus the three silkscreen lines that would print off
+the board edge; `make_usb_fp.py` makes it). `fp-lib-table` points the DRC at
+those and at KiCad's own footprints, so it checks every footprint against its
+library too. The build stops unless the DRC report is clean (0 violations,
+0 unconnected pads) and every power track passes `check_widths.py`.

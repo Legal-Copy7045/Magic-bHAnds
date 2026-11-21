@@ -234,9 +234,6 @@ def main(out: Path) -> None:
     # VBUS pin gets a short pad-width stub out past the pin row. They're locked, so
     # Freerouting keeps them and joins them with full-width VBUS track.
     usb = board.FindFootprintByReference("J1")
-    for g in list(usb.GraphicalItems()):  # the socket's outline marks that would run off the board edge
-        if g.GetLayer() == pcbnew.F_SilkS and pcbnew.ToMM(g.GetBoundingBox().GetX()) - X0 < 2.5:
-            usb.Remove(g)
     for pad in usb.Pads():
         if pad.GetNetname() == "VBUS" and pad.GetNumber() in ("A4", "B4"):
             c = pad.GetPosition()
