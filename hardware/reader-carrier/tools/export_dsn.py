@@ -9,6 +9,7 @@ net classes (netlist.POWER_NETS) so the router uses wide tracks for them.
 Usage: export_dsn.py board.kicad_pcb board.dsn
 """
 
+import re
 import sys
 from pathlib import Path
 
@@ -31,4 +32,21 @@ for net, width in POWER_NETS.items():
 for zone in list(board.Zones()):
     if not zone.GetIsRuleArea():
         board.Remove(zone)
-print("exported" if pcbnew.ExportSpecctraDSN(board, sys.argv[2]) else "export failed")
+if not pcbnew.ExportSpecctraDSN(board, sys.argv[2]):
+    raise SystemExit("export failed")
+
+# KiCad 7 writes the power classes' rules but still lists every net in
+# kicad_default, so Freerouting routed power at 0.2 mm. Move each power net
+# out of the default class's net list and into its own class.
+dsn = Path(sys.argv[2]).read_text()
+m = re.search(r'\(class kicad_default ""(.*?)\(circuit', dsn, re.S)
+members = m.group(1).split()
+for net in POWER_NETS:
+    members.remove(net)
+    name = "P_" + net.replace("+", "").replace("_", "")
+    dsn, n = re.subn(r"\(class %s\s*\n" % re.escape(name), f"(class {name} {net}\n", dsn)
+    if n != 1:
+        raise SystemExit(f"class {name} not found in the DSN")
+dsn = dsn[: m.start(1)] + " " + " ".join(members) + "\n      " + dsn[m.end(1):]
+Path(sys.argv[2]).write_text(dsn)
+print("exported, power nets in their own classes:", ", ".join(POWER_NETS))
