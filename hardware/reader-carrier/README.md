@@ -42,6 +42,7 @@ re-crimped or crossed over.
 | U2 | 74AHCT1G125 | 3.3 V → 5 V LED data, then **470 Ω** (R7) |
 | U3 | SRV05-4 | ESD clamp on the lines that leave the box: SDA, SCL, LED data |
 | R5, R6 | 4.7 kΩ | I²C pull-ups to 3.3 V |
+| R8 | 10 kΩ | Holds the LED data input low while the ESP32 boots (its pin floats until then), so the ring doesn't flash at power-up |
 | C5 | 1000 µF 10 V | LED ring supply, by the ring connector |
 | C6, C7 | 100 µF 16 V, 10 µF | Amplifier supply, by its header |
 | TP1–TP3 | Test pads | 5 V, 3.3 V, GND |
@@ -194,7 +195,9 @@ thermal spokes, so they heat up like the others.
 ## First power-up
 
 1. **No dev board, no leads.** Plug in the USB-C charger: the **5V OK** LED
-   lights. Measure **TP1 (5V) to TP3 (GND): 4.75–5.25 V**.
+   lights. Measure **TP1 (5V) to TP3 (GND): 4.75–5.25 V**. (On a plain 5 V
+   USB-C supply that doesn't speak PD the LED may stay off; the board still
+   works.)
 2. Unplug. Fit the dev board (antenna end right). Plug in: the dev board's
    LED lights, **TP2 (3V3) reads 3.2–3.4 V**.
 3. Add the PN532, then the amplifier, then the ring, one at a time, and run
@@ -204,6 +207,11 @@ thermal spokes, so they heat up like the others.
    a sound at full volume. Measure 5 V **at the ring and amplifier headers**
    (not only TP1): it should stay above 4.75 V, and the fuse and tracks should
    be no more than warm after a few minutes.
+5. **Plug-in test.** The board has about 1,100 µF on its 5 V rail and no
+   soft start, so the charger sees a burst of current at plug-in (the
+   breadboard, with the same capacitors, was fine). With everything
+   connected, unplug and replug the charger ten times: the reader should
+   start every time. If your charger ever fails to start it, use another.
 
 ## How it's made
 
@@ -233,7 +241,7 @@ recommended PCB layout LCSC serves for C165948, which allows ±0.05 mm):
 | Shell slots | 8.65 mm apart; drills 0.60 × 1.70 at the back, 0.60 × 1.40 at the front; pads 0.90 mm wide | Same drills (KiCad's front slots were 1.20 mm long, which could pinch the shell's tabs); pads 1.12 mm wide, for the 0.26 mm copper ring JLCPCB needs (HRO's 0.90 would leave 0.15 mm) |
 | Outer pads (GND, VBUS) | ±3.20 / ±2.40 mm | ±3.25 / ±2.45 (KiCad's): within the 0.05 mm tolerance, and the room the CC2 track needs |
 | Signal pad length | 1.14 mm, 0.50 mm behind the pegs | 1.45 mm, 0.72 mm behind (KiCad's): HRO's leave 0.20 mm to the peg holes, under the 0.25 mm hole clearance; KiCad's cover all but the front 0.22 mm of HRO's |
-| Board edge | 5.79 mm in front of the pegs, shell ~0.5 mm past it | 6.27 mm: the shell face is flush with the edge |
+| Board edge | 5.79 mm in front of the pegs, shell ~0.5 mm past it | Same, so a plug's moulded grip (taller than the socket) can't hit the board edge before it seats |
 
 It also drops the three silkscreen lines that would print off the board
 edge. `fp-lib-table` points the DRC at

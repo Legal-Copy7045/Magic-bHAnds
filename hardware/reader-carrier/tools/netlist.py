@@ -94,6 +94,10 @@ PARTS = [
          pins={"1": V5, "2": GND}),
     dict(ref="R7", sym="Device:R_Small", value="470R", fp=R0402, mpn="0402WGF4700TCE", lcsc="C25117", asm="smt",
          pins={"1": "LED_5V", "2": "LED_DATA"}),
+    # GPIO10 is high-impedance while the ESP32 resets and boots: hold the level shifter's input
+    # low so the ring doesn't get random data (flashes) at power-up.
+    dict(ref="R8", sym="Device:R_Small", value="10k", fp=R0402, mpn="0402WGF1002TCE", lcsc="C25744", asm="smt",
+         pins={"1": "LED_3V3", "2": GND}),
     dict(ref="C5", sym="Device:C_Polarized_Small", value="1000uF 10V", fp="Capacitor_THT:CP_Radial_D10.0mm_P5.00mm",
          mpn="1000 uF 10 V radial, 10 mm", lcsc="", asm="tht", pins={"1": V5, "2": GND}),
     # LED ring lead: the ring's 3-pin plug order (red 5V, green DIN, black GND).

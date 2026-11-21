@@ -29,11 +29,12 @@ X0, Y0 = 100.0, 80.0  # board origin on the page (mm)
 W, H = 90.0, 64.0
 ROW1, ROW3 = 26.0, 26.0 + 22.86  # dev board socket rows (J1 top, J3 bottom), 0.9 in apart
 PIN1_X = 72.0  # both sockets' pin 1 (antenna end) at the right
-# Copper-free strip under the antenna (x0, y0, x1, y1). Espressif's DevKitC-1 v1.1 drawing: pin 1 is 1.40 mm
-# from the board end and the module's antenna sticks out 6.3 mm past it, so the antenna spans PIN1_X + 1.4 to
-# PIN1_X + 7.7. The strip starts 0.35 mm past the pin-1 pads (1.7 mm across) and runs to the board edge.
+# Copper-free strip under the antenna (x0, y0, x1, y1). Espressif's DevKitC-1 v1.1 DXF: pin 1 is 1.57 mm from
+# the board end and the module's antenna sticks out 6.29 mm past it, so the antenna spans PIN1_X + 1.57 to
+# PIN1_X + 7.85. The strip starts 0.35 mm past the pin-1 pads (1.7 mm across) and runs to the board edge.
 ANTENNA = (PIN1_X + 1.2, ROW1 - 4.0, W, ROW3 + 4.0)
-USB_X = 3.67  # USB-C: shell face flush with the left edge (HRO draws it ~0.5 mm past; see make_usb_fp.py)
+USB_X = 3.19  # USB-C: peg holes 5.79 mm from the left edge as HRO draws it, so the shell sits ~0.5 mm past the
+              # edge and a plug's moulded grip (taller than the socket) can't hit the board before it seats
 
 # ref: (x, y, rotation) relative to the board's top-left corner. 270 turns a
 # footprint whose pins run down (+y) so they run left (-x).
@@ -42,14 +43,14 @@ PLACE = {
     "XJ1": (PIN1_X, ROW1, 270), "XJ3": (PIN1_X, ROW3, 270),
     # Top edge: LED ring and its parts, NFC, amplifier (kit header and Adafruit socket)
     "C5": (12.0, 15.0, 0),
-    "J3": (20.5, 6.5, 90), "U2": (24.5, 15.0, 0), "C4": (24.5, 18.5, 0), "R7": (28.5, 15.0, 90),
+    "J3": (20.5, 6.5, 90), "U2": (24.5, 15.0, 0), "C4": (24.5, 18.5, 0), "R7": (28.5, 15.0, 90), "R8": (20.8, 15.0, 90),
     "U3": (32.0, 20.0, 90),
     "J2": (36.0, 6.5, 90), "R5": (39.5, 15.0, 90), "R6": (41.5, 15.0, 90),
     "J4": (51.0, 6.5, 90), "C6": (54.0, 15.5, 0), "C7": (60.0, 15.0, 90),
     "J5": (65.0, 6.5, 90),
     # Left edge: USB-C, PD controller, fuse, TVS, 5 V OK LED, Schottky to the dev board
     "J1": (USB_X, 40.0, 270),
-    "U1": (12.5, 31.5, 0), "R1": (6.5, 26.0, 0), "C1": (9.5, 26.0, 0), "R2": (12.5, 26.0, 0), "R3": (16.5, 31.5, 90),
+    "U1": (12.5, 31.5, 0), "R1": (6.5, 26.0, 0), "C1": (9.5, 26.0, 0), "R2": (12.5, 26.0, 0), "R3": (17.0, 31.5, 90),
     "F1": (12.0, 46.5, 90), "D2": (12.0, 54.0, 90), "C2": (17.5, 54.5, 0), "C3": (17.5, 57.5, 0),
     "R4": (19.5, 59.5, 0), "D1": (22.5, 59.5, 180),
     "D3": (24.5, 21.0, 0),
