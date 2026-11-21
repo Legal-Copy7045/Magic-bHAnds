@@ -14,7 +14,7 @@ from pathlib import Path
 import pcbnew
 
 sys.path.insert(0, str(Path(__file__).parent))
-from netlist import POWER_NETS  # noqa: E402
+from netlist import POWER_NETS, POWER_VIAS  # noqa: E402
 
 board = pcbnew.LoadBoard(sys.argv[1])
 # A short neck where a track enters a pad is allowed: Freerouting narrows the last
@@ -88,4 +88,11 @@ for net, want in POWER_NETS.items():
         print(f"          too narrow: {pcbnew.ToMM(t.GetWidth()):.2f} mm, {pcbnew.ToMM(t.GetLength()):.2f} mm long,"
               f" at ({pcbnew.ToMM(t.GetStart().x) - 100:.1f}, {pcbnew.ToMM(t.GetStart().y) - 80:.1f})")
     bad |= bool(wrong)
-sys.exit("power tracks narrower than specified" if bad else 0)
+# Vias on the nets that carry the whole load must be the big ones (netlist.POWER_VIAS), so the
+# barrel isn't the thinnest copper in the path.
+for net, (size, drill) in POWER_VIAS.items():
+    vias = [t for t in board.GetTracks() if t.GetClass() == "PCB_VIA" and t.GetNetname() == net]
+    small = [v for v in vias if pcbnew.ToMM(v.GetDrillValue()) < drill - 1e-6 or pcbnew.ToMM(v.GetWidth()) < size - 1e-6]
+    print(f"{net:7} vias: {len(vias)}, want >= {size}/{drill} mm" + (f"  <-- {len(small)} too small" if small else ""))
+    bad |= bool(small)
+sys.exit("power tracks or vias under-sized" if bad else 0)

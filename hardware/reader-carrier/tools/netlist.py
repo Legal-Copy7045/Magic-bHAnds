@@ -139,3 +139,8 @@ PWR_FLAGS = [VBUS, GND, V3]
 # Track widths (mm). +5V carries the LED and amplifier current (up to ~2.2 A at 0.8 mm, 1 oz,
 # about 20 C rise); narrow enough to reach the 0.95 mm-pitch SOT-23 pins. Ground is mostly pour.
 POWER_NETS = {GND: 0.5, V5: 0.8, VBUS: 0.8, "ESP_5V": 0.6, V3: 0.4}
+# Via (pad, drill) in mm per power net. The nets that carry the whole load get a 0.8 mm drill:
+# its barrel (2.5 mm round x 18 um plating = 0.045 mm2) has more copper than the 0.8 mm track
+# (0.028 mm2 at 1 oz). A 0.4 mm drill (0.023 mm2) would be the thinnest point of the path.
+POWER_VIAS = {"+5V": (1.4, 0.8), "VBUS": (1.4, 0.8)}
+POWER_VIA_DEFAULT = (0.8, 0.4)

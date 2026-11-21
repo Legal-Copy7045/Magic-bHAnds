@@ -16,7 +16,7 @@ from pathlib import Path
 import pcbnew
 
 sys.path.insert(0, str(Path(__file__).parent))
-from netlist import POWER_NETS  # noqa: E402
+from netlist import POWER_NETS, POWER_VIA_DEFAULT, POWER_VIAS  # noqa: E402
 
 board = pcbnew.LoadBoard(sys.argv[1])
 classes = board.GetDesignSettings().m_NetSettings.m_NetClasses
@@ -25,8 +25,9 @@ for net, width in POWER_NETS.items():
     nc = pcbnew.NETCLASS(name)
     nc.SetTrackWidth(pcbnew.FromMM(width))
     nc.SetClearance(pcbnew.FromMM(0.25))
-    nc.SetViaDiameter(pcbnew.FromMM(0.8))
-    nc.SetViaDrill(pcbnew.FromMM(0.4))
+    via, drill = POWER_VIAS.get(net, POWER_VIA_DEFAULT)
+    nc.SetViaDiameter(pcbnew.FromMM(via))
+    nc.SetViaDrill(pcbnew.FromMM(drill))
     classes[name] = nc
     board.FindNet(net).SetNetClass(nc)
 for zone in list(board.Zones()):
