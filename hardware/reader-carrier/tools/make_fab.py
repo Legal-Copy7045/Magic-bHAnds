@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """JLCPCB assembly files (BOM + component placement) from the .kicad_pcb.
 
-Run after routing too; placement doesn't change. Rotations are KiCad's: JLCPCB
-sometimes needs a part rotated in their preview before ordering.
+Run after routing too; placement doesn't change. Positions are in the same frame as
+the Gerbers and drill files (KiCad's page coordinates, y up), so the placement lines up
+with the copper without any offset. Rotations are KiCad's: JLCPCB sometimes needs a part
+rotated in their preview before ordering.
 """
 
 import csv
@@ -15,7 +17,6 @@ import pcbnew
 sys.path.insert(0, str(Path(__file__).parent))
 from netlist import PARTS  # noqa: E402
 
-X0, Y0, H = 100.0, 80.0, 64.0
 
 
 def main(pcb: Path, out: Path) -> None:
@@ -31,8 +32,8 @@ def main(pcb: Path, out: Path) -> None:
             if info[ref].get("asm") != "smt":
                 continue  # hand-soldered or not a part
             pos = fp.GetPosition()
-            x = pcbnew.ToMM(pos.x) - X0
-            y = H - (pcbnew.ToMM(pos.y) - Y0)  # origin bottom-left, y up
+            x = pcbnew.ToMM(pos.x)  # same origin as the Gerbers (absolute), which flip y
+            y = -pcbnew.ToMM(pos.y)
             w.writerow([ref, f"{x:.3f}mm", f"{y:.3f}mm", "Top", f"{fp.GetOrientationDegrees() % 360:.0f}"])
             p = info[ref]
             groups[(p["value"], p["fp"].split(":")[1], p["mpn"], p["lcsc"])].append(ref)

@@ -16,9 +16,8 @@ Checked against the drawing, which allows +-0.05 mm on the PCB layout:
   the front, where KiCad's 1.20 mm slot could pinch the shell's front tabs) and the peg
   holes (0.60 mm). The slot pads are 1.12 mm wide rather than HRO's 0.90, for a 0.26 mm
   copper ring round the slot (JLCPCB's minimum is 0.18 mm at 1 oz, 0.254 mm at 2 oz).
-- The drawing puts the board edge 5.79 mm in front of the peg holes, with the shell about
-  0.5 mm past it. This board has it 6.27 mm (make_pcb.py USB_X), the shell face flush with
-  the edge, which gives the routing room it needs; a plug still seats fully.
+- The board edge is 5.79 mm in front of the peg holes, as drawn (make_pcb.py USB_X), so the
+  shell sits about 0.5 mm past it and a plug's moulded grip can't hit the board.
 
 The socket overhangs the board's left edge on purpose (the plug face sits just past it),
 so the stock footprint's silk lines on that side (y >= 2 mm in footprint coordinates)
