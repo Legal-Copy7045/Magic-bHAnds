@@ -11,6 +11,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 : "${FREEROUTING:?set FREEROUTING to the freerouting jar}"
 WORK="$(mktemp -d)"
+# KiCad's own footprints, for the DRC's library check (fp-lib-table uses this).
+export KICAD7_FOOTPRINT_DIR="${KICAD7_FOOTPRINT_DIR:-/usr/share/kicad/footprints}"
 B=magicband-carrier
 python3 tools/make_schematic.py $B.kicad_sch
 python3 tools/make_pcb.py $B.kicad_pcb
@@ -21,6 +23,7 @@ python3 tools/check_widths.py $B.kicad_pcb
 python3 -c "import pcbnew; b=pcbnew.LoadBoard('$B.kicad_pcb'); pcbnew.WriteDRCReport(b, 'fab/drc.rpt', pcbnew.EDA_UNITS_MILLIMETRES, True)"
 grep '^\*\*' fab/drc.rpt
 grep -q 'Found 0 unconnected pads' fab/drc.rpt || { echo 'unrouted connections: nudge a part in make_pcb.py and run again'; exit 1; }
+grep -q 'Found 0 DRC violations' fab/drc.rpt || { echo 'DRC violations: see fab/drc.rpt'; exit 1; }
 rm -rf fab/gerbers && mkdir -p fab/gerbers
 kicad-cli pcb export gerbers --layers F.Cu,B.Cu,F.Paste,F.SilkS,B.SilkS,F.Mask,B.Mask,Edge.Cuts \
   --subtract-soldermask --no-x2 -o fab/gerbers/ $B.kicad_pcb
