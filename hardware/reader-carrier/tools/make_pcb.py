@@ -40,14 +40,14 @@ PLACE = {
     # Top edge: LED ring and its parts, NFC, amplifier (kit header and Adafruit socket)
     "C5": (12.0, 15.0, 0),
     "J3": (20.5, 6.5, 90), "U2": (24.5, 15.0, 0), "C4": (24.5, 18.5, 0), "R7": (28.5, 15.0, 90),
-    "U3": (33.0, 15.0, 0),
+    "U3": (32.0, 20.0, 90),
     "J2": (36.0, 6.5, 90), "R5": (39.5, 15.0, 90), "R6": (41.5, 15.0, 90),
     "J4": (51.0, 6.5, 90), "C6": (54.0, 15.5, 0), "C7": (60.0, 15.0, 90),
     "J5": (65.0, 6.5, 90),
     # Left edge: USB-C, PD controller, fuse, TVS, 5 V OK LED, Schottky to the dev board
     "J1": (USB_X, 40.0, 270),
     "U1": (12.5, 31.5, 0), "R1": (6.5, 26.0, 0), "C1": (9.5, 26.0, 0), "R2": (12.5, 26.0, 0), "R3": (16.5, 31.5, 90),
-    "F1": (12.0, 46.5, 90), "D2": (12.0, 54.0, 90), "C2": (16.5, 54.0, 90), "C3": (16.5, 57.0, 90),
+    "F1": (12.0, 46.5, 90), "D2": (12.0, 54.0, 90), "C2": (17.5, 54.5, 0), "C3": (17.5, 57.5, 0),
     "R4": (19.5, 59.5, 0), "D1": (22.5, 59.5, 180),
     "D3": (24.5, 21.0, 0),
     # Test points along the bottom edge
@@ -229,6 +229,25 @@ def main(out: Path) -> None:
                 if pad.GetNetname() == "GND":
                     pad.SetZoneConnection(pcbnew.ZONE_CONNECTION_FULL)
         fp.Value().SetVisible(False)
+
+    # USB-C VBUS: the pins are 0.5 mm apart, too tight for a 0.8 mm track, so each
+    # VBUS pin gets a short pad-width stub out past the pin row. They're locked, so
+    # Freerouting keeps them and joins them with full-width VBUS track.
+    usb = board.FindFootprintByReference("J1")
+    for g in list(usb.GraphicalItems()):  # the socket's outline marks that would run off the board edge
+        if g.GetLayer() == pcbnew.F_SilkS and pcbnew.ToMM(g.GetBoundingBox().GetX()) - X0 < 2.5:
+            usb.Remove(g)
+    for pad in usb.Pads():
+        if pad.GetNetname() == "VBUS" and pad.GetNumber() in ("A4", "B4"):
+            c = pad.GetPosition()
+            t = pcbnew.PCB_TRACK(board)
+            t.SetStart(c)
+            t.SetEnd(pcbnew.VECTOR2I(c.x + mm(2.2), c.y))
+            t.SetWidth(mm(0.6))
+            t.SetLayer(pcbnew.F_Cu)
+            t.SetNet(net("VBUS"))
+            t.SetLocked(True)
+            board.Add(t)
 
     add_outline(board)
     add_keepout(board, *ANTENNA)

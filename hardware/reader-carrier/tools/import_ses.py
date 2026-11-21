@@ -244,9 +244,10 @@ def main(pcb_path: str, ses_path: str) -> None:
         if m:
             vias_size[ps[1]] = (int(m.group(1)) * 1000, int(m.group(2)) * 1000)
 
-    # Drop any existing tracks so re-running is safe.
+    # Drop any existing tracks so re-running is safe (locked, hand-placed stubs stay).
     for t in list(board.GetTracks()):
-        board.Remove(t)
+        if not t.IsLocked():
+            board.Remove(t)
 
     n_tracks = n_vias = 0
     for net_node in find(find(routes, "network_out")[0], "net"):
@@ -276,6 +277,24 @@ def main(pcb_path: str, ses_path: str) -> None:
             v.SetNet(net)
             board.Add(v)
             n_vias += 1
+
+    # Freerouting sometimes leaves a zero-length sliver where it meets a fixed track.
+    for t in list(board.GetTracks()):
+        if t.GetClass() == "PCB_TRACK" and t.GetLength() < pcbnew.FromMM(0.01):
+            board.Remove(t)
+            n_tracks -= 1
+
+    # ...or a short spur with a loose end beside one.
+    for _ in range(5):
+        conn = board.GetConnectivity()
+        conn.Build(board)
+        loose = [t for t in board.GetTracks() if t.GetClass() == "PCB_TRACK" and not t.IsLocked()
+                 and t.GetLength() < pcbnew.FromMM(1.0) and conn.TestTrackEndpointDangling(t, False)]
+        if not loose:
+            break
+        for t in loose:
+            board.Remove(t)
+            n_tracks -= 1
 
     n_stitch = add_stitching(board)
     pcbnew.ZONE_FILLER(board).Fill(board.Zones())

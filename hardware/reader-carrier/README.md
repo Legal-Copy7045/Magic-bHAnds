@@ -23,8 +23,9 @@ re-crimped or crossed over.
 [Schematic (PDF)](docs/schematic.pdf) · [Front](docs/front.svg) · [Back](docs/back.svg) · [DRC report](fab/drc.rpt)
 
 > **Status: routed, design rules pass, not yet built.** Every net in the
-> schematic matches the board pin for pin, and the dev-board sockets follow
-> Espressif's DevKitC-1 pinout. Treat the first order as a prototype: get 5
+> schematic matches the board pin for pin, the dev-board sockets follow
+> Espressif's DevKitC-1 pinout, and the build checks every power track's
+> width in the routed copper (below). Treat the first order as a prototype: get 5
 > boards, power one up without the dev board first (below), and keep the
 > compact build working until a board has been proven.
 
@@ -33,10 +34,10 @@ re-crimped or crossed over.
 | | Part | Notes |
 |---|---|---|
 | J1 | USB-C (power only) | On the left edge |
-| U1 | **CH224K** USB PD controller | Asks the charger for **5 V**, and nothing else: CFG1 is tied high on the board, so there's no switch to knock to 20 V. Wired per the datasheet (V2.1, 6.2): 1 kΩ + 1 µF on VDD, 10 kΩ on VBUS. Its D+/D− are left open (power only: the request goes over CC) |
+| U1 | **CH224A** USB PD controller (or a CH224K) | Asks the charger for **5 V**, and nothing else: CFG1 is tied high through 100 kΩ, so there's no switch to knock to 20 V. The CH224A is WCH's pin-compatible upgrade of the CH224K and the one JLCPCB stocks; wired per its datasheet (V2.1, 6.1.2) with **R1 and R2 = 0 Ω**. For a CH224K, fit **R1 = 1 kΩ and R2 = 10 kΩ** instead (6.2). D+/D− are left open (power only: the request goes over CC) |
 | F1 | 3 A resettable fuse (1812) | Between USB-C and everything else |
 | D2 | SMAJ5.0A TVS | Clamps spikes on the 5 V rail |
-| D1 | Green LED, "5V OK" | Lights when the charger has agreed 5 V (CH224K's PG) |
+| D1 | Green LED, "5V OK" | Lights when the charger has agreed 5 V (the CH224A's PG) |
 | D3 | SS34 Schottky | 5 V to the dev board. The board powers the ESP32, but the dev board's own USB can't power the LEDs and amplifier, so there's **no 5 V wire to pull** before using USB |
 | U2 | 74AHCT1G125 | 3.3 V → 5 V LED data, then **470 Ω** (R7) |
 | U3 | SRV05-4 | ESD clamp on the lines that leave the box: SDA, SCL, LED data |
@@ -63,6 +64,28 @@ The cables' male ends push into the headers the same way they push into a
 breadboard. Once everything works, a dab of hot glue along each row keeps
 them from working loose in the box. Labels on the board name every pin.
 
+## Power tracks
+
+The shared 5 V path carries up to about **2.2 A** in the worst case (ring at
+full white 1.44 A, amplifier at full volume 0.65 A, PN532 0.15 A); in normal
+use it's well under 1 A.
+
+| Net | Track | Carries |
+|---|---|---|
+| VBUS (USB-C → fuse) | 0.8 mm | Everything |
+| +5V (fuse → ring, amplifier, NFC, dev board) | 0.8 mm | Up to ~2.2 A |
+| ESP_5V (diode → dev board) | 0.6 mm | ≤ 0.5 A |
+| +3V3 | 0.4 mm | Pull-ups only |
+| GND | 0.5 mm tracks plus solid pours on both sides | |
+
+At 1 oz copper, 0.8 mm carries about 2.0 A for a 10 °C rise and about 2.8 A
+for 20 °C (IPC-2221, outer layer); at **2 oz** it's about 3.3 A for 10 °C.
+**Order 2 oz copper** for the margin (a small extra at JLCPCB). The only
+narrower pieces are short necks (under 1.5 mm) into the pins of the tiny
+parts, and 0.6 mm stubs off the USB-C VBUS pins, which are too close
+together for a wider track. `tools/check_widths.py` fails the build if any
+other power track is narrower than this table.
+
 ## Fitting it in the box
 
 - The USB-C socket is on the **left edge**. For a cable coming up through
@@ -77,20 +100,30 @@ them from working loose in the box. Labels on the board name every pin.
 ## Ordering (JLCPCB)
 
 1. Upload **`fab/magicband-carrier-gerbers.zip`** at jlcpcb.com: 2 layers,
-   1.6 mm, any colour. 1 oz copper is enough (the 5 V track is 0.8 mm wide).
+   1.6 mm, any colour, **2 oz outer copper** (see Power tracks).
 2. Turn on **PCB Assembly**, top side, and upload **`fab/bom.csv`** and
    **`fab/cpl.csv`**. They list only the small surface-mount parts.
-3. Four parts have no LCSC number yet: pick them in JLCPCB's parts search by
-   the MPN in the BOM (or an equivalent): **SMAJ5.0A** (TVS, SMA),
-   **3 A hold 1812 PTC fuse**, **74AHCT1G125** (SOT-23-5), **SRV05-4**
-   (SOT-23-6). Check every LCSC number shown before paying.
-4. In the placement preview, check **U1 (CH224K)** pin 1 and the **USB-C**
+3. Every part has an LCSC number, checked in stock at JLCPCB on 21 Nov 2026
+   (the CH224A had the fewest: 501). If one has run out, pick the same MPN
+   or an equivalent in the parts search; keep R1/R2 matched to the chip
+   (0 Ω for a CH224A, 1 kΩ/10 kΩ for a CH224K).
+4. In the placement preview, check **U1 (CH224A)** pin 1 and the **USB-C**
    orientation; rotate in the preview if they're off.
 
 **You solder** (through-hole, all on the top side): the 2.54 mm female
 headers (two 1×22, one each of 1×3, 1×4 and 1×5; the 1×7 only if you use an
 Adafruit 3006) and the 1000 µF and 100 µF capacitors (stripe = minus, away
 from the square pad). Nothing else.
+
+## Before you order: physical checks
+
+- **Charger and cable:** a USB-C PD charger that offers **5 V 3 A** (most of
+  20 W and up do), with a cable rated 3 A. Test with the charger and cable
+  you'll actually use.
+- **Capacitors:** check the 1000 µF you'll fit is 10 mm across with 5 mm lead
+  spacing, 10 V or more, and short enough for the box (about 20 mm or less);
+  the 100 µF 6.3 mm across, 2.5 mm spacing. Minus stripe away from the square
+  pad.
 
 ## First power-up
 
@@ -100,22 +133,27 @@ from the square pad). Nothing else.
    LED lights, **TP2 (3V3) reads 3.2–3.4 V**.
 3. Add the PN532, then the amplifier, then the ring, one at a time, and run
    [the checks for every build](../README.md#checking-a-build-works).
+4. **Full-load test.** Set the ring to full white at full brightness and play
+   a sound at full volume. Measure 5 V **at the ring and amplifier headers**
+   (not only TP1): it should stay above 4.75 V, and the fuse and tracks should
+   be no more than warm after a few minutes.
 
 ## How it's made
 
 Everything is generated from one parts list (`tools/netlist.py`):
 `make_schematic.py` writes the schematic, `make_pcb.py` places the parts,
 Freerouting 1.9.0 routes it (`export_dsn.py` / `import_ses.py`, with the
-power nets in their own wide-track classes and ground stitched between the
-pours), and `make_fab.py` writes the JLCPCB files. `tools/build.sh` runs it
+power nets moved into their own wide-track classes in the DSN and ground
+stitched between the pours), `check_widths.py` checks the routed power
+widths, and `make_fab.py` writes the JLCPCB files. `tools/build.sh` runs it
 all, including the design-rule check:
 
 ```
 FREEROUTING=/path/to/freerouting-1.9.0.jar tools/build.sh
 ```
 
-The CH224K has no KiCad library part; its symbol and footprint (ESSOP-10 with
+The CH224A/CH224K has no KiCad library part; its symbol and footprint (ESSOP-10 with
 the exposed pad, its only ground) are in `tools/lib/`. The DRC report's
 remaining entries are notices that KiCad's stock libraries aren't configured
-on the build machine, and the USB-C outline meeting the board edge (the fab
-trims it).
+on the build machine. The build stops if anything is unrouted or a power
+track is too narrow.

@@ -17,8 +17,10 @@ python3 tools/make_pcb.py $B.kicad_pcb
 python3 tools/export_dsn.py $B.kicad_pcb "$WORK/board.dsn"
 xvfb-run -a java -jar "$FREEROUTING" -de "$WORK/board.dsn" -do "$WORK/board.ses" -mp 100 -mt 1
 python3 tools/import_ses.py $B.kicad_pcb "$WORK/board.ses"
+python3 tools/check_widths.py $B.kicad_pcb
 python3 -c "import pcbnew; b=pcbnew.LoadBoard('$B.kicad_pcb'); pcbnew.WriteDRCReport(b, 'fab/drc.rpt', pcbnew.EDA_UNITS_MILLIMETRES, True)"
 grep '^\*\*' fab/drc.rpt
+grep -q 'Found 0 unconnected pads' fab/drc.rpt || { echo 'unrouted connections: nudge a part in make_pcb.py and run again'; exit 1; }
 rm -rf fab/gerbers && mkdir -p fab/gerbers
 kicad-cli pcb export gerbers --layers F.Cu,B.Cu,F.Paste,F.SilkS,B.SilkS,F.Mask,B.Mask,Edge.Cuts \
   --subtract-soldermask --no-x2 -o fab/gerbers/ $B.kicad_pcb

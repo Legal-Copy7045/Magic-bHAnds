@@ -4,13 +4,13 @@ The "brains" board for the reader: the ESP32-S3-DevKitC-1 (N16R8) plugs into
 two 22-pin sockets, the MAX98357A amplifier kit plugs into a 5-pin header with
 its own cable (or an Adafruit 3006 breakout into the 7-pin socket), and the
 LED ring and PN532 NFC board go on leads. Every lead plugs into a 2.54 mm
-female header in its own cable's pin order, the way it plugs into a breadboard. USB-C power with a CH224K
-fixed at 5 V (CFG1 high: it can never ask for more), a 3 A resettable fuse, a
+female header in its own cable's pin order, the way it plugs into a breadboard. USB-C power with a CH224A
+(or CH224K) fixed at 5 V (CFG1 high: it can never ask for more), a 3 A resettable fuse, a
 TVS clamp, and a Schottky diode so the dev board's own USB can't back-feed the
 board. GPIOs match esphome/magicband-reader.yaml.
 
 Each part: ref, symbol (lib:name; "MagicbHAnds" = tools/lib), value, footprint,
-MPN, LCSC part number ("" where you should pick one in JLCPCB's parts search),
+MPN, LCSC part number (every "smt" part has one; "" for parts you solder),
 assembly ("smt" by JLCPCB, "tht" soldered by hand), and {pin: net}.
 Pins not listed are left unconnected.
 """
@@ -32,31 +32,35 @@ PARTS = [
          pins={"A4": VBUS, "A9": VBUS, "B4": VBUS, "B9": VBUS,
                "A1": GND, "A12": GND, "B1": GND, "B12": GND, "S1": GND,
                "A5": "CC1", "B5": "CC2"}),  # D+/D- unused: power only
-    dict(ref="U1", sym="MagicbHAnds:CH224K", value="CH224K",
-         fp="MagicbHAnds:CH224K_ESSOP-10", mpn="CH224K", lcsc="C970725", asm="smt",
+    # CH224A: WCH's pin-compatible upgrade of the CH224K (datasheet V2.1, 4.2 and 7.2),
+    # and the one JLCPCB stocks. For a CH224K instead, fit R1 = 1k and R2 = 10k.
+    dict(ref="U1", sym="MagicbHAnds:CH224K", value="CH224A",
+         fp="MagicbHAnds:CH224K_ESSOP-10", mpn="CH224A", lcsc="C42459160", asm="smt",
          pins={"1": "PD_VDD", "2": GND, "3": GND, "6": "CC2", "7": "CC1",
                "8": "PD_VSENSE", "9": "PD_CFG1", "10": "PG", "11": GND}),
-    # Datasheet 6.2: VDD from VBUS through 1 k with 1 uF; VBUS sense through 10 k.
+    # CH224A (6.1.2): VHV straight from VBUS with 1 uF, VBUS sense tied to VHV, CFG1
+    # 100 k to VHV = 5 V. So R1 and R2 are 0 ohm. (CH224K, 6.2: R1 1 k, R2 10 k.)
     # DP/DM are left open: the 5 V request is made over CC (USB PD) alone.
-    dict(ref="R1", sym="Device:R_Small", value="1k", fp=R0402, mpn="0402WGF1001TCE", lcsc="C11702", asm="smt",
+    dict(ref="R1", sym="Device:R_Small", value="0R", fp=R0402, mpn="0402WGF0000TCE", lcsc="C17168", asm="smt",
          pins={"1": VBUS, "2": "PD_VDD"}),
     dict(ref="C1", sym="Device:C_Small", value="1uF", fp=C0402, mpn="CL05A105KA5NQNC", lcsc="C52923", asm="smt",
          pins={"1": "PD_VDD", "2": GND}),
-    dict(ref="R2", sym="Device:R_Small", value="10k", fp=R0402, mpn="0402WGF1002TCE", lcsc="C25744", asm="smt",
+    dict(ref="R2", sym="Device:R_Small", value="0R", fp=R0402, mpn="0402WGF0000TCE", lcsc="C17168", asm="smt",
          pins={"1": VBUS, "2": "PD_VSENSE"}),
-    # Datasheet 5.2.2: CFG1 high = 5 V (CFG2, CFG3 don't care; tied low).
+    # Datasheet 5.2.2: CFG1 high = 5 V (CFG2, CFG3 don't care; tied low), pulled up
+    # through 100 k to pin 1 (VHV on the CH224A, VDD on the CH224K).
     dict(ref="R3", sym="Device:R_Small", value="100k", fp=R0402, mpn="0402WGF1003TCE", lcsc="C25741", asm="smt",
          pins={"1": "PD_VDD", "2": "PD_CFG1"}),
     # "5V OK" LED: PG pulls low once the charger has agreed 5 V.
     dict(ref="R4", sym="Device:R_Small", value="1k", fp=R0402, mpn="0402WGF1001TCE", lcsc="C11702", asm="smt",
          pins={"1": V5, "2": "PG_LED"}),
     dict(ref="D1", sym="Device:LED_Small", value="green", fp="LED_SMD:LED_0603_1608Metric",
-         mpn="KT-0603G", lcsc="C72043", asm="smt", pins={"1": "PG", "2": "PG_LED"}),
+         mpn="KT-0603G", lcsc="C12624", asm="smt", pins={"1": "PG", "2": "PG_LED"}),
     # Fuse (3 A hold) and TVS clamp on the 5 V rail.
     dict(ref="F1", sym="Device:Polyfuse_Small", value="3A hold", fp="Fuse:Fuse_1812_4532Metric",
-         mpn="SMD1812P300TF/15", lcsc="", asm="smt", pins={"1": VBUS, "2": V5}),
+         mpn="SMD1812P300TF", lcsc="C21004", asm="smt", pins={"1": VBUS, "2": V5}),
     dict(ref="D2", sym="Diode:SMAJ5.0A", value="SMAJ5.0A", fp="Diode_SMD:D_SMA",
-         mpn="SMAJ5.0A", lcsc="", asm="smt", pins={"1": V5, "2": GND}),
+         mpn="SMAJ5.0A", lcsc="C113952", asm="smt", pins={"1": V5, "2": GND}),
     dict(ref="C2", sym="Device:C_Small", value="10uF", fp=C0805, mpn="CL21A106KAYNNNE", lcsc="C15850", asm="smt",
          pins={"1": V5, "2": GND}),
     dict(ref="C3", sym="Device:C_Small", value="100nF", fp=C0402, mpn="CL05B104KO5NNNC", lcsc="C1525", asm="smt",
@@ -84,7 +88,7 @@ PARTS = [
          pins={"1": GND, "2": V5, "3": "I2C_SDA", "4": "I2C_SCL"}),
     # --- LED ring (lead): 3.3 V -> 5 V buffer, 470 ohm, bulk capacitor ----------------
     dict(ref="U2", sym="74xGxx:74AHCT1G125", value="74AHCT1G125", fp="Package_TO_SOT_SMD:SOT-23-5",
-         mpn="SN74AHCT1G125DBVR", lcsc="", asm="smt",
+         mpn="SN74AHCT1G125DBVR", lcsc="C7484", asm="smt",
          pins={"1": GND, "2": "LED_3V3", "3": GND, "4": "LED_5V", "5": V5}),
     dict(ref="C4", sym="Device:C_Small", value="100nF", fp=C0402, mpn="CL05B104KO5NNNC", lcsc="C1525", asm="smt",
          pins={"1": V5, "2": GND}),
@@ -98,7 +102,7 @@ PARTS = [
          pins={"1": V5, "2": "LED_DATA", "3": GND}),
     # ESD clamp on the lines that leave the box on leads.
     dict(ref="U3", sym="Power_Protection:SRV05-4", value="SRV05-4", fp="Package_TO_SOT_SMD:SOT-23-6",
-         mpn="SRV05-4", lcsc="", asm="smt",
+         mpn="SRV05-4.TCT", lcsc="C13612", asm="smt",
          pins={"1": "I2C_SDA", "2": GND, "3": "I2C_SCL", "4": "LED_DATA", "5": V5}),
     # --- Amplifier --------------------------------------------------------------------
     # The amplifier kit's cable, in its socket's order (G, V, BCL, LRC, DIN); the speaker plugs into the amplifier.
@@ -130,4 +134,4 @@ PWR_FLAGS = [VBUS, GND, V3]
 
 # Track widths (mm). +5V carries the LED and amplifier current (up to ~2.2 A at 0.8 mm, 1 oz,
 # about 20 C rise); narrow enough to reach the 0.95 mm-pitch SOT-23 pins. Ground is mostly pour.
-POWER_NETS = {GND: 0.5, V5: 0.8, VBUS: 0.6, "ESP_5V": 0.6, V3: 0.4}
+POWER_NETS = {GND: 0.5, V5: 0.8, VBUS: 0.8, "ESP_5V": 0.6, V3: 0.4}
