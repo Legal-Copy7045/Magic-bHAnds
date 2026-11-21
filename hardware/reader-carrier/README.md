@@ -55,10 +55,10 @@ LEDs 10. The firmware doesn't change: install the standard reader from the
 
 | | Header (2.54 mm female) | Pins, left to right (1 = square pad) | Plug in | Lead length |
 |---|---|---|---|---|
-| J3 | 1×3 | **5V, DIN, GND** | The LED ring's 3-pin plug with its jumper wires: **red, green, black** | Up to about 1 m |
+| J3 | 1×3 | **5V, DIN, GND** | The LED ring's 3-pin plug with its jumper wires: **red, green, black**. Use **22 AWG** for 5V and GND (the ring can draw 1.4 A), not thin jumper wire | Up to about 1 m |
 | J2 | 1×4 | **GND, 5V, SDA, SCL** | The PN532's 4-wire Dupont cable, in the PN532's own order (GND, VCC, SDA, SCL). PN532 switches: 1 ON, 2 OFF (I²C) | Up to about 50 cm |
 | J4 | 1×5 | **G, V, BCL, LRC, DIN** | The amplifier kit's cable, in the order printed by its socket | As supplied (about 20 cm) |
-| J5 | 1×7 | LRC, BCLK, DIN, GAIN, SD, GND, Vin | An Adafruit 3006, *instead of* the kit on J4 | — |
+| J5 | 1×7 | LRC, BCLK, DIN, GAIN, SD, GND, Vin | An Adafruit 3006, *instead of* the kit on J4. It stands out past the board's top edge by about 10 mm | — |
 | XJ1, XJ3 | 2 × 1×22, 22.86 mm apart | DevKitC-1 J1 and J3 | The dev board, **antenna end over the copper-free strip** (pin 1 on the right) | — |
 
 The cables' male ends push into the headers the same way they push into a
@@ -90,9 +90,10 @@ test. Without the cap, 35 LEDs × 60 mA would be 2.1 A for the ring and about
 3.4 A in all, over a 3 A charger.
 
 In normal use the reader draws about 0.3 A idle and about 1.4 A during a
-welcome. The fuse is there for a short circuit or a damaged lead, not to
-limit the current; the charger's own 3 A limit and the firmware's ring cap
-do that.
+welcome. The firmware's ring cap keeps the load inside the budget, and the
+**charger's own 3 A limit is the short-circuit protection**: a 3.5 A fuse
+can't trip on a 3 A supply. The fuse is a backstop for a supply that can
+give more.
 
 **Fuse and temperature.** A polyfuse's hold current falls as it gets warmer,
 so it's sized for the inside of a closed box, not a 25 °C bench. From the
@@ -136,7 +137,9 @@ than the track, each under 2.5 mm: the two USB-C VBUS pins (0.6 mm, too
 close together for more) and, depending on how the router lays it out, the
 SRV05-4's 5 V pin or the 5V OK LED's resistor (a few mA). `tools/check_widths.py` measures the routed copper,
 lists every neck, and fails the build on any other power track narrower than
-this table.
+this table. It also checks vias: the 5 V path changes layer only at the
+through-hole pins, and any via on VBUS or +5V must have a 0.8 mm drill, so a
+via barrel is never the thinnest copper in the path.
 
 ### Ground and the speaker
 
@@ -147,6 +150,27 @@ both sides (stitched together with vias), the dev board's four GND pins and
 the amplifier header's G pin all join them directly, and the I²S tracks run
 over that ground all the way. There's no jumper to add. If it ever crackles,
 check the amplifier lead's G wire first.
+
+## Compared with the tested build
+
+The circuit is the [compact build](../reader-compact/build.md) that was
+built and tested, connection for connection: GPIO 5/6/7 to the amplifier's
+LRC/BCLK/DIN, GPIO 8/9 to the PN532's SDA/SCL with 4.7 kΩ pull-ups to 3.3 V,
+GPIO 10 through a 74AHCT125 gate (enable low, 5 V supply, 0.1 µF) and 470 Ω
+to the ring's DIN, the PN532 on 5 V, 1000 µF at the ring's supply and 100 µF
+at the amplifier's, and a CH224 PD chip set to 5 V. What the board adds:
+
+| Added | Why | Effect on the tested circuit |
+|---|---|---|
+| D3 (Schottky) in the dev board's 5 V feed | Replaces "unclip the ESP32's 5 V wire before using USB" | The dev board gets about 4.6–4.7 V, as it does from its own USB port (how the build was first tested) |
+| F1 fuse, D2 TVS | Protection | Under 0.1 V drop at full load |
+| U3 ESD clamps on SDA, SCL, LED data | The leads leave the board | A few pF on each line |
+| R8 10 kΩ pull-down on GPIO 10 | No ring flash while the ESP32 boots | None once it's running |
+| C2, C3, C7 | Extra decoupling | None |
+| Ground pours | Replace the ground hub and the two ground jumpers that stopped the crackle | Lower-resistance version of the same thing |
+
+The PD chip is a CH224A on the board; the tested build used a CH224K
+trigger module. Both ask for 5 V; the 1000 µF sits behind either.
 
 ## Fitting it in the box
 
@@ -172,9 +196,14 @@ check the amplifier lead's G wire first.
    (the fewest: the fuse, 250, and the CH224A, 501). If one has run out, pick the same MPN
    or an equivalent in the parts search; keep R1/R2 matched to the chip
    (0 Ω for a CH224A, 1 kΩ/10 kΩ for a CH224K).
-4. In the placement preview, check **U1 (CH224A)** pin 1 and the **USB-C**
-   orientation; rotate in the preview if they're off. (Both use footprints
-   from `tools/lib`, so JLCPCB's preview is the place to catch a rotation.)
+4. In the placement preview, check every part that can go on the wrong way
+   round, and rotate any that's off:
+   - **U1** (CH224A), **U2**, **U3**: the chip's pin-1 dot at the corner the
+     board marks. **U3 matters most:** turned half round it still fits its
+     pads, and shorts the 5 V rail.
+   - **D1, D2, D3**: the part's cathode bar at the marked end. D2 reversed
+     shorts the 5 V rail; D3 reversed leaves the dev board unpowered.
+   - **J1** (USB-C): its opening at the board edge.
 
 **You solder** (through-hole, all on the top side): the 2.54 mm female
 headers (two 1×22, one each of 1×3, 1×4 and 1×5; the 1×7 only if you use an
@@ -194,12 +223,17 @@ thermal spokes, so they heat up like the others.
 
 ## First power-up
 
-1. **No dev board, no leads.** Plug in the USB-C charger: the **5V OK** LED
-   lights. Measure **TP1 (5V) to TP3 (GND): 4.75–5.25 V**. (On a plain 5 V
+1. **No dev board, no leads: do this for every board, before anything is
+   plugged into it.** Plug in the USB-C charger: the **5V OK** LED
+   lights. Measure **TP1 (5V) to TP3 (GND): 4.75–5.25 V**. If it reads
+   more, stop: one bad joint at R3 would make the chip ask the charger for
+   9 V, which would damage everything plugged in. (On a plain 5 V
    USB-C supply that doesn't speak PD the LED may stay off; the board still
    works.)
 2. Unplug. Fit the dev board (antenna end right). Plug in: the dev board's
-   LED lights, **TP2 (3V3) reads 3.2–3.4 V**.
+   LED lights, **TP2 (3V3) reads 3.2–3.4 V**, and still does once the reader
+   is on Wi-Fi (the dev board gets about 4.6 V through D3, the same as it
+   gets from its own USB port).
 3. Add the PN532, then the amplifier, then the ring, one at a time, and run
    [the checks for every build](../README.md#checking-a-build-works).
 4. **Full-load test.** Check the reader's **LED count** matches the ring.

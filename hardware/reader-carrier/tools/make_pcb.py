@@ -21,7 +21,7 @@ from pathlib import Path
 import pcbnew
 
 sys.path.insert(0, str(Path(__file__).parent))
-from netlist import PARTS, POWER_NETS  # noqa: E402
+from netlist import PARTS, POWER_NETS, POWER_VIA_DEFAULT, POWER_VIAS  # noqa: E402
 
 FPDIR = Path("/usr/share/kicad/footprints")
 LOCAL = Path(__file__).parent / "lib"
@@ -156,7 +156,9 @@ def write_project(path: Path) -> None:
     patterns = []
     for net, width in POWER_NETS.items():
         name = "P_" + net.replace("+", "").replace("_", "")
-        classes.append(dict(name=name, clearance=0.25, track_width=width, via_diameter=0.8, via_drill=0.4))
+        # 0.2 mm here (the router is given 0.25): the USB-C socket's own VBUS and GND pads are 0.2 mm apart
+        via, drill = POWER_VIAS.get(net, POWER_VIA_DEFAULT)
+        classes.append(dict(name=name, clearance=0.2, track_width=width, via_diameter=via, via_drill=drill))
         patterns.append(dict(netclass=name, pattern=net))
     for c in classes:
         c.update(bus_width=12, diff_pair_gap=0.25, diff_pair_via_gap=0.25, diff_pair_width=0.2, line_style=0,
@@ -172,6 +174,10 @@ def write_project(path: Path) -> None:
         "net_settings": {"classes": classes, "meta": {"version": 3}, "net_colors": None,
                          "netclass_assignments": None, "netclass_patterns": patterns},
     }
+    if path.exists():  # KiCad rewrites the project when it saves the board, dropping the classes: put them back
+        old = json.loads(path.read_text())
+        old["net_settings"] = proj["net_settings"]
+        proj = old
     path.write_text(json.dumps(proj, indent=2) + "\n")
 
 
@@ -230,10 +236,12 @@ def main(out: Path) -> None:
         refs.SetTextSize(pcbnew.VECTOR2I(mm(1.0), mm(1.0)))
         refs.SetTextThickness(mm(0.15))
         refs.SetVisible((part["ref"][0] in "JXUF" or part["ref"].startswith("TP")) and part["ref"] != "J5")
-        if part["ref"] == "J1":  # reflowed by the assembler: solid, so its small pads get full ground
+        if part["ref"] in ("J1", "U1"):  # reflowed by the assembler: solid ground (U1's exposed pad is its only one)
             for pad in fp.Pads():
                 if pad.GetNetname() == "GND":
                     pad.SetZoneConnection(pcbnew.ZONE_CONNECTION_FULL)
+        if part["ref"] == "J1":  # its name clear of the pin row (JLCPCB clips silkscreen within 0.15 mm of pads)
+            refs.SetPosition(pt(USB_X + 2.2, 46.6))
         fp.Value().SetVisible(False)
 
     # USB-C VBUS: the pins are 0.5 mm apart, too tight for a 0.8 mm track, so each
@@ -290,5 +298,7 @@ def main(out: Path) -> None:
             assert p["1"] > p["22"], f"{fp.GetReference()} is reversed"
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and sys.argv[1] == "--classes":
+    write_project(Path(sys.argv[2]).with_suffix(".kicad_pro"))
+elif __name__ == "__main__":
     main(Path(sys.argv[1]))
