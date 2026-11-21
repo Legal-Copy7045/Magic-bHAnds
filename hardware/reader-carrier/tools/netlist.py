@@ -48,8 +48,12 @@ PARTS = [
     dict(ref="R2", sym="Device:R_Small", value="0R", fp=R0402, mpn="0402WGF0000TCE", lcsc="C17168", asm="smt",
          pins={"1": VBUS, "2": "PD_VSENSE"}),
     # Datasheet 5.2.2: CFG1 high = 5 V (CFG2, CFG3 don't care; tied low), pulled up
-    # through 100 k to pin 1 (VHV on the CH224A, VDD on the CH224K).
-    dict(ref="R3", sym="Device:R_Small", value="100k", fp=R0402, mpn="0402WGF1003TCE", lcsc="C25741", asm="smt",
+    # through 100 k to pin 1 (VHV on the CH224A, VDD on the CH224K). Two 200 k in parallel:
+    # CFG1 is all that holds the request at 5 V, so one bad joint must not be able to open it
+    # (one alone still pulls it high).
+    dict(ref="R3", sym="Device:R_Small", value="200k", fp=R0402, mpn="0402WGF2003TCE", lcsc="C25764", asm="smt",
+         pins={"1": "PD_VDD", "2": "PD_CFG1"}),
+    dict(ref="R9", sym="Device:R_Small", value="200k", fp=R0402, mpn="0402WGF2003TCE", lcsc="C25764", asm="smt",
          pins={"1": "PD_VDD", "2": "PD_CFG1"}),
     # "5V OK" LED: PG pulls low once the charger has agreed 5 V.
     dict(ref="R4", sym="Device:R_Small", value="1k", fp=R0402, mpn="0402WGF1001TCE", lcsc="C11702", asm="smt",
@@ -138,7 +142,7 @@ PWR_FLAGS = [VBUS, GND, V3]
 
 # Track widths (mm). +5V carries the LED and amplifier current (up to ~2.2 A at 0.8 mm, 1 oz,
 # about 20 C rise); narrow enough to reach the 0.95 mm-pitch SOT-23 pins. Ground is mostly pour.
-POWER_NETS = {GND: 0.5, V5: 0.8, VBUS: 0.8, "ESP_5V": 0.6, V3: 0.4}
+POWER_NETS = {GND: 0.5, V5: 1.2, VBUS: 0.8, "ESP_5V": 0.6, V3: 0.4}
 # Via (pad, drill) in mm per power net. The nets that carry the whole load get a 0.8 mm drill:
 # its barrel (2.5 mm round x 18 um plating = 0.045 mm2) has more copper than the 0.8 mm track
 # (0.028 mm2 at 1 oz). A 0.4 mm drill (0.023 mm2) would be the thinnest point of the path.

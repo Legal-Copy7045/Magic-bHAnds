@@ -20,9 +20,9 @@ board = pcbnew.LoadBoard(sys.argv[1])
 # A short neck where a track enters a pad is allowed: Freerouting narrows the last
 # bit to fit a small part's pin (sometimes in two short segments), and the USB-C
 # pins need pad-width stubs. A neck is a run of connected narrow segments, at most
-# 2.5 mm long in all, that ends on a pad of the same net. Anywhere else, a power
+# 3 mm long in all, no narrower than the pad, that ends on a pad of the same net. Anywhere else, a power
 # track must be full width.
-NECK_MM = 2.5
+NECK_MM = 3.0
 pads = collections.defaultdict(list)
 for fp in board.GetFootprints():
     for pad in fp.Pads():
@@ -64,7 +64,10 @@ def neck_pad(run, net, want):
         for p in (t.GetStart(), t.GetEnd()):
             for ref, pad in pads[net]:
                 size = pad.GetSize()
-                if pad.HitTest(p) and pcbnew.ToMM(min(size.x, size.y)) < want - 1e-6:
+                narrow = pcbnew.ToMM(min(size.x, size.y))
+                # ...and the neck must be at least as wide as that pad (or 0.5 mm): it carries the same current
+                if pad.HitTest(p) and narrow < want - 1e-6 and \
+                        min(pcbnew.ToMM(s.GetWidth()) for s in run) >= min(narrow, 0.5) - 0.01:
                     return f"{ref} pad {pad.GetNumber()} ({pcbnew.ToMM(min(size.x, size.y)):.2f} mm wide)"
     return None
 

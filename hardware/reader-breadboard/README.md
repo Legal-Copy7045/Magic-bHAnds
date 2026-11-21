@@ -41,7 +41,7 @@ Written for these generic parts (the Adafruit equivalent of each is in the
 | 1 | ESP32-S3 dev board | **ESP32-S3-DevKitC-1 N16R8** layout (Lonely Binary N16R8, or Espressif), headers fitted | The firmware needs 16 MB flash and octal PSRAM. Check a clone's pin labels match the [pinout](#esp32-s3-devkitc-1-j1-pins-used). IPEX version: fit the antenna |
 | 1 | NFC reader | **PN532 NFC module V3** (AITRIP, Elechouse or similar), with its 4-pin header | Set to I²C (switch 1 ON, switch 2 OFF) |
 | 1 | LED ring | **WS2812B ring, 35 LEDs, 5 V, 78 mm inside** (any WS2812B/SK6812 5 V ring works) | The PN532 (43 × 41 mm) sits inside it, clear of the antenna. Set **LED count** to match; above 24 LEDs the firmware caps their power. Its bundled USB remote isn't used |
-| 1 | Amplifier and speaker | **MAX98357A I²S amplifier kit** with a **4 Ω 3 W speaker**: 5-pin PH2.0 connector (VIN, GND, LRC, BCLK, DIN), PH2.0-to-Dupont cable, PH2.0 speaker socket | The amplifier sits off the board on its cable. Gain and shutdown are set on the board |
+| 1 | Amplifier and speaker | **MAX98357A I²S amplifier kit** with a **4 Ω 3 W speaker**: 5-pin PH2.0 connector (printed **G, V, BCL, LRC, DIN** on the tested kit; go by the labels on yours), PH2.0-to-Dupont cable, PH2.0 speaker socket | The amplifier sits off the board on its cable. Gain and shutdown are set on the board |
 | 1 | Level shifter | **SN74AHCT125N**, 14-pin DIP | Not 74HC125, and not a MOSFET "level shifter module" |
 | 2 | Resistor | 4.7 kΩ, ¼ W | I²C pull-ups |
 | 1 | Resistor | **470 Ω**, ¼ W | LED data, at the ring. 300–500 Ω is fine |

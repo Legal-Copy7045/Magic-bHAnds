@@ -34,11 +34,11 @@ re-crimped or crossed over.
 | | Part | Notes |
 |---|---|---|
 | J1 | USB-C (power only) | On the left edge |
-| U1 | **CH224A** USB PD controller (or a CH224K) | Asks the charger for **5 V**, and nothing else: CFG1 is tied high through 100 kΩ, so there's no switch to knock to 20 V. The CH224A is WCH's pin-compatible upgrade of the CH224K and the one JLCPCB stocks; wired per its datasheet (V2.1, 6.1.2) with **R1 and R2 = 0 Ω**. For a CH224K, fit **R1 = 1 kΩ and R2 = 10 kΩ** instead (6.2). D+/D− are left open (power only: the request goes over CC) |
+| U1 | **CH224A** USB PD controller (or a CH224K) | Asks the charger for **5 V**, and nothing else: CFG1 is tied high through two 200 kΩ resistors side by side (R3, R9: either alone still holds it), so there's no switch to knock to 20 V. The CH224A is WCH's pin-compatible upgrade of the CH224K and the one JLCPCB stocks; wired per its datasheet (V2.1, 6.1.2) with **R1 and R2 = 0 Ω**. For a CH224K, fit **R1 = 1 kΩ and R2 = 10 kΩ** instead (6.2). D+/D− are left open (power only: the request goes over CC) |
 | F1 | 3.5 A resettable fuse (1812, SMD1812P350TF/16) | Between USB-C and everything else. Sized for a warm box: see below |
 | D2 | SMAJ5.0A TVS | Clamps spikes on the 5 V rail |
 | D1 | Green LED, "5V OK" | Lights when the charger has agreed 5 V (the CH224A's PG) |
-| D3 | SS34 Schottky | 5 V to the dev board. The board powers the ESP32, but the dev board's own USB can't power the LEDs and amplifier, so there's **no 5 V wire to pull** before using USB |
+| D3 | SS34 Schottky | 5 V to the dev board. The board powers the ESP32, but the dev board's own USB can't power the LEDs and amplifier, so there's **no 5 V wire to pull** before using USB. (D3 stops the dev board's USB feeding the 5 V rail. What stops the charger feeding a computer through the dev board's USB port is the dev board's own diodes: check yours once, under First power-up) |
 | U2 | 74AHCT1G125 | 3.3 V → 5 V LED data, then **470 Ω** (R7) |
 | U3 | SRV05-4 | ESD clamp on the lines that leave the box: SDA, SCL, LED data |
 | R5, R6 | 4.7 kΩ | I²C pull-ups to 3.3 V |
@@ -57,8 +57,8 @@ LEDs 10. The firmware doesn't change: install the standard reader from the
 |---|---|---|---|---|
 | J3 | 1×3 | **5V, DIN, GND** | The LED ring's 3-pin plug with its jumper wires: **red, green, black**. Use **22 AWG** for 5V and GND (the ring can draw 1.4 A), not thin jumper wire | Up to about 1 m |
 | J2 | 1×4 | **GND, 5V, SDA, SCL** | The PN532's 4-wire Dupont cable, in the PN532's own order (GND, VCC, SDA, SCL). PN532 switches: 1 ON, 2 OFF (I²C) | Up to about 50 cm |
-| J4 | 1×5 | **G, V, BCL, LRC, DIN** | The amplifier kit's cable, in the order printed by its socket | As supplied (about 20 cm) |
-| J5 | 1×7 | LRC, BCLK, DIN, GAIN, SD, GND, Vin | An Adafruit 3006, *instead of* the kit on J4. It stands out past the board's top edge by about 10 mm | — |
+| J4 | 1×5 | **G, V, BCL, LRC, DIN** | The amplifier kit's cable, in the order printed by its socket. On the tested kit: **black G, red V, blue BCL, green LRC, yellow DIN**, black on the square pad | As supplied (about 20 cm) |
+| J5 | 1×7 | LRC, BCLK, DIN, GAIN, SD, GND, Vin | An Adafruit 3006, *instead of* the kit on J4. Fit it parts-side up, so it stands out past the board's top edge (by about 10 mm) and not over the dev board | — |
 | XJ1, XJ3 | 2 × 1×22, 22.86 mm apart | DevKitC-1 J1 and J3 | The dev board, **antenna end over the copper-free strip** (pin 1 on the right) | — |
 
 The cables' male ends push into the headers the same way they push into a
@@ -118,22 +118,25 @@ white for long, lower the ring's brightness rather than fit a bigger fuse.
 | Net | Track | Carries (worst case) |
 |---|---|---|
 | VBUS (USB-C → fuse) | 0.8 mm | Everything, ≈ 2.75 A |
-| +5V (fuse → ring, amplifier, NFC, and D3 to the dev board) | 0.8 mm | Up to ≈ 2.75 A by the fuse, less further along |
+| +5V (fuse → ring, amplifier, NFC, and D3 to the dev board) | 1.2 mm | Up to ≈ 2.75 A by the fuse, less further along |
 | ESP_5V (D3 → dev board) | 0.6 mm | ≤ 0.5 A |
 | +3V3 | 0.4 mm | Pull-ups only |
 | GND | 0.5 mm tracks plus solid pours on both sides | |
 
-**Standard 1 oz copper.** By IPC-2221 (outer layer), 0.8 mm at 1 oz carries
-about 2.0 A for a 10 °C rise and 2.8 A for 20 °C: the full worst case
-(≈ 2.75 A, everything at maximum at once, which lasts seconds and which the
-firmware's ring cap keeps rare) warms the 5 V track by about 20 °C, and a
-welcome (about 1.4 A) by about 5 °C. 2 oz copper would halve that, but at
+**Standard 1 oz copper.** By IPC-2221 (outer layer), 1.2 mm at 1 oz carries
+about 2.7 A for a 10 °C rise and 0.8 mm about 2.0 A (2.8 A for 20 °C): the
+full worst case (≈ 2.75 A, everything at maximum at once, which lasts seconds
+and which the firmware's ring cap keeps rare) warms the 5 V track by about
+10 °C, and the short 0.8 mm run from the socket to the fuse by about 20 °C.
+At full load the board itself drops about 0.15–0.2 V between the socket and
+the headers (mostly the fuse); the cable adds more. 2 oz copper would halve
+the track's share, but at
 2 oz JLCPCB needs 0.20 mm of solder mask between pads, exactly the gap
 between the USB-C pins, and thicker copper makes the hand-soldered ground
 pins harder to heat, so 1 oz is the better trade.
 
 The only narrower pieces are necks into pads that are themselves narrower
-than the track, each under 2.5 mm: the two USB-C VBUS pins (0.6 mm, too
+than the track, no narrower than that pad, each under 3 mm: the two USB-C VBUS pins (0.6 mm, too
 close together for more) and, depending on how the router lays it out, the
 SRV05-4's 5 V pin or the 5V OK LED's resistor (a few mA). `tools/check_widths.py` measures the routed copper,
 lists every neck, and fails the build on any other power track narrower than
@@ -188,12 +191,14 @@ trigger module. Both ask for 5 V; the 1000 µF sits behind either.
 ## Ordering (JLCPCB)
 
 1. Upload **`fab/magicband-carrier-gerbers.zip`** at jlcpcb.com: 2 layers,
-   1.6 mm, any colour, 1 oz copper (the default; see Power tracks). The zip
+   1.6 mm, any colour except black or white (their solder mask needs more
+   room between the USB-C pins than there is), 1 oz copper (the default; see
+   Power tracks). The zip
    has separate drill files for plated and non-plated holes.
 2. Turn on **PCB Assembly**, top side, and upload **`fab/bom.csv`** and
    **`fab/cpl.csv`**. They list only the small surface-mount parts.
 3. Every part has an LCSC number, checked in stock at JLCPCB on 21 Nov 2026
-   (the fewest: the fuse, 250, and the CH224A, 501). If one has run out, pick the same MPN
+   (the fewest: the fuse, 250, and the CH224A, about 500). If one has run out, pick the same MPN
    or an equivalent in the parts search; keep R1/R2 matched to the chip
    (0 Ω for a CH224A, 1 kΩ/10 kΩ for a CH224K).
 4. In the placement preview, check every part that can go on the wrong way
@@ -201,15 +206,25 @@ trigger module. Both ask for 5 V; the 1000 µF sits behind either.
    - **U1** (CH224A), **U2**, **U3**: the chip's pin-1 dot at the corner the
      board marks. **U3 matters most:** turned half round it still fits its
      pads, and shorts the 5 V rail.
-   - **D1, D2, D3**: the part's cathode bar at the marked end. D2 reversed
-     shorts the 5 V rail; D3 reversed leaves the dev board unpowered.
-   - **J1** (USB-C): its opening at the board edge.
+   - **D1, D2, D3**: the part's cathode bar at the marked end (the board
+     doesn't print their names: find them by name in JLCPCB's preview). D2
+     reversed shorts the 5 V rail; D3 reversed leaves the dev board unpowered.
+   - **J1** (USB-C): its opening at the board edge, and its pins sitting on
+     their pads.
 
 **You solder** (through-hole, all on the top side): the 2.54 mm female
 headers (two 1×22, one each of 1×3, 1×4 and 1×5; the 1×7 only if you use an
 Adafruit 3006) and the 1000 µF and 100 µF capacitors (stripe = minus, away
 from the square pad). Nothing else. The ground pins join the ground copper through
 thermal spokes, so they heat up like the others.
+
+**When the boards arrive, look at the USB-C socket's four metal tabs** (the
+legs that go through the slots). They take the force of every plug-in. If
+any isn't soldered, solder it yourself before plugging a cable in.
+
+**The dev board goes in one way only:** antenna end to the right, over the
+bare strip, with its 3V3 pins at the end marked "3V3 pin this end". Fitted
+the other way round it would be damaged.
 
 ## Before you order: physical checks
 
@@ -226,20 +241,34 @@ thermal spokes, so they heat up like the others.
 1. **No dev board, no leads: do this for every board, before anything is
    plugged into it.** Plug in the USB-C charger: the **5V OK** LED
    lights. Measure **TP1 (5V) to TP3 (GND): 4.75–5.25 V**. If it reads
-   more, stop: one bad joint at R3 would make the chip ask the charger for
-   9 V, which would damage everything plugged in. (On a plain 5 V
+   more than 5.5 V, the LED flickers, or anything gets hot: unplug at once.
+   Two resistors (R3, R9) hold the chip's request at 5 V; if both were
+   missing it could ask the charger for up to 20 V. (On a plain 5 V
    USB-C supply that doesn't speak PD the LED may stay off; the board still
    works.)
 2. Unplug. Fit the dev board (antenna end right). Plug in: the dev board's
    LED lights, **TP2 (3V3) reads 3.2–3.4 V**, and still does once the reader
    is on Wi-Fi (the dev board gets about 4.6 V through D3, the same as it
    gets from its own USB port).
-3. Add the PN532, then the amplifier, then the ring, one at a time, and run
+   **Once, for your dev board:** with the reader running from the charger,
+   plug a USB-A-to-C cable into one of the dev board's USB ports, leaving
+   the USB-A end free, and measure between the two outer contacts of the
+   USB-A plug. It should read **about 0 V** (repeat on the other port).
+   Espressif's board has diodes that guarantee this. If yours shows about
+   5 V, never plug its USB into a computer while the charger is in.
+3. **PN532 check, before its data lines meet the ESP32** (as on the tested
+   build): dev board out, PN532 plugged into J2, charger in. Measure socket
+   XJ1 pins 12 and 15 (SDA, SCL; count from the antenna end) to GND: both
+   **under 3.6 V**. Near 5 V: stop, that module would damage the ESP32.
+   Then unplug, fit the dev board, and add the amplifier and the ring one
+   at a time, running
    [the checks for every build](../README.md#checking-a-build-works).
+   On the dev board's USB alone (no charger) the ring, NFC and sound are
+   off and the log shows I²C errors: that's expected.
 4. **Full-load test.** Check the reader's **LED count** matches the ring.
    Set the ring to full white at full brightness and play
    a sound at full volume. Measure 5 V **at the ring and amplifier headers**
-   (not only TP1): it should stay above 4.75 V, and the fuse and tracks should
+   (not only TP1): no more than about 0.3 V below TP1, and above 4.5 V. The fuse and tracks should
    be no more than warm after a few minutes.
 5. **Plug-in test.** The board has about 1,100 µF on its 5 V rail and no
    soft start, so the charger sees a burst of current at plug-in (the
