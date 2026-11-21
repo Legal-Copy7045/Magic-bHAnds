@@ -200,12 +200,15 @@ trigger module. Both ask for 5 V; the 1000 µF sits behind either.
    has separate drill files for plated and non-plated holes.
 2. Turn on **PCB Assembly**, top side, and upload **`fab/bom.csv`** and
    **`fab/cpl.csv`**. They list only the small surface-mount parts.
+   `cpl.csv` already has JLCPCB's angles for U1, U2 and U3 (its models of those
+   parts sit at a different angle from KiCad's). For any other assembler
+   (PCBWay and so on) upload **`fab/cpl-kicad.csv`** instead: KiCad's own angles.
 3. Every part has an LCSC number, checked in stock at JLCPCB on 21 Nov 2026
    (the fewest: the fuse, 250, and the CH224A, about 500). If one has run out, pick the same MPN
    or an equivalent in the parts search; keep R1/R2 matched to the chip
    (0 Ω for a CH224A, 1 kΩ/10 kΩ for a CH224K).
 4. In the placement preview, check every part that can go on the wrong way
-   round, and rotate any that's off:
+   round (with `cpl.csv` they should already be right), and rotate any that's off:
    - **U1** (CH224A), **U2**, **U3**: the chip's pin-1 dot at the corner the
      board marks. **U3 matters most:** turned half round it still fits its
      pads, and shorts the 5 V rail.
