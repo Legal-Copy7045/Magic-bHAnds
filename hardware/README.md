@@ -20,13 +20,16 @@ each later build.
 | 2 | **Lonely Binary terminal base** | **[Build it](reader-wired/build.md)** | [Spec](reader-wired/README.md), [diagram](../docs/reader-terminal-base.svg) | Medium | Interface board, amplifier power, two power wires | Reviewed, not built |
 | 3 | **Point-to-point wiring** | **[Build it](reader-wired/build.md)** | [Spec](reader-wired/README.md), [diagram](../docs/reader-point-to-point.svg) | Small | Interface board, every joint | Reviewed, not built |
 | 3a | **Compact (solderless)**: point-to-point on a 400-point half breadboard | **[Build it](reader-compact/build.md)** | [Spec](reader-wired/README.md#compact-solderless-version), [diagram](../docs/reader-compact.svg) | Small | The PN532 header only (a ring without leads: its wires too) | **Built and tested** on the USB-C PD supply (power, NFC, sound at 100 %, load test before the ring); 35-LED ring wired and lighting; tap sequence and load test with the ring still to confirm |
+| 4 | **Carrier PCB**: the dev board and amplifier plug in; ring, NFC and speaker on leads; USB-C 5 V built in | [Ordering and first power-up](reader-carrier/README.md#ordering-jlcpcb) | [Design](reader-carrier/README.md), [board](reader-carrier/docs/board.png), [schematic](reader-carrier/docs/schematic.pdf) | 90 × 64 mm | Sockets, headers, 2 connectors, 2 capacitors | Routed, design rules pass, not built |
 
 All of them use a dev board (ESP32-S3-DevKitC-1 layout, such as the Lonely
 Binary N16R8) and install from the web installer's *Install the reader*
 button.
 
-A custom PCB is planned for later, once these builds are proven. An early
-design is out of date and has been taken out of this repository for now.
+The [carrier PCB](reader-carrier/README.md) (build 4) is the tidy, boxed
+version of the tested compact build: the same dev board and amplifier plug
+into it, the ring and NFC board go on leads, and the USB-C power is built in
+and fixed at 5 V. It hasn't been built yet: order it as a prototype.
 
 ## Checking a build works
 
