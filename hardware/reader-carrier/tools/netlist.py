@@ -5,7 +5,7 @@ two 22-pin sockets, the MAX98357A amplifier kit plugs into a 5-pin header with
 its own cable (or an Adafruit 3006 breakout into the 7-pin socket), and the
 LED ring and PN532 NFC board go on leads. Every lead plugs into a 2.54 mm
 female header in its own cable's pin order, the way it plugs into a breadboard. USB-C power with a CH224A
-(or CH224K) fixed at 5 V (CFG1 high: it can never ask for more), a 3 A resettable fuse, a
+(or CH224K) fixed at 5 V (CFG1 high: it can never ask for more), a 3.5 A resettable fuse, a
 TVS clamp, and a Schottky diode so the dev board's own USB can't back-feed the
 board. GPIOs match esphome/magicband-reader.yaml.
 
@@ -56,9 +56,9 @@ PARTS = [
          pins={"1": V5, "2": "PG_LED"}),
     dict(ref="D1", sym="Device:LED_Small", value="green", fp="LED_SMD:LED_0603_1608Metric",
          mpn="KT-0603G", lcsc="C12624", asm="smt", pins={"1": "PG", "2": "PG_LED"}),
-    # Fuse (3 A hold) and TVS clamp on the 5 V rail.
-    dict(ref="F1", sym="Device:Polyfuse_Small", value="3A hold", fp="Fuse:Fuse_1812_4532Metric",
-         mpn="SMD1812P300TF", lcsc="C21004", asm="smt", pins={"1": VBUS, "2": V5}),
+    # Fuse (3.5 A hold, sized for a warm box; see README) and TVS clamp on the 5 V rail.
+    dict(ref="F1", sym="Device:Polyfuse_Small", value="3.5A hold", fp="Fuse:Fuse_1812_4532Metric",
+         mpn="SMD1812P350TF/16", lcsc="C46970911", asm="smt", pins={"1": VBUS, "2": V5}),
     dict(ref="D2", sym="Diode:SMAJ5.0A", value="SMAJ5.0A", fp="Diode_SMD:D_SMA",
          mpn="SMAJ5.0A", lcsc="C113952", asm="smt", pins={"1": V5, "2": GND}),
     dict(ref="C2", sym="Device:C_Small", value="10uF", fp=C0805, mpn="CL21A106KAYNNNE", lcsc="C15850", asm="smt",

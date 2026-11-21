@@ -35,7 +35,7 @@ re-crimped or crossed over.
 |---|---|---|
 | J1 | USB-C (power only) | On the left edge |
 | U1 | **CH224A** USB PD controller (or a CH224K) | Asks the charger for **5 V**, and nothing else: CFG1 is tied high through 100 kΩ, so there's no switch to knock to 20 V. The CH224A is WCH's pin-compatible upgrade of the CH224K and the one JLCPCB stocks; wired per its datasheet (V2.1, 6.1.2) with **R1 and R2 = 0 Ω**. For a CH224K, fit **R1 = 1 kΩ and R2 = 10 kΩ** instead (6.2). D+/D− are left open (power only: the request goes over CC) |
-| F1 | 3 A resettable fuse (1812) | Between USB-C and everything else |
+| F1 | 3.5 A resettable fuse (1812, SMD1812P350TF/16) | Between USB-C and everything else. Sized for a warm box: see below |
 | D2 | SMAJ5.0A TVS | Clamps spikes on the 5 V rail |
 | D1 | Green LED, "5V OK" | Lights when the charger has agreed 5 V (the CH224A's PG) |
 | D3 | SS34 Schottky | 5 V to the dev board. The board powers the ESP32, but the dev board's own USB can't power the LEDs and amplifier, so there's **no 5 V wire to pull** before using USB |
@@ -89,9 +89,27 @@ test. Without the cap, 35 LEDs × 60 mA would be 2.1 A for the ring and about
 3.4 A in all, over a 3 A charger.
 
 In normal use the reader draws about 0.3 A idle and about 1.4 A during a
-welcome. The 3 A fuse (5 A trip) is there for a short circuit or a damaged
-lead, not to limit the current; the charger's own 3 A limit and the
-firmware's ring cap do that.
+welcome. The fuse is there for a short circuit or a damaged lead, not to
+limit the current; the charger's own 3 A limit and the firmware's ring cap
+do that.
+
+**Fuse and temperature.** A polyfuse's hold current falls as it gets warmer,
+so it's sized for the inside of a closed box, not a 25 °C bench. From the
+Ruilon SMD1812 datasheet (hold current, amps):
+
+| | 25 °C | 40 °C | 50 °C | 60 °C | Trips at (25 °C) | Max voltage |
+|---|---|---|---|---|---|---|
+| SMD1812P300TF (3 A) | 3.00 | 2.55 | 2.28 | 2.01 | 5 A | 8 V |
+| **SMD1812P350TF/16 (3.5 A, fitted)** | 3.50 | **2.98** | 2.66 | 2.35 | 6 A | 16 V |
+
+The 3 A part would hold only 2.55 A at 40 °C, under the 2.75 A worst case.
+The 3.5 A part holds it up to about 45 °C inside the box; the welcome load
+(about 1.4 A) is far below either. Hold current is for an hour at that
+current, so the full worst case, which lasts seconds, has more margin still.
+It's the same 1812 size. The 16 V version is fitted because the plain
+SMD1812P350TF is rated only 6 V, too close to a 5 V rail and the TVS's
+clamp. If the box gets hotter than about 45 °C, or the ring is left on full
+white for long, lower the ring's brightness rather than fit a bigger fuse.
 
 ### Track widths
 
@@ -143,7 +161,7 @@ check the amplifier lead's G wire first.
 2. Turn on **PCB Assembly**, top side, and upload **`fab/bom.csv`** and
    **`fab/cpl.csv`**. They list only the small surface-mount parts.
 3. Every part has an LCSC number, checked in stock at JLCPCB on 21 Nov 2026
-   (the CH224A had the fewest: 501). If one has run out, pick the same MPN
+   (the fewest: the fuse, 250, and the CH224A, 501). If one has run out, pick the same MPN
    or an equivalent in the parts search; keep R1/R2 matched to the chip
    (0 Ω for a CH224A, 1 kΩ/10 kΩ for a CH224K).
 4. In the placement preview, check **U1 (CH224A)** pin 1 and the **USB-C**
@@ -195,8 +213,22 @@ FREEROUTING=/path/to/freerouting-1.9.0.jar tools/build.sh
 
 The CH224A/CH224K has no KiCad library part; its symbol and footprint (ESSOP-10 with
 the exposed pad, its only ground) are in `tools/lib/`, with the USB-C
-footprint (KiCad's, minus the three silkscreen lines that would print off
-the board edge; `make_usb_fp.py` makes it). `fp-lib-table` points the DRC at
+footprint (`make_usb_fp.py` makes it).
+
+**USB-C footprint, checked against HRO's drawing** (TYPE-C-31-M-12, the
+recommended PCB layout LCSC serves for C165948, which allows ±0.05 mm):
+
+| | HRO drawing | This board |
+|---|---|---|
+| Pin pitch, pad widths, inner pads | 0.50, 0.30 / 0.60 mm | Same |
+| Peg holes | 2 × Ø0.60, 5.78 mm apart | Same |
+| Shell slots | 8.65 mm apart; back 0.60 × 1.70 (pad 0.90 × 2.00), front 0.60 × 1.40 (pad 0.90 × 1.70) | Same (KiCad's front slots were 1.20 mm long, which could pinch the shell's tabs) |
+| Outer pads (GND, VBUS) | ±3.20 / ±2.40 mm | ±3.25 / ±2.45 (KiCad's): within the 0.05 mm tolerance, and the room the CC2 track needs |
+| Signal pad length | 1.14 mm, 0.50 mm behind the pegs | 1.45 mm, 0.72 mm behind (KiCad's): HRO's leave 0.20 mm to the peg holes, under the 0.25 mm hole clearance; KiCad's cover all but the front 0.22 mm of HRO's |
+| Board edge | 5.79 mm in front of the pegs, shell ~0.5 mm past it | 6.27 mm: the shell face is flush with the edge |
+
+It also drops the three silkscreen lines that would print off the board
+edge. `fp-lib-table` points the DRC at
 those and at KiCad's own footprints, so it checks every footprint against its
 library too. The build stops unless the DRC report is clean (0 violations,
 0 unconnected pads) and every power track passes `check_widths.py`.

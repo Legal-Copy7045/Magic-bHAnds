@@ -24,6 +24,7 @@ python3 -c "import pcbnew; b=pcbnew.LoadBoard('$B.kicad_pcb'); pcbnew.WriteDRCRe
 grep '^\*\*' fab/drc.rpt
 grep -q 'Found 0 unconnected pads' fab/drc.rpt || { echo 'unrouted connections: nudge a part in make_pcb.py and run again'; exit 1; }
 grep -q 'Found 0 DRC violations' fab/drc.rpt || { echo 'DRC violations: see fab/drc.rpt'; exit 1; }
+grep -q 'Found 0 Footprint errors' fab/drc.rpt || { echo 'footprint errors: see fab/drc.rpt'; exit 1; }
 rm -rf fab/gerbers && mkdir -p fab/gerbers
 kicad-cli pcb export gerbers --layers F.Cu,B.Cu,F.Paste,F.SilkS,B.SilkS,F.Mask,B.Mask,Edge.Cuts \
   --subtract-soldermask --no-x2 -o fab/gerbers/ $B.kicad_pcb

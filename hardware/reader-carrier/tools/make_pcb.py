@@ -30,7 +30,7 @@ W, H = 90.0, 64.0
 ROW1, ROW3 = 26.0, 26.0 + 22.86  # dev board socket rows (J1 top, J3 bottom), 0.9 in apart
 PIN1_X = 72.0  # both sockets' pin 1 (antenna end) at the right
 ANTENNA = (75.5, ROW1 - 4.0, W, ROW3 + 4.0)  # copper-free strip under the antenna (x0, y0, x1, y1)
-USB_X = 3.67  # USB-C: shell front 0.5 mm past the left edge
+USB_X = 3.67  # USB-C: shell face flush with the left edge (HRO draws it ~0.5 mm past; see make_usb_fp.py)
 
 # ref: (x, y, rotation) relative to the board's top-left corner. 270 turns a
 # footprint whose pins run down (+y) so they run left (-x).
@@ -245,7 +245,6 @@ def main(out: Path) -> None:
             t.SetNet(net("VBUS"))
             t.SetLocked(True)
             board.Add(t)
-
     add_outline(board)
     add_keepout(board, *ANTENNA)
     add_pour(board, net("GND"), pcbnew.F_Cu)
