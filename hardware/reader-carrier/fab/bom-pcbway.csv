@@ -1,0 +1,18 @@
+Item #,Designator,Qty,Manufacturer,Mfg Part #,Description / Value,Package / Footprint,Type,LCSC Part #,Notes
+1,C1,1,Samsung Electro-Mechanics,CL05A105KA5NQNC,1uF,0402,SMD,C52923,
+2,"C2,C7",2,Samsung Electro-Mechanics,CL21A106KAYNNNE,10uF,0805,SMD,C15850,
+3,"C3,C4",2,Samsung Electro-Mechanics,CL05B104KO5NNNC,100nF,0402,SMD,C1525,
+4,D1,1,Hubei KENTO Elec,KT-0603G,green,0603,SMD,C12624,Polarised: cathode to pad 1
+5,D2,1,MDD (Microdiode Semiconductor),SMAJ5.0A,SMAJ5.0A,SMA (DO-214AC),SMD,C113952,Unidirectional TVS: cathode (band) to pad 1
+6,D3,1,MDD (Microdiode Semiconductor),SS34,SS34,SMA (DO-214AC),SMD,C8678,Polarised: cathode (band) to pad 1
+7,F1,1,RUILON (Shenzhen Ruilongyuan Elec),SMD1812P350TF/16,3.5A hold,1812,SMD,C46970911,No substitute: must be the 16 V version (/16)
+8,J1,1,Korean Hroparts Elec (HRO),TYPE-C-31-M-12,USB-C (power),USB-C 16-pin SMD + 4 through-hole shell tabs,SMD,C165948,No substitute. Overhangs the board edge 0.5 mm by design; solder the 4 shell tabs
+9,"R1,R2",2,UNI-ROYAL (Uniroyal Elec),0402WGF0000TCE,0R,0402,SMD,C17168,
+10,"R3,R9",2,UNI-ROYAL (Uniroyal Elec),0402WGF2003TCE,200k,0402,SMD,C25764,
+11,R4,1,UNI-ROYAL (Uniroyal Elec),0402WGF1001TCE,1k,0402,SMD,C11702,
+12,"R5,R6",2,UNI-ROYAL (Uniroyal Elec),0402WGF4701TCE,4.7k,0402,SMD,C25900,
+13,R7,1,UNI-ROYAL (Uniroyal Elec),0402WGF4700TCE,470R,0402,SMD,C25117,
+14,R8,1,UNI-ROYAL (Uniroyal Elec),0402WGF1002TCE,10k,0402,SMD,C25744,
+15,U1,1,WCH (Jiangsu Qin Heng),CH224A,CH224A,ESSOP-10 (exposed pad),SMD,C42459160,"No substitute. Pin 1 at the silkscreen triangle. Exposed pad is GND, must be soldered"
+16,U2,1,Texas Instruments,SN74AHCT1G125DBVR,74AHCT1G125,SOT-23-5,SMD,C7484,Pin 1 at the silkscreen triangle
+17,U3,1,Semtech,SRV05-4.TCT,SRV05-4,SOT-23-6,SMD,C13612,Pin 1 at the silkscreen triangle
