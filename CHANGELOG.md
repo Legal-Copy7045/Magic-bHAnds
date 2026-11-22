@@ -3,6 +3,19 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.27] - 2026-11-22
+
+### Reader
+- **Idle circle shape:** **Idle circle tail** (LEDs, 0 = a fifth of the ring),
+  **Idle tail fade** (how bright the trail ends), **Idle circle heads** (1–4,
+  spaced evenly) and **Idle circle direction** (Forward/Reverse), all apart from
+  the tap's circle settings. On the MagicbHAnds page under *Waiting for a band*
+  and drawn by the live twin.
+- **Fix:** a warm-white circle's fading tail showed red. Dimmed LEDs (circle
+  tails, pulses, the tap chase) are now set in the ring's own output steps in
+  the colour's full-brightness mix, so a fading warm white (or orange, pink...)
+  keeps its colour to the end instead of losing its green.
+
 ## [0.10.26] - 2026-11-22
 
 ### Reader

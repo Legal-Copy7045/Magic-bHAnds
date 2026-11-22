@@ -186,7 +186,11 @@ the reader's device page in Home Assistant, under **Configuration**, set:
 |---|---|---|
 | **Idle colour** | White | Colour of the glow while waiting for a band (its brightness is **Idle glow**) |
 | **Idle style** | Static | How the ring waits for a band: **Static**, a steady glow, or **Circle**, a circle going round in **Idle colour** at **Idle glow** (**Idle glow at night** at night) |
-| **Idle circle time** | 3 s | With **Idle style** on Circle: how long one circle takes (0.5–10 s). Separate from the tap's **Circle time**; the trail is a fifth of the ring |
+| **Idle circle time** | 3 s | With **Idle style** on Circle: how long one circle takes (0.5–10 s). Separate from the tap's **Circle time** |
+| **Idle circle tail** | 0 (auto) | The idle circle's trail in LEDs; 0 = a fifth of the ring. Separate from the tap's **Circle tail** |
+| **Idle tail fade** | 10 % | How bright the trail's last LED is, as a share of the head: 0 fades out, 100 is a solid bar |
+| **Idle circle heads** | 1 | 1–4 heads spaced evenly round the ring, each with its own trail |
+| **Idle circle direction** | Forward | **Reverse** runs the idle circle the other way round |
 | **Idle style at night** | Same as day | At night (**Night now**): **Static** or **Circle** instead of **Idle style**, e.g. circling by day and a still glow at night |
 | **Checking colour** | White | Colour of the circles that chase round the ring while a band is checked |
 | **Checking circles** | 2 | How many circles before the result shows |
