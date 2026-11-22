@@ -37,6 +37,52 @@ Home Assistant integration share one version number.
   band** has to be picked twice, and while it's on the reader card shows a red
   "Lets every band in" tag.
 
+### MagicbHAnds page: layout and wording
+- New order: header and status strip (problems first: a reader offline, its
+  list not applied, locked out or not paired, lockdown on, a low band
+  battery), **Needs attention** (only when there's something), **Recent
+  taps**, **People and access** (Lockdown on top), **Bands**, **Readers**,
+  **Bridges and band effects**, **Celebrations and tap passport**. A sticky
+  row of chips under the header jumps to each section, and the totals jump to
+  theirs.
+- Needs attention: new bands, Bluetooth to link, "Which kind of band?",
+  reader problems (with **Re-send list** and **End lockout now**) and band
+  batteries at 20% or less. The cards share the row instead of leaving a gap.
+- Recent taps say **Let in** / **Turned away**, show the full date and time on
+  hover, and a turned-away band nobody owns has **Assign…**, which jumps to its
+  New bands card.
+- People: the fold-out is now two, **Access** (Allowed, Gets in during
+  lockdown, Guest and the pass) and **Welcome and birthday** (welcome colour,
+  sound, birthday). Each row has a one-line access summary ("Guest · Mo We Fr
+  11:00–14:00 · 12 uses left · not now"). A band's **own hours** and the
+  person's **guest pass (all their bands)** each say that the other applies
+  too. Remove arms to "Tap again to remove Sam".
+- Band cards: no Battery, Closest or Bluetooth rows on a standard (NFC-only)
+  band; **Type** is under Manage once it's known. "7 bands", "Search bands".
+- Reader cards: status tags in the title (Online/Offline, Locked out, Night,
+  Not paired, Lets every band in), the ring, a status line, the everyday
+  controls, Test welcome and Play show, then **Health** (tiles, network,
+  Restart; a summary like "Wi-Fi good · up 1 d 6 h" while closed) and **Ring
+  and tap settings**. **Re-send list to readers**, how long camera pictures are
+  kept and the **Ring preview** (LEDs or Diffused, one choice for the page)
+  are above the reader cards.
+- Ring and tap settings regrouped: Waiting for a band (the circle settings
+  show only when a Style is Circle), Night (when it runs first, with tonight's
+  times, then the night style, glow and sound; **Quieter volume** only when
+  Sound at night is Quieter), Reading a band, Welcome (with Light up
+  MagicBand+ and Band light-up power), Denied, **Refused-tap lockout** (not
+  the house Lockdown; **End lockout now** while locked out), Shows, and
+  **Hardware** last (Ring type, LED count, Colour order, Max brightness: these
+  restart the reader, so a change has to be made twice).
+- Labels: Quieter volume, Night from/until, Night runs, One lap takes, Tail
+  fades to, Pulses, Show for "Play show", LED count, Max brightness, Show when
+  a new stamp is earned. "Nearby now" says the real window (35 min). Fast
+  mode, Bluetooth proxy, Wake bands and Ping explain themselves.
+- **Send to every band in range** moved to the bridges (its Wake and Ping
+  were the same as each bridge's); the Link Bluetooth hint has its own **Wake
+  bands** button.
+- Times over a day old read "yesterday 9:14 am", "Tue 9:14 am", then the date.
+
 ## [0.10.27] - 2026-11-22
 
 ### Reader

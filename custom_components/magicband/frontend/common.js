@@ -11,7 +11,13 @@ function ago(ts) {
   if (!ts) return '–'; const t = typeof ts === 'number' ? ts : Date.parse(ts); if (!isFinite(t)) return '–';
   const s = Math.max(0, (Date.now() - t) / 1000);
   if (s < 90) return 'just now'; if (s < 3600) return Math.round(s / 60) + ' min ago';
-  if (s < 86400 * 2) return Math.round(s / 3600) + ' h ago'; return Math.round(s / 86400) + ' days ago';
+  if (s < 86400) return Math.round(s / 3600) + ' h ago';
+  // older than a day: "yesterday 9:14 am", "Tue 9:14 am" within the week, then the date
+  const d = new Date(t), now = new Date(), day = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((day(now) - day(d)) / 86400e3), hm = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).toLowerCase();
+  if (days <= 1) return 'yesterday ' + hm;
+  if (days < 7) return d.toLocaleDateString('en-US', { weekday: 'short' }) + ' ' + hm;
+  return d.toLocaleDateString('en-US', d.getFullYear() === now.getFullYear() ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: 'numeric' });
 }
 function until(ts) { const t = Date.parse(ts); if (!isFinite(t)) return null; const m = Math.round((t - Date.now()) / 60000); return m <= 0 ? 'any minute' : m < 90 ? m + ' min' : Math.round(m / 6) / 10 + ' h'; }
 const clock = t => new Date(t).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });

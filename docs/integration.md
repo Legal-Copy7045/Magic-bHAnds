@@ -66,7 +66,7 @@ belong to someone are never taken.
 
 Tick **Guest** when adding someone on the MagicbHAnds page (or
 `magicband.add_person` with `guest: true`), enrol their band, then open
-**Birthday, lockdown, guest pass** under their name to set the pass:
+**Access** under their name to set the pass:
 
 - **Pass starts** and **Pass ends**: their bands work only between these
   (either can be empty);
@@ -84,9 +84,9 @@ tap or two over while it's offline. Guests don't get a tap passport. Turning
 
 ### Lockdown
 
-The **Lockdown** section of the page (or `magicband.set_settings`) locks the
-house down so that only the people marked **Gets in during lockdown** (under
-their name) are let in. It applies:
+The **Lockdown** card at the top of **People and access** (or
+`magicband.set_settings`) locks the house down so that only the people marked
+**Gets in during lockdown** (in **Access** under their name) are let in. It applies:
 
 - **Lockdown now**: by hand;
 - **When nobody's home**: while `zone.home` counts nobody home (the people
@@ -152,62 +152,82 @@ model shows *MagicBand+* once Bluetooth is linked, *MagicBand* before.
 ## Management page
 
 MagicbHAnds adds a **MagicbHAnds** entry to the sidebar: one page for
-everything, read live from Home Assistant.
+everything, read live from Home Assistant. A row of chips under the header
+jumps to each section, and a status strip lists problems first (a reader
+offline, its list not applied, locked out or not paired, lockdown on, a band
+battery at 20% or less), above the totals (click one to jump to it).
 
-- **New bands to assign:** a band nobody owns yet, tapped on a reader. Pick
-  who it's for (or add them) and give it a nickname.
-- **Link Bluetooth to a band:** join a MagicBand+'s Bluetooth side to its NFC
-  side.
+- **Needs attention** (only when there's something): **New bands to
+  assign** (a band nobody owns yet, tapped on a reader: pick who it's for, or
+  add them, and give it a nickname), **Link Bluetooth to a band** (join a
+  MagicBand+'s Bluetooth side to its NFC side; **Wake bands** makes bands
+  advertise), **Which kind of band?** (MagicBand+ or standard), and reader
+  problems and low batteries, with what to do.
+- **Recent taps:** the last 300 taps, 10 at a time (**Newer** and **Older**
+  page through them), let in, turned away or enrolled (administrators only).
+  Hover a time for the full date. A turned-away band nobody owns has
+  **Assign…**, which jumps to it under New bands.
+- **People and access:** **Lockdown** first, then who the readers let in.
+  Each row has a one-line access summary; **Access** has Allowed, Gets in
+  during lockdown, Guest and the guest pass; **Welcome and birthday** has the
+  person's **welcome colour** (the readers welcome their bands in it, on the
+  ring and on their MagicBand+), welcome sound and birthday. **Enrol bands**:
+  the next bands tapped that nobody owns become theirs (a banner shows the
+  time left and a Stop button).
 - **Bands:** owner, NFC ID, type, last tap, nearby, battery and closest
-  bridge. **Group by** person, band type, where (closest bridge), nearby or
+  bridge (a standard MagicBand has no Bluetooth, so it shows none of those).
+  **Group by** person, band type, where (closest bridge), nearby or
   away, battery, the reader it was last tapped on, allowed in, or whether its
   Bluetooth is linked. **Sort by** owner, name, last tap, last heard, battery
   (lowest first), most taps or signal. A search box finds a band by name,
   owner, nickname or ID. Grouping and sorting are remembered in that browser.
-- **Send to every band in range**, through the bridges: one-tap buttons
-  (wake, ping, colours, rainbow, colour cycle, lightning, spin and buzz, buzz,
-  stop), and **More: build your own**: one, two or five colours, a fade
-  between two colours, a spinning circle, any colour from a picker, any of the
-  firmware's light shows, or a buzz on its own. Set how hard it buzzes, how
-  long it stays lit, which LEDs, the fade-out, and whether it stays on until
-  you send Stop. **Through** sends it through every bridge (the whole house)
-  or just one, which reaches only the bands near that bridge.
-  Each band's **Manage** also sets its **access**: a daily time window
+  Each band's **Manage** also sets its **own hours**: a daily time window
   (an end earlier than the start means overnight), days of the week and an
   expiry date; the card shows the rule ("07:00–21:00, Mo Tu We Th Fr, until
-  24 Dec"). Each MagicBand+ shows a 7-day battery sparkline; click it for a larger 7- or 30-day chart (current level, lowest, last charged).
-- **People:** who the readers let in, each person's **welcome colour** (the
-  readers welcome their bands in it, on the ring and on their MagicBand+),
-  and **Enrol bands** (the next bands tapped that nobody owns become theirs;
-  a banner shows the time left and a Stop button).
+  24 Dec"). A guest's pass applies on top. Each MagicBand+ shows a 7-day
+  battery sparkline; click it for a larger 7- or 30-day chart (current level,
+  lowest, last charged).
+- **Readers:** **Re-send list to readers**, how long camera pictures are kept,
+  and the **Ring preview** (LEDs or Diffused) are above the cards. Each card
+  has status tags in its title (Online or Offline, Locked out, Night, Not
+  paired, Lets every band in), a **live twin of its ring** (the same number
+  of LEDs, showing what the real ring shows: idle or night glow, the chase
+  while a band is read, the welcome with the person's name, the turned-away
+  pulses, the amber offline pulse), whether it has the current allowed list,
+  its last band, and the everyday controls (response mode, sound, volume, ring
+  light, camera, Test welcome, Play show). **Health** has tiles for Wi-Fi
+  strength and network, how long it's been up and why it last restarted, CPU
+  temperature, free memory, loop time and IP address (firmware 0.10.5 or
+  later), and **Restart**; closed, it shows a one-line summary. The header
+  shows the first reader's ring, live. (A page that embeds this one can put
+  its own emblem in the middle of the twin by setting
+  `window.MBH_READER_EMBLEM` to SVG drawn in a 100 × 100 box.)
+  **Ring and tap settings** has the reader's settings in groups: Waiting for a
+  band, Night (set hours or sunset to sunrise, with tonight's times), Reading
+  a band, Welcome (with a picture of its shape, Light up MagicBand+ and Band
+  light-up power), Denied, Refused-tap lockout, Shows, and Hardware (ring
+  type, LED count, colour order, max brightness: these restart the reader,
+  so a change there has to be made twice). They're the same settings as on
+  the reader's device page; see [reader.md](reader.md) for what each does.
 - **Camera (optional):** each reader card has a **Camera** choice. Pick a
   camera that sees the reader (a Ring doorbell's live view works) and every
   tap on that reader saves a picture, shown in **Recent taps**. Leave it on
   **No camera** if you don't have one. Pictures are kept for 30 days
-  (Configure → Settings), in `magicbhands_snapshots` in the config folder,
-  and only administrators can see them.
-- **Recent taps:** the last 300 taps, 10 at a time (**Newer** and **Older** page through them), welcomed, denied or enrolled
-  (administrators only).
-- **Readers** and **bridges:** status, firmware and their settings (fast mode,
-  Bluetooth proxy, response mode, sound, ring and so on). Each reader's
-  **Health** line shows whether it has the current allowed list, whether it's
-  offline, and whether a firmware update is waiting. Every reader and bridge
-  card also shows health tiles: Wi-Fi strength and network, how long it's
-  been up and why it last restarted, CPU temperature, free memory, loop time
-  and IP address (firmware 0.10.5 or later; the SCREEK BP2-POE's own sensors
-  too). The header shows the first reader's ring, live. Each reader card starts with a **live twin of its ring**: the same number
-  of LEDs, showing what the real ring shows (idle or night glow, the chase
-  while a band is read, the welcome with the person's name, the denied
-  pulses, the amber offline pulse), so a tap appears on the page as it
-  happens. (A page that embeds this one can put its own emblem in
-  the middle of the twin by setting `window.MBH_READER_EMBLEM` to SVG drawn in a
-  100 × 100 box.) Each reader's **Ring and tap settings** fold-out has all its ring and
-  tap settings in groups: Ring (type, LED count, colour order, brightness,
-  start-up show and the show **Play show** plays),
-  Waiting for a band, Night (set hours or sunset to sunrise, with tonight's
-  times), Checking a band, Welcome (with a picture of its shape) and Denied.
-  They're the same settings as on the reader's device page; see
-  [reader.md](reader.md) for what each does.
+  (above the reader cards, or Configure → Settings), in
+  `magicbhands_snapshots` in the config folder, and only administrators can
+  see them.
+- **Bridges and band effects:** each bridge's fast mode, Bluetooth proxy,
+  **Wake bands**, **Ping** and health tiles. **Send to every band in range**,
+  through the bridges: one-tap buttons (colours, rainbow, colour cycle,
+  lightning, spin and buzz, buzz, stop), and **More: build your own**: one,
+  two or five colours, a fade between two colours, a spinning circle, any
+  colour from a picker, any of the firmware's light shows, or a buzz on its
+  own. Set how hard it buzzes, how long it stays lit, which LEDs, the
+  fade-out, and whether it stays on until you send Stop. **Through** sends it
+  through every bridge (the whole house) or just one, which reaches only the
+  bands near that bridge.
+- **Celebrations and tap passport:** holiday and birthday shows after a
+  welcome, and everyone's taps, streaks and stamps.
 
 The page is for Home Assistant **administrators** (it manages who the
 readers let in).
@@ -294,14 +314,14 @@ After a welcome, the reader plays one show (reader firmware 0.10.24 or
 later):
 
 1. **Stamp**, if the tap earned a passport badge;
-2. **Birthday**, on the person's birthday (set it under their name, or
-   `update_person` with `birthday: "07-14"`);
+2. **Birthday**, on the person's birthday (set it under their name, in **Welcome
+   and birthday**, or `update_person` with `birthday: "07-14"`);
 3. the day's holiday show: New Year (31 Dec and 1 Jan), Valentine, St
    Patrick, Easter, Stars and Stripes (Memorial Day, Independence Day, Labor
    Day, Veterans Day), Halloween, Thanksgiving, Hanukkah (all eight days) and
    Christmas (24 and 25 Dec).
 
-Each can be turned off in the **Celebrations** section. The **Coming up**
+Each can be turned off in the **Celebrations and tap passport** section. The **Coming up**
 buttons preview a show on the reader. `magicband.play_show` with
 `show: Today` plays today's holiday show (or a random everyday one), which
 the light-show blueprint offers too.
@@ -318,8 +338,8 @@ tap in **Recent taps**, and plays the Stamp show. Passports are kept in
 
 ### Welcome sounds
 
-Each person can have their own welcome sound. Open **People → Birthday,
-welcome sound, lockdown, guest pass**, choose **Upload…** and pick an MP3,
+Each person can have their own welcome sound. Open **People → Welcome and
+birthday** under their name, choose **Upload…** and pick an MP3,
 WAV, FLAC or Ogg file (up to 2 MB; a few seconds is best). **Play here**
 plays it in the browser, **Play on readers** on every reader's speaker, and
 **Remove** goes back to the reader's tap-in sound.
