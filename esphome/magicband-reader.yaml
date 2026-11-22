@@ -544,11 +544,27 @@ light:
             const float ct = id(idle_circle_time).state;
             const uint32_t circle_ms = std::isnan(ct) || ct < 0.5f ? 3000 : static_cast<uint32_t>(ct * 1000.0f);
             const int head = static_cast<int>(((millis() - start) % circle_ms) * n / circle_ms);
-            const int tail = std::min(n, n / 5 > 3 ? n / 5 : 3);
+            // "Idle circle tail": the trail's length in LEDs; 0 = a fifth of the ring (at least 3)
+            const float ts = id(idle_circle_tail).state;
+            int tail = std::isnan(ts) || ts < 1 ? (n / 5 > 3 ? n / 5 : 3) : static_cast<int>(ts);
+            // "Idle circle heads": 1-4 heads spaced evenly round the ring, each with its own tail
+            const float hs = id(idle_circle_heads).state;
+            const int heads = std::isnan(hs) ? 1 : std::max(1, std::min(4, static_cast<int>(hs)));
+            tail = std::max(1, std::min(tail, n / heads));
+            // "Idle circle direction": Reverse runs the other way round the ring
+            const bool rev = id(idle_circle_direction).current_option() == "Reverse";
+            // "Idle tail fade": how dim the tail's last LED is, as a % of the head (0 = fades out)
+            const float fs = id(idle_tail_fade).state;
+            const float end = std::isnan(fs) ? 0.1f : std::max(0.0f, std::min(100.0f, fs)) / 100.0f;
             it.all() = Color::BLACK;
-            for (int t = 0; t < tail; t++) {
-              int i = ((head - t) % n + n) % n;
-              magicband::put_dimmed(it[i], current_color, static_cast<uint8_t>(255 - t * (230 / tail)));
+            for (int h = 0; h < heads; h++) {
+              const int hp = head + h * n / heads;
+              for (int t = 0; t < tail; t++) {
+                const int pos = ((hp - t) % n + n) % n;
+                const int i = rev ? n - 1 - pos : pos;
+                const float f = tail > 1 ? 1.0f - (1.0f - end) * t / (tail - 1) : 1.0f;
+                magicband::put_dimmed(it[i], current_color, static_cast<uint8_t>(lroundf(255.0f * std::max(f, 0.04f))));
+              }
             }
       # Denied: fades up and down `pulse_count` times ("Pulse time" each, a
       # third of that apart), then stays dark.
@@ -1215,6 +1231,18 @@ select:
                   script.is_running: band_tapped
           then:
             - script.execute: reader_idle
+  # Which way the idle circle goes round.
+  - platform: template
+    id: idle_circle_direction
+    name: "Idle circle direction"
+    icon: mdi:swap-horizontal
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_option: "Forward"
+    options:
+      - "Forward"
+      - "Reverse"
   # At night ("Night now"): the idle style to use instead, or the day's.
   - platform: template
     id: idle_style_night
@@ -1408,6 +1436,45 @@ number:
     max_value: 10.0
     step: 0.5
     unit_of_measurement: "s"
+    mode: box
+  # The idle circle's shape (the effect reads these as it runs).
+  - platform: template
+    id: idle_circle_tail
+    name: "Idle circle tail"
+    icon: mdi:ray-start-arrow
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: 0        # 0 = automatic: a fifth of the ring
+    min_value: 0
+    max_value: ${ring_max_leds}
+    step: 1
+    unit_of_measurement: "LEDs"
+    mode: box
+  - platform: template
+    id: idle_circle_heads
+    name: "Idle circle heads"
+    icon: mdi:rotate-orbit
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: 1
+    min_value: 1
+    max_value: 4
+    step: 1
+    mode: box
+  - platform: template
+    id: idle_tail_fade
+    name: "Idle tail fade"
+    icon: mdi:gradient-horizontal
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: 10       # the tail's last LED at 10 % of the head
+    min_value: 0
+    max_value: 100
+    step: 5
+    unit_of_measurement: "%"
     mode: box
   # The speaker volume at night with "Sound at night" on Quieter.
   - platform: template

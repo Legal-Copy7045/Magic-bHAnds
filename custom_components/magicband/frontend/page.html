@@ -605,7 +605,7 @@ function renderShow(show,t,n){
 // (on/off, effect, colour, brightness) and its settings, so a tap shows here as it happens:
 // the chase while the band is read, then the welcome or the denied pulses.
 const TWIN_SET=[['number','LED count'],['number','Circle time'],['number','Circle tail'],['number','Welcome fade in'],['number','Welcome hold'],
-  ['number','Welcome fade out'],['number','Welcome pulses'],['number','Denied pulses'],['number','Pulse time'],['number','Idle glow'],['number','Idle circle time'],
+  ['number','Welcome fade out'],['number','Welcome pulses'],['number','Denied pulses'],['number','Pulse time'],['number','Idle glow'],['number','Idle circle time'],['number','Idle circle tail'],['number','Idle circle heads'],['number','Idle tail fade'],['select','Idle circle direction'],
   ['number','Idle glow at night'],['select','Night mode'],['number','Night from'],['number','Night until'],['number','Night starts after sunset'],['number','Night ends after sunrise'],['binary_sensor','Night now']];
 const TWIN_START={};
 let TWIN_STYLE='leds'; try{ TWIN_STYLE=localStorage.getItem('mbh-twin-style')==='diffused'?'diffused':'leds'; }catch(e){}
@@ -662,8 +662,11 @@ function twinFrame(){
     else if(!on){ cap='Ring off'; sub='Idle glow is 0, or the Ring light is off'; }
     else if(eff==='Chase'){ const cm=num('Circle time',0.5)*1000||500, head=Math.floor((t%cm)*n/cm); let tail=num('Circle tail',0); tail=tail<1?Math.max(3,Math.floor(n/5)):Math.min(n,tail);
       for(let k=0;k<tail;k++) L[((head-k)%n+n)%n]=br*(255-k*Math.floor(230/tail))/255; cap='Reading a band…'; }
-    else if(eff==='Idle circle'){ const cm=num('Idle circle time',3)*1000||3000, head=Math.floor((t%cm)*n/cm), tail=Math.min(n,Math.max(3,Math.floor(n/5)));
-      for(let k=0;k<tail;k++) L[((head-k)%n+n)%n]=br*(255-k*Math.floor(230/tail))/255; sub=night?'Night glow, circling':'Idle glow, circling'; }
+    else if(eff==='Idle circle'){ const cm=num('Idle circle time',3)*1000||3000, head=Math.floor((t%cm)*n/cm), hd=Math.max(1,Math.min(4,Math.floor(num('Idle circle heads',1)))),
+        ts=num('Idle circle tail',0), fe=Math.max(0,Math.min(100,num('Idle tail fade',10)))/100, rev=ids['Idle circle direction']&&S(ids['Idle circle direction'])&&S(ids['Idle circle direction']).state==='Reverse';
+      let tail=ts<1?Math.max(3,Math.floor(n/5)):Math.floor(ts); tail=Math.max(1,Math.min(tail,Math.floor(n/hd)));
+      for(let h=0;h<hd;h++){ const hp=head+Math.floor(h*n/hd); for(let k=0;k<tail;k++){ const pos=((hp-k)%n+n)%n, f=tail>1?1-(1-fe)*k/(tail-1):1; L[rev?n-1-pos:pos]=br*Math.max(f,.04); } }
+      sub=night?'Night glow, circling':'Idle glow, circling'; }
     else if(eff==='Welcome'){ const fi=num('Welcome fade in',0.15)*1000, ho=num('Welcome hold',1)*1000, fo=num('Welcome fade out',1)*1000, cyc=fi+ho+fo+200, k=Math.floor(t/cyc), q=t%cyc;
       let lv=0; if(k<num('Welcome pulses',1)) lv=q<fi?q/fi:q<fi+ho?1:q<fi+ho+fo?1-(q-fi-ho)/fo:0; L.fill(br*lv); cap='Welcome'+(tw.dataset.band?', '+tw.dataset.band:''); }
     else if(eff==='Pulse'){ const om=num('Pulse time',0.45)*1000, gm=om/3, k=Math.floor(t/(om+gm)), q=t%(om+gm);
@@ -712,7 +715,7 @@ function readerSettings(p){
   const G=[
     ['Ring',[['select','Ring type','Type'],['number','LED count','LEDs'],['select','LED colour order','Colour order'],['number','LED brightness','Brightness'],['select','Startup show','Start-up show'],['select','Show','Play show plays']],
       'Changing the type restarts the reader. RGBW rings have a white LED in each pixel.'],
-    ['Waiting for a band',[['select','Idle style','Style'],['select','Idle style at night','Style at night'],['select','Idle colour','Colour'],['number','Idle glow','Glow (0 = off)'],['number','Idle circle time','Each circle (Circle style)']],'Static glows steadily; Circle goes round in the idle colour at the idle glow, at its own speed. Pulses amber instead while Home Assistant is away.'],
+    ['Waiting for a band',[['select','Idle style','Style'],['select','Idle style at night','Style at night'],['select','Idle colour','Colour'],['number','Idle glow','Glow (0 = off)'],['number','Idle circle time','Each circle'],['number','Idle circle tail','Tail (0 = auto)'],['number','Idle tail fade','Tail ends at'],['number','Idle circle heads','Heads'],['select','Idle circle direction','Direction']],'Static glows steadily; Circle goes round in the idle colour at the idle glow, with its own speed, tail and heads (the circle settings apply to Circle only). Pulses amber instead while Home Assistant is away.'],
     ['Night',[['number','Idle glow at night','Glow'],['select','Sound at night','Sound'],['number','Night volume','Volume (Quieter)'],['select','Night mode','Night is'],
       ...(sunMode?[['number','Night starts after sunset','Starts after sunset'],['number','Night ends after sunrise','Ends after sunrise']]
                  :[['number','Night from','From (hour)'],['number','Night until','Until (hour)']])],
