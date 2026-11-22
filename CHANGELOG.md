@@ -3,6 +3,40 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.28] - 2026-11-22
+
+### MagicbHAnds page
+- **Fix:** the New bands count and list could stay empty when a reader was
+  listed before the integration's own device (a reader's Allowed list sensor
+  was taken for the unknown-bands sensor). Readers and bridges are no longer
+  treated as service devices, and the unknown-bands and last-tap sensors are
+  found by their attributes instead of by entity ID.
+- **Fix:** a redraw no longer closes a drop-down or a number box in use: only
+  the section with the focused control waits, and catches up when it's left.
+- Reader, bridge and band cards and each reader settings group have their own
+  message line: a short "done" after a change, and an error that stays (the
+  control goes back to what Home Assistant has). Before, failures there were
+  silent. The same for the band-type buttons and the camera picture days.
+- Number settings are checked against their range and step before sending
+  ("LEDs: 1–60"); settings that go below 0 (Night starts after sunset, Night
+  ends after sunrise) get the ordinary keyboard on a phone, which has a minus.
+- **Manage** on a Bluetooth-only band: **Link to…** an NFC band or a person,
+  and **Forget this Bluetooth band** (asks for a second tap).
+- **Owner, then name** puts bands nobody owns last (they came first).
+- **Band light-up power** on each reader card, under Light up MagicBand+.
+- A reader that isn't paired with MagicbHAnds yet says so under Health ("Not
+  paired: tap a band on it within 2 min of pairing").
+- Messages: the readers get the allowed list on their own a few seconds after
+  each change, so "Push to readers" is now **Re-send list to readers** and the
+  messages say so. The fold-out is called "Birthday, welcome sound, lockdown,
+  guest pass" everywhere.
+- On a phone the six totals at the top show two to a row again (the shared
+  style sheet made them one per row).
+- Loosening access takes a second tap: **Clear the pass**, turning **Guest**
+  off (drops the pass) and **Always allowed**; Response mode **Welcome every
+  band** has to be picked twice, and while it's on the reader card shows a red
+  "Lets every band in" tag.
+
 ## [0.10.27] - 2026-11-22
 
 ### Reader
