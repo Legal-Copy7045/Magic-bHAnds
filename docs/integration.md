@@ -167,8 +167,9 @@ battery at 20% or less), above the totals (click one to jump to it).
   page through them), let in, turned away or enrolled (administrators only).
   Hover a time for the full date. A turned-away band nobody owns has
   **Assign…**, which jumps to it under New bands.
-- **People and access:** **Lockdown** first, then who the readers let in.
-  Each row has a one-line access summary; **Access** has Allowed, Gets in
+- **People and access:** **Lockdown** first, then who the readers let in,
+  one card per person (a row on a computer, stacked on a phone). Each has a
+  one-line access summary; **Access** has Allowed, Gets in
   during lockdown, Guest and the guest pass; **Welcome and birthday** has the
   person's **welcome colour** (the readers welcome their bands in it, on the
   ring and on their MagicBand+), welcome sound and birthday. **Enrol bands**:
@@ -199,7 +200,9 @@ battery at 20% or less), above the totals (click one to jump to it).
   strength and network, how long it's been up and why it last restarted, CPU
   temperature, free memory, loop time and IP address (firmware 0.10.5 or
   later), and **Restart**; closed, it shows a one-line summary. The header
-  shows the first reader's ring, live. (A page that embeds this one can put
+  shows the first reader's ring, live (on a phone only the live line: the
+  Readers section shows the ring). The **Readers OK** total counts readers
+  that are online, have the list, are paired and aren't locked out. (A page that embeds this one can put
   its own emblem in the middle of the twin by setting
   `window.MBH_READER_EMBLEM` to SVG drawn in a 100 × 100 box.)
   **Ring and tap settings** has the reader's settings in groups: Waiting for a
@@ -227,7 +230,8 @@ battery at 20% or less), above the totals (click one to jump to it).
   through every bridge (the whole house) or just one, which reaches only the
   bands near that bridge.
 - **Celebrations and tap passport:** holiday and birthday shows after a
-  welcome, and everyone's taps, streaks and stamps.
+  welcome, and everyone's taps, streaks and stamps (the stamps they have,
+  the next tap-count stamp, and all 16 in a fold-out).
 
 The page is for Home Assistant **administrators** (it manages who the
 readers let in).
