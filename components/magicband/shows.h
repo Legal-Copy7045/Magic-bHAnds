@@ -9,6 +9,7 @@
 // file (custom_components/magicband/frontend/page.html, SHOWS): keep the two in
 // step.
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -20,29 +21,57 @@ namespace esphome {
 namespace magicband {
 
 // Writes colour c at level (0-255) to one LED of the ring so that it keeps its
-// colour when dim. The light's brightness curve never rounds a channel that's
-// on down to off, so a dim warm white (or orange, pink...) would become one
-// step each of red, green and blue: a faint cool white. Channels that should
-// round to nothing are switched off instead.
+// colour when dim. The light's brightness curve rounds each channel on its own,
+// so a fading warm white (lots of red, some green, a little blue) first became
+// one step of each (a faint cool white) and, with the minor channels cut, plain
+// red: a warm-white circle's tail showed red. Here the channels are set in the
+// ring's own output steps, after its brightness curve, in the colour's
+// full-brightness proportions (gamma 2.8, the light's default). A channel with
+// at least a fifth of the brightest one's share never drops out: the LED stays
+// at the dimmest level that still shows it, so a tail keeps its colour to the
+// end. Smaller shares (warm white's blue) may round away. RGBW colours (white
+// LED on) are scaled the plain way.
 inline void put_dimmed(light::ESPColorView led, Color c, uint8_t level) {
-  Color out = c * level;
-  led = out;
+  if (c.w != 0) {
+    led = c * level;
+    return;
+  }
   const uint8_t src[3] = {c.r, c.g, c.b};
-  const uint8_t raw[3] = {led.get_red_raw(), led.get_green_raw(), led.get_blue_raw()};
   int top = 0;
   for (int k = 1; k < 3; k++)
     if (src[k] > src[top]) top = k;
-  if (src[top] == 0) return;
-  bool changed = false;
-  for (int k = 0; k < 3; k++) {
-    if (k == top || raw[k] != 1 || src[k] == 0) continue;
-    const float ideal = raw[top] * powf(static_cast<float>(src[k]) / src[top], 2.8f);  // gamma 2.8, the light's default
-    if (ideal < 0.5f) {
-      (k == 0 ? out.r : k == 1 ? out.g : out.b) = 0;
-      changed = true;
-    }
+  if (src[top] == 0 || level == 0) {
+    led = Color::BLACK;
+    return;
   }
-  if (changed) led = out;
+  // The output steps channel ch gives for value v (brightness curve, power cap, LED brightness).
+  auto out = [&](uint8_t v, int ch) -> int {
+    led = Color(ch == 0 ? v : 0, ch == 1 ? v : 0, ch == 2 ? v : 0);
+    return ch == 0 ? led.get_red_raw() : ch == 1 ? led.get_green_raw() : led.get_blue_raw();
+  };
+  // The smallest value giving at least `target` steps on channel ch (0 = off).
+  auto value_for = [&](int target, int ch) -> uint8_t {
+    if (target <= 0) return 0;
+    int lo = 1, hi = 255;
+    while (lo < hi) {
+      const int mid = (lo + hi) / 2;
+      if (out(mid, ch) >= target) hi = mid; else lo = mid + 1;
+    }
+    return static_cast<uint8_t>(lo);
+  };
+  float share[3];
+  for (int k = 0; k < 3; k++) share[k] = powf(static_cast<float>(src[k]) / src[top], 2.8f);
+  const int most = out(src[top], top);
+  int steps = out(static_cast<uint8_t>((src[top] * level + 127) / 255), top);
+  // Keep every channel with a fifth or more of the share at one step or more.
+  int least = 1;
+  for (int k = 0; k < 3; k++)
+    if (k != top && share[k] >= 0.2f) least = std::max(least, static_cast<int>(ceilf(0.5f / share[k])));
+  steps = std::min(std::max(steps, least), std::max(most, 1));
+  uint8_t v[3];
+  for (int k = 0; k < 3; k++)
+    v[k] = k == top ? value_for(steps, k) : value_for(static_cast<int>(lroundf(steps * share[k])), k);
+  led = Color(v[0], v[1], v[2]);
 }
 
 namespace shows {

@@ -3,6 +3,14 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.27] - 2026-11-22
+
+### Reader
+- **Fix:** a warm-white circle's fading tail showed red. Dimmed LEDs (circle
+  tails, pulses, the tap chase) are now set in the ring's own output steps in
+  the colour's full-brightness mix, so a fading warm white (or orange, pink...)
+  keeps its colour to the end instead of losing its green.
+
 ## [0.10.26] - 2026-11-22
 
 ### Reader

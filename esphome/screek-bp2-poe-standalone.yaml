@@ -14,7 +14,7 @@
 substitutions:
   name: screek-bp2-poe-849a4c
   friendly_name: SCREEK BP2-POE 849a4c
-  project_version: "0.10.26"
+  project_version: "0.10.27"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/bp2/manifest.json
 
 esphome:
