@@ -29,13 +29,18 @@ namespace magicband {
 // full-brightness proportions (gamma 2.8, the light's default). A channel with
 // at least a fifth of the brightest one's share never drops out: the LED stays
 // at the dimmest level that still shows it, so a tail keeps its colour to the
-// end. Smaller shares (warm white's blue) may round away. RGBW colours (white
-// LED on) are scaled the plain way.
+// end. Smaller shares (warm white's blue) may round away. On RGBW rings with
+// the white LED in use, colours are scaled the plain way. (An RGB light still
+// hands effects a white value, so test the LED itself, not c.w: going by c.w
+// sent RGB rings down the plain path, and a warm tail faded to one step of
+// each colour, a bluish white.)
 inline void put_dimmed(light::ESPColorView led, Color c, uint8_t level) {
-  if (c.w != 0) {
+  led = Color(0, 0, 0, 255);
+  if (c.w != 0 && led.get_white_raw() != 0) {
     led = c * level;
     return;
   }
+  c.w = 0;
   const uint8_t src[3] = {c.r, c.g, c.b};
   int top = 0;
   for (int k = 1; k < 3; k++)
