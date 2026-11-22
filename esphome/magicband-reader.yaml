@@ -21,7 +21,7 @@
 substitutions:
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.10.24"
+  project_version: "0.10.25"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -468,6 +468,27 @@ light:
             const float ts = id(circle_tail).state;
             int tail = std::isnan(ts) || ts < 1 ? (n / 5 > 3 ? n / 5 : 3) : static_cast<int>(ts);
             if (tail > n) tail = n;
+            it.all() = Color::BLACK;
+            for (int t = 0; t < tail; t++) {
+              int i = ((head - t) % n + n) % n;
+              magicband::put_dimmed(it[i], current_color, static_cast<uint8_t>(255 - t * (230 / tail)));
+            }
+      # Waiting for a band with "Idle style" on Circle: a head with a fading tail
+      # going round in "Idle colour" at "Idle glow", one circle per "Idle circle
+      # time". Its own speed and a fixed tail (a fifth of the ring), so the tap's
+      # Chase settings don't change it.
+      - addressable_lambda:
+          name: "Idle circle"
+          update_interval: 16ms
+          lambda: |-
+            static uint32_t start = 0;
+            if (initial_run) start = millis();
+            const int n = it.size();
+            if (n == 0) return;
+            const float ct = id(idle_circle_time).state;
+            const uint32_t circle_ms = std::isnan(ct) || ct < 0.5f ? 3000 : static_cast<uint32_t>(ct * 1000.0f);
+            const int head = static_cast<int>(((millis() - start) % circle_ms) * n / circle_ms);
+            const int tail = std::min(n, n / 5 > 3 ? n / 5 : 3);
             it.all() = Color::BLACK;
             for (int t = 0; t < tail; t++) {
               int i = ((head - t) % n + n) % n;
@@ -1090,6 +1111,28 @@ select:
                   script.is_running: band_tapped
           then:
             - script.execute: reader_idle
+  # How the ring waits for a band: a steady glow, or a circle going round
+  # (in "Idle colour" at "Idle glow", one circle per "Idle circle time").
+  - platform: template
+    id: idle_style
+    name: "Idle style"
+    icon: mdi:rotate-right
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_option: "Static"
+    options:
+      - "Static"
+      - "Circle"
+    on_value:
+      - if:
+          condition:
+            and:
+              - lambda: 'return id(ring_ready);'
+              - not:
+                  script.is_running: band_tapped
+          then:
+            - script.execute: reader_idle
   - platform: template
     id: welcome_colour
     name: "Welcome colour"
@@ -1230,6 +1273,21 @@ number:
     max_value: ${ring_max_leds}
     step: 1
     unit_of_measurement: "LEDs"
+    mode: box
+  # How long one circle takes while waiting for a band with "Idle style" on Circle
+  # (the effect reads it as it runs, so a change shows straight away).
+  - platform: template
+    id: idle_circle_time
+    name: "Idle circle time"
+    icon: mdi:timer-sand
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: 3.0
+    min_value: 0.5
+    max_value: 10.0
+    step: 0.5
+    unit_of_measurement: "s"
     mode: box
   - platform: template
     id: welcome_pulses
@@ -1807,23 +1865,36 @@ script:
                 name: !lambda 'return id(idle_colour).current_option().str();'
             - if:
                 condition:
-                  lambda: 'return id(idle_colour).current_option() == "Warm white" && id(ring_type).current_option() == "RGB";'
+                  lambda: 'return id(idle_style).current_option() == "Circle";'
                 then:
-                  # Mixed in the ring's output steps so it stays warm when dim (see "Warm glow").
-                  - light.turn_on:
-                      id: ring
-                      effect: "Warm glow"
-                      brightness: 100%
-                      red: 100%
-                      green: 100%
-                      blue: 100%
-                else:
                   - script.execute:
                       id: ring_on
-                      effect: "None"
+                      effect: "Idle circle"
                       level: !lambda 'return (id(night) ? id(idle_glow_night).state : id(idle_glow).state) / 100.0f;'
+                else:
+                  - script.execute: reader_idle_steady
           else:
             - light.turn_off: ring
+  # The steady idle glow ("Idle style" Static).
+  - id: reader_idle_steady
+    then:
+      - if:
+          condition:
+            lambda: 'return id(idle_colour).current_option() == "Warm white" && id(ring_type).current_option() == "RGB";'
+          then:
+            # Mixed in the ring's output steps so it stays warm when dim (see "Warm glow").
+            - light.turn_on:
+                id: ring
+                effect: "Warm glow"
+                brightness: 100%
+                red: 100%
+                green: 100%
+                blue: 100%
+          else:
+            - script.execute:
+                id: ring_on
+                effect: "None"
+                level: !lambda 'return (id(night) ? id(idle_glow_night).state : id(idle_glow).state) / 100.0f;'
 
   # A first pairing is waiting for a band tap (see the pair action): the ring
   # breathes blue for up to 2 minutes, then goes back to normal.

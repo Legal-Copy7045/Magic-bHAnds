@@ -180,6 +180,8 @@ the reader's device page in Home Assistant, under **Configuration**, set:
 | Setting | Default | What it does |
 |---|---|---|
 | **Idle colour** | White | Colour of the glow while waiting for a band (its brightness is **Idle glow**) |
+| **Idle style** | Static | How the ring waits for a band: **Static**, a steady glow, or **Circle**, a circle going round in **Idle colour** at **Idle glow** (**Idle glow at night** at night) |
+| **Idle circle time** | 3 s | With **Idle style** on Circle: how long one circle takes (0.5–10 s). Separate from the tap's **Circle time**; the trail is a fifth of the ring |
 | **Checking colour** | White | Colour of the circles that chase round the ring while a band is checked |
 | **Checking circles** | 2 | How many circles before the result shows |
 | **Circle time** | 0.5 s | How long one circle takes (0.2–2 s) |

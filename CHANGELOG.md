@@ -3,6 +3,19 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.25] - 2026-11-22
+
+### Reader
+- **Idle style.** The ring can wait for a band with a steady glow
+  (**Static**, as before) or a circle going round (**Circle**). The circle
+  uses **Idle colour** and **Idle glow** (**Idle glow at night** at night)
+  and its own speed, **Idle circle time** (default 3 s, 0.5–10 s), so it's
+  set separately from the tap's checking circle.
+
+### Home Assistant
+- The reader's **Waiting for a band** settings on the MagicbHAnds page have
+  **Style** and **Each circle**, and the ring preview shows the idle circle.
+
 ## [0.10.24] - 2026-11-20
 
 ### Home Assistant
