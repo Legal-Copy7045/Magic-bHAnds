@@ -3,6 +3,13 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.29] - 2026-11-22
+
+### Reader
+- **Fix:** on RGB rings a warm-white circle's tail faded to a bluish white
+  (0.10.27's fix took RGB rings for RGBW ones). Dimmed LEDs now check whether
+  the ring really has a white LED, so the tail stays warm to the end.
+
 ## [0.10.28] - 2026-11-22
 
 ### MagicbHAnds page
