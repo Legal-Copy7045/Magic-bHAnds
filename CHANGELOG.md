@@ -83,6 +83,42 @@ Home Assistant integration share one version number.
   bands** button.
 - Times over a day old read "yesterday 9:14 am", "Tue 9:14 am", then the date.
 
+### MagicbHAnds page: phones and accessibility
+- People are cards instead of a wide table: a row of fields on a computer,
+  stacked on a phone, with the Access and Welcome and birthday fold-outs as
+  label-over-control rows, so nothing scrolls sideways or gets cut off.
+- Phones: band facts stay in two columns in the body font (IDs stay
+  monospaced); Recent taps puts the reader under the band and keeps the
+  picture column whole; the night lockdown times sit together on their own
+  line; the camera hint is under its row; the header drops its copy of
+  reader 1's ring (the Readers section shows it) and keeps the live line;
+  the section chips scroll sideways in one row.
+- Touch screens get 44 px targets: buttons, toggles (larger, with a 44 px
+  touch area), fold-out headings, 20 px check boxes, sliders, drop-downs and
+  boxes.
+- Health tiles fit four to a row on a phone; Wi-Fi shows just its quality
+  (the dBm is in the tooltip) and Memory says "free" (largest block in the
+  tooltip).
+- Ring and tap settings: the unit sits inside each number box, so boxes end
+  where the drop-downs end.
+- Tap passport: the stamps someone has, "Next: Frequent visitor at 50 taps
+  (33 to go)", and all 16 in a fold-out.
+- The **Readers OK** total counts readers that are online, have the list, are
+  paired and aren't locked out, and says how many problems there are
+  ("Readers online" looked fine while a reader had problems).
+- Toggles show their off state (an outlined track and knob), are switches to
+  screen readers (on/off kept in step) and say what and whose ("Allowed:
+  Sam", "Sound: Front Door Reader"). Every drop-down, box and slider has a
+  label; reader settings use real labels (clicking one focuses its control).
+- Dark mode: dark text on the purple buttons (Assign, Link, Send, the chosen
+  Ring preview) and on toggles that are on; hint text is darker in light mode
+  for contrast on grey panels.
+- Keyboard: **Upload…** for a welcome sound is a real button; tap pictures are
+  buttons, and the enlarged picture has **Close**, closes on Esc and returns
+  the focus; the battery chart takes the focus and gives it back; visible
+  focus outlines on buttons, toggles, fold-outs and chips. Band and person
+  names are headings under their section.
+
 ## [0.10.27] - 2026-11-22
 
 ### Reader
