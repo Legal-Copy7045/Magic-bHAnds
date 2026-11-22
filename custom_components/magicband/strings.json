@@ -642,6 +642,20 @@
           "description": "Play the Stamp show after a welcome that earns a badge."
         }
       }
+    },
+    "play_welcome_sound": {
+      "name": "Play a welcome sound",
+      "description": "Play a person's own welcome sound (uploaded on the MagicbHAnds page) on the readers' speakers, to try it out. Plays even if the reader's sound is off.",
+      "fields": {
+        "person": {
+          "name": "Person",
+          "description": "Their name or ID in MagicbHAnds."
+        },
+        "device_id": {
+          "name": "Readers",
+          "description": "The readers to play it on. Leave empty for every reader."
+        }
+      }
     }
   },
   "issues": {

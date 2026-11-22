@@ -185,6 +185,7 @@ ADMIN_ONLY = [
     ("pair_reader", {"device_id": "x"}),
     ("set_reader_camera", {"device_id": "x", "camera": "camera.front"}),
     ("set_snapshot_days", {"days": 7}),
+    ("play_welcome_sound", {"person": "Casey"}),
 ]
 
 

@@ -3,6 +3,32 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.26] - 2026-11-22
+
+### Reader
+- **Idle style at night:** Static or Circle at night instead of **Idle
+  style** (default **Same as day**), e.g. circling by day and a still glow in
+  a dark hallway.
+- **Quiet hours:** **Sound at night** on the night schedule. **Quieter** sets
+  the speaker to **Night volume** (default 30 %) when night starts and puts
+  the day volume back in the morning; **Off** plays no reader sounds at
+  night.
+- **Refused-tap lockout** (off by default): **Lockout after** refused taps
+  (default 5) within **Lockout window** (60 s) stop the reader taking taps
+  for **Lockout time** (5 min). The ring pulses red meanwhile and the new
+  **Tap lockout** sensor is on. Works with Home Assistant offline.
+- New action `set_band_sounds`: the bands whose owner has their own welcome
+  sound; the reader doesn't play its tap-in sound for them.
+
+### Home Assistant
+- **Welcome sounds:** upload a sound for each person on the MagicbHAnds page
+  (MP3, WAV, FLAC or Ogg, up to 2 MB). The reader that welcomes them plays it
+  instead of its tap-in sound. Admin-only `magicband.play_welcome_sound`
+  tries it out.
+- A reader's lockout shows a notification and fires **`magicband_lockout`**.
+- The page's reader settings have **Style at night**, **Sound** and **Volume**
+  under Night, and a **Refused taps** group; the ring preview shows a lockout.
+
 ## [0.10.25] - 2026-11-22
 
 ### Reader

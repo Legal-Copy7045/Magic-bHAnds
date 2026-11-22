@@ -316,6 +316,24 @@ and Four seasons. A new stamp fires **`magicband_badge`** (`person`,
 tap in **Recent taps**, and plays the Stamp show. Passports are kept in
 `.storage/magicband.passport`; removing a person removes theirs.
 
+### Welcome sounds
+
+Each person can have their own welcome sound. Open **People → Birthday,
+welcome sound, lockdown, guest pass**, choose **Upload…** and pick an MP3,
+WAV, FLAC or Ogg file (up to 2 MB; a few seconds is best). **Play here**
+plays it in the browser, **Play on readers** on every reader's speaker, and
+**Remove** goes back to the reader's tap-in sound.
+
+When a reader welcomes one of that person's bands it plays their sound
+instead of its tap-in sound. The file stays in Home Assistant
+(`<config>/magicbhands_sounds/`, not the public `www` folder). The readers
+only learn which bands have a sound of their own (reader firmware 0.10.26 or
+later); when one of them welcomes such a band, Home Assistant plays the
+sound on that reader's speaker through a link that works for a few minutes.
+So a welcome sound needs Home Assistant running; a reader that can't reach
+it welcomes silently. The reader's **Sound** switch and its **Sound at
+night** setting still apply.
+
 ## Reacting to taps
 
 Every tap on a reader fires a **`magicband_tap`** event:
@@ -349,6 +367,10 @@ Two more events:
   someone during enrolment.
 - **`magicband_battery_low`** (`bluetooth_band`, `name`, `person`, `battery`):
   a MagicBand+ dropped to the reminder level.
+- **`magicband_lockout`** (`reader`, `reader_device_id`, `locked`): a reader's
+  **Refused-tap lockout** started (`locked: true`) or ended. A notification
+  shows in Home Assistant while it lasts; use the event to send one to your
+  phone as well.
 
 Example: welcome Morgan by name.
 
@@ -374,7 +396,7 @@ actions:
 Actions that change who's allowed in, or list band IDs, need a Home Assistant
 **administrator**: `add_person`, `update_person`, `remove_person`,
 `assign_band`, `unassign_band`, `remove_band`, `set_band_access`, `enrol`,
-`stop_enrolment`, `set_guest_pass`, `set_settings`, `list`, `history`, `link_bluetooth`, `unlink_bluetooth`,
+`stop_enrolment`, `set_guest_pass`, `set_settings`, `list`, `history`, `play_welcome_sound`, `link_bluetooth`, `unlink_bluetooth`,
 `forget_bluetooth`, `list_bluetooth_bands` and `list_heard`. `send`, `sync`, `play_show` and `list_bridges` work for any user; `send`
 only targets MagicBand bridges, and `play_show` only plays a light show. See [security.md](security.md).
 
@@ -396,6 +418,7 @@ only targets MagicBand bridges, and `play_show` only plays a light show. See [se
 | `magicband.list` | Returns all people (with welcome colours, birthdays, guest passes, whether they'd get in now, and their passport) and bands (with access schedules), the readers' status, any enrolment, the welcome colours, the house settings, the lockdown reasons, today's holidays and birthdays, and the next holidays |
 | `magicband.send` | Sends an effect through the bridges (see above) |
 | `magicband.play_show` | `show` (one of the 28 shows; `Random`, the default, for an everyday one; `Today` for today's holiday show), `device_id` (readers; empty = all): plays it on the ring (reader firmware 0.10.17 or later; the celebration shows and Stamp 0.10.24). Returns `played`, `skipped` and `show` |
+| `magicband.play_welcome_sound` | `person`, `device_id` (readers; empty = all): plays the person's own welcome sound on the readers' speakers, to try it out (even with the reader's sound off). Returns `played` and `skipped` |
 | `magicband.list_bridges` | Returns every bridge's Command entity |
 | `magicband.list_heard` | Returns recent MagicBand+ Bluetooth traffic heard (last 30), and the last 200 band messages |
 | `magicband.list_bluetooth_bands` | Returns every MagicBand+ recognised over Bluetooth, with its battery history, signal per adapter, changing bits and last 50 raw beacons |

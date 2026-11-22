@@ -15,7 +15,7 @@
      whole-integration actions only from the MagicbHAnds integration itself. */
   var CTRL = { light: ['turn_on', 'turn_off', 'toggle'], switch: ['turn_on', 'turn_off', 'toggle'],
                media_player: ['volume_set'], select: ['select_option'], number: ['set_value'], button: ['press'] };
-  var SVC = { magicband: ['assign_band', 'unassign_band', 'remove_band', 'add_person', 'update_person', 'remove_person',
+  var SVC = { magicband: ['assign_band', 'unassign_band', 'remove_band', 'add_person', 'update_person', 'remove_person', 'play_welcome_sound',
                           'link_bluetooth', 'unlink_bluetooth', 'sync', 'send', 'list', 'list_bluetooth_bands',
                           'set_band_access', 'enrol', 'stop_enrolment', 'history', 'set_reader_camera', 'set_snapshot_days',
                           'set_guest_pass', 'set_settings', 'play_show'] };
@@ -69,6 +69,17 @@
         out.push({ id: d.id, name: d.name, name_by_user: d.name_by_user || null, model: d.model || null, manufacturer: d.manufacturer || null,
                    area: d.area_id && h.areas && h.areas[d.area_id] ? h.areas[d.area_id].name : null }); }
       return out;
+    },
+    // A person's own welcome sound (/api/magicband/sound/<person id>): GET it, POST a file, DELETE it.
+    // Only that path; the request carries the logged-in user's auth (the view itself requires an admin).
+    sound: function (method, personId, body, name) {
+      var h = getHass(); if (!h || !h.fetchWithAuth) return Promise.reject(new Error('Home Assistant is not connected'));
+      if (['GET', 'POST', 'DELETE'].indexOf(method) < 0 || !/^[0-9a-f]{12}$/.test(personId || '')) return Promise.reject(new Error('not allowed'));
+      var url = '/api/magicband/sound/' + personId + (name ? '?name=' + encodeURIComponent(name) : '');
+      return h.fetchWithAuth(url, { method: method, body: body || undefined }).then(function (r) {
+        if (r.ok) return method === 'GET' ? r.blob() : r.json();
+        return r.json().then(function (j) { throw new Error((j && j.message) || ('HTTP ' + r.status)); }, function () { throw new Error('HTTP ' + r.status); });
+      });
     },
     // history and logbook, read-only
     ws: function (msg) {

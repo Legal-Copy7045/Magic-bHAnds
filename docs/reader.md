@@ -171,6 +171,11 @@ the reader's device page in Home Assistant, under **Configuration**, set:
   before sunrise. The reader keeps the last sun times through restarts and
   uses the set hours until it has had them.
 - **Night now** (diagnostic): on while the night idle glow applies.
+- **Sound at night** (default **Normal**): quiet hours on the same night
+  schedule. **Quieter** sets the speaker to **Night volume** (5–100 %,
+  default 30 %) when night starts and puts back the volume it had in the
+  morning; **Off** plays no reader sounds at night (welcome, denied,
+  start-up, and people's own welcome sounds).
 - In **Warm white** the idle glow is mixed specially so it keeps its colour
   when dim (the Ring light shows the "Warm glow" effect at 100 %); its
   dimmest is a little brighter than the other colours' dimmest.
@@ -182,6 +187,7 @@ the reader's device page in Home Assistant, under **Configuration**, set:
 | **Idle colour** | White | Colour of the glow while waiting for a band (its brightness is **Idle glow**) |
 | **Idle style** | Static | How the ring waits for a band: **Static**, a steady glow, or **Circle**, a circle going round in **Idle colour** at **Idle glow** (**Idle glow at night** at night) |
 | **Idle circle time** | 3 s | With **Idle style** on Circle: how long one circle takes (0.5–10 s). Separate from the tap's **Circle time**; the trail is a fifth of the ring |
+| **Idle style at night** | Same as day | At night (**Night now**): **Static** or **Circle** instead of **Idle style**, e.g. circling by day and a still glow at night |
 | **Checking colour** | White | Colour of the circles that chase round the ring while a band is checked |
 | **Checking circles** | 2 | How many circles before the result shows |
 | **Circle time** | 0.5 s | How long one circle takes (0.2–2 s) |
@@ -197,6 +203,21 @@ the reader's device page in Home Assistant, under **Configuration**, set:
 
 Colours: White, Warm white, Red, Orange, Yellow, Green, Cyan, Blue,
 Purple, Pink, Magenta. **LED brightness** scales them all.
+
+**Refused-tap lockout** (off by default) guards against someone trying
+band after band:
+
+| Setting | Default | What it does |
+|---|---|---|
+| **Refused-tap lockout** | Off | Turn it on to use the lockout. Turning it off also ends a lockout in progress |
+| **Lockout after** | 5 | How many refused taps start a lockout (2–20) |
+| **Lockout window** | 60 s | ...within this many seconds (10–600) |
+| **Lockout time** | 5 min | How long the reader then ignores taps (1–60) |
+
+While locked out the ring pulses slowly in red and taps are ignored (not
+read, not reported). **Tap lockout** (a problem sensor) is on meanwhile;
+MagicbHAnds shows a notification and fires `magicband_lockout`. It works on
+the reader itself, so it holds with Home Assistant offline too.
 
 **Customising further** (sounds, pins): in the ESPHome Device Builder the
 reader shows up with **Take control**, which imports
@@ -347,6 +368,14 @@ so there's nothing to copy onto Home Assistant.
    Code Server add-on) and set those values to `sounds/startup.wav` and so on.
 3. Install the reader from the Device Builder. The files are embedded each
    time you build, and each must be under 5 MB.
+
+**A welcome sound for one person:** with MagicbHAnds, upload it on the
+MagicbHAnds page (People → that person). No rebuild: Home Assistant plays it
+on the reader when it welcomes their bands, instead of `tap_in.wav`. See
+[Welcome sounds](integration.md#welcome-sounds).
+
+**Quiet hours:** **Sound at night** (Quieter or Off) lowers or silences the
+reader at night, on the same schedule as **Idle glow at night**.
 
 ## Notes
 

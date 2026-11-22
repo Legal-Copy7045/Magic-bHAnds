@@ -14,6 +14,8 @@ READER_SET_SERVICE_SUFFIX = "_set_known_bands"
 
 EVENT_TAP = "magicband_tap"
 EVENT_BADGE = "magicband_badge"  # someone earned a passport badge
+# A reader's refused-tap lockout started or ended (reader firmware 0.10.26+, "Refused-tap lockout").
+EVENT_LOCKOUT = "magicband_lockout"
 # A Bluetooth advertisement with Disney's company ID was heard (see listener.py).
 EVENT_HEARD = "magicband_heard"
 DISNEY_COMPANY_ID = 0x0183
