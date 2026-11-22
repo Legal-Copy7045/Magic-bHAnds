@@ -48,6 +48,7 @@ from .const import (
     ATTR_PERSON,
     DOMAIN,
     EVENT_BADGE,
+    EVENT_LOCKOUT,
     EVENT_TAP,
     READER_MODEL,
     READER_SET_SERVICE_SUFFIX,
@@ -59,7 +60,7 @@ from .beacons import BeaconTracker
 from .blueprint_installer import async_install_blueprints
 from .panel import CONF_SIDEBAR, async_remove_panel, async_setup_panel
 from .bridges import ANIMATIONS, EFFECTS, async_send, find_bridges
-from . import holidays, snapshots
+from . import holidays, snapshots, sounds
 from .passport import Passport
 from .history import TapHistory
 from .listener import BandListener
@@ -101,6 +102,9 @@ class MagicBandData:
     passport: Passport
     enrolment: Enrolment | None = None
     lockdown: bool = False
+    # reader device id -> (person id, when): a welcomed tap whose owner has their own sound, played when
+    # the reader's "Band scan" event says it welcomed them (sounds.py)
+    pending_sounds: dict = field(default_factory=dict)
     unsubs: list = field(default_factory=list)
 
 
@@ -211,6 +215,55 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
 
     data.unsubs.append(async_track_time_interval(hass, _every_minute, timedelta(minutes=1)))
 
+    # Two of the readers' own entities matter here: "Band scan" (an event entity: a person's own welcome
+    # sound plays when it says "welcomed") and "Tap lockout" (a binary sensor: the refused-tap lockout).
+    ent_reg = er.async_get(hass)
+
+    def _reader_entity_name(entity_id: str | None) -> tuple[str | None, str | None]:
+        entry = ent_reg.async_get(entity_id) if entity_id else None
+        if entry is None or entry.platform != "esphome" or not is_reader_device(hass, entry.device_id):
+            return None, None
+        return entry.original_name, entry.device_id
+
+    @callback
+    def _is_reader_signal(event_data) -> bool:
+        entity = event_data.get("entity_id") or ""
+        return entity.startswith(("event.", "binary_sensor.")) and _reader_entity_name(entity)[0] in (
+            "Band scan", "Tap lockout")
+
+    @callback
+    def _reader_signal(event: Event) -> None:
+        name, device_id = _reader_entity_name(event.data.get("entity_id"))
+        new, old = event.data.get("new_state"), event.data.get("old_state")
+        if new is None or device_id is None:
+            return
+        if name == "Band scan":
+            pending = data.pending_sounds.pop(device_id, None)
+            if pending and new.attributes.get("event_type") == "welcomed" and time.monotonic() - pending[1] < 15:
+                if person := registry.get_person(pending[0]):
+                    hass.async_create_background_task(sounds.async_play(hass, person, device_id),
+                                                      f"{DOMAIN}_welcome_sound")
+        elif name == "Tap lockout" and old is not None and old.state in ("on", "off") and new.state != old.state \
+                and new.state in ("on", "off"):
+            locked = new.state == "on"
+            reader = _reader_name(hass, device_id)
+            hass.bus.async_fire(EVENT_LOCKOUT, {"reader": reader, "reader_device_id": device_id, "locked": locked})
+            note = f"{DOMAIN}_lockout_{device_id}"
+            if locked:
+                persistent_notification.async_create(
+                    hass,
+                    f"**{reader or 'A reader'}** refused several bands in a short time and has stopped taking "
+                    "taps for a while (its **Refused-tap lockout** setting). It takes taps again by itself when "
+                    "the lockout time is up, or turn the setting off to end it now.",
+                    title="MagicbHAnds: reader locked out",
+                    notification_id=note,
+                )
+            else:
+                persistent_notification.async_dismiss(hass, note)
+            async_dispatcher_send(hass, SIGNAL_UPDATED)
+
+    data.unsubs.append(hass.bus.async_listen(EVENT_STATE_CHANGED, _reader_signal, event_filter=_is_reader_signal))
+
     if hass.state is CoreState.running:
         hass.async_create_task(debouncer.async_call())
     else:
@@ -224,6 +277,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
     _register_services(hass)
     await async_install_blueprints(hass)
     snapshots.async_register_view(hass)
+    sounds.async_register_view(hass)
     await async_setup_panel(hass, entry.options.get(CONF_SIDEBAR, True))
     data.unsubs.append(entry.add_update_listener(_options_updated))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -276,6 +330,10 @@ def _handle_scan(hass: HomeAssistant, data: MagicBandData, tag_id: str, device_i
     allowed = False if enrolled else registry.band_allowed(band.uid)
     name = data.beacons.band_display_name(band.uid)
     badges, celebration = _welcome_extras(hass, data, person, device_id) if allowed and person else ([], None)
+    if allowed and person and person.welcome_sound and device_id:
+        status = data.readers.status_of(device_id)
+        if status is not None and status.sounds:
+            data.pending_sounds[device_id] = (person.id, time.monotonic())
 
     hass.bus.async_fire(
         EVENT_TAP,
@@ -497,6 +555,7 @@ def _register_services(hass: HomeAssistant) -> None:
         person = _resolve_person(registry, call.data[ATTR_PERSON])
         registry.remove_person(person.id)
         _data().passport.forget(person.id)
+        await sounds.async_remove(hass, person.id)
 
     async def assign_band(call: ServiceCall) -> None:
         registry = _get_registry(hass)
@@ -538,6 +597,7 @@ def _register_services(hass: HomeAssistant) -> None:
                     "ha_person": p.ha_person,
                     "allowed": p.allowed,
                     "welcome_colour": p.welcome_colour,
+                    "welcome_sound": p.welcome_sound_name if p.welcome_sound else None,
                     "bands": [b.display for b in registry.bands_for(p.id)],
                     "birthday": p.birthday,
                     "lockdown_exempt": p.lockdown_exempt,
@@ -643,6 +703,36 @@ def _register_services(hass: HomeAssistant) -> None:
         vol.Schema(
             {
                 vol.Optional("show", default="Random"): vol.In(("Random", "Today", *SHOW_NAMES)),
+                vol.Optional("device_id"): vol.Any(cv.string, [cv.string]),
+            }
+        ),
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+
+    async def play_welcome_sound(call: ServiceCall) -> dict[str, Any]:
+        """Play a person's own welcome sound on the readers (all, or `device_id`): to try it out."""
+        from .readers import reader_devices  # noqa: PLC0415
+
+        registry = _get_registry(hass)
+        person = _resolve_person(registry, call.data[ATTR_PERSON])
+        if not person.welcome_sound:
+            raise ServiceValidationError(f"{person.name} has no welcome sound: upload one on the MagicbHAnds page")
+        wanted = call.data.get("device_id")
+        wanted = {wanted} if isinstance(wanted, str) else set(wanted or [])
+        played, skipped = [], []
+        for device in reader_devices(hass):
+            if wanted and device.id not in wanted:
+                continue
+            name = device.name_by_user or device.name
+            (played if await sounds.async_play(hass, person, device.id, check_settings=False) else skipped).append(name)
+        return {"played": played, "skipped": skipped}
+
+    async_register_admin_service(
+        hass, DOMAIN, "play_welcome_sound",
+        play_welcome_sound,
+        vol.Schema(
+            {
+                vol.Required(ATTR_PERSON): cv.string,
                 vol.Optional("device_id"): vol.Any(cv.string, [cv.string]),
             }
         ),

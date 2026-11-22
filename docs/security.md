@@ -193,6 +193,13 @@ admin-only history action hands out (each picture has a random 128-bit name),
 deleted after the number of days you set (30 by default), and included in
 Home Assistant backups.
 
+**Welcome sounds (optional).** A person's own welcome sound is kept in
+`magicbhands_sounds` in Home Assistant's config folder (not `www`). Only an
+administrator can upload, replace, remove or download one; a reader plays it
+through a link signed for five minutes that Home Assistant makes for that
+welcome. Uploads are checked to be MP3, WAV, FLAC or Ogg and are limited to
+2 MB.
+
 Band IDs, who owns them, and Bluetooth beacon data (including from other
 people's MagicBand+ passing by) are stored in Home Assistant, appear in
 entity attributes and history (visible to every Home Assistant user), and

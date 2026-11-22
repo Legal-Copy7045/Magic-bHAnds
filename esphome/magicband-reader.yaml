@@ -21,7 +21,7 @@
 substitutions:
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.10.25"
+  project_version: "0.10.26"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -73,7 +73,8 @@ esphome:
             - script.execute: reader_idle
       - if:
           condition:
-            switch.is_on: sound_enabled
+            # "Sound" on, and not night with "Sound at night" Off
+            lambda: 'return id(sound_enabled).state && !(id(night) && id(sound_at_night).current_option() == "Off");'
           then:
             - media_player.speaker.play_on_device_media_file:
                 media_file: snd_startup
@@ -325,6 +326,46 @@ api:
         - api.respond:
             success: !lambda 'return id(sync_error).empty();'
             error_message: !lambda 'return id(sync_error);'
+    # Used by the MagicBand integration: the allowed bands whose owner has a welcome
+    # sound of their own ("UID,UID"). The reader doesn't play its tap-in sound
+    # for them; MagicbHAnds plays the owner's sound on this speaker instead.
+    - action: set_band_sounds
+      variables:
+        bands: string
+        key: string
+      then:
+        - lambda: |-
+            if (!magicband::reader_key_ok(id(pair_key), key)) {
+              id(sync_error) = "Wrong key: this reader is paired with MagicbHAnds";
+              return;
+            }
+            std::string out = ",", cur, err;
+            for (char c : std::string(bands) + ",") {
+              if (c == ',') {
+                if (!cur.empty()) {
+                  if (cur.size() != 8 && cur.size() != 14 && cur.size() != 20) { err = "A band ID isn't 4, 7 or 10 bytes"; break; }
+                  out += cur + ",";
+                }
+                cur.clear();
+              } else if (std::isxdigit(static_cast<unsigned char>(c))) {
+                cur += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+              } else if (c != '-' && c != ':' && c != ' ') {
+                err = "Unexpected character in the band list";
+                break;
+              }
+            }
+            if (err.empty() && out.size() >= id(band_sounds).size()) err = "Too many bands with their own sound";
+            std::fill(id(band_sounds).begin(), id(band_sounds).end(), 0);
+            if (err.empty()) {
+              std::copy(out.begin(), out.end(), id(band_sounds).begin());
+              ESP_LOGI("reader", "Welcome sounds updated: %u band(s)", (unsigned) std::count(out.begin(), out.end(), ',') - 1);
+            } else {
+              ESP_LOGW("reader", "%s. Every band gets the tap-in sound", err.c_str());
+            }
+            id(sync_error) = err;
+        - api.respond:
+            success: !lambda 'return id(sync_error).empty();'
+            error_message: !lambda 'return id(sync_error);'
 
 ota:
   # Updates come from the published firmware through Home Assistant (the
@@ -391,9 +432,17 @@ pn532_i2c:
             - delay: 2s
             - script.execute: reader_idle
           else:
-            - script.execute:
-                id: band_tapped
-                uid: !lambda 'return x;'
+            - if:
+                condition:
+                  lambda: 'return id(lockout_until) != 0;'
+                then:
+                  - logger.log:
+                      format: "Tap ignored: refused-tap lockout"
+                      level: WARN
+                else:
+                  - script.execute:
+                      id: band_tapped
+                      uid: !lambda 'return x;'
 
 # ---------------------------------------------------------------------------
 # LEDs: one WS2812B ring (data via the 74AHCT125 level shifter)
@@ -419,6 +468,13 @@ light:
           transition_length: 1.5s
           update_interval: 1.5s
           min_brightness: 15%
+          max_brightness: 100%
+      # Refused-tap lockout: a slower pulse (in red, see reader_idle).
+      - pulse:
+          name: "Locked out"
+          transition_length: 2s
+          update_interval: 2s
+          min_brightness: 10%
           max_brightness: 100%
       # The idle glow in "Warm white". Dimmed the normal way, each colour
       # channel keeps at least one step, so a dim warm white (lots of red,
@@ -912,6 +968,32 @@ globals:
     restore_value: true
   - id: welcome_name      # the colour this tap is welcomed in
     type: std::string
+  # The allowed bands whose owner has a welcome sound of their own: ",UID,UID,"
+  # (from the MagicBand integration's set_band_sounds). The reader doesn't play
+  # its tap-in sound for them; MagicbHAnds plays theirs on this speaker.
+  - id: band_sounds
+    type: std::array<char, 1600>
+    restore_value: true
+  - id: own_sound         # this tap's band has its own welcome sound
+    type: bool
+    initial_value: "false"
+  # "Sound at night" Quieter: the speaker volume before night started, so the
+  # morning puts it back (kept through restarts, as is whether it's applied).
+  - id: day_volume
+    type: float
+    restore_value: true
+    initial_value: "0.7"
+  - id: quiet_applied
+    type: bool
+    restore_value: true
+    initial_value: "false"
+  # "Refused-tap lockout": when each recent refusal happened (millis), and
+  # until when taps are ignored (0 = not locked out).
+  - id: refusal_times
+    type: std::array<uint32_t, 20>
+  - id: lockout_until
+    type: uint32_t
+    initial_value: "0"
   - id: show_on           # a light show is playing (see play_show)
     type: bool
     initial_value: "false"
@@ -1133,6 +1215,44 @@ select:
                   script.is_running: band_tapped
           then:
             - script.execute: reader_idle
+  # At night ("Night now"): the idle style to use instead, or the day's.
+  - platform: template
+    id: idle_style_night
+    name: "Idle style at night"
+    icon: mdi:weather-night
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_option: "Same as day"
+    options:
+      - "Same as day"
+      - "Static"
+      - "Circle"
+    on_value:
+      - if:
+          condition:
+            and:
+              - lambda: 'return id(ring_ready);'
+              - not:
+                  script.is_running: band_tapped
+          then:
+            - script.execute: reader_idle
+  # Quiet hours, on the night schedule ("Night now"): Normal, Quieter (the
+  # speaker at "Night volume" until morning) or Off (no reader sounds at night).
+  - platform: template
+    id: sound_at_night
+    name: "Sound at night"
+    icon: mdi:volume-low
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_option: "Normal"
+    options:
+      - "Normal"
+      - "Quieter"
+      - "Off"
+    on_value:
+      - script.execute: apply_quiet
   - platform: template
     id: welcome_colour
     name: "Welcome colour"
@@ -1288,6 +1408,68 @@ number:
     max_value: 10.0
     step: 0.5
     unit_of_measurement: "s"
+    mode: box
+  # The speaker volume at night with "Sound at night" on Quieter.
+  - platform: template
+    id: night_volume
+    name: "Night volume"
+    icon: mdi:volume-low
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: 30
+    min_value: 5
+    max_value: 100
+    step: 5
+    unit_of_measurement: "%"
+    mode: slider
+    on_value:
+      - lambda: |-
+          if (id(quiet_applied)) {
+            auto call = id(reader_speaker).make_call();
+            call.set_volume(x / 100.0f);
+            call.perform();
+          }
+  # "Refused-tap lockout": this many refused taps within "Lockout window"
+  # seconds stop the reader taking taps for "Lockout time" minutes.
+  - platform: template
+    id: lockout_refusals
+    name: "Lockout after"
+    icon: mdi:account-cancel
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: 5
+    min_value: 2
+    max_value: 20
+    step: 1
+    unit_of_measurement: "refusals"
+    mode: box
+  - platform: template
+    id: lockout_window
+    name: "Lockout window"
+    icon: mdi:timer-outline
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: 60
+    min_value: 10
+    max_value: 600
+    step: 10
+    unit_of_measurement: "s"
+    mode: box
+  - platform: template
+    id: lockout_minutes
+    name: "Lockout time"
+    icon: mdi:lock-clock
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: 5
+    min_value: 1
+    max_value: 60
+    step: 1
+    unit_of_measurement: "min"
     mode: box
   - platform: template
     id: welcome_pulses
@@ -1528,6 +1710,12 @@ binary_sensor:
     name: "Night now"
     icon: mdi:weather-night
     entity_category: diagnostic
+  # On while "Refused-tap lockout" has stopped the reader taking taps.
+  - platform: template
+    id: tap_lockout_active
+    name: "Tap lockout"
+    icon: mdi:lock-alert
+    device_class: problem
 
 switch:
   - platform: template
@@ -1544,6 +1732,17 @@ switch:
     entity_category: config
     optimistic: true
     restore_mode: RESTORE_DEFAULT_ON
+  # Off by default. On: "Lockout after" refused taps within "Lockout window"
+  # stop the reader taking taps for "Lockout time" (see note_refusal).
+  - platform: template
+    id: tap_lockout
+    name: "Refused-tap lockout"
+    icon: mdi:lock-alert
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    on_turn_off:
+      - script.execute: end_lockout
 
 event:
   # Logs every scan in Home Assistant's logbook as welcomed or denied.
@@ -1667,6 +1866,19 @@ text_sensor:
     icon: mdi:nfc-variant
     entity_category: diagnostic
 
+interval:
+  # Ends a refused-tap lockout when its time is up.
+  - interval: 5s
+    then:
+      - if:
+          condition:
+            lambda: 'return id(lockout_until) != 0 && static_cast<int32_t>(millis() - id(lockout_until)) >= 0;'
+          then:
+            - logger.log:
+                format: "Refused-tap lockout over: taking taps again"
+                level: INFO
+            - script.execute: end_lockout
+
 script:
   # Applies "LED count", "LED colour order" and "Ring type", and caps the
   # output so the ring never draws more than about 1.44 A: 24 LEDs' worth of
@@ -1751,6 +1963,17 @@ script:
       # start-up light show plays: it shows the idle glow when it ends.
       - if:
           condition:
+            lambda: 'return id(lockout_until) != 0 && !id(show_on);'
+          then:
+            # Locked out after refused taps: a slow red pulse until it ends.
+            - lambda: 'id(rgb) = {1.0f, 0.0f, 0.0f, 0.0f};'
+            - script.execute:
+                id: ring_on
+                effect: "Locked out"
+                level: 0.6
+            - script.stop: reader_idle
+      - if:
+          condition:
             and:
               - lambda: 'return !id(show_on);'
               - not:
@@ -1827,6 +2050,7 @@ script:
           if (n == id(night)) return;
           id(night) = n;
           if (id(ring_ready) && !id(band_tapped).is_running()) id(reader_idle).execute();
+      - script.execute: apply_quiet
   # Stores a sun time from Home Assistant ("2026-11-20T21:41:07.123+00:00")
   # as minutes after local midnight.
   - id: sun_time
@@ -1853,6 +2077,71 @@ script:
           if (rising) id(sunrise_min) = mins; else id(sunset_min) = mins;
           ESP_LOGD("reader", "Sun%s at %02d:%02d", rising ? "rise" : "set", local.hour, local.minute);
       - script.execute: update_night
+  # "Sound at night" Quieter: at night the speaker plays at "Night volume", and
+  # in the morning it goes back to the volume it had. Only acts when that
+  # changes, so a volume set by hand during the night or day is left alone.
+  - id: apply_quiet
+    mode: queued
+    then:
+      - lambda: |-
+          const bool want = id(night) && id(sound_at_night).current_option() == "Quieter";
+          if (want == id(quiet_applied)) return;
+          auto call = id(reader_speaker).make_call();
+          if (want) {
+            id(day_volume) = id(reader_speaker).volume;
+            const float nv = id(night_volume).state;
+            call.set_volume(std::isnan(nv) ? 0.3f : nv / 100.0f);
+          } else {
+            call.set_volume(id(day_volume));
+          }
+          id(quiet_applied) = want;
+          call.perform();
+          ESP_LOGI("reader", "Sound at night: %s", want ? "quieter" : "back to the day volume");
+  # A refused tap: with "Refused-tap lockout" on, "Lockout after" of them within
+  # "Lockout window" stop the reader taking taps for "Lockout time".
+  - id: note_refusal
+    then:
+      - lambda: |-
+          const uint32_t now = millis();
+          auto &t = id(refusal_times);
+          std::rotate(t.rbegin(), t.rbegin() + 1, t.rend());  // newest first
+          t[0] = now == 0 ? 1 : now;
+          if (!id(tap_lockout).state) return;
+          const int need = std::isnan(id(lockout_refusals).state) ? 5 : static_cast<int>(id(lockout_refusals).state);
+          const uint32_t window = static_cast<uint32_t>((std::isnan(id(lockout_window).state) ? 60.0f : id(lockout_window).state) * 1000.0f);
+          int recent = 0;
+          for (uint32_t when : t)
+            if (when != 0 && now - when <= window) recent++;
+          if (recent < need) return;
+          const float mins = std::isnan(id(lockout_minutes).state) ? 5 : id(lockout_minutes).state;
+          id(lockout_until) = now + static_cast<uint32_t>(mins * 60000.0f);
+          if (id(lockout_until) == 0) id(lockout_until) = 1;
+          std::fill(t.begin(), t.end(), 0);
+          ESP_LOGW("reader", "%d refused taps in %u s: not taking taps for %.0f min", recent, (unsigned) (window / 1000), mins);
+      - if:
+          condition:
+            lambda: 'return id(lockout_until) != 0 && !id(tap_lockout_active).state;'
+          then:
+            - binary_sensor.template.publish:
+                id: tap_lockout_active
+                state: true
+  # The lockout is over (its time is up, or "Refused-tap lockout" was turned off).
+  - id: end_lockout
+    then:
+      - lambda: |-
+          id(lockout_until) = 0;
+          std::fill(id(refusal_times).begin(), id(refusal_times).end(), 0);
+      - binary_sensor.template.publish:
+          id: tap_lockout_active
+          state: false
+      - if:
+          condition:
+            and:
+              - lambda: 'return id(ring_ready);'
+              - not:
+                  script.is_running: band_tapped
+          then:
+            - script.execute: reader_idle
   - id: reader_idle_glow
     then:
       - if:
@@ -1865,7 +2154,11 @@ script:
                 name: !lambda 'return id(idle_colour).current_option().str();'
             - if:
                 condition:
-                  lambda: 'return id(idle_style).current_option() == "Circle";'
+                  lambda: |-
+                    // At night "Idle style at night" (unless Same as day), else "Idle style"
+                    const std::string at_night = id(idle_style_night).current_option();
+                    const std::string style = id(night) && at_night != "Same as day" ? at_night : id(idle_style).current_option();
+                    return style == "Circle";
                 then:
                   - script.execute:
                       id: ring_on
@@ -1945,6 +2238,8 @@ script:
             size_t from = pos + key.size() + 2, to = colours.find(',', from);
             if (to != std::string::npos) id(welcome_name) = colours.substr(from, to - from);
           }
+          std::string sounds(id(band_sounds).data());
+          id(own_sound) = !key.empty() && sounds.find("," + key + ",") != std::string::npos;
       # Chasing circles while the band is checked ("Checking circles" x
       # "Circle time", in "Checking colour").
       - script.execute:
@@ -2001,6 +2296,11 @@ script:
             - event.trigger: {id: band_scan, event_type: "denied"}
             - script.execute: reader_deny
             - script.wait: reader_deny
+            - if:
+                condition:
+                  lambda: 'return uid != "TEST";'
+                then:
+                  - script.execute: note_refusal
       - script.execute: reader_idle
 
   - id: reader_welcome
@@ -2018,7 +2318,9 @@ script:
           level: 1.0
       - if:
           condition:
-            switch.is_on: sound_enabled
+            # "Sound" on, not night with "Sound at night" Off, and the band's owner has
+            # no welcome sound of their own (MagicbHAnds plays that one on this speaker)
+            lambda: 'return id(sound_enabled).state && !(id(night) && id(sound_at_night).current_option() == "Off") && !id(own_sound);'
           then:
             - media_player.speaker.play_on_device_media_file:
                 media_file: snd_tap_in
@@ -2063,7 +2365,8 @@ script:
           level: 1.0
       - if:
           condition:
-            switch.is_on: sound_enabled
+            # "Sound" on, and not night with "Sound at night" Off
+            lambda: 'return id(sound_enabled).state && !(id(night) && id(sound_at_night).current_option() == "Off");'
           then:
             - media_player.speaker.play_on_device_media_file:
                 media_file: snd_error

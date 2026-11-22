@@ -395,6 +395,14 @@ function peopleTable(I,P){ const HP=haPeople(), RDS=H().devices().filter(d=>READ
   const pm=(name,data,msg)=>act(mb('update_person',Object.assign({person:name},data)),'pm',$('people-msg'),msg||'Saved.').then(load), q=(a,n)=>document.querySelector(`[${a}="${CSS.escape(n)}"]`);
   document.querySelectorAll('[data-bm],[data-bd]').forEach(x=>x.onchange=()=>{ x.blur(); const n=x.dataset.bm||x.dataset.bd, m=q('data-bm',n).value, d=q('data-bd',n).value;
     if(!m&&!d) pm(n,{birthday:''},'Birthday cleared.'); else if(m&&d) pm(n,{birthday:m+'-'+d},'Birthday saved: '+n+' gets the Birthday show that day.'); });
+  document.querySelectorAll('[data-snd-file]').forEach(x=>x.onchange=()=>{ const f=x.files&&x.files[0]; if(!f) return;
+    if(f.size>2*1024*1024){ $('people-msg').textContent='That file is over 2 MB: use a shorter sound.'; return; }
+    act(H().sound('POST',x.dataset.sndFile,f,f.name),'snd',$('people-msg'),'Welcome sound saved for '+x.dataset.p+'. The readers play it from their next sync (within a minute).').then(load); });
+  document.querySelectorAll('[data-snd-play]').forEach(x=>x.onclick=()=>H().sound('GET',x.dataset.sndPlay).then(b=>{ const a=new Audio(URL.createObjectURL(b)); a.onended=()=>URL.revokeObjectURL(a.src); return a.play(); })
+    .catch(e=>{ $('people-msg').textContent='Couldn’t play it here: '+(e.message||e); }));
+  document.querySelectorAll('[data-snd-reader]').forEach(x=>x.onclick=()=>act(mb('play_welcome_sound',{person:x.dataset.sndReader},true),'snd',$('people-msg'),'Playing on the readers.'));
+  document.querySelectorAll('[data-snd-rm]').forEach(x=>x.onclick=()=>{ if(!armed('snd'+x.dataset.sndRm)) return;
+    act(H().sound('DELETE',x.dataset.sndRm),'snd',$('people-msg'),x.dataset.p+' gets the reader’s tap-in sound again.').then(load); });
   document.querySelectorAll('[data-lx]').forEach(x=>x.onclick=()=>pm(x.dataset.lx,{lockdown_exempt:!x.classList.contains('on')},'Saved. The readers follow within a minute.'));
   document.querySelectorAll('[data-guest]').forEach(x=>x.onclick=()=>pm(x.dataset.guest,{guest:!x.classList.contains('on')},x.classList.contains('on')?'No longer a guest (the pass is gone).':'Now a guest: set their pass below.'));
   document.querySelectorAll('[data-gp]').forEach(x=>x.onchange=()=>{ const k=x.dataset.gp; let v=x.value;
@@ -420,7 +428,11 @@ function personStatus(p,L){ const bits=[], b=L.birthday;
   if(p.allowed&&L.allowed_now===false) bits.push('<span class="tag no" style="margin:0">not now</span>');
   return bits.length?`<div class="sub2">${bits.join(' · ')}</div>`:''; }
 function personMore(name,L){ const g=L.pass||{}, [bm,bd]=(L.birthday||'-').split('-'), n=esc(name);
-  return `<details class="more" data-k="pm-${n}"><summary>Birthday, lockdown, guest pass</summary><div class="set access pmset">
+  const pid=esc(L.id||''), snd=L.welcome_sound, up=!!(H().sound&&L.id);
+  return `<details class="more" data-k="pm-${n}"><summary>Birthday, welcome sound, lockdown, guest pass</summary><div class="set access pmset">
+    <span>Welcome sound</span><span>${snd?`<b>${esc(snd)}</b> <button class="btn sm" data-snd-play="${pid}">Play here</button> <button class="btn sm" data-snd-reader="${n}">Play on readers</button> <button class="btn sm" data-snd-rm="${pid}" data-p="${n}">Remove</button>`:'<span class="sub2">None: the reader’s tap-in sound</span>'}
+      ${up?`<label class="btn sm" style="cursor:pointer">${snd?'Replace':'Upload'}…<input type="file" accept="audio/mpeg,audio/wav,audio/x-wav,audio/flac,audio/ogg,.mp3,.wav,.flac,.ogg" data-snd-file="${pid}" data-p="${n}" hidden></label>`:'<span class="sub2">Upload it from the MagicbHAnds page in Home Assistant.</span>'}
+      <div class="sub2">Plays on the reader instead of its tap-in sound when ${n} is welcomed (MP3, WAV, FLAC or Ogg, up to 2 MB; a few seconds is best). The reader’s Sound and Sound at night settings still apply.</div></span>
     <span>Birthday</span><span><select data-bm="${n}"><option value="">Month</option>${MONTHS.map((m,i)=>`<option value="${String(i+1).padStart(2,'0')}"${+bm===i+1?' selected':''}>${m}</option>`).join('')}</select> <select data-bd="${n}"><option value="">Day</option>${Array.from({length:31},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}"${+bd===i+1?' selected':''}>${i+1}</option>`).join('')}</select></span>
     <span>Gets in during lockdown</span><span><button class="tg${L.lockdown_exempt?' on':''}" data-lx="${n}" aria-label="Gets in during lockdown"></button></span>
     <span>Guest</span><span><button class="tg${L.guest?' on':''}" data-guest="${n}" aria-label="Guest"></button></span>
@@ -657,6 +669,7 @@ function twinFrame(){
     else if(eff==='Pulse'){ const om=num('Pulse time',0.45)*1000, gm=om/3, k=Math.floor(t/(om+gm)), q=t%(om+gm);
       L.fill(k<num('Denied pulses',2)&&q<om?br*Math.sin(Math.PI*q/om):0); cap='Not allowed'; sub=tw.dataset.band||''; }
     else if(SHOW_NAMES.includes(eff)){ cap='Light show: '+eff; const R=renderShow(SHOW_NAMES.indexOf(eff),t,n); tw._cols=R?R.map(x=>x[0].map(v=>v*255)):null; if(R) R.forEach((x,i)=>L[i]=x[1]); }
+    else if(eff==='Locked out'){ rgb=[255,40,40]; L.fill(0.1+0.9*(0.5-0.5*Math.cos(2*Math.PI*t/4000))); cap='Locked out'; sub='Too many refused taps'; }
     else if(eff==='Offline'){ L.fill(0.15+0.85*(0.5-0.5*Math.cos(2*Math.PI*t/3000))); cap='Waiting for Home Assistant'; }
     else if(eff==='Warm glow'){ rgb=[255,196,120]; L.fill(num(night?'Idle glow at night':'Idle glow',30)/100); sub=night?'Night glow':'Idle glow'; }
     else { L.fill(br); if(eff==='None') sub=night?'Night glow':'Idle glow'; else cap='Effect: '+eff; }
@@ -699,8 +712,8 @@ function readerSettings(p){
   const G=[
     ['Ring',[['select','Ring type','Type'],['number','LED count','LEDs'],['select','LED colour order','Colour order'],['number','LED brightness','Brightness'],['select','Startup show','Start-up show'],['select','Show','Play show plays']],
       'Changing the type restarts the reader. RGBW rings have a white LED in each pixel.'],
-    ['Waiting for a band',[['select','Idle style','Style'],['select','Idle colour','Colour'],['number','Idle glow','Glow (0 = off)'],['number','Idle circle time','Each circle (Circle style)']],'Static glows steadily; Circle goes round in the idle colour at the idle glow, at its own speed. Pulses amber instead while Home Assistant is away.'],
-    ['Night',[['number','Idle glow at night','Glow'],['select','Night mode','Night is'],
+    ['Waiting for a band',[['select','Idle style','Style'],['select','Idle style at night','Style at night'],['select','Idle colour','Colour'],['number','Idle glow','Glow (0 = off)'],['number','Idle circle time','Each circle (Circle style)']],'Static glows steadily; Circle goes round in the idle colour at the idle glow, at its own speed. Pulses amber instead while Home Assistant is away.'],
+    ['Night',[['number','Idle glow at night','Glow'],['select','Sound at night','Sound'],['number','Night volume','Volume (Quieter)'],['select','Night mode','Night is'],
       ...(sunMode?[['number','Night starts after sunset','Starts after sunset'],['number','Night ends after sunrise','Ends after sunrise']]
                  :[['number','Night from','From (hour)'],['number','Night until','Until (hour)']])],
       (v('binary_sensor','Night now')!=null?(v('binary_sensor','Night now')==='on'?'Night glow is on now. ':'Day glow now. '):'')+night+(sunMode?' Offsets are minutes: 120 = 2 hours after, −120 = 2 hours before.':'')],
@@ -708,6 +721,9 @@ function readerSettings(p){
     ['Welcome',[['select','Welcome colour','Colour'],['number','Welcome fade in','Fade in'],['number','Welcome hold','Stay on'],['number','Welcome fade out','Fade out'],['number','Welcome pulses','Repeat']],
       'A person\'s own welcome colour (People) replaces this colour for their bands.',shape],
     ['Denied',[['select','Denied colour','Colour'],['number','Denied pulses','Pulses'],['number','Pulse time','Each pulse']]],
+    ['Refused taps',[['switch','Refused-tap lockout','Lockout'],['number','Lockout after','After'],['number','Lockout window','Within'],['number','Lockout time','For']],
+      (v('binary_sensor','Tap lockout')==='on'?'Locked out now: the reader is ignoring taps until the time is up (turn Lockout off to end it). ':'')
+      +'With Lockout on, that many refused taps within the time stop the reader taking taps for a while; Home Assistant shows a notification and fires magicband_lockout.'],
   ];
   const html=G.map(([title,rows,hint,extra])=>{ const r=rows.map(([dom,l,lab])=>{ const c=setCtl(p([dom,l]),dom); return c?`<span title="${esc(l)}">${esc(lab)}</span>${c}`:''; }).join('');
     return r?`<div class="sg"><h4>${esc(title)}</h4><div class="set">${r}</div>${extra||''}${hint?`<p class="hint">${esc(hint)}</p>`:''}</div>`:''; }).join('');

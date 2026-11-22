@@ -68,6 +68,10 @@ class Person:
     allowed: bool = True
     welcome_colour: str | None = None  # one of READER_COLOURS: the readers welcome this person's bands in it
     birthday: str | None = None  # "MM-DD": their taps get the Birthday show that day
+    # Their own welcome sound (sounds.py): the file's type ("mp3", "wav", ...) and the name it was uploaded as.
+    # The readers then don't play their tap-in sound for this person's bands; MagicbHAnds plays this instead.
+    welcome_sound: str | None = None
+    welcome_sound_name: str | None = None
     lockdown_exempt: bool = False  # still let in while the house is in lockdown
     # A guest pass (guest=True): when this person's bands work, on top of each band's own limits. All optional.
     guest: bool = False
@@ -414,6 +418,24 @@ class MagicBandRegistry:
         if person is not None and person.uses_left is not None and person.uses_left > 0:
             person.uses_left -= 1
             self._changed()
+
+    def sound_uids(self, now: datetime | None = None) -> list[str]:
+        """Allowed bands whose owner has a welcome sound of their own."""
+        out = []
+        for uid in self.allowed_uids(now):
+            person = self.get_person(self._data.bands[uid].person_id)
+            if person is not None and person.welcome_sound:
+                out.append(uid)
+        return out
+
+    @callback
+    def set_welcome_sound(self, person_id: str, kind: str | None, name: str | None = None) -> Person:
+        """Record (or clear, with kind=None) a person's uploaded welcome sound."""
+        person = self._data.people[person_id]
+        person.welcome_sound = kind or None
+        person.welcome_sound_name = (name or "").strip()[:80] or None if kind else None
+        self._changed()
+        return person
 
     def allowed_uids(self, now: datetime | None = None) -> list[str]:
         return sorted(b.uid for b in self._data.bands.values() if self.band_allowed(b.uid, now))

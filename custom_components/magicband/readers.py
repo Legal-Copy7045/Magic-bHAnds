@@ -39,6 +39,7 @@ _LOGGER = logging.getLogger(__name__)
 # bands with 7-byte IDs. Readers on 0.10.3 or earlier hold 1,600 (106 bands).
 READER_LIST_CAPACITY = 3199
 COLOURS_SERVICE_SUFFIX = "_set_band_colours"
+SOUNDS_SERVICE_SUFFIX = "_set_band_sounds"  # reader firmware 0.10.26+: bands with their own welcome sound
 # The reader firmware (0.10.4+) reports its ESPHome node name in this diagnostic text sensor.
 NODE_NAME_SENSOR = "ESPHome name"
 OFFLINE_REPAIR_AFTER = timedelta(minutes=15)
@@ -182,6 +183,7 @@ class ReaderStatus:
     last_sync: str | None = None
     bands: int | None = None
     colours: bool | None = None  # whether it takes welcome colours (0.10.4+)
+    sounds: bool | None = None  # whether it took the list of bands with their own welcome sound (0.10.26+)
 
 
 class ReaderManager:
@@ -205,6 +207,7 @@ class ReaderManager:
         now = dt_util.now()
         uids = self.registry.allowed_uids(now)
         colours = self.registry.welcome_colours(now)
+        sound_list = ",".join(self.registry.sound_uids(now))
         bands = ",".join(uids)
         colour_list = ",".join(f"{uid}={colour}" for uid, colour in colours.items())
         self._last_sent = (tuple(uids), tuple(sorted(colours.items())))
@@ -258,6 +261,19 @@ class ReaderManager:
                     )
                 except Exception as err:  # noqa: BLE001 - colours are cosmetic
                     _LOGGER.warning("Reader %s didn't take the welcome colours: %s", status.name, err)
+            # Which bands have their own welcome sound. Until a reader has taken it, MagicbHAnds doesn't
+            # play people's sounds there (the reader would play its tap-in sound as well).
+            sound_service = _service_for(node, SOUNDS_SERVICE_SUFFIX)
+            status.sounds = False
+            if self.hass.services.has_service("esphome", sound_service) and status.state != FAILED:
+                try:
+                    await self.hass.services.async_call(
+                        "esphome", sound_service, {"bands": sound_list, **({"key": self.key} if keyed else {})},
+                        blocking=True,
+                    )
+                    status.sounds = True
+                except Exception as err:  # noqa: BLE001 - sounds are cosmetic
+                    _LOGGER.warning("Reader %s didn't take the welcome sounds: %s", status.name, err)
             self._issue(
                 f"reader_sync_failed_{device.id}",
                 status.state == FAILED,

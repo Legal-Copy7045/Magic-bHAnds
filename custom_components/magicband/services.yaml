@@ -166,6 +166,21 @@ play_show:
             - integration: esphome
               model: magicband-reader
 
+play_welcome_sound:
+  fields:
+    person:
+      required: true
+      example: Morgan
+      selector:
+        text:
+    device_id:
+      selector:
+        device:
+          multiple: true
+          filter:
+            - integration: esphome
+              model: magicband-reader
+
 list:
 
 send:
