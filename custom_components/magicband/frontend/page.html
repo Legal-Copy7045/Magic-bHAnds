@@ -50,7 +50,7 @@ details.more{margin-top:8px}details.more summary{cursor:pointer;font-size:13px;c
 .sgs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,265px),1fr));gap:10px;margin-top:10px}
 .sg{border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:var(--sunk,var(--surface));min-width:0}
 .sg h4{margin:0;font:600 12px "Instrument Sans",sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
-.sg .set{margin-top:6px;grid-template-columns:fit-content(13em) minmax(0,1fr)}.sg .set>:nth-child(2n){justify-self:end;max-width:100%}.sg .set select{max-width:190px}.sg .nu{display:inline-flex;gap:4px;align-items:baseline}.sg .nu .sub2{display:inline-block;min-width:2.4em}
+.sg .set{margin-top:6px;grid-template-columns:fit-content(13em) minmax(0,1fr)}.sg .set>:not(.lab):not(.full){justify-self:end;max-width:100%}.sg .set select{max-width:190px}.sg .nu{display:inline-flex;gap:4px;align-items:baseline}.sg .nu .sub2{display:inline-block;min-width:2.4em}
 .sg .hint{font-size:11.5px;color:var(--muted);margin:7px 0 0;line-height:1.35}.sg .shape{display:flex;flex-direction:column;gap:2px;margin-top:8px}
 .msg{font-size:12.5px;color:var(--muted);min-height:1em}.msg.ok{color:var(--ok)}.msg.bad{color:var(--bad)}.msg.cm{margin-top:6px}.msg.cm:empty{display:none}
 .hl{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:6px;margin:10px 0 2px}
@@ -73,7 +73,7 @@ details.more{margin-top:8px}details.more summary{cursor:pointer;font-size:13px;c
 .bar{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin:0 0 12px;font-size:12.5px;color:var(--muted)}
 .bar label{display:flex;gap:6px;align-items:center}.bar input[type=search]{font:500 13px "Instrument Sans",sans-serif;padding:5px 8px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink);width:min(290px,100%)}
 .set.sx{grid-template-columns:max-content minmax(0,1fr);justify-items:start;gap:8px 16px}.sx [hidden]{display:none}.five{display:flex;flex-wrap:wrap;gap:4px}.five select{max-width:110px}#sx-c1,#sx-c2,#sx-anim,#sx-bridge,#sx-effect{max-width:240px}
-h3.grp{font:700 14px "Bricolage Grotesque",sans-serif;margin:16px 0 8px;display:flex;gap:8px;align-items:baseline;color:var(--ink-2)}h3.grp:first-child{margin-top:0}h3.grp small{font:500 12px "Instrument Sans",sans-serif;color:var(--muted)}
+h3.grp{font:700 14px "Bricolage Grotesque",sans-serif;margin:16px 0 8px;display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;color:var(--ink-2)}h3.grp:first-child{margin-top:0}h3.grp small{font:500 12px "Instrument Sans",sans-serif;color:var(--muted)}
 tr.pm td{border-top:0;padding-top:0}tr.pm details.more{margin-top:0}
 .pmset{grid-template-columns:max-content minmax(0,1fr);justify-items:start;gap:8px 16px;max-width:620px}
 .stamps{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:10px 6px;margin-top:12px}
@@ -97,21 +97,60 @@ html:root[data-theme="dark"]{--page:#a78bfa;--mbh-ha:#60a5fa}
 h2.sec,h3.grp,.job h3{font-synthesis:none}
 h2.sec{font:400 34px/1.1 var(--mbh-display)!important}h3.grp{font:400 26px var(--mbh-display)!important}.job h3{font:400 26px/1.15 var(--mbh-display)!important}
 .brand h1 .ha{color:var(--mbh-ha);margin:0 .02em 0 .05em}
+/* phase 2 layout: sticky jump chips, status strip, attention stack, reader card parts */
+.jump{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;gap:6px;padding:8px 0;margin:-12px 0 -14px;background:var(--ground)}
+.jump a,.wrap .jump a{font:600 12.5px "Instrument Sans",sans-serif;color:var(--ink-2);text-decoration:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 11px;white-space:nowrap}
+.jump a:hover{border-color:var(--page)}.jump a.w{border-color:var(--warn);color:var(--warn)}.jump a b{font:600 11.5px "JetBrains Mono",monospace;margin-left:2px}
+h2.sec,.tc,.job,.item,#kpis{scroll-margin-top:64px}
+.flash{outline:2px solid var(--page);outline-offset:3px;transition:outline-color 1.2s}
+.status{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;font-size:13px;color:var(--ink-2);margin:0 0 -12px}
+.status .pchip,.wrap .status .pchip{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:3px 10px;background:var(--surface);color:var(--ink);text-decoration:none;font-weight:600;font-size:12.5px}
+.status .pchip.b{border-color:var(--bad);color:var(--bad);background:color-mix(in srgb,var(--bad) 8%,var(--surface))}.status .pchip.w{border-color:var(--warn);color:var(--warn);background:color-mix(in srgb,var(--warn) 8%,var(--surface))}
+.status .okl{display:inline-flex;gap:7px;align-items:center}
+a.kpi,.wrap a.kpi{color:inherit;text-decoration:none;cursor:pointer}a.kpi:hover{border-color:var(--page)}
+.row .hn{display:block;font-size:12px;color:var(--muted)}#enrol:empty{display:none}
+.sect{display:contents}.sect[hidden]{display:none}
+.stack{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start}.stack>.job{flex:1 1 340px;min-width:0}.stack>.job[hidden]{display:none}
+.pl{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}.pl li{border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:9px;padding:8px 11px;background:var(--sunk);font-size:13px}
+.pl li.b{border-left-color:var(--bad)}.pl li b{font-weight:650}.pl li .sub2{display:block;margin-top:2px}.pl li .btns{margin-top:6px}
+.stl{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;font-size:12.5px;color:var(--ink-2);margin:0 0 4px}.stl .tag{margin:0}
+.tc h3 .tags .tag{margin:0 0 0 4px}
+details.hp summary .sub2{margin-left:4px}
+.bar .msg{flex-basis:100%}.bar .seg{margin:0;align-items:center}
+h4.mh{margin:12px 0 0;font:600 12px "Instrument Sans",sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.sg h4 small{font:500 11.5px "Instrument Sans",sans-serif;letter-spacing:0;text-transform:none;color:var(--muted);margin-left:4px}
+.sg .set>.full{grid-column:1/-1;margin:2px 0}.sg .set>.full.hint{margin:0}
+.sg.hw{border-color:color-mix(in srgb,var(--warn) 55%,var(--line))}.sg .warnl{color:var(--warn);font-size:12px;margin:5px 0 0;line-height:1.35}
 </style></head><body>
 <div class="wrap">
 <header class="hero"><div>
   <div class="eyebrow">MagicbHAnds · live</div>
   <div class="brand"><svg class="mbh-logo" viewBox="0 0 512 512" aria-hidden="true"><defs> <linearGradient id="mbh-band" x1="0" y1="0.2" x2="1" y2="0.8"> <stop offset="0" stop-color="#8B5CF6"/> <stop offset="0.5" stop-color="#3B82F6"/> <stop offset="1" stop-color="#14B8A6"/> </linearGradient> <linearGradient id="mbh-back" x1="0" y1="0" x2="1" y2="0"> <stop offset="0" stop-color="#4C2F9E"/> <stop offset="1" stop-color="#1D4E9E"/> </linearGradient> <radialGradient id="mbh-glow" cx="0.5" cy="0.5" r="0.5"> <stop offset="0" stop-color="#4ADE80" stop-opacity="0.75"/> <stop offset="1" stop-color="#4ADE80" stop-opacity="0"/> </radialGradient> </defs> <g transform="rotate(-16 226 318)"> <ellipse cx="226" cy="318" rx="160" ry="102" fill="none" stroke="url(#mbh-back)" stroke-width="56"/> <path d="M66 318 A160 102 0 0 0 386 318" fill="none" stroke="url(#mbh-band)" stroke-width="62"/> <path d="M100 344 A140 84 0 0 0 352 344" fill="none" stroke="#ffffff" stroke-opacity="0.3" stroke-width="9" stroke-linecap="round"/> <circle cx="226" cy="420" r="70" fill="url(#mbh-glow)"/> <rect x="186" y="394" width="80" height="52" rx="21" fill="#ffffff"/> <circle cx="226" cy="420" r="12" fill="#22C55E"/> </g> <g fill="none" stroke-linecap="round" stroke-width="24"> <path d="M378 128 A56 56 0 0 1 434 184" stroke="#3B82F6"/> <path d="M380 62 A120 120 0 0 1 498 180" stroke="#8B5CF6"/> </g> <path d="M110 60 L123 101 L164 114 L123 127 L110 168 L97 127 L56 114 L97 101 Z" fill="#FBBF24"/> <circle cx="186" cy="74" r="10" fill="#FBBF24"/></svg><h1>Magicb<span class="ha">HA</span>nds</h1></div>
-  <p class="sub">The bands, who wears which, the readers that check them in and the bridges that hear them over Bluetooth. Everything is found by device and attribute, so new bands, readers and bridges appear on their own.</p>
+  <p class="sub">Who gets in, their bands, and the readers and bridges.</p>
 </div><div class="art hero-twin" id="hero-twin"><span class="l">Status</span><span class="n"><span class="dot" id="ldot"></span> <span id="lstatus">Connecting to Home Assistant…</span></span></div></header>
+<nav class="jump" id="jump" aria-label="Sections"></nav>
+<div class="status" id="status"></div>
 <div class="kpis" id="kpis"></div>
 
-<div class="grid" style="margin-bottom:6px">
-  <section class="job" id="j-unknown"><h3>New bands to assign</h3><p class="sub2" style="margin:0">A band nobody owns yet, tapped on a reader. Pick who it's for (or add them) and give it a nickname.</p><div id="unknown"></div></section>
-  <section class="job" id="j-link"><h3>Link Bluetooth to a band</h3><p class="sub2" style="margin:0">A MagicBand+ is heard over Bluetooth and tapped over NFC; linking the two makes one band with both.</p><div id="link"></div></section>
-</div>
+<div class="sect" id="attn-wrap" hidden>
+<h2 class="sec" id="s-attn">Needs attention</h2>
+<div class="stack">
+  <section class="job" id="j-unknown" hidden><h3>New bands to assign</h3><p class="sub2" style="margin:0">A band nobody owns yet, tapped on a reader. Pick who it's for (or add them) and give it a nickname.</p><div id="unknown"></div></section>
+  <section class="job" id="j-link" hidden data-mk="link"><h3>Link Bluetooth to a band</h3><p class="sub2" style="margin:0">A MagicBand+ is heard over Bluetooth and tapped over NFC; linking the two makes one band with both.</p><div id="link"></div></section>
+  <section class="job" id="j-types" hidden><h3>Which kind of band?</h3><div id="types"></div></section>
+  <section class="job" id="j-probs" hidden data-mk="probs"><h3>Readers and batteries</h3><div id="probs"></div></section>
+</div></div>
 
-<h2 class="sec">Bands <small id="bands-cap"></small></h2>
+<h2 class="sec" id="s-taps">Recent taps <small>newest first, 10 a page</small></h2>
+<section class="tc"><div id="hist"></div></section>
+
+<h2 class="sec" id="s-people">People and access <small>who the readers let in</small></h2>
+<section class="tc" id="rules-card"><h3>Lockdown <small>only the people you choose get in</small></h3><div id="rules"></div><div class="msg" id="rules-msg"></div></section>
+<div id="enrol"></div>
+<section class="tc"><div id="people"></div>
+  <div class="form" id="addp"></div><div class="msg" id="people-msg"></div></section>
+
+<h2 class="sec" id="s-bands">Bands <small id="bands-cap"></small></h2>
 <div class="bar" id="bands-bar">
   <label>Group by <select id="b-group">
     <option value="none">Nothing</option><option value="person">Person</option><option value="type">Band type</option>
@@ -121,10 +160,17 @@ h2.sec{font:400 34px/1.1 var(--mbh-display)!important}h3.grp{font:400 26px var(-
     <option value="person">Owner, then name</option><option value="name">Name</option><option value="tap">Last tap, newest first</option>
     <option value="seen">Last heard, newest first</option><option value="battery">Battery, lowest first</option><option value="taps">Most taps</option>
     <option value="signal">Signal, strongest first</option></select></label>
-  <label><input type="search" id="b-find" placeholder="Find a band, owner or NFC ID"></label>
+  <label><input type="search" id="b-find" placeholder="Search bands" aria-label="Search bands by name, owner, nickname or ID" title="Name, owner, nickname or ID"></label>
 </div>
 <div id="bands"></div>
-<section class="tc" style="margin-top:14px"><h3>Send to every band in range <small>through the bridges</small></h3>
+
+<h2 class="sec" id="s-readers">Readers</h2>
+<div class="bar" id="readers-bar"></div>
+<div class="grid" id="readers"></div>
+
+<h2 class="sec" id="s-bridges">Bridges and band effects <small>Bluetooth listeners; they also wake and light the bands</small></h2>
+<div class="grid" id="bridges"></div>
+<section class="tc"><h3>Send to every band in range <small>through the bridges; each bridge card has its own Wake and Ping</small></h3>
   <div class="btns" id="send"></div><div class="msg" id="send-msg"></div>
   <details class="more" id="sx"><summary>More: build your own</summary>
   <div class="set sx">
@@ -147,34 +193,17 @@ h2.sec{font:400 34px/1.1 var(--mbh-display)!important}h3.grp{font:400 26px var(-
   </div>
   <div class="btns"><button class="btn pri" id="sx-go">Send</button><button class="btn" id="sx-stop">Stop</button></div><div class="msg" id="sx-msg"></div></details></section>
 
-<h2 class="sec">People <small>who the readers let in</small></h2>
-<div id="enrol"></div>
-<section class="tc"><div id="people"></div>
-  <div class="form" id="addp"></div><div class="msg" id="people-msg"></div></section>
-
-<h2 class="sec">Lockdown <small>only the people you choose get in</small></h2>
-<section class="tc"><div id="rules"></div><div class="msg" id="rules-msg"></div></section>
-
-<h2 class="sec">Celebrations <small>holiday and birthday shows after a welcome</small></h2>
+<h2 class="sec" id="s-celeb">Celebrations and tap passport <small>holiday and birthday shows after a welcome, and everyone's taps and stamps</small></h2>
 <section class="tc"><div id="celeb"></div><div class="msg" id="celeb-msg"></div></section>
-
-<h2 class="sec">Tap passport <small>taps, streaks and stamps for everyone who lives here</small></h2>
+<h3 class="grp">Tap passport <small>taps, streaks and stamps for everyone who lives here</small></h3>
 <div class="grid" id="passport"></div>
-
-<h2 class="sec">Recent taps <small>newest first, 10 a page</small></h2>
-<section class="tc"><div id="hist"></div></section>
-
-<h2 class="sec">Readers</h2>
-<div class="grid" id="readers"></div>
-<h2 class="sec">Bridges <small>Bluetooth listeners; they also wake and light the bands</small></h2>
-<div class="grid" id="bridges"></div>
-<footer>Read live from Home Assistant: the MagicbHAnds integration (bands, people, taps) and the ESPHome readers and bridges, found by device model. Assigning, linking and people changes go through the MagicbHAnds integration's own actions; the readers get the allowed list within a few seconds of every change ("Re-send list to readers" sends it again). Remove buttons ask for a second tap.</footer>
+<footer>Read live from Home Assistant. Changes to people and bands reach the readers within a few seconds.</footer>
 </div>
 <script>/*COMMON*/</script>
 <script>
 // ───────── discovery: devices by model, sensors by their attributes (no entity ids written down) ─────────
 const BRIDGE_MODELS=/^magicband-(bridge|bp2-poe)$/, READER_MODEL=/^magicband-reader$/;
-let ENROL_ON='', CAMS=null, SNAP_DAYS=null, LIST=null, BT=null, HIST=null, HIST_ERR=null, HIST_PAGE=0, HIST_PER=10, BUSY={}, ARM={}, LAST_LOAD=0, LAST_TAP=null, BATT={}, BATT_AT=0;
+let UNK=new Set(), ENROL_ON='', CAMS=null, SNAP_DAYS=null, LIST=null, BT=null, HIST=null, HIST_ERR=null, HIST_PAGE=0, HIST_PER=10, BUSY={}, ARM={}, LAST_LOAD=0, LAST_TAP=null, BATT={}, BATT_AT=0;
 const DAYS=['mon','tue','wed','thu','fri','sat','sun'], DAY_LABEL={mon:'Mo',tue:'Tu',wed:'We',thu:'Th',fri:'Fr',sat:'Sa',sun:'Su'};
 const COLOURS=()=>(LIST&&LIST.colours)||['White','Warm white','Red','Orange','Yellow','Green','Cyan','Blue','Purple','Pink','Magenta'];
 const listBand=nfc=>((LIST&&LIST.bands)||[]).find(x=>x.band===nfc)||null;
@@ -225,6 +254,7 @@ const lastTapSensor=I=>svcSensor(I,e=>e.startsWith('sensor.')&&'reader' in A(e)&
 
 // ───────── helpers ─────────
 const rel=t=>t&&!/unknown|unavailable/.test(t)?ago(t):'never';
+const slugId=x=>String(x).replace(/[^\w]/g,'');
 // msgEl: an element, or the key of a message line drawn with msgLine() (kept through redraws); onFail puts the control back
 function act(p,key,msgEl,ok,onFail){ BUSY[key]=1; render(); const k=typeof msgEl==='string'?msgEl:null;
   return p.then(r=>{ if(k) note(k,'ok',ok||'Done.'); else if(msgEl){ msgEl.className='msg ok'; msgEl.textContent=ok||'Done.'; } return r; })
@@ -244,7 +274,7 @@ const mkOf=x=>{ const c=x&&x.closest('[data-mk]'); return c?c.dataset.mk:null; }
 // a remove or forget asks for a second tap within 4 seconds
 function armed(key){ if(ARM[key]&&ARM[key]>Date.now()){ delete ARM[key]; return true; } ARM[key]=Date.now()+4000; render(); setTimeout(render,4100); return false; }
 const tg=(e,label)=>e?`<button class="tg${S(e).state==='on'?' on':''}" data-tg="${esc(e)}" aria-label="${esc(label)}" title="${esc(label)}"${avail(e)?'':' disabled'}></button>`:'<span class="muted">–</span>';
-const bt=(e,label,cls)=>e?`<button class="btn sm ${cls||''}" data-press="${esc(e)}"${avail(e)&&!BUSY[e]?'':' disabled'}>${esc(label)}</button>`:'';
+const bt=(e,label,cls,tip)=>e?`<button class="btn sm ${cls||''}" data-press="${esc(e)}"${tip?` title="${esc(tip)}"`:''}${avail(e)&&!BUSY[e]?'':' disabled'}>${esc(label)}</button>`:'';
 function selectFor(e){ if(!e) return '<span class="muted">–</span>'; const a=A(e); return `<select data-sel="${esc(e)}"${avail(e)?'':' disabled'}>${(a.options||[]).map(o=>`<option${o===S(e).state?' selected':''}>${esc(o)}</option>`).join('')}</select>`; }
 const numText=e=>{ const raw=S(e).state, n=parseFloat(raw); return isFinite(n)?String(+n.toFixed(3)):raw; };
 // "1–60 LEDs", "−240 to 240 min"
@@ -262,16 +292,49 @@ function bandName(I,nfc){ const b=bands(I).find(x=>x.nfc===nfc); return b?b.name
 
 // ───────── sections ─────────
 function kpis(I,B,P,BR,RD,unk){ const near=B.filter(b=>b.s.near&&S(b.s.near).state==='on').length, on=x=>x.filter(d=>online(I,d)).length;
-  $('kpis').innerHTML=[['Bands',B.length,B.filter(b=>b.hasNfc&&b.hasBt).length+' with NFC and Bluetooth'],['Nearby now',near,'heard in the last few minutes'],
-    ['People',P.length,P.filter(p=>p.allowed).length+' allowed'],['Readers online',on(RD)+' / '+RD.length,'',on(RD)<RD.length?'b':''],
-    ['Bridges online',on(BR)+' / '+BR.length,'',on(BR)<BR.length?'b':''],['New bands',unk.length,unk.length?'to assign, below':'none waiting',unk.length?'w':'']]
-    .map(([l,v,s,c])=>`<div class="kpi ${c||''}"><span>${esc(l)}</span><b>${esc(v)}</b><i>${esc(s)}</i></div>`).join(''); }
+  // "nearby" lasts as long as the integration's away_after_minutes (35 min: two missed beacons)
+  const nb=B.find(b=>b.s.near), aw=nb?A(nb.s.near).away_after_minutes:null;
+  $('kpis').innerHTML=[['Bands',B.length,B.filter(b=>b.hasNfc&&b.hasBt).length+' with NFC and Bluetooth','','s-bands'],['Nearby now',near,'heard in the last '+(aw||35)+' min','','s-bands'],
+    ['People',P.length,P.filter(p=>p.allowed).length+' allowed','','s-people'],['Readers online',on(RD)+' / '+RD.length,'',on(RD)<RD.length?'b':'','s-readers'],
+    ['Bridges online',on(BR)+' / '+BR.length,'',on(BR)<BR.length?'b':'','s-bridges'],['New bands',unk.length,unk.length?'to assign':'none waiting',unk.length?'w':'',unk.length?'j-unknown':'s-bands']]
+    .map(([l,v,s,c,go])=>`<a class="kpi ${c||''}" href="#${go}" data-go="${go}"><span>${esc(l)}</span><b>${esc(v)}</b><i>${esc(s)}</i></a>`).join(''); }
+// what a reader is doing, from its own entities (any that its firmware doesn't have are left out)
+function readerState(I,d){ const p=l=>pick(I,d,l[0],l[1]), on=online(I,d), al=p(['sensor','Allowed list']), pr=p(['binary_sensor','Paired with MagicbHAnds']),
+    lk=p(['binary_sensor','Tap lockout']), rm=p(['select','Response mode']), nn=p(['binary_sensor','Night now']);
+  return {on, st:al?S(al).state:null, err:al?A(al).error:null, unpaired:!!(on&&pr&&avail(pr)&&S(pr).state==='off'), locked:!!(on&&lk&&S(lk).state==='on'),
+    every:!!(rm&&avail(rm)&&S(rm).state===EVERY_BAND), night:!!(on&&nn&&S(nn).state==='on'), lockSw:p(['switch','Refused-tap lockout']),
+    up:(I.byDev[d.id]||[]).find(e=>e.startsWith('update.')&&S(e).state==='on')||null}; }
+const LOW_BAT=20;
+// everything that needs a look: [severity b|w, short text, where it is, what to do (html), in the attention list]
+function problems(I,RD,BR,B){ const out=[];
+  RD.forEach(d=>{ const R=readerState(I,d), n=dname(d), go='rd'+devKey(d);
+    if(!R.on){ out.push(['b',n+' is offline',go,'Check its power and Wi-Fi; it reconnects on its own.',1]); return; }
+    if(R.st==='failed') out.push(['b',n+': list not applied',go,(R.err?esc(R.err)+'. ':'')+'The reader turned the allowed list down. <span class="btns"><button class="btn sm" data-sync>Re-send list to readers</button></span>',1]);
+    if(R.locked) out.push(['b',n+' is locked out',go,'Too many turned-away taps: it ignores taps until the lockout time is up.'+(R.lockSw?` <span class="btns"><button class="btn sm" data-endlock="${esc(R.lockSw)}">End lockout now</button></span>`:''),1]);
+    if(R.unpaired) out.push(['w',n+' isn’t paired',go,'Tap any band on it while its ring breathes blue (within 2 minutes of pairing).',1]); });
+  BR.forEach(d=>{ if(!online(I,d)) out.push(['b',dname(d)+' is offline','br'+devKey(d),'Check its power and network; it reconnects on its own.',1]); });
+  const L=LIST&&LIST.lockdown; if(L&&L.length) out.push(['w','Lockdown is on','rules-card','Only the people you choose get in ('+esc(L.join(' · '))+').',0]);
+  B.forEach(b=>{ const v=b.s.bat?num(b.s.bat):null; if(v!=null&&v<=LOW_BAT) out.push(['w',b.name+': battery '+Math.round(v)+'%','band-b'+String(b.d.id).replace(/[^\w]/g,''),'Charge it soon (a MagicBand+ charges on its USB cable).',1]); });
+  return out.sort((x,y)=>(x[0]!=='b')-(y[0]!=='b')); }
+function statusStrip(PR){ $('status').innerHTML=PR.length?PR.map(([c,t,go])=>`<a class="pchip ${c}" href="#${go}" data-go="${go}">${c==='b'?'⚠':'•'} ${esc(t)}</a>`).join('')
+    :'<span class="okl"><span class="dot on"></span>No problems: readers and bridges online, lists applied.</span>'; }
+function probList(PR){ const L=PR.filter(x=>x[4]); $('j-probs').hidden=!L.length;
+  $('probs').innerHTML=L.length?`<ul class="pl">${L.map(([c,t,go,todo])=>`<li class="${c}"><b><a href="#${go}" data-go="${go}">${esc(t)}</a></b><span class="sub2">${todo}</span></li>`).join('')}</ul>`+msgLine('probs'):'';
+  return L.length; }
+function jumpNav(n){ const L=[...(n?[['s-attn','Needs attention',n]]:[]),['s-taps','Recent taps'],['s-people','People'],['s-bands','Bands'],['s-readers','Readers'],['s-bridges','Bridges'],['s-celeb','Celebrations']];
+  $('jump').innerHTML=L.map(([id,l,k])=>`<a class="${k?'w':''}" href="#${id}" data-go="${id}">${esc(l)}${k?` <b>${k}</b>`:''}</a>`).join(''); }
+// jump links: the page sits in a srcdoc frame, so "#id" links would load the parent's address; scroll by hand instead
+function goTo(id,focus){ const el=$(id); if(!el) return; let d=el.closest('details'); while(d){ d.open=true; d=d.parentElement&&d.parentElement.closest('details'); }
+  el.scrollIntoView({behavior:'smooth',block:'start'}); el.classList.add('flash'); setTimeout(()=>{ const x=$(id); if(x) x.classList.remove('flash'); },1600);
+  if(focus){ const f=el.querySelector('select,input'); if(f) f.focus({preventScroll:true}); } }
+document.addEventListener('click',ev=>{ const a=ev.target.closest&&ev.target.closest('[data-go]'); if(!a) return; ev.preventDefault(); goTo(a.dataset.go,a.hasAttribute('data-focus')); });
 
 function unknownJob(I,P,unk){ const lt=lastTapSensor(I), la=lt?A(lt):{};
-  const last=lt&&!/unknown|unavailable/.test(S(lt).state)?`<p class="sub2" style="margin:8px 0 0">Last tap: <b>${esc(la.person||'unknown band')}</b>${la.band?' ('+esc(la.band)+')':''} on ${esc(la.reader||'a reader')}, ${esc(rel(S(lt).state))}${la.allowed===false?' <span class="tag no">denied</span>':''}.</p>`:'';
+  const last=lt&&!/unknown|unavailable/.test(S(lt).state)?`<p class="sub2" style="margin:8px 0 0">Last tap: <b>${esc(la.person||'unknown band')}</b>${la.band?' ('+esc(la.band)+')':''} on ${esc(la.reader||'a reader')}, ${esc(rel(S(lt).state))}${la.allowed===false?' <span class="tag no">turned away</span>':''}.</p>`:'';
+  $('j-unknown').hidden=!unk.length;
   if(!unk.length){ $('unknown').innerHTML=`<p class="muted" style="margin:10px 0 0">No new bands waiting. Tap a band nobody owns on a reader and it appears here.</p>`+last; return; }
   $('unknown').innerHTML=unk.map((u,i)=>{ const id=u.band||u.id||u, key='u'+i;
-    return `<div class="item"><div class="t"><span>${esc(id)}</span><span class="sub2">${u.last_seen||u.first_seen?'tapped '+esc(rel(u.last_seen||u.first_seen)):''}${u.reader||u.last_reader?' on '+esc(u.reader||u.last_reader):''}${u.scans?' · '+(Number(u.scans)||0)+' taps':''}</span></div>
+    return `<div class="item" id="unk-${esc(slugId(id))}"><div class="t"><span>${esc(id)}</span><span class="sub2">${u.last_seen||u.first_seen?'tapped '+esc(rel(u.last_seen||u.first_seen)):''}${u.reader||u.last_reader?' on '+esc(u.reader||u.last_reader):''}${u.scans?' · '+(Number(u.scans)||0)+' taps':''}</span></div>
       <div class="form"><select data-u-person="${key}"><option value="">Whose band?</option>${personOptions(P)}<option value="__new">+ Someone new…</option></select>
       <input type="text" data-u-new="${key}" placeholder="Their name" hidden><input type="text" data-u-label="${key}" placeholder="Nickname, e.g. Castle (optional)">
       <button class="btn pri" data-u-go="${key}" data-band="${esc(id)}"${BUSY[key]?' disabled':''}>Assign</button></div><div class="msg" id="msg-${key}"></div></div>`; }).join('')+last;
@@ -286,29 +349,32 @@ function unknownJob(I,P,unk){ const lt=lastTapSensor(I), la=lt?A(lt):{};
 // Bluetooth halves with no NFC side, and NFC bands with no Bluetooth: link one to the other
 // NFC bands nobody has said are a MagicBand+ or a standard band: ask (a standard band has no Bluetooth, so it's never heard)
 const TYPE_LABEL={plus:'MagicBand+',classic:'Standard MagicBand (NFC only)',unknown:'Not known yet'};
-function typeAsk(nfcOnly){ const ask=nfcOnly.filter(b=>b.type!=='plus'&&b.s.type), wait=nfcOnly.filter(b=>b.type==='plus'), std=TYPES_STD;
-  return (wait.length?`<p class="sub2" style="margin:10px 0 0">${wait.length} MagicBand+ ${wait.length>1?'haven’t':'hasn’t'} been heard over Bluetooth yet (${esc(wait.map(b=>b.name).join(', '))}). Wake bands from a bridge to make them advertise.</p>`:'')
-    +(ask.length?`<p class="sub2" style="margin:10px 0 0">Which kind ${ask.length>1?'are these bands':'is this band'}? A standard MagicBand has no Bluetooth, so it will never be heard; marking it stops it being looked for.</p>`
+function typeAsk(ask){ const std=TYPES_STD;
+  return `<p class="sub2" style="margin:4px 0 0">A standard MagicBand has no Bluetooth, so it will never be heard; marking it stops it being looked for.</p>`
       +ask.map(b=>`<div class="item"><div class="t"><span>${esc(b.name)}</span><span class="sub2">${b.person?esc(b.person):''}</span></div><div class="btns">
-        <button class="btn sm" data-type="${esc(b.s.type)}" data-opt="plus">MagicBand+</button><button class="btn sm" data-type="${esc(b.s.type)}" data-opt="classic">Standard MagicBand</button></div></div>`).join(''):'')
+        <button class="btn sm" data-type="${esc(b.s.type)}" data-opt="plus">MagicBand+</button><button class="btn sm" data-type="${esc(b.s.type)}" data-opt="classic">Standard MagicBand</button></div></div>`).join('')
     +(std?`<p class="sub2" style="margin:8px 0 0">${std} standard MagicBand${std>1?'s':''} (NFC only) ${std>1?'aren’t':'isn’t'} expected over Bluetooth.</p>`:'')+msgLine('types'); }
-let TYPES_STD=0;
+let TYPES_STD=0, ATT_LINK=0;
 // the "Link to…" choices for a Bluetooth band: an NFC band with no Bluetooth yet, or a person
 const linkOptions=(nfcOnly,P,guess)=>`<option value="">Link to…</option>
         ${nfcOnly.length?`<optgroup label="NFC bands with no Bluetooth">${nfcOnly.map(x=>`<option value="band:${esc(x.nfc)}"${guess&&guess.nfc===x.nfc?' selected':''}>${esc(x.name)}${x.person?' ('+esc(x.person)+')':''}</option>`).join('')}</optgroup>`:''}
         <optgroup label="Or a person (their band)">${P.map(p=>`<option value="person:${esc(p.name)}">${esc(p.name)}</option>`).join('')}</optgroup>`;
 const nfcOnlyBands=B=>B.filter(b=>b.hasNfc&&!b.btid&&b.type!=='classic');
-function linkJob(I,B,P){ const btOnly=((BT&&BT.bluetooth_bands)||[]).filter(b=>!b.band), nfcOnly=nfcOnlyBands(B);
+function linkJob(I,B,P,BR){ const btOnly=((BT&&BT.bluetooth_bands)||[]).filter(b=>!b.band), nfcOnly=nfcOnlyBands(B);
   TYPES_STD=B.filter(b=>b.hasNfc&&!b.btid&&b.type==='classic').length;
-  const typeBtns=()=>document.querySelectorAll('[data-type]').forEach(x=>x.onclick=()=>act(H().call('select','select_option',x.dataset.type,{option:x.dataset.opt}),'t'+x.dataset.type,'types','Saved: '+TYPE_LABEL[x.dataset.opt]+'.'));
-  if(!btOnly.length){ $('link').innerHTML=`<p class="muted" style="margin:10px 0 0">Every band heard over Bluetooth is linked.</p>`+typeAsk(nfcOnly); typeBtns(); return; }
+  const wait=nfcOnly.filter(b=>b.type==='plus'), ask=nfcOnly.filter(b=>b.type!=='plus'&&b.s.type);
+  ATT_LINK=btOnly.length+(wait.length?1:0)+ask.length;
+  $('j-types').hidden=!ask.length; $('types').innerHTML=ask.length?typeAsk(ask):'';
+  document.querySelectorAll('[data-type]').forEach(x=>x.onclick=()=>act(H().call('select','select_option',x.dataset.type,{option:x.dataset.opt}),'t'+x.dataset.type,'types','Saved: '+TYPE_LABEL[x.dataset.opt]+'.'));
+  const waitP=wait.length?`<p class="sub2" style="margin:10px 0 0">${wait.length} MagicBand+ ${wait.length>1?'haven’t':'hasn’t'} been heard over Bluetooth yet (${esc(wait.map(b=>b.name).join(', '))}). Wake bands from a bridge to make them advertise.${BR.length?` <button class="btn sm" data-wakeall title="Sends the fast-mode ping through every bridge for 15 s: bands nearby wake and advertise"${BUSY.wk?' disabled':''}>Wake bands</button>`:''}</p>`:'';
+  $('j-link').hidden=!btOnly.length&&!wait.length;
   $('link').innerHTML=btOnly.map((b,i)=>{ const key='l'+i;
     // best guess: an NFC band of the same person with no Bluetooth yet, else any NFC-only band
     const guess=nfcOnly.find(x=>b.person&&x.person===b.person)||(nfcOnly.length===1?nfcOnly[0]:null);
     return `<div class="item"><div class="t"><span>${esc(b.name||b.id)}</span><span class="sub2">${b.nearby?'nearby · ':''}heard ${esc(rel(b.last_seen))}${b.heard_by?' by '+esc(b.heard_by):''}${b.battery!=null?' · battery '+esc(b.battery)+'%':''}</span></div>
       <div class="form"><select data-l-to="${key}">${linkOptions(nfcOnly,P,guess)}</select>
-      <button class="btn pri" data-l-go="${key}" data-bt="${esc(b.id)}"${BUSY[key]?' disabled':''}>Link</button>${guess?`<span class="sub2">suggested: ${esc(guess.name)}</span>`:''}</div><div class="msg" id="msg-${key}"></div></div>`; }).join('')+typeAsk(nfcOnly);
-  typeBtns();
+      <button class="btn pri" data-l-go="${key}" data-bt="${esc(b.id)}"${BUSY[key]?' disabled':''}>Link</button>${guess?`<span class="sub2">suggested: ${esc(guess.name)}</span>`:''}</div><div class="msg" id="msg-${key}"></div></div>`; }).join('')+waitP+msgLine('link');
+  document.querySelectorAll('[data-wakeall]').forEach(x=>x.onclick=()=>act(mb('send',{effect:'wake'},true),'wk','link','Wake sent through every bridge: bands nearby advertise for the next 15 s.'));
   document.querySelectorAll('[data-l-go]').forEach(b=>b.onclick=()=>{ const k=b.dataset.lGo, v=document.querySelector(`[data-l-to="${k}"]`).value, msg=$('msg-'+k);
     if(!v){ msg.className='msg bad'; msg.textContent='Pick the band or person first.'; return; }
     const [kind,val_]=[v.slice(0,v.indexOf(':')),v.slice(v.indexOf(':')+1)];
@@ -346,7 +412,7 @@ function bandCards(I,B,P){ BLAST=[I,B,P];
   const q=BV.find.trim().toLowerCase(), all=B.map(b=>({b,f:facts(b)}));
   const shown=all.filter(({b})=>!q||[b.name,b.person,b.label,b.nfc,b.btid].some(v=>String(v||'').toLowerCase().includes(q)));
   shown.sort((x,y)=>(SORTS[BV.sort]||SORTS.person)(x,y)||x.b.name.localeCompare(y.b.name));
-  $('bands-cap').textContent=B.length?(q?`${shown.length} of ${B.length}`:`${B.length}`)+' · tap a band on a reader to update its last tap':'';
+  $('bands-cap').textContent=B.length?(q?`${shown.length} of ${B.length}`:`${B.length}`)+(B.length===1?' band':' bands'):'';
   const g=GROUPS[BV.group]||GROUPS.none, groups=new Map(); shown.forEach(x=>{ const k=g(x.b,x.f); if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(x.b); });
   const ord=GORDER[BV.group], keys=[...groups.keys()].sort((x,y)=>ord?ord.indexOf(x)-ord.indexOf(y):(LAST.test(x)-LAST.test(y))||x.localeCompare(y));
   $('bands').innerHTML=!B.length?'<p class="muted">No MagicBands yet.</p>':!shown.length?'<p class="muted">No band matches.</p>'
@@ -354,24 +420,29 @@ function bandCards(I,B,P){ BLAST=[I,B,P];
   wireBands(); }
 function bandCard(b,P,nfcOnly){ { const s=b.s, nearOn=s.near&&S(s.near).state==='on', bat=s.bat?num(s.bat):null, cl=s.closest&&!/unknown|unavailable/.test(S(s.closest).state)?S(s.closest).state:null,
       hb=s.heard?S(s.heard).state:null, by=s.signal?(A(s.signal).by_source||{}):{}, best=Object.entries(by).sort((x,y)=>y[1]-x[1])[0], key='b'+String(b.d.id).replace(/[^\w]/g,''), t=s.tap?A(s.tap):{};
-    const batC=bat==null?'':bat<=20?'var(--bad)':bat<=40?'var(--warn)':'var(--ok)';
-    return `<section class="tc band" data-mk="${key}"><div class="nh"><b>${esc(b.name)}</b><span class="sub2">${s.near?`<span class="dot2 ${nearOn?'':'unk'}"></span>${nearOn?'nearby':'away'}`:''}</span></div>
+    const batC=bat==null?'':bat<=20?'var(--bad)':bat<=40?'var(--warn)':'var(--ok)', classic=b.type==='classic', lp=b.person?listPerson(b.person):null, pass=lp&&lp.guest;
+    // the band type is asked in the body only while nobody has said; otherwise it's under Manage
+    const typeSel=b.s.type?`<select data-sel="${esc(b.s.type)}" aria-label="Band type"${avail(b.s.type)?'':' disabled'}>${Object.entries(TYPE_LABEL).map(([k,v])=>`<option value="${k}"${k===b.type?' selected':''}>${esc(v)}</option>`).join('')}</select>`:'';
+    const typeKnown=b.type==='plus'||b.type==='classic';
+    return `<section class="tc band" id="band-${key}" data-mk="${key}"><div class="nh"><b>${esc(b.name)}</b><span class="sub2">${s.near?`<span class="dot2 ${nearOn?'':'unk'}"></span>${nearOn?'nearby':'away'}`:classic?'standard MagicBand':''}</span></div>
       <dl class="kv"><dt>Owner</dt><dd>${esc(b.person||'nobody yet')}${b.label?' · '+esc(b.label):''}${t.allowed===false?' <span class="tag no">not allowed</span>':''}</dd>
       <dt>NFC ID</dt><dd>${b.nfc?esc(b.nfc):'<span class="muted">not tapped yet (Bluetooth only)</span>'}</dd>
       <dt>Last tap</dt><dd>${s.tap?esc(rel(S(s.tap).state))+(t.reader?' · '+esc(t.reader):'')+(t.scans?' · '+(Number(t.scans)||0)+' taps':''):'<span class="muted">–</span>'}</dd>
-      <dt>Battery</dt><dd>${bat!=null?`<span class="bat"><i style="width:${Math.max(0,Math.min(100,bat))}%;background:${batC}"></i></span>${Math.round(bat)}%${spark(s.bat,b.name)}`:'<span class="muted">–</span>'}</dd>
-      <dt>Closest</dt><dd>${cl?esc(cl):hb&&!/unknown|unavailable/.test(hb)?esc(hb)+' <span class="muted">(last heard)</span>':b.hasBt?'<span class="muted">not heard lately</span>':b.type==='classic'?'<span class="muted">no Bluetooth (standard MagicBand)</span>':'<span class="muted">no Bluetooth yet</span>'}${s.seen?' · '+esc(rel(S(s.seen).state)):''}</dd>
-      <dt>Bluetooth</dt><dd>${b.btid?esc(b.btid):'<span class="muted">not linked</span>'}</dd>
-      ${b.nfc?`<dt>Access</dt><dd>${esc(accessText(listBand(b.nfc)))}</dd>`:''}
-      ${b.s.type?`<dt>Type</dt><dd><select data-sel="${esc(b.s.type)}"${avail(b.s.type)?'':' disabled'}>${Object.entries(TYPE_LABEL).map(([k,v])=>`<option value="${k}"${k===b.type?' selected':''}>${esc(v)}</option>`).join('')}</select></dd>`:''}</dl>
-      ${Object.keys(by).length?`<div class="chips">${Object.entries(by).sort((x,y)=>y[1]-x[1]).map(([k,v])=>`<span class="chip${best&&best[0]===k?' best':''}">${esc(k.replace(/^MagicBand Bridge BT /,'Bridge '))} <b>${esc(v)} dBm</b></span>`).join('')}</div>`:''}
+      ${classic?'':`<dt>Battery</dt><dd>${bat!=null?`<span class="bat"><i style="width:${Math.max(0,Math.min(100,bat))}%;background:${batC}"></i></span>${Math.round(bat)}%${spark(s.bat,b.name)}`:'<span class="muted">–</span>'}</dd>
+      <dt>Closest</dt><dd>${cl?esc(cl):hb&&!/unknown|unavailable/.test(hb)?esc(hb)+' <span class="muted">(last heard)</span>':b.hasBt?'<span class="muted">not heard lately</span>':'<span class="muted">no Bluetooth yet</span>'}${s.seen?' · '+esc(rel(S(s.seen).state)):''}</dd>
+      <dt>Bluetooth</dt><dd>${b.btid?esc(b.btid):'<span class="muted">not linked</span>'}</dd>`}
+      ${b.nfc?`<dt>Access</dt><dd>${esc(accessText(listBand(b.nfc)))}${pass?' <span class="muted">+ guest pass</span>':''}</dd>`:''}
+      ${typeSel&&!typeKnown?`<dt>Type</dt><dd>${typeSel}</dd>`:''}</dl>
+      ${!classic&&Object.keys(by).length?`<div class="chips">${Object.entries(by).sort((x,y)=>y[1]-x[1]).map(([k,v])=>`<span class="chip${best&&best[0]===k?' best':''}">${esc(k.replace(/^MagicBand Bridge BT /,'Bridge '))} <b>${esc(v)} dBm</b></span>`).join('')}</div>`:''}
       ${b.nfc||b.btid?`<details class="more" data-k="${esc(b.d.id)}"><summary>Manage</summary>
         ${!b.nfc&&b.btid?`<div class="form"><select data-bl-to="${key}" aria-label="Link to">${linkOptions(nfcOnly||[],P,(nfcOnly||[]).find(x=>b.person&&x.person===b.person)||null)}</select><button class="btn sm pri" data-bl-go="${key}" data-bt="${esc(b.btid)}"${BUSY[key]?' disabled':''}>Link</button></div>
-        <div class="btns"><button class="btn sm ${ARM['fb'+key]?'arm':''}" data-forget="${key}" data-bt="${esc(b.btid)}">${ARM['fb'+key]?'Tap again to forget':'Forget this Bluetooth band'}</button></div>`:''}
+        <div class="btns"><button class="btn sm ${ARM['fb'+key]?'arm':''}" data-forget="${key}" data-bt="${esc(b.btid)}" title="Asks for a second tap">${ARM['fb'+key]?'Tap again to forget':'Forget this Bluetooth band'}</button></div>`:''}
         ${b.nfc?`<div class="form"><label>Owner</label><select data-own="${key}"><option value="">nobody</option>${personOptions(P,b.person)}</select><input type="text" data-lab="${key}" value="${esc(b.label||'')}" placeholder="Nickname"><button class="btn sm" data-own-go="${key}" data-band="${esc(b.nfc)}">Save</button></div>`:''}
-        ${b.nfc?accessForm(key,b.nfc,listBand(b.nfc)):''}
+        ${typeSel&&typeKnown?`<div class="form"><label>Type</label>${typeSel}</div>`:''}
+        ${b.nfc?accessForm(key,b.nfc,listBand(b.nfc),pass?lp:null):''}
         <div class="btns">${b.btid&&b.nfc?`<button class="btn sm ${ARM['ub'+key]?'arm':''}" data-unlink="${key}" data-bt="${esc(b.btid)}">${ARM['ub'+key]?'Tap again to unlink':'Unlink Bluetooth'}</button>`:''}
-          ${b.nfc?`<button class="btn sm ${ARM['rm'+key]?'arm':''}" data-remove="${key}" data-band="${esc(b.nfc)}">${ARM['rm'+key]?'Tap again to remove':'Remove band'}</button>`:''}</div></details>`:''}
+          ${b.nfc?`<button class="btn sm ${ARM['rm'+key]?'arm':''}" data-remove="${key}" data-band="${esc(b.nfc)}">${ARM['rm'+key]?'Tap again to remove':'Remove band'}</button>`:''}</div>
+        ${b.nfc?'<p class="sub2" style="margin:4px 0 0">Unlink and Remove ask for a second tap.</p>':''}</details>`:''}
       ${msgLine(key)}</section>`; } }
 // when a band works: "always", "07:00–21:00, Mo Tu We, until 30 Nov, 18:00"
 function accessText(lb){ if(!lb) return 'always'; const parts=[];
@@ -379,9 +450,10 @@ function accessText(lb){ if(!lb) return 'always'; const parts=[];
   if(lb.access_days&&lb.access_days.length) parts.push(lb.access_days.map(d=>DAY_LABEL[d]).join(' '));
   if(lb.expires) parts.push('until '+new Date(lb.expires).toLocaleString([], {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}));
   const txt=parts.length?parts.join(', '):'always'; return lb.in_schedule===false&&parts.length?txt+' (not now)':txt; }
-function accessForm(key,nfc,lb){ lb=lb||{}; const exp=lb.expires?new Date(lb.expires):null, pad=n=>String(n).padStart(2,'0');
+function accessForm(key,nfc,lb,gp){ lb=lb||{}; const exp=lb.expires?new Date(lb.expires):null, pad=n=>String(n).padStart(2,'0');
   const expV=exp?`${exp.getFullYear()}-${pad(exp.getMonth()+1)}-${pad(exp.getDate())}T${pad(exp.getHours())}:${pad(exp.getMinutes())}`:'';
-  return `<div class="set access" style="margin-top:8px"><span>Works from</span><span><input type="time" data-af="${key}" value="${esc(lb.access_from||'')}"> to <input type="time" data-au="${key}" value="${esc(lb.access_until||'')}"></span>
+  const pb=gp?passBits(gp):[];
+  return `<h4 class="mh">This band’s own hours</h4>${gp?`<p class="sub2" style="margin:2px 0 0">${esc(gp.name)}’s guest pass also applies: ${esc(pb.length?pb.join(' · '):'no limits yet')}.</p>`:''}<div class="set access" style="margin-top:6px"><span>Works from</span><span><input type="time" data-af="${key}" value="${esc(lb.access_from||'')}"> to <input type="time" data-au="${key}" value="${esc(lb.access_until||'')}"></span>
     <span>On</span><span class="days">${DAYS.map(d=>`<label><input type="checkbox" data-ad="${key}" value="${d}"${(lb.access_days||[]).includes(d)?' checked':''}>${DAY_LABEL[d]}</label>`).join('')}</span>
     <span>Until</span><input type="datetime-local" data-ax="${key}" value="${expV}"></div>
     <div class="btns"><button class="btn sm" data-acc-go="${key}" data-band="${esc(nfc)}">Save access</button><button class="btn sm ${ARM['ac'+key]?'arm':''}" data-acc-clear="${key}" data-band="${esc(nfc)}" title="Clears the hours, days and end date">${ARM['ac'+key]?'Tap again: allowed at any time':'Always allowed'}</button></div>`; }
@@ -401,7 +473,7 @@ function wireBands(){
     const kind=v.slice(0,v.indexOf(':')), val_=v.slice(v.indexOf(':')+1); act(mb('link_bluetooth',{bluetooth_band:x.dataset.bt,[kind]:val_}),k,k,'Linked.').then(load); });
   document.querySelectorAll('[data-forget]').forEach(x=>x.onclick=()=>{ const k=x.dataset.forget; if(!armed('fb'+k)) return; act(mb('forget_bluetooth',{bluetooth_band:x.dataset.bt}),k,k,'Forgotten. It comes back as a new band if it’s heard again.').then(load); }); }
 
-function sendBar(){ const B=[['Wake','wake',{effect:'wake'}],['Ping','ping',{effect:'ping'}],['Green + buzz','green',{effect:'color',color:'green',vibration:3}],['Blue','blue',{effect:'color',color:'blue'}],['Red','red',{effect:'color',color:'red'}],
+function sendBar(){ const B=[['Green + buzz','green',{effect:'color',color:'green',vibration:3}],['Blue','blue',{effect:'color',color:'blue'}],['Red','red',{effect:'color',color:'red'}],
     ['Purple','purple',{effect:'color',color:'purple'}],['Pink','pink',{effect:'color',color:'pink'}],['White','white',{effect:'color',color:'white'}],
     ['Rainbow','rainbow',{effect:'five_color',colors:'red, orange, yellow, green, blue'}],['Colour cycle','cycle',{effect:'animation',animation:'color_cycle'}],
     ['Lightning','lightning',{effect:'animation',animation:'lightning'}],['Spin + buzz','spin',{effect:'animation',animation:'spin_buzz'}],['Buzz','buzz',{effect:'buzz',vibration:8}],['Stop','stop',{effect:'stop'}]];
@@ -411,20 +483,18 @@ function sendBar(){ const B=[['Wake','wake',{effect:'wake'}],['Ping','ping',{eff
 function peopleTable(I,P){ const HP=haPeople(), RDS=H().devices().filter(d=>READER_MODEL.test(d.model||''));
   if(ENROL_ON&&!RDS.some(d=>d.id===ENROL_ON)) ENROL_ON='';
   const enrolOn=RDS.length?`<p class="sub2" style="margin:0 0 8px"><label>Enrol bands tapped on <select data-enrol-on>${RDS.length>1?`<option value=""${ENROL_ON?'':' selected'}>any reader</option>`:''}${RDS.map(d=>`<option value="${esc(d.id)}"${d.id===ENROL_ON||(!ENROL_ON&&RDS.length===1)?' selected':''}>${esc(dname(d))}</option>`).join('')}</select></label> — only bands nobody owns; the tap that enrols a band doesn't open anything.</p>`:'';
-  $('people').innerHTML=P.length?enrolOn+`<div style="overflow-x:auto"><table class="t"><tr><th>Name</th><th>Home Assistant person</th><th>Allowed</th><th>Welcome colour</th><th>Bands</th><th>Last tap</th><th></th></tr>${P.map((p,i)=>{ const key='p'+i, L=listPerson(p.name)||{};
-    return `<tr class="pr"><td><b>${esc(p.name)}</b>${personStatus(p,L)}</td><td><select data-ha="${key}" data-p="${esc(p.name)}"><option value="">–</option>${HP.map(([e,n])=>`<option value="${esc(e)}"${e===p.ha?' selected':''}>${esc(n)}</option>`).join('')}</select></td>
-      <td><button class="tg${p.allowed?' on':''}" data-allow="${esc(p.name)}" aria-label="Allowed"></button></td>
-      <td><select data-wc="${esc(p.name)}"><option value="">Reader's colour</option>${COLOURS().map(c=>`<option${c===L.welcome_colour?' selected':''}>${esc(c)}</option>`).join('')}</select></td>
+  $('people').innerHTML=P.length?enrolOn+`<div style="overflow-x:auto"><table class="t"><tr><th>Name</th><th>Home Assistant person</th><th>Bands</th><th>Last tap</th><th></th></tr>${P.map((p,i)=>{ const key='p'+i, L=listPerson(p.name)||{};
+    return `<tr class="pr"><td><b>${esc(p.name)}</b>${accessSummary(p,L)}</td><td><select data-ha="${key}" data-p="${esc(p.name)}" aria-label="Home Assistant person for ${esc(p.name)}"><option value="">–</option>${HP.map(([e,n])=>`<option value="${esc(e)}"${e===p.ha?' selected':''}>${esc(n)}</option>`).join('')}</select></td>
       <td>${p.bands.length}${p.bands.length?' <span class="sub2">'+esc(p.bands.map(b=>b.label||bandName(I,b.band)||b.band).join(', '))+'</span>':''}</td>
       <td>${esc(rel(p.last))}${p.last_reader&&!/unknown/.test(p.last)?' <span class="sub2">'+esc(p.last_reader)+'</span>':''}</td>
-      <td style="white-space:nowrap"><button class="btn sm" data-enrol="${esc(p.name)}" title="The next bands tapped that nobody owns become theirs">Enrol bands</button> <button class="btn sm ${ARM['rp'+key]?'arm':''}" data-rmp="${key}" data-p="${esc(p.name)}">${ARM['rp'+key]?'Tap again':'Remove'}</button></td></tr>
-      <tr class="pm"><td colspan="7">${personMore(p.name,L)}</td></tr>`; }).join('')}</table></div>`:'<p class="muted">Nobody added yet.</p>';
+      <td style="white-space:nowrap"><button class="btn sm" data-enrol="${esc(p.name)}" title="The next bands tapped that nobody owns become theirs">Enrol bands</button> <button class="btn sm ${ARM['rp'+key]?'arm':''}" data-rmp="${key}" data-p="${esc(p.name)}" title="Asks for a second tap">${ARM['rp'+key]?'Tap again to remove '+esc(p.name):'Remove'}</button></td></tr>
+      <tr class="pm"><td colspan="5">${personAccess(p,L,I)}${personWelcome(p.name,L)}</td></tr>`; }).join('')}</table></div>`:'<p class="muted">Nobody added yet.</p>';
   if(!$('addp').dataset.done){ $('addp').dataset.done=1;
-    $('addp').innerHTML=`<label>Add someone</label><input type="text" id="np-name" placeholder="Name"><select id="np-ha"><option value="">Home Assistant person (optional)</option>${HP.map(([e,n])=>`<option value="${esc(e)}">${esc(n)}</option>`).join('')}</select><label class="sub2"><input type="checkbox" id="np-guest"> Guest</label><button class="btn" id="np-go">Add</button><button class="btn" id="sync" title="The readers get the list on their own after every change; this sends it again now">Re-send list to readers</button>`;
+    $('addp').innerHTML=`<label>Add someone</label><input type="text" id="np-name" placeholder="Name"><select id="np-ha"><option value="">Home Assistant person (optional)</option>${HP.map(([e,n])=>`<option value="${esc(e)}">${esc(n)}</option>`).join('')}</select><label class="sub2"><input type="checkbox" id="np-guest"> Guest</label><button class="btn" id="np-go">Add</button>`;
     $('np-go').onclick=()=>{ const n=$('np-name').value.trim(); if(!n){ $('people-msg').className='msg bad'; $('people-msg').textContent='Type a name.'; return; }
       const guest=$('np-guest').checked;
-      act(mb('add_person',Object.assign({name:n,allowed:true,guest},$('np-ha').value?{ha_person:$('np-ha').value}:{}),true),'np',$('people-msg'),n+' added.'+(guest?' Open “Birthday, welcome sound, lockdown, guest pass” to set their pass, then enrol their band.':'')).then(()=>{ $('np-name').value=''; $('np-guest').checked=false; }); };
-    $('sync').onclick=()=>act(mb('sync',{},true),'sync',$('people-msg'),'Allowed list sent to the readers again.'); }
+      act(mb('add_person',Object.assign({name:n,allowed:true,guest},$('np-ha').value?{ha_person:$('np-ha').value}:{}),true),'np',$('people-msg'),n+' added.'+(guest?' Open “Access” under their name to set their guest pass, then enrol their band.':'')).then(()=>{ $('np-name').value=''; $('np-guest').checked=false; }); };
+  }
   document.querySelectorAll('[data-allow]').forEach(x=>x.onclick=()=>act(mb('update_person',{person:x.dataset.allow,allowed:!x.classList.contains('on')}),'al',$('people-msg'),'Saved. The readers update within a few seconds.'));
   document.querySelectorAll('[data-wc]').forEach(x=>x.onchange=()=>act(mb('update_person',{person:x.dataset.wc,welcome_colour:x.value}),'wc',$('people-msg'),'Saved. The readers welcome '+x.dataset.wc+' in '+(x.value||'their own colour')+'.').then(load));
   document.querySelectorAll('[data-enrol-on]').forEach(x=>x.onchange=()=>{ ENROL_ON=x.value; x.blur(); });
@@ -457,32 +527,44 @@ function peopleTable(I,P){ const HP=haPeople(), RDS=H().devices().filter(d=>READ
 const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const fmtDT=iso=>iso?new Date(iso).toLocaleString([], {day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}):'';
 const dtInput=iso=>{ if(!iso) return ''; const d=new Date(iso), z=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`; };
-function passText(L){ const g=L.pass; if(!L.guest) return ''; const parts=[];
-  if(g){ if(g.from&&new Date(g.from)>new Date()) parts.push('from '+fmtDT(g.from)); if(g.until) parts.push('until '+fmtDT(g.until));
-    if(g.uses_left!=null) parts.push(g.uses_left+' use'+(g.uses_left===1?'':'s')+' left');
-    if(g.access_from||g.access_until) parts.push(`${g.access_from||'00:00'}–${g.access_until||'24:00'}`); if(g.days&&g.days.length) parts.push(g.days.map(d=>DAY_LABEL[d]).join(' ')); }
-  return 'Guest · '+(parts.length?parts.join(', '):'no limits yet'); }
-function personStatus(p,L){ const bits=[], b=L.birthday;
-  if(L.guest) bits.push(esc(passText(L)));
-  if(b){ const [m,d]=b.split('-').map(Number); bits.push('🎂 '+d+' '+MONTHS[m-1]); }
+// a guest pass's limits: ["Mo We Fr 11:00–14:00", "12 uses left", "until 22 Dec, 3:00 PM"]
+function passBits(L){ const g=L.pass||{}, parts=[], when=[];
+  if(g.days&&g.days.length) when.push(g.days.map(d=>DAY_LABEL[d]).join(' ')); if(g.access_from||g.access_until) when.push(`${g.access_from||'00:00'}–${g.access_until||'24:00'}`);
+  if(when.length) parts.push(when.join(' ')); if(g.uses_left!=null) parts.push(g.uses_left+' use'+(g.uses_left===1?'':'s')+' left');
+  if(g.from&&new Date(g.from)>new Date()) parts.push('from '+fmtDT(g.from)); if(g.until) parts.push('until '+fmtDT(g.until));
+  return parts; }
+// the one-line access summary in a person's row: "Guest · Mo We Fr 11:00–14:00 · 12 uses left · not now"
+function accessSummary(p,L){ const bits=[], b=L.birthday;
+  if(!p.allowed) bits.push('<span class="tag no" style="margin:0">Not allowed</span>');
+  else if(L.guest){ const pb=passBits(L); bits.push(esc(['Guest',...(pb.length?pb:['no limits yet'])].join(' · '))); }
+  else bits.push('Allowed');
   if(L.lockdown_exempt) bits.push('🛡️ gets in during lockdown');
   if(p.allowed&&L.allowed_now===false) bits.push('<span class="tag no" style="margin:0">not now</span>');
-  return bits.length?`<div class="sub2">${bits.join(' · ')}</div>`:''; }
-function personMore(name,L){ const g=L.pass||{}, [bm,bd]=(L.birthday||'-').split('-'), n=esc(name);
-  const pid=esc(L.id||''), snd=L.welcome_sound, up=!!(H().sound&&L.id);
-  return `<details class="more" data-k="pm-${n}"><summary>Birthday, welcome sound, lockdown, guest pass</summary><div class="set access pmset">
-    <span>Welcome sound</span><span>${snd?`<b>${esc(snd)}</b> <button class="btn sm" data-snd-play="${pid}">Play here</button> <button class="btn sm" data-snd-reader="${n}">Play on readers</button> <button class="btn sm" data-snd-rm="${pid}" data-p="${n}">Remove</button>`:'<span class="sub2">None: the reader’s tap-in sound</span>'}
-      ${up?`<label class="btn sm" style="cursor:pointer">${snd?'Replace':'Upload'}…<input type="file" accept="audio/mpeg,audio/wav,audio/x-wav,audio/flac,audio/ogg,.mp3,.wav,.flac,.ogg" data-snd-file="${pid}" data-p="${n}" hidden></label>`:'<span class="sub2">Upload it from the MagicbHAnds page in Home Assistant.</span>'}
-      <div class="sub2">Plays on the reader instead of its tap-in sound when ${n} is welcomed (MP3, WAV, FLAC or Ogg, up to 2 MB; a few seconds is best). The reader’s Sound and Sound at night settings still apply.</div></span>
-    <span>Birthday</span><span><select data-bm="${n}"><option value="">Month</option>${MONTHS.map((m,i)=>`<option value="${String(i+1).padStart(2,'0')}"${+bm===i+1?' selected':''}>${m}</option>`).join('')}</select> <select data-bd="${n}"><option value="">Day</option>${Array.from({length:31},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}"${+bd===i+1?' selected':''}>${i+1}</option>`).join('')}</select></span>
+  if(b){ const [m,d]=b.split('-').map(Number); bits.push('🎂 '+d+' '+MONTHS[m-1]); }
+  return `<div class="sub2">${bits.join(' · ')}</div>`; }
+// "Access": allowed, lockdown and the guest pass (which covers every band they have)
+function personAccess(p,L,I){ const name=p.name, g=L.pass||{}, n=esc(name);
+  const own=(p.bands||[]).map(b=>{ const lb=listBand(b.band); return lb&&(lb.access_from||lb.access_until||(lb.access_days&&lb.access_days.length)||lb.expires)?(b.label||bandName(I,b.band)||b.band)+' '+accessText(lb):null; }).filter(Boolean);
+  return `<details class="more" data-k="pa-${n}"><summary>Access</summary><div class="set access pmset">
+    <span>Allowed</span><span><button class="tg${p.allowed?' on':''}" data-allow="${n}" aria-label="Allowed"></button> <span class="sub2">when off, none of ${n}’s bands get in</span></span>
     <span>Gets in during lockdown</span><span><button class="tg${L.lockdown_exempt?' on':''}" data-lx="${n}" aria-label="Gets in during lockdown"></button></span>
-    <span>Guest</span><span><button class="tg${L.guest?' on':''}${ARM['go'+name]?' arm':''}" data-guest="${n}" aria-label="Guest"></button>${ARM['go'+name]?' <span class="sub2" style="color:var(--bad)">Tap again to stop being a guest: the pass is dropped</span>':''}</span>
-    ${L.guest?`<span>Pass starts</span><span><input type="datetime-local" data-gp="starts" data-p="${n}" value="${dtInput(g.from)}"></span>
+    <span>Guest</span><span><button class="tg${L.guest?' on':''}${ARM['go'+name]?' arm':''}" data-guest="${n}" aria-label="Guest"></button>${ARM['go'+name]?' <span class="sub2" style="color:var(--bad)">Tap again to stop being a guest: the pass is dropped</span>':' <span class="sub2">a guest gets a pass with limits; turning it off takes a second tap</span>'}</span></div>
+    ${L.guest?`<h4 class="mh">${n}’s guest pass (all their bands)</h4>${own.length?`<p class="sub2" style="margin:2px 0 0">Each band’s own hours also apply: ${esc(own.join('; '))}.</p>`:''}<div class="set access pmset">
+    <span>Pass starts</span><span><input type="datetime-local" data-gp="starts" data-p="${n}" value="${dtInput(g.from)}"></span>
     <span>Pass ends</span><span><input type="datetime-local" data-gp="ends" data-p="${n}" value="${dtInput(g.until)}"></span>
     <span>Uses left</span><span><input type="number" min="0" max="10000" data-gp="uses" data-p="${n}" value="${g.uses_left??''}" placeholder="no limit"></span>
     <span>Each day</span><span><input type="time" data-gp="from" data-p="${n}" value="${esc(g.access_from||'')}"> to <input type="time" data-gp="until" data-p="${n}" value="${esc(g.access_until||'')}"></span>
     <span>On</span><span class="days">${DAYS.map(d=>`<label><input type="checkbox" data-gday="${n}" value="${d}"${(g.days||[]).includes(d)?' checked':''}>${DAY_LABEL[d]}</label>`).join('')}</span>
-    <span></span><span><button class="btn sm ${ARM['gc'+name]?'arm':''}" data-gclear="${n}" title="Removes every limit on the pass">${ARM['gc'+name]?'Tap again: no limits':'Clear the pass'}</button></span>`:''}
+    <span></span><span><button class="btn sm ${ARM['gc'+name]?'arm':''}" data-gclear="${n}" title="Removes every limit on the pass (asks for a second tap)">${ARM['gc'+name]?'Tap again: no limits':'Clear the pass'}</button></span></div>`:''}
+  </details>`; }
+// "Welcome and birthday": welcome colour and sound, birthday
+function personWelcome(name,L){ const [bm,bd]=(L.birthday||'-').split('-'), n=esc(name), pid=esc(L.id||''), snd=L.welcome_sound, up=!!(H().sound&&L.id);
+  return `<details class="more" data-k="pw-${n}"><summary>Welcome and birthday</summary><div class="set access pmset">
+    <span>Welcome colour</span><span><select data-wc="${n}" aria-label="Welcome colour for ${n}"><option value="">Reader's colour</option>${COLOURS().map(c=>`<option${c===L.welcome_colour?' selected':''}>${esc(c)}</option>`).join('')}</select> <span class="sub2">on the ring and on their MagicBand+</span></span>
+    <span>Welcome sound</span><span>${snd?`<b>${esc(snd)}</b> <button class="btn sm" data-snd-play="${pid}">Play here</button> <button class="btn sm" data-snd-reader="${n}">Play on readers</button> <button class="btn sm ${ARM['snd'+(L.id||'')]?'arm':''}" data-snd-rm="${pid}" data-p="${n}" title="Asks for a second tap">${ARM['snd'+(L.id||'')]?'Tap again to remove':'Remove'}</button>`:'<span class="sub2">None: the reader’s tap-in sound</span>'}
+      ${up?`<label class="btn sm" style="cursor:pointer">${snd?'Replace':'Upload'}…<input type="file" accept="audio/mpeg,audio/wav,audio/x-wav,audio/flac,audio/ogg,.mp3,.wav,.flac,.ogg" data-snd-file="${pid}" data-p="${n}" hidden></label>`:'<span class="sub2">Upload it from the MagicbHAnds page in Home Assistant.</span>'}
+      <div class="sub2">Plays on the reader instead of its tap-in sound when ${n} is welcomed (MP3, WAV, FLAC or Ogg, up to 2 MB; a few seconds is best). The reader’s Sound and Sound at night settings still apply.</div></span>
+    <span>Birthday</span><span><select data-bm="${n}" aria-label="Birthday month"><option value="">Month</option>${MONTHS.map((m,i)=>`<option value="${String(i+1).padStart(2,'0')}"${+bm===i+1?' selected':''}>${m}</option>`).join('')}</select> <select data-bd="${n}" aria-label="Birthday day"><option value="">Day</option>${Array.from({length:31},(_,i)=>`<option value="${String(i+1).padStart(2,'0')}"${+bd===i+1?' selected':''}>${i+1}</option>`).join('')}</select> <span class="sub2">the Birthday show plays after their welcome that day</span></span>
   </div></details>`; }
 
 // ───────── lockdown, celebrations and the passport (house settings) ─────────
@@ -490,7 +572,7 @@ const tgS=(k,C,label)=>`<button class="tg${C[k]?' on':''}" data-stg="${k}" aria-
 function rulesCard(){ const el=$('rules'), C=LIST&&LIST.settings; if(!C){ el.innerHTML='<p class="muted">Loading…</p>'; return; }
   const R=LIST.lockdown||[], ex=(LIST.people||[]).filter(p=>p.lockdown_exempt).map(p=>p.name), alarms=Object.keys(H().all()).filter(e=>e.startsWith('alarm_control_panel.'));
   el.innerHTML=`<p style="margin:0 0 4px">${R.length?`<span class="tag no" style="margin:0">Lockdown</span> ${esc(R.join(' · '))}`:'<span class="tag yes" style="margin:0">Open</span> Not in lockdown now.'}</p>
-    <p class="sub2" style="margin:0">During lockdown only ${ex.length?'<b>'+esc(ex.join(', '))+'</b>':'<b>nobody</b>'} ${ex.length===1?'gets':'get'} in. Choose who under People → Birthday, welcome sound, lockdown, guest pass.</p>
+    <p class="sub2" style="margin:0">During lockdown only ${ex.length?'<b>'+esc(ex.join(', '))+'</b>':'<b>nobody</b>'} ${ex.length===1?'gets':'get'} in. Choose who in each person’s <b>Access</b> below (Gets in during lockdown).</p>
     <div class="set access pmset"><span>Lockdown now</span><span>${tgS('lockdown',C,'Lockdown now')}</span>
     <span>When nobody's home</span><span>${tgS('lockdown_away',C,"When nobody's home")}</span>
     <span>At night</span><span>${tgS('lockdown_night',C,'At night')} <input type="time" data-st="lockdown_from" value="${esc(C.lockdown_from)}"> to <input type="time" data-st="lockdown_until" value="${esc(C.lockdown_until)}"></span>
@@ -498,16 +580,16 @@ function rulesCard(){ const el=$('rules'), C=LIST&&LIST.settings; if(!C){ el.inn
 function celebCard(){ const el=$('celeb'), C=LIST&&LIST.settings; if(!C){ el.innerHTML=''; return; }
   const T=LIST.today||{}, U=LIST.upcoming||[], today=[...(T.holidays||[]).map(h=>h.name),...(T.birthdays||[]).map(n=>n+'’s birthday')];
   el.innerHTML=`<p style="margin:0 0 4px">${today.length?'🎉 Today: <b>'+esc(today.join(', '))+'</b>':'Nothing to celebrate today.'}</p>
-    <p class="sub2" style="margin:0">After a welcome the reader plays one show: a new passport stamp first, then a birthday, then the day's holiday. Birthdays are set per person under People.</p>
+    <p class="sub2" style="margin:0">After a welcome the reader plays one show: a new passport stamp first, then a birthday, then the day's holiday. Birthdays are set per person: <b>Welcome and birthday</b> under their name.</p>
     <div class="set access pmset"><span>Holiday shows</span><span>${tgS('holiday_shows',C,'Holiday shows')}</span>
     <span>Birthday shows</span><span>${tgS('birthday_shows',C,'Birthday shows')}</span>
     <span>Tap passport</span><span>${tgS('passport',C,'Tap passport')}</span>
-    <span>Stamp show for a new badge</span><span>${tgS('passport_shows',C,'Stamp show')}</span></div>
+    <span>Show when a new stamp is earned</span><span>${tgS('passport_shows',C,'Show when a new stamp is earned')}</span></div>
     <p class="sub2" style="margin:12px 0 0">Coming up (tap one to preview its show on the reader):</p>
     <div class="btns">${U.map(u=>`<button class="btn sm" data-preview="${esc(u.show)}">${esc(u.name)} · ${esc(new Date(u.date+'T12:00').toLocaleDateString([], {month:'short',day:'numeric'}))}</button>`).join('')}<button class="btn sm" data-preview="Birthday">Birthday</button><button class="btn sm" data-preview="Stamp">Passport stamp</button></div>
     <details class="more" data-k="allshows"><summary>Every celebration show</summary><div class="btns">${['New Year','Valentine','St Patrick','Easter','Stars and Stripes','Halloween','Thanksgiving','Hanukkah','Christmas'].map(s=>`<button class="btn sm" data-preview="${esc(s)}">${esc(s)}</button>`).join('')}</div></details>`; }
 function passportCards(){ const el=$('passport'); if(!LIST||!LIST.settings){ el.innerHTML=''; return; }
-  if(!LIST.settings.passport){ el.innerHTML='<p class="muted">The tap passport is off (Celebrations).</p>'; return; }
+  if(!LIST.settings.passport){ el.innerHTML='<p class="muted">The tap passport is off (turn it on above).</p>'; return; }
   const P=(LIST.people||[]).filter(p=>p.passport);
   el.innerHTML=P.length?P.map(p=>{ const pp=p.passport, got=pp.badges.filter(b=>b.earned).length;
     return `<div class="tc"><h3 style="margin:0">${esc(p.name)} <small class="sub2">${got} of ${pp.badges.length} stamps</small></h3>
@@ -526,40 +608,48 @@ function enrolBar(I){ const us=unknownSensor(I), en=us?A(us).enrolling:null;
   $('enrol-stop').onclick=()=>act(mb('stop_enrolment',{}),'es',null,'').then(load); }
 // Recent taps: 10 a page, Newer / Older.
 function bindPager(){ document.querySelectorAll('#hist [data-hp]').forEach(x=>x.onclick=()=>{ HIST_PAGE+=parseInt(x.dataset.hp,10)||0; histList(); bindPager(); });
-  document.querySelectorAll('#hist [data-snapdays]').forEach(x=>x.onchange=()=>{ const v=parseInt(x.value,10); if(!(v>=1&&v<=365)){ x.value=SNAP_DAYS??30; note('snapdays','bad','Pictures: 1–365 days.'); return; } act(mb('set_snapshot_days',{days:v}),'sd','snapdays','Saved: pictures are kept for '+v+' day'+(v===1?'':'s')+'.',()=>{ x.value=SNAP_DAYS??30; }).then(load); });
   document.querySelectorAll('#hist [data-snap]').forEach(x=>x.onclick=()=>{ const o=document.createElement('div'); o.id='snappop';
     o.innerHTML=`<img src="${esc(x.dataset.snap)}" alt="Picture of this tap">`; o.onclick=()=>o.remove(); document.body.appendChild(o); }); }
 function histList(I){ const all=HIST||[], pages=Math.max(1,Math.ceil(all.length/HIST_PER)); HIST_PAGE=Math.min(Math.max(0,HIST_PAGE),pages-1);
   const from=HIST_PAGE*HIST_PER, L=all.slice(from,from+HIST_PER);
   const pager=pages>1?`<div class="pager"><button class="btn sm" data-hp="-1"${HIST_PAGE?'':' disabled'}>‹ Newer</button><span class="sub2">${from+1}–${from+L.length} of ${all.length}${all.length>=300?'+':''} · page ${HIST_PAGE+1} of ${pages}</span><button class="btn sm" data-hp="1"${HIST_PAGE<pages-1?'':' disabled'}>Older ›</button></div>`:'';
-  const keep=CAMS&&Object.keys(CAMS).length?`<div class="bar" style="margin:0 0 8px"><label>Camera pictures are kept for <input type="text" inputmode="numeric" size="3" data-snapdays value="${esc(SNAP_DAYS??30)}"> days</label><span class="sub2">click a picture to enlarge it; set each reader's camera on its card</span></div>${msgLine('snapdays')}`:'';
-  $('hist').innerHTML=L.length?keep+`<div style="overflow-x:auto"><table class="t"><tr><th>When</th><th>Band</th><th>Reader</th><th></th>${L.some(t=>t.snapshot_url)?'<th>Picture</th>':''}</tr>${L.map(t=>`<tr><td>${esc(rel(t.time))}</td><td>${esc(t.name||t.band)}${t.person?' <span class="sub2">'+esc(t.person)+'</span>':''}</td><td>${esc(t.reader||'–')}</td><td>${t.enrolled?'<span class="tag yes">enrolled</span>':t.allowed?'<span class="tag yes">welcomed</span>':'<span class="tag no">denied</span>'}${(t.badges||[]).map(b=>' <span class="tag">'+esc(b)+'</span>').join('')}</td>${L.some(x=>x.snapshot_url)?`<td>${t.snapshot_url?`<img class="snap" src="${esc(t.snapshot_url)}" data-snap="${esc(t.snapshot_url)}" alt="Picture of this tap" loading="lazy">`:''}</td>`:''}</tr>`).join('')}</table></div>${pager}`
+  const full=t=>{ const d=new Date(t); return isNaN(d)?'':d.toLocaleString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}); };
+  // a band nobody owns, turned away: link to its card under New bands
+  const assign=t=>!t.allowed&&!t.enrolled&&!t.person&&UNK.has(t.band)?` <a href="#unk-${esc(slugId(t.band))}" data-go="unk-${esc(slugId(t.band))}" data-focus>Assign…</a>`:'';
+  $('hist').innerHTML=L.length?`<div style="overflow-x:auto"><table class="t"><tr><th>When</th><th>Band</th><th>Reader</th><th></th>${L.some(t=>t.snapshot_url)?'<th>Picture</th>':''}</tr>${L.map(t=>`<tr><td title="${esc(full(t.time))}">${esc(rel(t.time))}</td><td>${esc(t.name||t.band)}${t.person?' <span class="sub2">'+esc(t.person)+'</span>':''}</td><td>${esc(t.reader||'–')}</td><td>${t.enrolled?'<span class="tag yes">enrolled</span>':t.allowed?'<span class="tag yes">let in</span>':'<span class="tag no">turned away</span>'}${(t.badges||[]).map(b=>' <span class="tag">'+esc(b)+'</span>').join('')}${assign(t)}</td>${L.some(x=>x.snapshot_url)?`<td>${t.snapshot_url?`<img class="snap" src="${esc(t.snapshot_url)}" data-snap="${esc(t.snapshot_url)}" alt="Picture of this tap" loading="lazy">`:''}</td>`:''}</tr>`).join('')}</table></div>${pager}${L.some(t=>t.snapshot_url)?'<p class="sub2" style="margin:6px 0 0">Click a picture to enlarge it. Cameras and how long pictures are kept are under Readers.</p>':''}`
     :`<p class="muted" style="margin:0">${HIST?'No taps yet.':!HIST_ERR?'Loading…':/not allowed/i.test(HIST_ERR)?"This page's host doesn't allow the tap history yet; it's on the MagicbHAnds page in the sidebar."
       :/unauthori[sz]ed|admin/i.test(HIST_ERR)?'Only administrators can see the tap history.':'Couldn’t load the tap history: '+esc(HIST_ERR)}</p>`; }
 const SYNC_LABEL={up_to_date:'up to date',failed:'not applied',unconfirmed:'sent (update the reader to confirm)',offline:'reader offline',waiting:'waiting'};
 const EVERY_BAND='Welcome every band';
 const devKey=d=>String(d.id).replace(/[^\w]/g,'');
-function readerCards(I,RD,B){ $('readers').innerHTML=RD.map(d=>{ const p=l=>pick(I,d,l[0],l[1]), on=online(I,d), mk='rd'+devKey(d);
+// above the reader cards: re-send the list, how long camera pictures are kept, and how the ring previews are drawn
+function readersBar(){ const cam=CAMS&&Object.keys(CAMS).length, diff=TWIN_STYLE==='diffused';
+  $('readers-bar').innerHTML=`<button class="btn" id="sync" data-sync title="The readers get the list on their own after every change; this sends it again now"${BUSY.sync?' disabled':''}>Re-send list to readers</button>
+    ${cam?`<label>Camera pictures are kept for <input type="text" inputmode="numeric" size="3" data-snapdays value="${esc(SNAP_DAYS??30)}"> days</label>`:''}
+    <span class="seg" role="group" aria-label="Ring preview"><span>Ring preview</span><button class="btn sm${diff?'':' on'}" data-twstyle="leds" aria-pressed="${!diff}">LEDs</button><button class="btn sm${diff?' on':''}" data-twstyle="diffused" aria-pressed="${diff}">Diffused</button></span>${msgLine('rdbar')}`; }
+function readerCards(I,RD,B){ $('readers').innerHTML=RD.map(d=>{ const p=l=>pick(I,d,l[0],l[1]), on=online(I,d), mk='rd'+devKey(d), R=readerState(I,d);
     const kb=pick(I,d,'sensor','Known bands'), lbS=(I.byDev[d.id]||[]).find(e=>e.startsWith('sensor.')&&'band_id' in A(e))||pick(I,d,'sensor','Last band'), lbV=lbS?S(lbS).state:null;
     const lbName=lbS&&'band_id' in A(lbS)?lbV:(lbV&&bandName(I,lbV)), sp=p(['media_player','Speaker']), vol=sp?A(sp).volume_level:null, ring=p(['light','Ring']);
-    return `<section class="tc" data-mk="${mk}"><h3><span><span class="dot2 ${on?'':'off'}"></span>${esc(dname(d))}</span><small>${esc(d.area||'no area')}${firmware(I,d)?' · firmware '+esc(firmware(I,d)):''}</small></h3>
-      ${twinHTML(p,ring,sp,on,lbV&&!/unknown|unavailable/.test(lbV)?(lbName||lbV):'')}
+    const lastBand=lbV&&!/unknown|unavailable/.test(lbV)?(lbName||lbV):'', st=R.st, cls=st==='up_to_date'?'yes':st&&st!=='waiting'?'no':'', HT=healthTiles(I,d), rs=p(['button','Restart']);
+    const tags=(on?'<span class="tag yes">Online</span>':'<span class="tag no">Offline</span>')
+      +(R.locked?'<span class="tag no" title="Too many turned-away taps: the reader ignores taps until the lockout time is up">Locked out</span>':'')
+      +(R.night?'<span class="tag" title="Night glow and night sound are on">Night</span>':'')
+      +(R.unpaired?'<span class="tag no" title="Pairing finishes when a band (any band) is tapped on this reader while its ring breathes blue">Not paired</span>':'')
+      +(R.every?'<span class="tag no" title="Response mode is Welcome every band: any band gets in, even ones nobody owns">Lets every band in</span>':'');
+    const cams=Object.keys(H().all()||{}).filter(e=>e.startsWith('camera.')).sort(), cur=CAMS?CAMS[d.id]||'':'';
+    return `<section class="tc" id="${mk}" data-mk="${mk}"><h3><span><span class="dot2 ${on?'':'off'}"></span>${esc(dname(d))}<span class="tags">${tags}</span></span><small>${esc(d.area||'no area')}${firmware(I,d)?' · firmware '+esc(firmware(I,d)):''}</small></h3>
+      ${twinHTML(p,ring,sp,on,lastBand)}
+      <p class="stl">${st?`<span class="tag ${cls}">list ${esc(SYNC_LABEL[st]||st)}</span>`:''}<span>Last band: <b>${lastBand?esc(lastBand):'–'}</b></span>${kb&&avail(kb)?`<span>${Math.round(num(kb))} known bands</span>`:''}${R.up?'<span class="tag no">update available</span>':''}</p>
+      ${R.err?`<p class="sub2" style="margin:0 0 4px;color:var(--bad)">${esc(R.err)}</p>`:''}
       <div class="row"><span>Response mode</span>${selectFor(p(['select','Response mode']))}</div>
-      <div class="row"><span>Known bands</span><span class="r">${kb&&avail(kb)?Math.round(num(kb)):'–'}</span></div>
-      ${(()=>{ const al=p(['sensor','Allowed list']), up=(I.byDev[d.id]||[]).find(e=>e.startsWith('update.')&&S(e).state==='on'), st=al?S(al).state:null, cls=st==='up_to_date'?'yes':st&&st!=='waiting'?'no':'';
-        // firmware 0.10.20+ says whether it's paired with this integration; a first pairing waits for a band tap on the reader
-        const pr=p(['binary_sensor','Paired with MagicbHAnds']), unpaired=on&&pr&&avail(pr)&&S(pr).state==='off', rm=p(['select','Response mode']), every=rm&&avail(rm)&&S(rm).state===EVERY_BAND;
-        return `<div class="row"><span>Health</span><span class="r" style="white-space:normal">${!on?'<span class="tag no">offline</span> ':''}${st?`<span class="tag ${cls}">list ${esc(SYNC_LABEL[st]||st)}</span>`:''}${up?' <span class="tag no">update available</span>':''}${unpaired?' <span class="tag no" title="Pairing finishes when a band (any band) is tapped on this reader while its ring breathes blue">Not paired: tap a band on it within 2 min of pairing</span>':''}${every?' <span class="tag no" title="Response mode is Welcome every band: any band gets in, even ones nobody owns">Lets every band in</span>':''}${on&&!up&&!unpaired&&!every&&st==='up_to_date'?' <span class="sub2">all good</span>':''}</span></div>${al&&A(al).error?`<p class="sub2" style="margin:2px 0 0">${esc(A(al).error)}</p>`:''}${healthTiles(I,d)}`; })()}
-      <div class="row"><span>Last band</span><span class="r" style="white-space:normal">${lbV&&!/unknown|unavailable/.test(lbV)?esc(lbName||lbV):'–'}</span></div>
       <div class="row"><span>Sound</span>${tg(p(['switch','Sound']),'Sound')}</div>
-      <div class="row"><span>Light up MagicBand+</span>${tg(p(['switch','Light up MagicBand+']),'Light up MagicBand+')}</div>
-      ${p(['select','Band light-up power'])?`<div class="row"><span>Band light-up power <span class="sub2">(how far the light-up reaches)</span></span>${selectFor(p(['select','Band light-up power']))}</div>`:''}
+      <div class="row"><span>Volume</span>${sp?`<span><input type="range" min="0" max="100" value="${vol!=null?Math.round(vol*100):50}" data-vol="${esc(sp)}" aria-label="Speaker volume"${avail(sp)?'':' disabled'}> <span class="sub2">${vol!=null?Math.round(vol*100)+'%':''}</span></span>`:'<span class="muted">–</span>'}</div>
       <div class="row"><span>Ring light</span>${tg(ring,'Ring light')}</div>
-      <div class="row"><span>Speaker volume</span>${sp?`<span><input type="range" min="0" max="100" value="${vol!=null?Math.round(vol*100):50}" data-vol="${esc(sp)}"${avail(sp)?'':' disabled'}> <span class="sub2">${vol!=null?Math.round(vol*100)+'%':''}</span></span>`:'<span class="muted">–</span>'}</div>
-      <div class="btns">${bt(p(['button','Test welcome']),'Test welcome')}${bt(p(['button','Play show']),'Play show')}${(()=>{ const r=p(['button','Restart']); return r?`<button class="btn sm ${ARM['rs'+r]?'arm':''}" data-restart="${esc(r)}"${avail(r)?'':' disabled'}>${ARM['rs'+r]?'Tap again to restart':'Restart'}</button>`:''; })()}</div>
-      ${(()=>{ const cams=Object.keys(H().all()||{}).filter(e=>e.startsWith('camera.')).sort(); if(!cams.length||CAMS===null) return ''; const cur=CAMS[d.id]||'';
-        return `<div class="row"><span>Camera <span class="sub2">(a picture with each tap; optional)</span></span><select data-cam="${esc(d.id)}"><option value=""${cur?'':' selected'}>No camera</option>${cams.map(c=>`<option value="${esc(c)}"${c===cur?' selected':''}>${esc((A(c)&&A(c).friendly_name)||c)}</option>`).join('')}</select></div>`; })()}
+      ${cams.length&&CAMS!==null?`<div class="row"><span>Camera <span class="sub2">(a picture with each tap; optional)</span></span><select data-cam="${esc(d.id)}" aria-label="Camera"><option value=""${cur?'':' selected'}>No camera</option>${cams.map(c=>`<option value="${esc(c)}"${c===cur?' selected':''}>${esc((A(c)&&A(c).friendly_name)||c)}</option>`).join('')}</select></div>`:''}
+      <div class="btns">${bt(p(['button','Test welcome']),'Test welcome')}${bt(p(['button','Play show']),'Play show')}</div>
       ${msgLine(mk)}
+      <details class="more hp" data-k="h-${esc(d.id)}"><summary>Health${HT.sum?` <span class="sub2">· ${esc(HT.sum)}</span>`:''}</summary>${HT.html}
+        ${rs?`<div class="btns"><button class="btn sm ${ARM['rs'+rs]?'arm':''}" data-restart="${esc(rs)}" title="Asks for a second tap"${avail(rs)?'':' disabled'}>${ARM['rs'+rs]?'Tap again to restart':'Restart'}</button></div>`:''}</details>
       <details class="more" data-k="${esc(d.id)}"><summary>Ring and tap settings</summary>${readerSettings(p,mk)}</details></section>`; }).join('')||'<p class="muted">No MagicBand readers found (ESPHome model magicband-reader).</p>'; }
 
 // The readers' light shows, a copy of components/magicband/shows.h for the live ring: keep the two in step.
@@ -689,7 +779,7 @@ function twinHTML(p,ring,sp,on,band,size){ if(!ring) return '';
     <circle cx="70" cy="70" r="${R-6}" fill="url(#twp${k})" stroke="#b7bac0" stroke-width="1.5"/>
     <path d="M${70-(R-13)} 60a${R-13} ${R-13} 0 0 1 ${2*(R-13)} 0" fill="none" stroke="#fff" stroke-opacity=".10" stroke-width="3" stroke-linecap="round"/>
     <svg x="${70-(R-17)}" y="${70-(R-17)}" width="${2*(R-17)}" height="${2*(R-17)}" viewBox="0 0 100 100" class="tw-emblem">${emb}</svg></g></svg>
-    <div class="tw-side"><b class="tw-cap">&nbsp;</b><span class="tw-sub sub2">&nbsp;</span>${size?'<span class="tw-live sub2"><span class="dot" id="ldot"></span> <span id="lstatus">Connecting to Home Assistant…</span></span>':`<span class="seg"><button class="btn sm${diff?'':' on'}" data-twstyle="leds">LEDs</button><button class="btn sm${diff?' on':''}" data-twstyle="diffused">Diffused</button></span>`}</div></div>`; }
+    <div class="tw-side"><b class="tw-cap">&nbsp;</b><span class="tw-sub sub2">&nbsp;</span>${size?'<span class="tw-live sub2"><span class="dot" id="ldot"></span> <span id="lstatus">Connecting to Home Assistant…</span></span>':''}</div></div>`; }
 function twinNight(ids){ const nn=ids['Night now']&&S(ids['Night now']); if(nn&&(nn.state==='on'||nn.state==='off')) return nn.state==='on';  // the reader's own answer
   const g=l=>ids[l]&&S(ids[l])?S(ids[l]).state:null, f=l=>parseFloat(g(l))||0, now=new Date(), m=now.getHours()*60+now.getMinutes();
   let from=f('Night from')*60, until=f('Night until')*60;
@@ -717,9 +807,9 @@ function twinFrame(){
     else if(eff==='Welcome'){ const fi=num('Welcome fade in',0.15)*1000, ho=num('Welcome hold',1)*1000, fo=num('Welcome fade out',1)*1000, cyc=fi+ho+fo+200, k=Math.floor(t/cyc), q=t%cyc;
       let lv=0; if(k<num('Welcome pulses',1)) lv=q<fi?q/fi:q<fi+ho?1:q<fi+ho+fo?1-(q-fi-ho)/fo:0; L.fill(br*lv); cap='Welcome'+(tw.dataset.band?', '+tw.dataset.band:''); }
     else if(eff==='Pulse'){ const om=num('Pulse time',0.45)*1000, gm=om/3, k=Math.floor(t/(om+gm)), q=t%(om+gm);
-      L.fill(k<num('Denied pulses',2)&&q<om?br*Math.sin(Math.PI*q/om):0); cap='Not allowed'; sub=tw.dataset.band||''; }
+      L.fill(k<num('Denied pulses',2)&&q<om?br*Math.sin(Math.PI*q/om):0); cap='Turned away'; sub=tw.dataset.band||''; }
     else if(SHOW_NAMES.includes(eff)){ cap='Light show: '+eff; const R=renderShow(SHOW_NAMES.indexOf(eff),t,n); tw._cols=R?R.map(x=>x[0].map(v=>v*255)):null; if(R) R.forEach((x,i)=>L[i]=x[1]); }
-    else if(eff==='Locked out'){ rgb=[255,40,40]; L.fill(0.1+0.9*(0.5-0.5*Math.cos(2*Math.PI*t/4000))); cap='Locked out'; sub='Too many refused taps'; }
+    else if(eff==='Locked out'){ rgb=[255,40,40]; L.fill(0.1+0.9*(0.5-0.5*Math.cos(2*Math.PI*t/4000))); cap='Locked out'; sub='Too many turned-away taps'; }
     else if(eff==='Offline'){ L.fill(0.15+0.85*(0.5-0.5*Math.cos(2*Math.PI*t/3000))); cap='Waiting for Home Assistant'; }
     else if(eff==='Warm glow'){ rgb=[255,196,120]; L.fill(num(night?'Idle glow at night':'Idle glow',30)/100); sub=night?'Night glow':'Idle glow'; }
     else { L.fill(br); if(eff==='None') sub=night?'Night glow':'Idle glow'; else cap='Effect: '+eff; }
@@ -759,30 +849,39 @@ function readerSettings(p,mk){
   let shape='';
   if(![fi,ho,fo].some(isNaN)){ const tot=Math.max(fi+ho+fo,0.1), W=150, H=26, x=t=>(t/tot*W).toFixed(1);
     shape=`<div class="shape"><svg viewBox="0 0 ${W} ${H+2}" width="${W}" height="${H+2}" aria-hidden="true"><polygon points="0,${H+1} ${x(fi)},1 ${x(fi+ho)},1 ${W},${H+1}" fill="${wc}" fill-opacity=".35" stroke="${wc}" stroke-width="1.5"/></svg><span class="sub2">${fi} s up · ${ho} s on · ${fo} s fade, ${(fi+ho+fo).toFixed(2).replace(/\.?0+$/,'')} s in all</span></div>`; }
+  const style=v('select','Idle style'), styleN=v('select','Idle style at night'), circ=style==null||style==='Circle'||styleN==='Circle';
+  const sn=v('select','Sound at night'), quiet=sn==null||sn==='Quieter', nowN=v('binary_sensor','Night now');
+  const lockSw=p(['switch','Refused-tap lockout']), locked=v('binary_sensor','Tap lockout')==='on';
+  // each group: title, sub-title, rows ([domain, entity name, label], or {full: html} across both columns), hint, and
+  // hw (changing it restarts the reader, so it takes a second pick)
   const G=[
-    ['Ring',[['select','Ring type','Type'],['number','LED count','LEDs'],['select','LED colour order','Colour order'],['number','LED brightness','Brightness'],['select','Startup show','Start-up show'],['select','Show','Play show plays']],
-      'Changing the type restarts the reader. RGBW rings have a white LED in each pixel.'],
-    ['Waiting for a band',[['select','Idle style','Style'],['select','Idle style at night','Style at night'],['select','Idle colour','Colour'],['number','Idle glow','Glow (0 = off)'],['number','Idle circle time','Each circle'],['number','Idle circle tail','Tail (0 = auto)'],['number','Idle tail fade','Tail ends at'],['number','Idle circle heads','Heads'],['select','Idle circle direction','Direction']],'Static glows steadily; Circle goes round in the idle colour at the idle glow, with its own speed, tail and heads (the circle settings apply to Circle only). Pulses amber instead while Home Assistant is away.'],
-    ['Night',[['number','Idle glow at night','Glow'],['select','Sound at night','Sound'],['number','Night volume','Volume (Quieter)'],['select','Night mode','Night is'],
-      ...(sunMode?[['number','Night starts after sunset','Starts after sunset'],['number','Night ends after sunrise','Ends after sunrise']]
-                 :[['number','Night from','From (hour)'],['number','Night until','Until (hour)']])],
-      (v('binary_sensor','Night now')!=null?(v('binary_sensor','Night now')==='on'?'Night glow is on now. ':'Day glow now. '):'')+night+(sunMode?' Offsets are minutes: 120 = 2 hours after, −120 = 2 hours before.':'')],
-    ['Checking a band',[['select','Checking colour','Colour'],['number','Checking circles','Circles'],['number','Circle time','Each circle'],['number','Circle tail','Tail (0 = auto)']]],
-    ['Welcome',[['select','Welcome colour','Colour'],['number','Welcome fade in','Fade in'],['number','Welcome hold','Stay on'],['number','Welcome fade out','Fade out'],['number','Welcome pulses','Repeat']],
-      'A person\'s own welcome colour (People) replaces this colour for their bands.',shape],
-    ['Denied',[['select','Denied colour','Colour'],['number','Denied pulses','Pulses'],['number','Pulse time','Each pulse']]],
-    ['Refused taps',[['switch','Refused-tap lockout','Lockout'],['number','Lockout after','After'],['number','Lockout window','Within'],['number','Lockout time','For']],
-      (v('binary_sensor','Tap lockout')==='on'?'Locked out now: the reader is ignoring taps until the time is up (turn Lockout off to end it). ':'')
-      +'With Lockout on, that many refused taps within the time stop the reader taking taps for a while; Home Assistant shows a notification and fires magicband_lockout.'],
+    {t:'Waiting for a band',rows:[['select','Idle style','Style'],['select','Idle colour','Colour'],['number','Idle glow','Glow (0 = off)'],
+      ...(circ?[['number','Idle circle time','One lap takes'],['number','Idle circle tail','Tail (0 = auto)'],['number','Idle tail fade','Tail fades to'],['number','Idle circle heads','Heads'],['select','Idle circle direction','Direction']]:[])],
+      hint:'Static glows steadily; Circle goes round in the idle colour at the idle glow'+(circ?', with its own lap time, tail and heads':' (its lap, tail and heads show here when Style or Style at night is Circle)')+'. Pulses amber instead while Home Assistant is away.'},
+    {t:'Night',rows:[['select','Night mode','Night runs'],
+      ...(sunMode?[['number','Night starts after sunset','Starts after sunset'],['number','Night ends after sunrise','Ends after sunrise']]:[['number','Night from','Night from'],['number','Night until','Night until']]),
+      {full:`<p class="hint full">${esc((nowN!=null?(nowN==='on'?'Night now. ':'Day now. '):'')+night+(sunMode?' Offsets are minutes: 120 = 2 hours after, −120 = 2 hours before.':''))}</p>`},
+      ['select','Idle style at night','Style at night'],['number','Idle glow at night','Glow at night'],['select','Sound at night','Sound at night'],...(quiet?[['number','Night volume','Quieter volume']]:[])]},
+    {t:'Reading a band',rows:[['select','Checking colour','Colour'],['number','Checking circles','Circles'],['number','Circle time','One lap takes'],['number','Circle tail','Tail (0 = auto)']]},
+    {t:'Welcome',rows:[['select','Welcome colour','Colour'],['number','Welcome fade in','Fade in'],['number','Welcome hold','Stay on'],['number','Welcome fade out','Fade out'],['number','Welcome pulses','Pulses'],
+      {full:shape?shape.replace('class="shape"','class="shape full"'):''},['switch','Light up MagicBand+','Light up MagicBand+'],['select','Band light-up power','Band light-up power']],
+      hint:'A person’s own welcome colour (People) replaces this colour for their bands. Light up MagicBand+ lights the band on the wrist too; Band light-up power is how far that reaches.'},
+    {t:'Denied',rows:[['select','Denied colour','Colour'],['number','Denied pulses','Pulses'],['number','Pulse time','Each pulse']]},
+    {t:'Refused-tap lockout',sub:'not the house Lockdown',rows:[['switch','Refused-tap lockout','Lockout'],['number','Lockout after','After'],['number','Lockout window','Within'],['number','Lockout time','For']],
+      extra:locked&&lockSw?`<div class="btns"><button class="btn sm pri" data-endlock="${esc(lockSw)}" title="Turns Lockout off, which ends it">End lockout now</button></div>`:'',
+      hint:(locked?'Locked out now: the reader is ignoring taps until the time is up. ':'')+'With Lockout on, that many turned-away taps within the time stop the reader taking taps for a while; Home Assistant shows a notification and fires magicband_lockout.'},
+    {t:'Shows',rows:[['select','Startup show','Start-up show'],['select','Show','Show for “Play show”']]},
+    {t:'Hardware',hw:true,rows:[['select','Ring type','Ring type'],['number','LED count','LED count'],['select','LED colour order','Colour order'],['number','LED brightness','Max brightness']],
+      warn:'⚠ Changing these restarts the reader. Pick (or enter) the new value twice to confirm.',hint:'RGBW rings have a white LED in each pixel.'},
   ];
-  const html=G.map(([title,rows,hint,extra],gi)=>{ const r=rows.map(([dom,l,lab])=>{ const c=setCtl(p([dom,l]),dom); return c?`<span title="${esc(l)}">${esc(lab)}</span>${c}`:''; }).join('');
+  const html=G.map((g,gi)=>{ let n=0; const r=g.rows.map(x=>{ if(!Array.isArray(x)) return x.full||''; const [dom,l,lab]=x, c=setCtl(p([dom,l]),dom); if(!c) return ''; n++; return `<span class="lab" title="${esc(l)}">${esc(lab)}</span>${c}`; }).join('');
     const gk=(mk||'sg')+'g'+gi;
-    return r?`<div class="sg" data-mk="${gk}"><h4>${esc(title)}</h4><div class="set">${r}</div>${msgLine(gk)}${extra||''}${hint?`<p class="hint">${esc(hint)}</p>`:''}</div>`:''; }).join('');
+    return n?`<div class="sg${g.hw?' hw':''}" data-mk="${gk}"${g.hw?' data-hw="1"':''}><h4>${esc(g.t)}${g.sub?` <small>${esc(g.sub)}</small>`:''}</h4>${g.warn?`<p class="warnl">${esc(g.warn)}</p>`:''}<div class="set">${r}</div>${msgLine(gk)}${g.extra||''}${g.hint?`<p class="hint">${esc(g.hint)}</p>`:''}</div>`:''; }).join('');
   return html?`<div class="sgs">${html}</div>`:'<p class="muted">This reader\'s firmware has no ring settings.</p>'; }
 
 // Health tiles from the device's diagnostic sensors (reader, bridge and BP2 names), whichever it has
 function healthTiles(I,d){ const g=(...ls)=>{ for(const l of ls){ const e=pick(I,d,'sensor',l); if(e&&avail(e)&&!/unknown|unavailable/.test(S(e).state)) return e; } return null; };
-  const T=[], F=[], n=e=>parseFloat(S(e).state);
+  const T=[], F=[], SUM=[], n=e=>parseFloat(S(e).state);
   const dur=secs=>secs<3600?Math.max(1,Math.round(secs/60))+' min':secs<86400?Math.floor(secs/3600)+' h '+Math.round((secs%3600)/60)+' m':Math.floor(secs/86400)+' d '+Math.round((secs%86400)/3600)+' h';
   // "Reboot request from http_request.update" -> "after an update"; the full text is in the tooltip
   const why=r=>{ const t=String(r||''); return /http_request|update|ota/i.test(t)?['','updated']:/brownout/i.test(t)?['w','power dip']
@@ -790,13 +889,13 @@ function healthTiles(I,d){ const g=(...ls)=>{ for(const l of ls){ const e=pick(I
     :/reboot|restart|software/i.test(t)?['','restarted']:['',t.slice(0,14)]; };
   const wf=g('Wi-Fi signal','WiFi Signal');
   if(wf){ const v=n(wf), bars=v>=-55?4:v>=-65?3:v>=-75?2:1, c=v>=-65?'ok':v>=-75?'w':'b';
-    T.push([c,'Wi-Fi',`<span class="wbars">${[1,2,3,4].map(k=>`<i class="${k<=bars?'on':''}" style="height:${k*3}px"></i>`).join('')}</span>${Math.round(v)}`,'dBm, '+(bars>=4?'excellent':bars===3?'good':bars===2?'fair':'weak'),'']); }
+    T.push([c,'Wi-Fi',`<span class="wbars">${[1,2,3,4].map(k=>`<i class="${k<=bars?'on':''}" style="height:${k*3}px"></i>`).join('')}</span>${Math.round(v)}`,'dBm, '+(bars>=4?'excellent':bars===3?'good':bars===2?'fair':'weak'),'']); SUM.push('Wi-Fi '+(bars>=4?'excellent':bars===3?'good':bars===2?'fair':'weak')); }
   const lr=g('Last restart'), up=g('Uptime'), rr=g('Reset reason','Reboot Reason');
   if(lr||up){ let secs=NaN;
     if(lr) secs=(Date.now()-Date.parse(S(lr).state))/1000;
     else { const m=String(S(up).state).match(/(?:(\d+)\s*d)?\s*(?:(\d+)\s*h)?\s*(?:(\d+)\s*m)?/); if(m&&(m[1]||m[2]||m[3])) secs=(+m[1]||0)*86400+(+m[2]||0)*3600+(+m[3]||0)*60; }
     const [c,txt]=rr?why(S(rr).state):['',''];
-    T.push([c,'Up for',isNaN(secs)?esc(S(up||lr).state):dur(secs),esc(txt),rr?S(rr).state:'']); }
+    T.push([c,'Up for',isNaN(secs)?esc(S(up||lr).state):dur(secs),esc(txt),rr?S(rr).state:'']); if(!isNaN(secs)) SUM.push('up '+dur(secs)+(c==='w'||c==='b'?' (after a '+txt+')':'')); }
   const tp=g('CPU temperature','CPU Temperature');
   if(tp){ const v=n(tp), u=A(tp).unit_of_measurement||'°C', c=/F/.test(u)?(v-32)*5/9:v;   // Home Assistant may show °F
     T.push([c>=75?'b':c>=65?'w':'ok','CPU',Math.round(v)+' '+esc(u),c>=75?'hot':c>=65?'warm':'normal','']); }
@@ -808,15 +907,17 @@ function healthTiles(I,d){ const g=(...ls)=>{ for(const l of ls){ const e=pick(I
   const ss=g('Wi-Fi network','SSID'), ip=g('IP address','IP Address');
   if(ss) F.push(`Network <b>${esc(S(ss).state)}</b>`);
   if(ip) F.push(`IP <b>${esc(S(ip).state)}</b>`);
-  if(!T.length&&!F.length) return '<p class="sub2" style="margin:8px 0 0">No health sensors yet: update the firmware to 0.10.5 or later.</p>';
-  return `<div class="hl">${T.map(([c,l,v,s2,tip])=>`<div class="${c}"${tip?` title="${esc(tip)}"`:''}><span>${esc(l)}</span><b>${v}</b>${s2?`<i>${s2}</i>`:''}</div>`).join('')}</div>`
-    +(F.length?`<div class="hlf">${F.join('<span>·</span>')}</div>`:''); }
+  if(!T.length&&!F.length) return {html:'<p class="sub2" style="margin:8px 0 0">No health sensors yet: update the firmware to 0.10.5 or later.</p>',sum:''};
+  // the one line shown while Health is closed: Wi-Fi, uptime, and anything that isn't normal
+  const sum=[...SUM,...T.filter(x=>x[0]==='w'||x[0]==='b').filter(x=>x[1]!=='Wi-Fi'&&x[1]!=='Up for').map(x=>x[1]==='CPU'?'CPU '+x[3]:x[1]==='Memory'?'memory low':x[1]==='Loop'?'slow loop':x[1])].join(' · ');
+  return {sum, html:`<div class="hl">${T.map(([c,l,v,s2,tip])=>`<div class="${c}"${tip?` title="${esc(tip)}"`:''}><span>${esc(l)}</span><b>${v}</b>${s2?`<i>${s2}</i>`:''}</div>`).join('')}</div>`
+    +(F.length?`<div class="hlf">${F.join('<span>·</span>')}</div>`:'')}; }
 function bridgeCards(I,BR){ $('bridges').innerHTML=BR.map(d=>{ const p=(dom,l)=>pick(I,d,dom,l), on=online(I,d), mk='br'+devKey(d);
-    return `<section class="tc" data-mk="${mk}"><h3><span><span class="dot2 ${on?'':'off'}"></span>${esc(dname(d))}</span><small>${esc(d.area||'no area')}${firmware(I,d)?' · firmware '+esc(firmware(I,d)):''}</small></h3>
-      <div class="row"><span>Fast mode</span>${tg(p('switch','Fast mode'),'Fast mode')}</div>
-      <div class="row"><span>Bluetooth proxy</span>${p('switch','Bluetooth proxy')?tg(p('switch','Bluetooth proxy'),'Bluetooth proxy'):'<span class="sub2">not on this bridge</span>'}</div>
-      <div class="btns">${bt(p('button','Wake bands'),'Wake bands')}${bt(p('button','Ping'),'Ping')}</div>${msgLine(mk)}
-      ${healthTiles(I,d)}</section>`; }).join('')||'<p class="muted">No MagicBand bridges found.</p>'; }
+    return `<section class="tc" id="${mk}" data-mk="${mk}"><h3><span><span class="dot2 ${on?'':'off'}"></span>${esc(dname(d))}</span><small>${esc(d.area||'no area')}${firmware(I,d)?' · firmware '+esc(firmware(I,d)):''}</small></h3>
+      <div class="row" title="Mixes the fast-mode ping into every broadcast, so bands listen continuously and effects reach them sooner (on by default)"><span>Fast mode <span class="hn">bands listen all the time, so effects land sooner</span></span>${tg(p('switch','Fast mode'),'Fast mode')}</div>
+      <div class="row" title="Also use this bridge as a Home Assistant Bluetooth proxy (off by default)"><span>Bluetooth proxy <span class="hn">also extends Home Assistant’s Bluetooth range</span></span>${p('switch','Bluetooth proxy')?tg(p('switch','Bluetooth proxy'),'Bluetooth proxy'):'<span class="sub2">not on this bridge</span>'}</div>
+      <div class="btns">${bt(p('button','Wake bands'),'Wake bands','','Sends the fast-mode ping on its own for 15 s: bands near this bridge wake up and react quickly to what follows')}${bt(p('button','Ping'),'Ping','','Sends a ping that bands answer: a quick check of which bands this bridge reaches')}</div>${msgLine(mk)}
+      ${healthTiles(I,d).html}</section>`; }).join('')||'<p class="muted">No MagicBand bridges found.</p>'; }
 
 // a setting's label as shown next to it ("LEDs"), else the entity's name
 const ctlLabel=(x,e)=>{ const s=(x.closest('.nu')||x).previousElementSibling, row=x.closest('.row'), t=s&&s.tagName==='SPAN'&&s.textContent.trim();
@@ -826,6 +927,10 @@ function wire(){ document.querySelectorAll('[data-tg]').forEach(x=>x.onclick=()=
   document.querySelectorAll('[data-press]').forEach(x=>x.onclick=()=>act(H().call('button','press',x.dataset.press),x.dataset.press,mkOf(x),x.textContent.trim()+': sent.'));
   document.querySelectorAll('[data-restart]').forEach(x=>x.onclick=()=>{ const e=x.dataset.restart; if(!armed('rs'+e)) return; act(H().call('button','press',e),e,mkOf(x),'Restarting: back in about a minute.'); });
   bindPager();
+  // a reader's refused-tap lockout ends when its Lockout switch goes off
+  document.querySelectorAll('[data-endlock]').forEach(x=>x.onclick=()=>act(H().call('switch','turn_off',x.dataset.endlock),'el'+x.dataset.endlock,mkOf(x)||'probs','Lockout ended. Lockout is off now: turn it on again (Refused-tap lockout) to keep using it.'));
+  document.querySelectorAll('[data-sync]').forEach(x=>x.onclick=()=>act(mb('sync',{},true),'sync',mkOf(x)||'rdbar','Allowed list sent to the readers again.'));
+  document.querySelectorAll('[data-snapdays]').forEach(x=>x.onchange=()=>{ const v=parseInt(x.value,10); if(!(v>=1&&v<=365)){ x.value=SNAP_DAYS??30; note('rdbar','bad','Camera pictures: 1–365 days.'); return; } act(mb('set_snapshot_days',{days:v}),'sd','rdbar','Saved: pictures are kept for '+v+' day'+(v===1?'':'s')+'.',()=>{ x.value=SNAP_DAYS??30; }).then(load); });
   document.querySelectorAll('[data-cam]').forEach(x=>x.onchange=()=>{ x.blur(); const had=CAMS&&CAMS[x.dataset.cam]||'';
     act(mb('set_reader_camera',x.value?{device_id:x.dataset.cam,camera:x.value}:{device_id:x.dataset.cam}),'cam'+x.dataset.cam,mkOf(x),x.value?'Camera saved: a picture with each tap.':'No camera.',()=>{ x.value=had; }).then(load); });
   document.querySelectorAll('[data-twstyle]').forEach(x=>x.onclick=()=>{ TWIN_STYLE=x.dataset.twstyle; try{ localStorage.setItem('mbh-twin-style',TWIN_STYLE); }catch(e){} render(); });
@@ -833,9 +938,12 @@ function wire(){ document.querySelectorAll('[data-tg]').forEach(x=>x.onclick=()=
     // Welcome every band lets any band in: it takes a second pick within 4 seconds
     if(x.value===EVERY_BAND&&was!==EVERY_BAND&&!armed('wm'+e)){ back(); if(k) note(k,'bad','“Welcome every band” lets any band in, even ones nobody owns. Pick it again to confirm.',4000); return; }
     const lab=ctlLabel(x,e), txt=x.selectedOptions[0]?x.selectedOptions[0].textContent:x.value;
+    // Hardware settings restart the reader: the same pick twice within 4 seconds
+    if(x.closest('[data-hw]')&&x.value!==was&&!armed('hw'+e+'='+x.value)){ back(); if(k) note(k,'bad',`${lab}: the reader restarts to apply ${txt}. Pick it again to confirm.`,4000); return; }
     act(H().call('select','select_option',e,{option:x.value}),e,k,`${lab}: ${txt}.`,back); });
   document.querySelectorAll('[data-num]').forEach(x=>x.onchange=()=>{ const e=x.dataset.num, v=parseFloat(String(x.value).replace('−','-').replace(',','.')), k=mkOf(x), lab=ctlLabel(x,e), back=()=>{ x.value=numText(e); };
     const bad=numBad(e,v); if(bad){ back(); if(k) note(k,'bad',`${lab}: ${bad}.`); return; }
+    if(x.closest('[data-hw]')&&v!==parseFloat(S(e).state)&&!armed('hw'+e+'='+v)){ back(); if(k) note(k,'bad',`${lab}: the reader restarts to apply ${v}. Enter it again to confirm.`,4000); return; }
     act(H().call('number','set_value',e,{value:v}),e,k,`${lab}: ${v}${A(e).unit_of_measurement?' '+A(e).unit_of_measurement:''}.`,back); });
   document.querySelectorAll('[data-vol]').forEach(x=>x.onchange=()=>{ const e=x.dataset.vol, was=A(e).volume_level;
     act(H().call('media_player','volume_set',e,{volume_level:+x.value/100}),e,mkOf(x),'Volume: '+x.value+'%.',()=>{ x.value=was!=null?Math.round(was*100):50; }); }); }
@@ -925,11 +1033,12 @@ function render(){ if(!H()||!H().live()) return;
   const I=index(), ltE=lastTapSensor(I), lt=ltE?S(ltE):null; if(lt&&lt.state!==LAST_TAP){ const first=LAST_TAP===null; LAST_TAP=lt.state; if(!first) setTimeout(load,800); }
   const D=H().devices(), BR=D.filter(d=>BRIDGE_MODELS.test(d.model||'')).sort((a,b)=>dname(a).localeCompare(dname(b))), RD=D.filter(d=>READER_MODEL.test(d.model||''));
   const B=bands(I).sort(byOwner), P=people(I);
-  const us=unknownSensor(I), unk=us?(A(us).bands||[]):[];
-  [()=>kpis(I,B,P,BR,RD,unk),()=>unknownJob(I,P,unk),()=>linkJob(I,B,P),()=>bandCards(I,B,P),sendBar,()=>peopleTable(I,P),()=>enrolBar(I),rulesCard,celebCard,passportCards,wireHouse,()=>histList(I),()=>readerCards(I,RD,B),()=>heroTwin(I,RD),()=>bridgeCards(I,BR),()=>sxBridges(I,BR),wire].forEach(f=>{ try{ f(); }catch(e){ console.error(e); } }); }
+  const us=unknownSensor(I), unk=us?(A(us).bands||[]):[]; UNK=new Set(unk.map(u=>u.band||u.id||u));
+  let PR=[]; const attn=()=>{ const n=probList(PR)+unk.length+ATT_LINK; $('attn-wrap').hidden=['j-unknown','j-link','j-types','j-probs'].every(j=>$(j).hidden); jumpNav($('attn-wrap').hidden?0:n); };
+  [()=>{ PR=problems(I,RD,BR,B); statusStrip(PR); },()=>kpis(I,B,P,BR,RD,unk),()=>unknownJob(I,P,unk),()=>linkJob(I,B,P,BR),attn,()=>bandCards(I,B,P),sendBar,()=>peopleTable(I,P),()=>enrolBar(I),rulesCard,celebCard,passportCards,wireHouse,()=>histList(I),readersBar,()=>readerCards(I,RD,B),()=>heroTwin(I,RD),()=>bridgeCards(I,BR),()=>sxBridges(I,BR),wire].forEach(f=>{ try{ f(); }catch(e){ console.error(e); } }); }
 // each section is redrawn only when its content changed, and an open fold-out (Manage, Ring and tap settings) stays open
 (()=>{ const D=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML');
-  ['kpis','unknown','link','bands','send','people','readers','bridges','hist','enrol','hero-twin','rules','celeb','passport'].forEach(id=>{ const el=$(id); if(!el) return;
+  ['jump','status','kpis','unknown','link','types','probs','bands','send','people','readers-bar','readers','bridges','hist','enrol','hero-twin','rules','celeb','passport'].forEach(id=>{ const el=$(id); if(!el) return;
     Object.defineProperty(el,'innerHTML',{configurable:true,get(){ return D.get.call(el); },set(v){ if(el.__h===v) return; if(inUse(el)){ HELD=true; return; }
       const open=[...el.querySelectorAll('details[data-k]')].filter(x=>x.open).map(x=>x.dataset.k);
       D.set.call(el,v); el.__h=v; open.forEach(k=>{ const x=[...el.querySelectorAll('details[data-k]')].find(y=>y.dataset.k===k); if(x) x.open=true; }); }}); }); })();
