@@ -175,6 +175,9 @@ band is welcomed in, not whether it's let in.
     another key is refused, and the update entity reports the failure.
   - If the key is ever lost or replaced, each device has to be flashed once
     over USB with firmware signed by the new key.
+  - **Automatic updates** (a switch on each device, off by default) installs a
+    new release between 3 and 4 am without Home Assistant starting it; the
+    same signature check applies, so it only ever installs signed releases.
   - Signing is added to the official builds only (`.github/scripts/
     signed_build.py`); the device files in `esphome/` don't switch it on.
 - **The web installer** serves its own copy of ESP Web Tools, checked against

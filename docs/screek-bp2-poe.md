@@ -100,7 +100,9 @@ over it must be over USB.
   confirm it. Home Assistant then sets up a new key with the board
   automatically.
 - From now on, new firmware appears as a **Firmware** update on the device,
-  and installs over Ethernet. You don't need the Device Builder again.
+  and installs over Ethernet. You don't need the Device Builder again. Turn on
+  **Automatic updates** to have it install new releases by itself between 3
+  and 4 am (local time).
 - The Scan Interval and Scan Window entities use SCREEK's names, so they
   attach to your existing ones. The old **Scan Active Mode** entity shows as
   unavailable after the update: delete it from the device page.

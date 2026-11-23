@@ -11,7 +11,7 @@
 substitutions:
   name: screek-bp2-poe
   friendly_name: SCREEK BP2-POE
-  project_version: "0.10.30"
+  project_version: "0.10.31"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/bp2/manifest.json
 
 packages:
@@ -60,6 +60,7 @@ http_request:
 
 update:
   - platform: http_request
+    id: firmware_update
     name: Firmware
     source: ${firmware_manifest}
     update_interval: 6h
@@ -106,6 +107,33 @@ esp32_ble:
 
 time:
   - platform: homeassistant
+    id: ha_time
+    on_time:
+      # Automatic updates: look for a new release at 02:55, then install it
+      # between 03:00 and 04:00 local time (tried every 10 minutes, so a failed
+      # download gets another go). Only signed releases install (see
+      # docs/security.md, "Signed updates").
+      - seconds: 0
+        minutes: 55
+        hours: 2
+        then:
+          - if:
+              condition:
+                switch.is_on: auto_update
+              then:
+                - component.update: firmware_update
+      - seconds: 0
+        minutes: /10
+        hours: 3
+        then:
+          - if:
+              condition:
+                and:
+                  - switch.is_on: auto_update
+                  - update.is_available: firmware_update
+              then:
+                - logger.log: "Automatic update: installing the new release"
+                - update.perform: firmware_update
 
 debug:
   update_interval: 60s
@@ -180,6 +208,15 @@ number:
       - script.execute: apply_scan_settings
 
 switch:
+  # Installs new releases by itself between 03:00 and 04:00 (local time, from
+  # Home Assistant's clock), without Home Assistant having to start it.
+  - platform: template
+    id: auto_update
+    name: "Automatic updates"
+    icon: mdi:update
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
   # Same as the MagicBand Bridge's: turns the Bluetooth proxy (scanning) on
   # or off. On by default here, as on the factory firmware.
   - platform: template

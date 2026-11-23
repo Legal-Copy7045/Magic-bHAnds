@@ -10,7 +10,7 @@
 substitutions:
   name: magicband-bridge
   friendly_name: MagicBand Bridge
-  project_version: "0.10.30"
+  project_version: "0.10.31"
   # (The magicband component's source is the add-on's `component_source`
   # substitution; CI and local builds override it with
   # `-s component_source ../components`.)
@@ -72,6 +72,7 @@ http_request:
 
 update:
   - platform: http_request
+    id: firmware_update
     name: Firmware
     source: ${firmware_manifest}
     update_interval: 6h
@@ -100,6 +101,15 @@ bluetooth_proxy:
   active: true
 
 switch:
+  # Installs new releases by itself between 03:00 and 04:00 (local time, from
+  # Home Assistant's clock), without Home Assistant having to start it.
+  - platform: template
+    id: auto_update
+    name: "Automatic updates"
+    icon: mdi:update
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
   - platform: template
     id: proxy_switch
     name: "Bluetooth proxy"
@@ -121,6 +131,32 @@ debug:
 time:
   - platform: homeassistant
     id: ha_time
+    on_time:
+      # Automatic updates: look for a new release at 02:55, then install it
+      # between 03:00 and 04:00 local time (tried every 10 minutes, so a failed
+      # download gets another go). Only signed releases install (see
+      # docs/security.md, "Signed updates").
+      - seconds: 0
+        minutes: 55
+        hours: 2
+        then:
+          - if:
+              condition:
+                switch.is_on: auto_update
+              then:
+                - component.update: firmware_update
+      - seconds: 0
+        minutes: /10
+        hours: 3
+        then:
+          - if:
+              condition:
+                and:
+                  - switch.is_on: auto_update
+                  - update.is_available: firmware_update
+              then:
+                - logger.log: "Automatic update: installing the new release"
+                - update.perform: firmware_update
 
 sensor:
   # Health (diagnostic). Throttled so Home Assistant's history stays small:

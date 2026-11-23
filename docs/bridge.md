@@ -85,6 +85,7 @@ installer: the Wi-Fi setup step and logs run on that port.
 | **Command** (text, under Configuration) | Takes JSON commands so HA can send to one, several or all bridges. See [docs/commands.md](commands.md). |
 | **Bluetooth proxy** (switch, under Configuration) | Off by default. Turn it on to also use this board as a Home Assistant Bluetooth proxy. |
 | **Firmware** (update) | Installs new releases over Wi-Fi. |
+| **Automatic updates** | Off by default. On: the bridge installs a new release by itself between 3 and 4 am (local time), without Home Assistant starting it. Only signed releases install. |
 | **Wi-Fi signal**, **Wi-Fi network**, **IP address**, **CPU temperature**, **Last restart**, **Reset reason**, **Free memory**, **Largest free block**, **Loop time** (diagnostic) | Its health, shown as tiles on the MagicbHAnds page. Sent sparingly (on a real change or every 5 minutes). |
 
 **Per-board actions**, prefixed `esphome.magicband_bridge_<suffix>_`. Each

@@ -21,7 +21,7 @@
 substitutions:
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.10.30"
+  project_version: "0.10.31"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -377,6 +377,7 @@ http_request:
 
 update:
   - platform: http_request
+    id: firmware_update
     name: Firmware
     source: ${firmware_manifest}
     update_interval: 6h
@@ -1785,6 +1786,15 @@ binary_sensor:
     device_class: problem
 
 switch:
+  # Installs new releases by itself between 03:00 and 04:00 (local time, from
+  # Home Assistant's clock), without Home Assistant having to start it.
+  - platform: template
+    id: auto_update
+    name: "Automatic updates"
+    icon: mdi:update
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
   - platform: template
     id: light_up_band
     name: "Light up MagicBand+"
@@ -1836,6 +1846,31 @@ time:
       - seconds: 0
         then:
           - script.execute: update_night
+      # Automatic updates: look for a new release at 02:55, then install it
+      # between 03:00 and 04:00 local time (tried every 10 minutes, so a failed
+      # download gets another go). Only signed releases install (see
+      # docs/security.md, "Signed updates").
+      - seconds: 0
+        minutes: 55
+        hours: 2
+        then:
+          - if:
+              condition:
+                switch.is_on: auto_update
+              then:
+                - component.update: firmware_update
+      - seconds: 0
+        minutes: /10
+        hours: 3
+        then:
+          - if:
+              condition:
+                and:
+                  - switch.is_on: auto_update
+                  - update.is_available: firmware_update
+              then:
+                - logger.log: "Automatic update: installing the new release"
+                - update.perform: firmware_update
 
 sensor:
   # Health (diagnostic). Throttled so Home Assistant's history stays small:

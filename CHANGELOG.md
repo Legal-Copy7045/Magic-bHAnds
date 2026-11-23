@@ -3,6 +3,15 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.31] - 2026-11-23
+
+### Firmware
+- **Automatic updates:** a switch on each bridge, reader and BP2 (off by
+  default). When on, the device looks for a new release at 02:55 and installs it
+  between 03:00 and 04:00 local time (tried every 10 minutes), without Home
+  Assistant starting it. Only signed releases install. On the MagicbHAnds page:
+  the reader's Health fold-out and the bridge card.
+
 ## [0.10.30] - 2026-11-23
 
 ### Firmware
