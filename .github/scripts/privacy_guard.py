@@ -39,7 +39,9 @@ CREDENTIALS = re.compile(
     r"|\bxox[abpors]-[A-Za-z0-9-]{10,}"  # Slack
     r"|-----BEGIN [A-Z ]*PRIVATE KEY-----"
 )
-SECRET_FILES = re.compile(r"(^|/)(secrets\.yaml|ha_token\.txt|geoapify_key\.txt|\.env|[^/]*\.pem)$", re.I)
+# Public keys (*.pub.pem, e.g. the firmware signing key) may be tracked; a private key in one
+# still fails the "BEGIN ... PRIVATE KEY" check in CREDENTIALS below.
+SECRET_FILES = re.compile(r"(^|/)(secrets\.yaml|ha_token\.txt|geoapify_key\.txt|\.env|[^/]*(?<!\.pub)\.pem)$", re.I)
 MAX_BYTES = 5_000_000
 
 
