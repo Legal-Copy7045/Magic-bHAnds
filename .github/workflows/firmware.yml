@@ -122,13 +122,13 @@ jobs:
             esphome/.esphome/build/*/build/firmware.factory.bin
   # Signs the firmware with the project's key, then assembles the site and the
   # release files from the signed images. Only main and release tags get here,
-  # and the firmware-signing environment holding FIRMWARE_SIGNING_KEY allows
+  # and the release-signing environment holding OTA_SIGNING_KEY allows
   # only those, so pull requests and other branches never reach the key.
   sign:
     if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
     needs: build
     runs-on: ubuntu-latest
-    environment: firmware-signing
+    environment: release-signing
     permissions:
       contents: read
       id-token: write
@@ -148,12 +148,12 @@ jobs:
           path: builds
       - name: Sign the firmware
         env:
-          FIRMWARE_SIGNING_KEY: ${{ secrets.FIRMWARE_SIGNING_KEY }}
+          OTA_SIGNING_KEY: ${{ secrets.OTA_SIGNING_KEY }}
         run: |
-          [ -n "$FIRMWARE_SIGNING_KEY" ] || { echo "::error::FIRMWARE_SIGNING_KEY isn't set in the firmware-signing environment"; exit 1; }
+          [ -n "$OTA_SIGNING_KEY" ] || { echo "::error::OTA_SIGNING_KEY isn't set in the release-signing environment"; exit 1; }
           key="$RUNNER_TEMP/signing-key.pem"
           trap 'rm -f "$key"' EXIT
-          (umask 077; printf '%s\n' "$FIRMWARE_SIGNING_KEY" > "$key")
+          (umask 077; printf '%s\n' "$OTA_SIGNING_KEY" > "$key")
           python3 .github/scripts/sign_firmware.py "$key" esphome/firmware-signing-key.pub.pem \
             builds/magicband-bridge/build builds/magicband-reader/build builds/screek-bp2-poe/build
       - name: Assemble site

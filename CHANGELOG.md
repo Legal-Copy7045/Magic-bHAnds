@@ -16,7 +16,7 @@ Home Assistant integration share one version number.
 
 ### Build
 - CI signs the firmware in a separate `sign` job that only `main` and release
-  tags reach (the `firmware-signing` environment), checks every image against
+  tags reach (the `release-signing` environment), checks every image against
   `esphome/firmware-signing-key.pub.pem`, then builds the site and release
   files from the signed images.
 

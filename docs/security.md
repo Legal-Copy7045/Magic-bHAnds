@@ -162,7 +162,7 @@ band is welcomed in, not whether it's let in.
   device without that key.
   - The key is RSA-3072 (ESP-IDF's Secure Boot V2 scheme). CI signs the
     builds in the `sign` job, which only `main` and release tags reach: the
-    private key is the `FIRMWARE_SIGNING_KEY` secret of the `firmware-signing`
+    private key is the `OTA_SIGNING_KEY` secret of the `release-signing`
     environment. Each image is checked against the public key in
     `esphome/firmware-signing-key.pub.pem` before it is published; check a
     download yourself with `espsecure verify-signature --version 2 --keyfile
