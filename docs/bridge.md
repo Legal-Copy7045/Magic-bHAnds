@@ -43,7 +43,9 @@ up.
 
 **Customising:** if you run the ESPHome Device Builder add-on, the bridge shows
 up there with **Take control**. That imports `esphome/magicband-bridge.yaml` as
-a package so you can edit it and build your own firmware.
+a package so you can edit it and build your own firmware. The official firmware
+only accepts signed updates, so install your first own build over USB (see
+[security.md](security.md), "Signed updates").
 
 **If Wi-Fi setup fails, or your Wi-Fi changes later,** plug the board into a
 computer and use the web installer's **Change Wi-Fi** (Improv over USB). There's
