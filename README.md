@@ -125,7 +125,9 @@ integration attached.
   and reader, and install over Wi-Fi. Each device downloads its firmware itself
   from this project's site and only installs releases signed with the project's
   key. Turn on **Automatic updates** on a device to have it install new releases
-  by itself between 3 and 4 am.
+  by itself between 3 and 4 am in the device's **Time zone** (default
+  Eastern). Devices keep time from an internet time server, so this works
+  without Home Assistant.
 - **Integration updates** appear in HACS.
 
 To make a release: bump `VERSION` and the versions it lists (CI checks they

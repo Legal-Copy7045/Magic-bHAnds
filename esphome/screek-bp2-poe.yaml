@@ -9,6 +9,8 @@
 # To go back to factory firmware, use SCREEK's web installer or a backup.
 
 substitutions:
+  # The clocks' zone until the "Time zone" setting is applied (IANA name).
+  timezone: America/New_York
   name: screek-bp2-poe
   friendly_name: SCREEK BP2-POE
   project_version: "0.10.31"
@@ -108,9 +110,20 @@ esp32_ble:
 time:
   - platform: homeassistant
     id: ha_time
+    timezone: ${timezone}
+    on_time_sync:
+      - script.execute: apply_time_zone
+  # Internet time, so the device keeps local time (and its automatic-update
+  # window) without Home Assistant. Both clocks use the "Time zone" setting.
+  - platform: sntp
+    id: sntp_time
+    timezone: ${timezone}
+    on_time_sync:
+      - script.execute: apply_time_zone
     on_time:
       # Automatic updates: look for a new release at 02:55, then install it
-      # between 03:00 and 04:00 local time (tried every 10 minutes, so a failed
+      # between 03:00 and 04:00 local time, by the internet clock so it doesn't
+      # need Home Assistant (tried every 10 minutes, so a failed
       # download gets another go). Only signed releases install (see
       # docs/security.md, "Signed updates").
       - seconds: 0
@@ -154,6 +167,12 @@ light:
 # re-applied at boot. Bluetooth requires window <= interval, so the window is
 # capped at the interval.
 script:
+  # Applies the "Time zone" setting to the device's clocks.
+  - id: apply_time_zone
+    then:
+      - lambda: |-
+          if (!magicband::set_time_zone(id(time_zone).current_option()))
+            ESP_LOGW("time", "Unknown time zone: %s", id(time_zone).current_option().c_str());
   - id: apply_scan_settings
     mode: restart
     then:
@@ -266,3 +285,28 @@ button:
     entity_category: diagnostic
   # No "Factory Reset" button: any Home Assistant user could press it, and a
   # reset board accepts the first client that brings a new encryption key.
+
+select:
+  # The local time zone for every clock on the device (automatic updates, and
+  # on the reader night mode). Applied at once and kept across restarts.
+  - platform: template
+    id: time_zone
+    name: "Time zone"
+    icon: mdi:map-clock
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_option: "Eastern (New York)"
+    options:   # keep in step with components/magicband/time_zone.h
+      - "Eastern (New York)"
+      - "Central (Chicago)"
+      - "Mountain (Denver)"
+      - "Arizona (Phoenix)"
+      - "Pacific (Los Angeles)"
+      - "Alaska (Anchorage)"
+      - "Hawaii (Honolulu)"
+      - "UK (London)"
+      - "Central Europe (Paris)"
+      - "UTC"
+    on_value:
+      - script.execute: apply_time_zone

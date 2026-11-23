@@ -19,6 +19,8 @@
 # the reader. "Take control" in the ESPHome Device Builder to customise it.
 
 substitutions:
+  # The clocks' zone until the "Time zone" setting is applied (IANA name).
+  timezone: America/New_York
   name: magicband-reader
   friendly_name: MagicBand Reader
   project_version: "0.10.31"
@@ -1033,6 +1035,29 @@ globals:
     initial_value: "-1"
 
 select:
+  # The local time zone for every clock on the device (automatic updates, and
+  # on the reader night mode). Applied at once and kept across restarts.
+  - platform: template
+    id: time_zone
+    name: "Time zone"
+    icon: mdi:map-clock
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_option: "Eastern (New York)"
+    options:   # keep in step with components/magicband/time_zone.h
+      - "Eastern (New York)"
+      - "Central (Chicago)"
+      - "Mountain (Denver)"
+      - "Arizona (Phoenix)"
+      - "Pacific (Los Angeles)"
+      - "Alaska (Anchorage)"
+      - "Hawaii (Honolulu)"
+      - "UK (London)"
+      - "Central Europe (Paris)"
+      - "UTC"
+    on_value:
+      - script.execute: apply_time_zone
   # The light show played when the reader starts (Off, Random or one show).
   - platform: template
     id: startup_show
@@ -1839,15 +1864,26 @@ debug:
 time:
   - platform: homeassistant
     id: ha_time
+    timezone: ${timezone}
     # Also the clock for "Idle glow at night".
     on_time_sync:
+      - script.execute: apply_time_zone
       - script.execute: update_night
     on_time:
       - seconds: 0
         then:
           - script.execute: update_night
+  # Internet time, so the device keeps local time (and its automatic-update
+  # window) without Home Assistant. Both clocks use the "Time zone" setting.
+  - platform: sntp
+    id: sntp_time
+    timezone: ${timezone}
+    on_time_sync:
+      - script.execute: apply_time_zone
+    on_time:
       # Automatic updates: look for a new release at 02:55, then install it
-      # between 03:00 and 04:00 local time (tried every 10 minutes, so a failed
+      # between 03:00 and 04:00 local time, by the internet clock so it doesn't
+      # need Home Assistant (tried every 10 minutes, so a failed
       # download gets another go). Only signed releases install (see
       # docs/security.md, "Signed updates").
       - seconds: 0
@@ -1982,6 +2018,13 @@ interval:
             - script.execute: end_lockout
 
 script:
+  # Applies the "Time zone" setting to the device's clocks.
+  - id: apply_time_zone
+    then:
+      - lambda: |-
+          if (!magicband::set_time_zone(id(time_zone).current_option()))
+            ESP_LOGW("time", "Unknown time zone: %s", id(time_zone).current_option().c_str());
+      - script.execute: update_night
   # Applies "LED count", "LED colour order" and "Ring type", and caps the
   # output so the ring never draws more than about 1.44 A: 24 LEDs' worth of
   # full RGB white (60 mA each), or 18 of an RGBW ring with everything on (80 mA).
