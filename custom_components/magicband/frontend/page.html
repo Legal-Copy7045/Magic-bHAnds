@@ -718,6 +718,8 @@ function readerCards(I,RD,B){ $('readers').innerHTML=RD.map(d=>{ const p=l=>pick
       <div class="btns">${bt(p(['button','Test welcome']),'Test welcome')}${bt(p(['button','Play show']),'Play show')}</div>
       ${msgLine(mk)}
       <details class="more hp" data-k="h-${esc(d.id)}"><summary>Health${HT.sum?` <span class="sub2">· ${esc(HT.sum)}</span>`:''}</summary>${HT.html}
+        ${p(['switch','Automatic updates'])?`<div class="row" title="Installs a new signed release by itself between 3 and 4 am (local time), without Home Assistant starting it"><span>Automatic updates <span class="hn">installs new releases between 3 and 4 am</span></span>${tg(p(['switch','Automatic updates']),'Automatic updates',dname(d))}</div>`:''}
+        ${p(['select','Time zone'])?`<div class="row" title="The local time zone for this reader's clocks: night mode and the automatic-update window"><span>Time zone</span>${setCtl(p(['select','Time zone']),'select')}</div>`:''}
         ${rs?`<div class="btns"><button class="btn sm ${ARM['rs'+rs]?'arm':''}" data-restart="${esc(rs)}" title="Asks for a second tap"${avail(rs)?'':' disabled'}>${ARM['rs'+rs]?'Tap again to restart':'Restart'}</button></div>`:''}</details>
       <details class="more" data-k="${esc(d.id)}"><summary>Ring and tap settings</summary>${readerSettings(p,mk,dname(d))}</details></section>`; }).join('')||'<p class="muted">No MagicBand readers found (ESPHome model magicband-reader).</p>'; }
 
@@ -986,6 +988,8 @@ function bridgeCards(I,BR){ $('bridges').innerHTML=BR.map(d=>{ const p=(dom,l)=>
     return `<section class="tc" id="${mk}" data-mk="${mk}"><h3><span><span class="dot2 ${on?'':'off'}"></span>${esc(dname(d))}</span><small>${esc(d.area||'no area')}${firmware(I,d)?' · firmware '+esc(firmware(I,d)):''}</small></h3>
       <div class="row" title="Mixes the fast-mode ping into every broadcast, so bands listen continuously and effects reach them sooner (on by default)"><span>Fast mode <span class="hn">bands listen all the time, so effects land sooner</span></span>${tg(p('switch','Fast mode'),'Fast mode',dname(d))}</div>
       <div class="row" title="Also use this bridge as a Home Assistant Bluetooth proxy (off by default)"><span>Bluetooth proxy <span class="hn">also extends Home Assistant’s Bluetooth range</span></span>${p('switch','Bluetooth proxy')?tg(p('switch','Bluetooth proxy'),'Bluetooth proxy',dname(d)):'<span class="sub2">not on this bridge</span>'}</div>
+      ${p('switch','Automatic updates')?`<div class="row" title="Installs a new signed release by itself between 3 and 4 am (local time), without Home Assistant starting it"><span>Automatic updates <span class="hn">installs new releases between 3 and 4 am</span></span>${tg(p('switch','Automatic updates'),'Automatic updates',dname(d))}</div>`:''}
+      ${p('select','Time zone')?`<div class="row" title="The local time zone for this bridge's clocks (the automatic-update window)"><span>Time zone</span>${setCtl(p('select','Time zone'),'select')}</div>`:''}
       <div class="btns">${bt(p('button','Wake bands'),'Wake bands','','Sends the fast-mode ping on its own for 15 s: bands near this bridge wake up and react quickly to what follows')}${bt(p('button','Ping'),'Ping','','Sends a ping that bands answer: a quick check of which bands this bridge reaches')}</div>${msgLine(mk)}
       ${healthTiles(I,d).html}</section>`; }).join('')||'<p class="muted">No MagicBand bridges found.</p>'; }
 

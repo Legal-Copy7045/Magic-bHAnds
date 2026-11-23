@@ -3,6 +3,21 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.31] - 2026-11-23
+
+### Firmware
+- **Automatic updates:** a switch on each bridge, reader and BP2 (off by
+  default). When on, the device looks for a new release at 02:55 and installs it
+  between 03:00 and 04:00 local time (tried every 10 minutes), without Home
+  Assistant starting it. Only signed releases install. On the MagicbHAnds page:
+  the reader's Health fold-out and the bridge card.
+- **Internet time and a Time zone setting:** each device keeps time from an
+  internet time server (SNTP) as well as Home Assistant, so the update window
+  (and the reader's night mode) keeps working while Home Assistant is down.
+  **Time zone** (default Eastern, New York; also Central, Mountain, Arizona,
+  Pacific, Alaska, Hawaii, UK, central Europe and UTC) sets local time for
+  every clock on the device, instead of Home Assistant's zone.
+
 ## [0.10.30] - 2026-11-23
 
 ### Firmware

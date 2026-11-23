@@ -259,6 +259,8 @@ MagicBand+**, for example to turn on the lounge lights.
 | **Allowed list** (diagnostic) | From the MagicbHAnds integration: whether this reader has the current allowed list (*Up to date*, *Not applied*, *Reader offline* …) |
 | **ESPHome name** (diagnostic) | The reader's ESPHome name; the integration uses it to find the reader's actions |
 | **Firmware** | Update entity: new firmware appears here and installs over Wi-Fi |
+| **Automatic updates** | Off by default. On: the reader installs a new release by itself between 3 and 4 am (local time), without Home Assistant starting it. Only signed releases install |
+| **Time zone** | Eastern (New York) | The reader's local time zone (night mode, automatic updates). The reader keeps time from an internet time server as well as from Home Assistant, so the schedule works while Home Assistant is down |
 | **Restart** (diagnostic) | Restarts the reader |
 | **Wi-Fi signal**, **Wi-Fi network**, **IP address** (diagnostic) | Its connection; the signal is sent when it changes by 3 dB, or every 5 minutes |
 | **CPU temperature** (diagnostic) | The ESP32's own sensor: a trend for spotting a hot case, not an exact reading |

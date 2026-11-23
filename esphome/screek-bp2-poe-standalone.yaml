@@ -12,9 +12,11 @@
 # stay identical to screek-bp2-poe.yaml + magicband-addon.yaml (CI checks).
 
 substitutions:
+  # The clocks' zone until the "Time zone" setting is applied (IANA name).
+  timezone: America/New_York
   name: screek-bp2-poe-849a4c
   friendly_name: SCREEK BP2-POE 849a4c
-  project_version: "0.10.30"
+  project_version: "0.10.31"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/bp2/manifest.json
 
 esphome:
@@ -178,6 +180,7 @@ http_request:
 
 update:
   - platform: http_request
+    id: firmware_update
     name: Firmware
     source: ${firmware_manifest}
     update_interval: 6h
@@ -227,6 +230,44 @@ magicband:
 
 time:
   - platform: homeassistant
+    id: ha_time
+    timezone: ${timezone}
+    on_time_sync:
+      - script.execute: apply_time_zone
+  # Internet time, so the device keeps local time (and its automatic-update
+  # window) without Home Assistant. Both clocks use the "Time zone" setting.
+  - platform: sntp
+    id: sntp_time
+    timezone: ${timezone}
+    on_time_sync:
+      - script.execute: apply_time_zone
+    on_time:
+      # Automatic updates: look for a new release at 02:55, then install it
+      # between 03:00 and 04:00 local time, by the internet clock so it doesn't
+      # need Home Assistant (tried every 10 minutes, so a failed
+      # download gets another go). Only signed releases install (see
+      # docs/security.md, "Signed updates").
+      - seconds: 0
+        minutes: 55
+        hours: 2
+        then:
+          - if:
+              condition:
+                switch.is_on: auto_update
+              then:
+                - component.update: firmware_update
+      - seconds: 0
+        minutes: /10
+        hours: 3
+        then:
+          - if:
+              condition:
+                and:
+                  - switch.is_on: auto_update
+                  - update.is_available: firmware_update
+              then:
+                - logger.log: "Automatic update: installing the new release"
+                - update.perform: firmware_update
 
 debug:
   update_interval: 60s
@@ -234,6 +275,12 @@ debug:
 # --- Scan tuning (same entities as the factory firmware) ---------------------
 # Changes restart scanning briefly to apply; values survive reboots.
 script:
+  # Applies the "Time zone" setting to the device's clocks.
+  - id: apply_time_zone
+    then:
+      - lambda: |-
+          if (!magicband::set_time_zone(id(time_zone).current_option()))
+            ESP_LOGW("time", "Unknown time zone: %s", id(time_zone).current_option().c_str());
   - id: apply_scan_settings
     mode: restart
     then:
@@ -306,6 +353,15 @@ number:
       - script.execute: apply_scan_settings
 
 switch:
+  # Installs new releases by itself between 03:00 and 04:00 (local time, from
+  # Home Assistant's clock), without Home Assistant having to start it.
+  - platform: template
+    id: auto_update
+    name: "Automatic updates"
+    icon: mdi:update
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
   # Same as the MagicBand Bridge's: turns the Bluetooth proxy (scanning) on
   # or off. On by default here, as on the factory firmware.
   - platform: template
@@ -400,6 +456,29 @@ text:
       - lambda: id(band).run_command_json(x);
 
 select:
+  # The local time zone for every clock on the device (automatic updates, and
+  # on the reader night mode). Applied at once and kept across restarts.
+  - platform: template
+    id: time_zone
+    name: "Time zone"
+    icon: mdi:map-clock
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_option: "Eastern (New York)"
+    options:   # keep in step with components/magicband/time_zone.h
+      - "Eastern (New York)"
+      - "Central (Chicago)"
+      - "Mountain (Denver)"
+      - "Arizona (Phoenix)"
+      - "Pacific (Los Angeles)"
+      - "Alaska (Anchorage)"
+      - "Hawaii (Honolulu)"
+      - "UK (London)"
+      - "Central Europe (Paris)"
+      - "UTC"
+    on_value:
+      - script.execute: apply_time_zone
   # Plays a predefined scene when chosen (use "Play scene" to repeat it).
   - platform: template
     id: scene
