@@ -3,6 +3,23 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.30] - 2026-11-23
+
+### Firmware
+- **Signed updates:** the official bridge, reader and BP2 firmware only installs
+  updates signed with the project's key (RSA-3072, ESP-IDF's Secure Boot V2
+  scheme), from Home Assistant or any other over-the-air upload. Checked on
+  update only: no secure boot, no eFuses, and a USB flash always works. This
+  release installs as usual; later ones must be signed. Builds of your own
+  aren't locked: install the first one over USB. See docs/security.md, "Signed
+  updates".
+
+### Build
+- CI signs the firmware in a separate `sign` job that only `main` and release
+  tags reach (the `firmware-signing` environment), checks every image against
+  `esphome/firmware-signing-key.pub.pem`, then builds the site and release
+  files from the signed images.
+
 ## [0.10.29] - 2026-11-22
 
 ### Reader

@@ -150,17 +150,40 @@ band is welcomed in, not whether it's let in.
   gives it an encryption key, normally Home Assistant when you add it. Add new
   boards promptly, on a network you trust.
 - **Updates** come over HTTPS from this project's GitHub Pages site and are
-  checked against the MD5 in the same manifest. That catches corruption, not a
-  compromised site or repository: ESPHome has no firmware signing. Releases,
-  and the firmware the update entities download from the site, carry signed
-  build-provenance attestations; check a file with
+  checked against the MD5 in the same manifest, which catches corruption.
+  Releases, and the firmware the update entities download from the site, also
+  carry signed build-provenance attestations; check a file with
   `gh attestation verify <file> --repo Legal-Copy7045/Magic-bHAnds`. Only
   commits on `main` are released.
+- **Signed updates.** The official firmware (bridge, reader and BP2) only
+  installs an update signed with the project's key, whether it comes from
+  Home Assistant, the ESPHome Device Builder or anything else over the air. A
+  compromised site, repository or Home Assistant can't push firmware to a
+  device without that key.
+  - The key is RSA-3072 (ESP-IDF's Secure Boot V2 scheme). CI signs the
+    builds in the `sign` job, which only `main` and release tags reach: the
+    private key is the `FIRMWARE_SIGNING_KEY` secret of the `firmware-signing`
+    environment. Each image is checked against the public key in
+    `esphome/firmware-signing-key.pub.pem` before it is published; check a
+    download yourself with `espsecure verify-signature --version 2 --keyfile
+    esphome/firmware-signing-key.pub.pem <file>.ota.bin`.
+  - The check is on update only. Secure boot isn't on and no eFuses are
+    burned, so a USB flash (web installer or esptool) always works, and a
+    device never refuses to boot.
+  - The first signed release installs like any other (the firmware before it
+    doesn't check). From then on, an unsigned image or one signed with
+    another key is refused, and the update entity reports the failure.
+  - If the key is ever lost or replaced, each device has to be flashed once
+    over USB with firmware signed by the new key.
+  - Signing is added to the official builds only (`.github/scripts/
+    signed_build.py`); the device files in `esphome/` don't switch it on.
 - **The web installer** serves its own copy of ESP Web Tools, checked against
   a fixed hash when the site is built.
 - **Building your own firmware** ("Take control") pulls the add-on and
   component from this repository's `main` branch at build time, so a build
-  picks up whatever `main` holds then. The CI build installs ESPHome by
+  picks up whatever `main` holds then. Your own builds aren't signed, so a
+  device running official firmware refuses them over the air: flash your
+  first build over USB, after which your builds update each other as usual. The CI build installs ESPHome by
   version, not by hash, so its toolchain is only as trustworthy as PyPI and
   PlatformIO.
 

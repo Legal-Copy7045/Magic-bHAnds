@@ -226,7 +226,8 @@ the reader itself, so it holds with Home Assistant offline too.
 **Customising further** (sounds, pins): in the ESPHome Device Builder the
 reader shows up with **Take control**, which imports
 `esphome/magicband-reader.yaml` as a package; change its substitutions
-there.
+there. The official firmware only accepts signed updates, so install your
+first own build over USB (see [security.md](security.md), "Signed updates").
 
 ## Using it with Home Assistant
 
