@@ -917,3 +917,32 @@ async def test_snapshot_days_can_be_set_from_the_page(hass: HomeAssistant, setup
     assert hass.config_entries.async_entries(DOMAIN)[0].options["snapshot_days"] == 7
     resp = await hass.services.async_call(DOMAIN, "history", {}, blocking=True, return_response=True)
     assert resp["snapshot_days"] == 7
+
+
+async def test_a_reader_that_reconnects_gets_the_list_at_once(
+    hass: HomeAssistant, setup_integration, reader_device
+) -> None:
+    """BUG-028: a reader that was away (a restart, a Wi-Fi or power blip) is sent the current list as soon as it
+    reconnects, not at the next 10-minute sync, so a change made while it was away applies at once. (A paired
+    reader coming back "on" already got a sync through the pairing branch; one coming back "off" didn't.)"""
+    from unittest.mock import AsyncMock
+
+    from homeassistant.helpers import entity_registry as er
+
+    paired = er.async_get(hass).async_get_or_create(
+        "binary_sensor", "esphome", "paired2", device_id=reader_device.id, original_name="Paired with MagicbHAnds",
+        suggested_object_id="lounge_paired2").entity_id
+    hass.states.async_set(paired, "off")
+    await hass.async_block_till_done()
+    sync = setup_integration.runtime_data.sync
+    asked = AsyncMock()
+    sync.async_call = asked  # count the requests for a sync, whatever the clock does
+    hass.states.async_set(paired, "unavailable")  # the reader drops off: nothing to send it
+    await hass.async_block_till_done()
+    assert asked.await_count == 0
+    hass.states.async_set(paired, "off")  # and comes back: a sync is asked for at once
+    await hass.async_block_till_done()
+    assert asked.await_count == 1
+    hass.states.async_set(paired, "off", {"x": 1})  # an ordinary update isn't a reconnect
+    await hass.async_block_till_done()
+    assert asked.await_count == 1

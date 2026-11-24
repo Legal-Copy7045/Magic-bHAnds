@@ -245,3 +245,5 @@ INT-241: "tests/test_features.py::test_esphome_reconnect_errors_are_no_reply[tim
 INT-242: "tests/test_features.py::test_no_reply_follows_the_cause_and_keeps_refusals"
 INT-243: "tests/test_features.py::test_saved_pairing_ends_are_capped_at_two_minutes"
 INT-244: "tests/test_sounds_lockout.py::test_own_sound_plays_at_once_with_band_scan_disabled"
+INT-245: "tests/test_beacons.py::test_device_config_entries_uses_the_single_entry_field_when_there_is_one"
+INT-246: "tests/test_features.py::test_a_reader_that_reconnects_gets_the_list_at_once"

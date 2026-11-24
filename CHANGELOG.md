@@ -3,6 +3,18 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.37] - 2026-11-24
+
+### Fixed
+- **A reader that reconnects gets the current allowed list straight away**
+  (after a restart, a Wi-Fi or power blip), so a change made while it was
+  away, such as a guest pass ending or night hours starting, applies at once
+  instead of at the next 10-minute sync.
+- **The last Home Assistant 2026.11 deprecation warning** (a device's config
+  entries) is gone; older Home Assistant works as before.
+- A device that isn't a MagicBand reader no longer logs a warning each time
+  lists are sent (it's a debug message now).
+
 ## [0.10.36] - 2026-11-24
 
 ### Fixed

@@ -272,6 +272,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
                 # A tap confirmed a pairing: "Tap a band" goes now, and a sync checks it was MagicbHAnds' key.
                 readers.pairing_confirmed(device_id)
                 hass.async_create_task(debouncer.async_call())
+            elif new.state in ("on", "off") and old is not None and old.state == "unavailable":
+                # The reader reconnected (a restart, a Wi-Fi or power blip): send it the current list now rather
+                # than at the next 10-minute sync, so a change made while it was away applies at once (BUG-028).
+                hass.async_create_task(debouncer.async_call())
         elif name == "Tap lockout" and new.state in ("on", "off"):
             # unknown/unavailable say nothing about the lockout (a reader restarting, or one that hasn't
             # published the sensor yet), so they change nothing; "on" straight after "unknown" is a lockout

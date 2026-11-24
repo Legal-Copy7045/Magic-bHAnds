@@ -148,7 +148,8 @@ malformed, the reader **empties** its
 list (denies everyone) rather than keep an old one, and it shows in
 **Settings → Repairs** ("<reader> didn't take the allowed list", or "Too many
 allowed bands for the readers"). A reader that's offline keeps its last list
-until it reconnects; after 15 minutes offline it shows in Repairs too.
+until it reconnects, and is sent the current one as soon as it does; after 15
+minutes offline it shows in Repairs too.
 
 Guest passes and lockdown work through this list: a band whose pass hasn't
 started, has ended or has no uses left, or whose owner doesn't get in during
