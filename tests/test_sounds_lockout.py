@@ -143,3 +143,29 @@ async def test_lockout_notifies_and_fires_an_event(hass: HomeAssistant, setup_in
     hass.states.async_set(lockout, "off")
     await hass.async_block_till_done()
     assert events[-1]["locked"] is False
+
+
+async def test_lockout_after_a_reader_restart(hass: HomeAssistant, setup_integration, reader_device) -> None:
+    """BUG-002: unknown -> on is a lockout; on -> unavailable/unknown changes nothing; back off dismisses."""
+    from homeassistant.components import persistent_notification
+
+    def note():
+        return persistent_notification._async_get_or_create_notifications(hass).get(
+            f"{DOMAIN}_lockout_{reader_device.id}")
+
+    lockout = _reader_entity(hass, reader_device, "binary_sensor", "Tap lockout", "bs1")
+    events = []
+    hass.bus.async_listen("magicband_lockout", lambda e: events.append(e.data["locked"]))
+    hass.states.async_set(lockout, "unknown")  # a reader that hasn't published the sensor since it started
+    await hass.async_block_till_done()
+    hass.states.async_set(lockout, "on")
+    await hass.async_block_till_done()
+    assert events == [True] and note() is not None
+    for state in ("unavailable", "unknown", "on"):  # it restarts (or reconnects) while still locked out
+        hass.states.async_set(lockout, state)
+        await hass.async_block_till_done()
+    assert events == [True] and note() is not None
+    for state in ("unavailable", "unknown", "off"):  # restarts and comes back not locked out
+        hass.states.async_set(lockout, state)
+        await hass.async_block_till_done()
+    assert events == [True, False] and note() is None

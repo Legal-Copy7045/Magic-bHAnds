@@ -75,7 +75,7 @@ async def async_setup_entry(
         readers[device_id] = ReaderLastBandSensor(entry, device_id)
         async_add_entities([readers[device_id], ReaderSyncSensor(entry, device_id)])
 
-    for device in list(dr.async_get(hass).devices.values()):
+    for device in reader_devices(hass):
         _add_reader(device.id)
 
     @callback
@@ -458,10 +458,12 @@ def _remove_stray_reader_devices(hass: HomeAssistant, entry: MagicBandConfigEntr
                 continue
             reader_id = ent.unique_id.removeprefix("reader_").removesuffix("_last_band")
             if dev_reg.async_get(reader_id) is not None and reader_id != device.id:
-                dev_reg.async_update_device(reader_id, add_config_entry_id=entry.entry_id)
                 ent_reg.async_update_entity(ent.entity_id, device_id=reader_id)
-        if not er.async_entries_for_device(ent_reg, device.id, include_disabled_entities=True):
-            dev_reg.async_update_device(device.id, remove_config_entry_id=entry.entry_id)
+        # Only ever this integration's (a device belongs to one config entry): removed outright, not re-parented.
+        if device.config_entries == {entry.entry_id} and not er.async_entries_for_device(
+            ent_reg, device.id, include_disabled_entities=True
+        ):
+            dev_reg.async_remove_device(device.id)
 
 
 class ReaderLastBandSensor(RestoreSensor):
@@ -486,7 +488,7 @@ class ReaderLastBandSensor(RestoreSensor):
         await super().async_added_to_hass()
         if self.registry_entry is not None and self.registry_entry.device_id != self._reader_id:
             # Share the reader's device (as ESPHome's and this integration's).
-            dr.async_get(self.hass).async_update_device(self._reader_id, add_config_entry_id=self._entry.entry_id)
+            # The entity goes on the reader's (ESPHome's) device; the device stays ESPHome's alone.
             er.async_get(self.hass).async_update_entity(self.entity_id, device_id=self._reader_id)
         if (last := await self.async_get_last_state()) is not None:
             self._uid = last.attributes.get("band_id")
@@ -542,7 +544,7 @@ class ReaderSyncSensor(SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         if self.registry_entry is not None and self.registry_entry.device_id != self._reader_id:
-            dr.async_get(self.hass).async_update_device(self._reader_id, add_config_entry_id=self._entry.entry_id)
+            # The entity goes on the reader's (ESPHome's) device; the device stays ESPHome's alone.
             er.async_get(self.hass).async_update_entity(self.entity_id, device_id=self._reader_id)
         self.async_on_remove(async_dispatcher_connect(self.hass, SIGNAL_READER_STATUS, self._update))
 

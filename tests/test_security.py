@@ -301,6 +301,46 @@ async def test_sync_warns_when_the_list_is_too_long_for_readers(hass: HomeAssist
     assert ir.async_get(hass).async_get_issue(DOMAIN, "list_too_long") is not None
 
 
+async def test_colour_and_sound_lists_are_trimmed_to_fit_the_reader(hass: HomeAssistant, setup_integration) -> None:
+    """BUG-011: the reader refuses a whole colour (4,096) or sound (1,600) list that doesn't fit, so only what
+    fits is sent, in whole entries, and a repair names the reader."""
+    from custom_components.magicband.readers import COLOURS_CAPACITY, SOUNDS_CAPACITY
+
+    await hass.services.async_call(DOMAIN, "add_person", {"name": "Everyone"}, blocking=True)
+    await hass.services.async_call(DOMAIN, "update_person", {"person": "Everyone", "welcome_colour": "Magenta"},
+                                   blocking=True)
+    registry = _data(hass).registry
+    registry.set_welcome_sound(registry.find_person("Everyone").id, "mp3", "hello.mp3")
+    n = 200  # fits the allowed list (3,001 characters), not the colours (4,601) or the sounds (3,001)
+    for i in range(n):
+        await hass.services.async_call(DOMAIN, "assign_band", {"band": f"04AABBCCDD{i:04X}", "person": "Everyone"},
+                                       blocking=True)
+    await _with_readers(hass, {"front": None})
+    lists: dict[str, str] = {}
+    hass.services.async_register("esphome", "front_set_band_colours", lambda c: lists.__setitem__("colours", c.data["colours"]))
+    hass.services.async_register("esphome", "front_set_band_sounds", lambda c: lists.__setitem__("sounds", c.data["bands"]))
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    colours, sounds = lists["colours"].split(","), lists["sounds"].split(",")
+    assert len(",".join(colours)) + 2 <= COLOURS_CAPACITY and len(colours) == (COLOURS_CAPACITY - 1) // 23
+    assert all(re.fullmatch(r"04AABBCCDD[0-9A-F]{4}=Magenta", c) for c in colours)  # whole entries only
+    assert len(",".join(sounds)) + 2 <= SOUNDS_CAPACITY and len(sounds) == (SOUNDS_CAPACITY - 1) // 15
+    issues = ir.async_get(hass)
+    reader = next(d for d in dr.async_get(hass).devices.values() if d.model == "magicband-reader")
+    colour_issue = issues.async_get_issue(DOMAIN, f"colours_too_long_{reader.id}")
+    sound_issue = issues.async_get_issue(DOMAIN, f"sounds_too_long_{reader.id}")
+    assert colour_issue.translation_placeholders == {"reader": reader.name, "kept": str(len(colours)), "total": str(n)}
+    assert sound_issue.translation_placeholders["kept"] == str(len(sounds))
+    assert not any("04AABBCCDD" in v for v in colour_issue.translation_placeholders.values())  # no band IDs
+    # A band whose sound didn't make the list gets the reader's own tap-in sound, not a second one from HA.
+    assert f"04AABBCCDD{n - 1:04X}" in _data(hass).readers.sounds_left_out
+    for i in range(n - 100):
+        await hass.services.async_call(DOMAIN, "remove_band", {"band": f"04AABBCCDD{i:04X}"}, blocking=True)
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    assert issues.async_get_issue(DOMAIN, f"colours_too_long_{reader.id}") is None
+    assert issues.async_get_issue(DOMAIN, f"sounds_too_long_{reader.id}") is None
+    assert len(lists["colours"].split(",")) == 100 and not _data(hass).readers.sounds_left_out
+
+
 # ---------------------------------------------------------------------------- Bluetooth flooding
 
 

@@ -102,6 +102,20 @@ def find(cfg: dict) -> dict[str, tuple[str, str, str]]:
             out["tag_confirms_pair"] = ("bool %s()", b, "pn532 on_tag (pairing confirmation)")
     btn = next(b for b in as_list(cfg.get("button")) if b.get("name") == "Allow last band")
     out["allow_last_band"] = ("void %s()", next(walk(btn["on_press"])), "button Allow last band")
+    for name in ("Forget last band", "Forget all bands"):
+        btn = next(b for b in as_list(cfg.get("button")) if b.get("name") == name)
+        out[re.sub(r"\W+", "_", name.lower())] = ("void %s()", next(walk(btn["on_press"])), f"button {name}")
+    # band_tapped: whether this tap is sent to Home Assistant as a tag scan (unknown-band limit)
+    body = next(b for b in walk(scripts["band_tapped"]["then"]) if "unknown_tags" in b)
+    out["tag_report"] = ("bool %s(std::string uid)", body, "script band_tapped (unknown-band limit)")
+    # the play_show action's rate limit
+    act = next(a for a in as_list((cfg.get("api") or {}).get("actions")) if a.get("action") == "play_show")
+    body = next(b for b in walk(act["then"]) if "show_calls" in b)
+    out["play_show_allowed"] = ("bool %s()", body, "api action play_show (rate limit)")
+    # on_boot: whether the start-up sound plays
+    boot = as_list((cfg.get("esphome") or {}).get("on_boot"))
+    body = next(b for b in walk(boot) if "sound_at_night" in b)
+    out["boot_sound"] = ("bool %s()", body, "esphome on_boot (start-up sound)")
     return out
 
 
@@ -126,6 +140,7 @@ def generate(cfg: dict, dest: Path) -> dict[str, str]:
         '#include "esphome/components/magicband/shows.h"',
         '#include "esphome/components/magicband/reader_key.h"',
         '#include "esphome/components/magicband/time_zone.h"',
+        '#include "esphome/components/magicband/guards.h"',
         '#include "lambda_mocks.h"',
         "using namespace esphome;",
         "namespace mock {\nusing namespace esphome;",

@@ -1,6 +1,6 @@
 # Stable IDs for the integration tests (regression/integration/run.py). Append-only: never renumber or
 # reuse an ID. Renamed a test? Edit its line here to keep its ID.
-# highest issued: INT-197
+# highest issued: INT-208
 INT-001: "tests/test_beacons.py::test_parse"
 INT-002: "tests/test_beacons.py::test_real_beacons_make_two_bands"
 INT-003: "tests/test_beacons.py::test_nearby_goes_off_after_missed_beacons"
@@ -198,3 +198,14 @@ INT-194: "tests/test_sounds_lockout.py::test_readers_learn_which_bands_have_thei
 INT-195: "tests/test_sounds_lockout.py::test_own_sound_plays_when_the_reader_welcomes"
 INT-196: "tests/test_sounds_lockout.py::test_upload_play_and_remove_a_sound"
 INT-197: "tests/test_sounds_lockout.py::test_lockout_notifies_and_fires_an_event"
+INT-198: "tests/test_regression_combinations.py::test_non_admin_token_with_a_made_up_signature_gets_no_sound"
+INT-199: "tests/test_sounds_lockout.py::test_lockout_after_a_reader_restart"
+INT-200: "tests/test_beacons.py::test_removing_the_nfc_band_unlinks_its_bluetooth_band[action]"
+INT-201: "tests/test_beacons.py::test_removing_the_nfc_band_unlinks_its_bluetooth_band[configure]"
+INT-202: "tests/test_regression_combinations.py::test_own_sound_plays_before_the_first_sync"
+INT-203: "tests/test_security.py::test_colour_and_sound_lists_are_trimmed_to_fit_the_reader"
+INT-204: "tests/test_beacons.py::test_reader_device_stays_esphomes_and_no_deprecated_device_registry_use"
+INT-205: "tests/test_features.py::test_pairing_busy_or_cooling_down_tries_again[PAIRING_BUSY]"
+INT-206: "tests/test_features.py::test_pairing_busy_or_cooling_down_tries_again[PAIRING_COOLDOWN]"
+INT-207: "tests/test_holidays_january.py::test_hanukkah_running_into_january_counts"
+INT-208: "tests/test_holidays_january.py::test_every_hanukkah_day_is_found_for_a_decade"

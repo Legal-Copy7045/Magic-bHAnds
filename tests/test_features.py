@@ -447,6 +447,54 @@ async def test_first_pairing_asks_for_a_tap(hass: HomeAssistant, setup_integrati
 
 
 
+@pytest.mark.parametrize("reply", ["PAIRING_BUSY", "PAIRING_COOLDOWN"])
+async def test_pairing_busy_or_cooling_down_tries_again(
+    hass: HomeAssistant, setup_integration, reader_device, reply: str, freezer
+) -> None:
+    """PAIRING_BUSY (another key's request is waiting: don't tap) and PAIRING_COOLDOWN (ours ran out: tap after
+    the retry) aren't failures: the list still goes, the right repair shows, and the reader is asked again."""
+    import time as _time
+
+    from homeassistant.exceptions import HomeAssistantError
+
+    from custom_components.magicband import readers as readers_mod
+
+    calls = _paired_reader(hass)
+    asked: list[ServiceCall] = []
+
+    def refuse(call):
+        asked.append(call)
+        raise HomeAssistantError(f"{reply}: the reader says not now")
+
+    hass.services.async_register("esphome", "lounge_reader_pair", refuse)
+    result = await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    issues = ir.async_get(hass)
+    busy = issues.async_get_issue(DOMAIN, f"reader_pairing_busy_{reader_device.id}")
+    tap = issues.async_get_issue(DOMAIN, f"reader_pairing_{reader_device.id}")
+    assert result["failed"] == [] and calls["bands"]  # not a failed sync; the (unpaired) reader takes the list
+    assert issues.async_get_issue(DOMAIN, f"reader_sync_failed_{reader_device.id}") is None
+    if reply == "PAIRING_BUSY":
+        assert busy is not None and tap is None  # don't tap: it would pair it with them
+        assert busy.translation_placeholders["reader"] == reader_device.name
+    else:
+        assert tap is not None and busy is None
+    n = len(asked)
+    data = hass.config_entries.async_entries(DOMAIN)[0].runtime_data
+    wait = data.readers._retry_at - _time.monotonic()
+    assert readers_mod.PAIRING_RETRY - 5 < wait <= readers_mod.PAIRING_RETRY  # asked again in 2 minutes
+    assert not data.readers.retry_due()  # not yet
+    data.readers._retry_at -= readers_mod.PAIRING_RETRY  # ...2 minutes on
+    hass.services.async_register("esphome", "lounge_reader_pair", lambda c: asked.append(c))  # now it pairs
+    for _ in range(2):  # the minute check, then past the sync debounce
+        freezer.tick(timedelta(minutes=1))
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done(wait_background_tasks=True)
+    assert len(asked) > n  # asked again by itself
+    assert issues.async_get_issue(DOMAIN, f"reader_pairing_busy_{reader_device.id}") is None
+    assert issues.async_get_issue(DOMAIN, f"reader_pairing_{reader_device.id}") is None
+    assert not data.readers.retry_due()
+
+
 # ---------------------------------------------------------------------------- tap snapshots (optional)
 
 

@@ -71,6 +71,12 @@ findings (`regression/RUNS.md`) so they check whether those were fixed.
   injection, the signing secret and environment, pinned actions), and every
   claim in `docs/security.md` (held or not held).
 
+Both reviewers first read the **Accepted risks** section of `docs/security.md`:
+those are known design limits the owner has accepted. Don't report an accepted
+risk again unless its description there is wrong or the limits it lists no
+longer hold (then report that, citing the entry); everything else in it still
+counts as a claim to check.
+
 Finding format: `{id, severity (critical|high|medium|low|info), area, title,
 file, line, description, scenario, recommendation, verified}`.
 

@@ -175,7 +175,9 @@ the reader's device page in Home Assistant, under **Configuration**, set:
   schedule. **Quieter** sets the speaker to **Night volume** (5–100 %,
   default 30 %) when night starts and puts back the volume it had in the
   morning; **Off** plays no reader sounds at night (welcome, denied,
-  start-up, and people's own welcome sounds).
+  start-up, and people's own welcome sounds). After a power cut the reader
+  waits up to 20 seconds for the time before its start-up sound; if it still
+  doesn't know the time, the sound plays only with **Normal**.
 - In **Warm white** the idle glow is mixed specially so it keeps its colour
   when dim (the Ring light shows the "Warm glow" effect at 100 %); its
   dimmest is a little brighter than the other colours' dimmest.
@@ -247,19 +249,19 @@ MagicBand+**, for example to turn on the lounge lights.
 | **Response mode** | *Known bands only* (default: decided on the reader; new bands are denied), *Welcome every band*, or *Ask Home Assistant* (see below) |
 | **Band scan** | Event entity: every scan appears in the logbook as *welcomed* or *denied* |
 | **Known bands** | How many bands are on the reader's allowed list |
-| **Allow last band**, **Forget last band**, **Forget all bands** | Manage the reader's list by hand, if you don't use the MagicbHAnds integration |
+| **Allow last band**, **Forget last band**, **Forget all bands** | Manage the reader's list by hand, if you don't use the MagicbHAnds integration (on a reader paired with MagicbHAnds they do nothing: manage bands there) |
 | **Speaker** | Media player: Home Assistant can also play announcements and TTS through the reader |
 | **Light up MagicBand+** | Send the welcome colour + buzz to a MagicBand+ on a successful read (default on) |
 | **Band light-up power** | How far that light-up reaches, −24 to 0 dBm (default −12). A broadcast can't be addressed to one band, so every MagicBand+ in range reacts: lower it until only the band on the reader lights up. Each −6 dB roughly halves the reach |
 | **Sound** | Chimes on/off |
 | **Test welcome** | Plays the welcome sequence without a band |
 | **Play show** | Plays the light show chosen in **Show** (or a random one) |
-| **Show** | Which show **Play show** plays: Random (one of the everyday shows), or Rainbow rush, Fireworks, Comet chase, Colour parade, Twinkle, Heartbeat, Ocean, Fire, Pinwheel, Confetti, Penguins (black and gold), Goal (three red pulses), Aurora, Candy cane, Thunderstorm, Sunrise, Disco; the celebration shows Birthday, New Year, Valentine, St Patrick, Easter, Stars and Stripes, Halloween, Thanksgiving, Hanukkah and Christmas; or Stamp (a new passport badge). The MagicbHAnds integration plays the celebration shows after a welcome on the day (see [integration.md](integration.md#celebrations-and-the-tap-passport)); a show sent during a tap waits for the welcome to finish |
+| **Show** | Which show **Play show** plays: Random (one of the everyday shows), or Rainbow rush, Fireworks, Comet chase, Colour parade, Twinkle, Heartbeat, Ocean, Fire, Pinwheel, Confetti, Penguins (black and gold), Goal (three red pulses), Aurora, Candy cane, Thunderstorm, Sunrise, Disco; the celebration shows Birthday, New Year, Valentine, St Patrick, Easter, Stars and Stripes, Halloween, Thanksgiving, Hanukkah and Christmas; or Stamp (a new passport badge). The MagicbHAnds integration plays the celebration shows after a welcome on the day (see [integration.md](integration.md#celebrations-and-the-tap-passport)); a show sent during a tap waits for the welcome to finish. The reader plays at most 12 shows a minute from Home Assistant (its play_show action), whoever calls it |
 | **Startup show** | The show played when the reader starts: Off, Random or one show (default Rainbow rush) |
 | **Allowed list** (diagnostic) | From the MagicbHAnds integration: whether this reader has the current allowed list (*Up to date*, *Not applied*, *Reader offline* …) |
 | **ESPHome name** (diagnostic) | The reader's ESPHome name; the integration uses it to find the reader's actions |
 | **Firmware** | Update entity: new firmware appears here and installs over Wi-Fi |
-| **Automatic updates** | Off by default. On: the reader installs a new release by itself between 3 and 4 am (local time), without Home Assistant starting it. Only signed releases install |
+| **Automatic updates** | Off by default. On: the reader installs a new release by itself between 3 and 4 am (local time, by its internet clock), without Home Assistant starting it. Only signed releases install, and only one newer than the reader has: it never goes back to an older release (you can still install any offered release from **Firmware** yourself) |
 | **Time zone** | Eastern (New York) | The reader's local time zone (night mode, automatic updates). The reader keeps time from an internet time server as well as from Home Assistant, so the schedule works while Home Assistant is down |
 | **Restart** (diagnostic) | Restarts the reader |
 | **Wi-Fi signal**, **Wi-Fi network**, **IP address** (diagnostic) | Its connection; the signal is sent when it changes by 3 dB, or every 5 minutes |
@@ -280,6 +282,12 @@ restarts, power cuts and updates. To move it to another Home Assistant, call
 `magicband.unpair_reader` first (this Home Assistant then leaves it alone;
 `magicband.pair_reader` takes it back), or erase it over USB with the web
 installer.
+Any Home Assistant user can call a reader's pair action, so on a new
+(unpaired) reader the first request wins: it waits 2 minutes for the tap and
+asking again doesn't extend that. Meanwhile any other key is refused
+(`PAIRING_BUSY`), and after an unconfirmed wait the same key must leave a
+2-minute gap in which another key can ask. Only tap a band when MagicbHAnds
+asks you to in Repairs.
 See [security.md](security.md).
 
 ### No waiting on Home Assistant
@@ -304,7 +312,9 @@ people with several bands, and keeps every reader's list in sync.
 
 **Without the integration:** tap the band, then press **Allow last band** on
 the reader's device page. **Forget last band** (tap it first) and **Forget
-all bands** remove entries.
+all bands** remove entries. On a reader paired with MagicbHAnds the three
+buttons do nothing (any Home Assistant user can press them): the integration
+manages the list.
 
 ### "Ask Home Assistant" mode: let an automation decide
 
@@ -378,7 +388,8 @@ so there's nothing to copy onto Home Assistant.
 
 **A welcome sound for one person:** with MagicbHAnds, upload it on the
 MagicbHAnds page (People → that person). No rebuild: Home Assistant plays it
-on the reader when it welcomes their bands, instead of `tap_in.wav`. See
+on the reader when it welcomes their bands, instead of `tap_in.wav`. While
+Home Assistant isn't connected the reader plays `tap_in.wav` for them. See
 [Welcome sounds](integration.md#welcome-sounds).
 
 **Quiet hours:** **Sound at night** (Quieter or Off) lowers or silences the
@@ -390,3 +401,11 @@ reader at night, on the same schedule as **Idle glow at night**.
   nearby, not only the one on the reader. The reader transmits at −12 dBm by
   default (the **Band light-up power** setting) to keep that local.
 - Taps during a sequence are ignored; tap again once the reader is idle.
+- Bands that aren't on the reader's allowed list reach Home Assistant as tag
+  scans at most 6 new bands a minute and 30 an hour (a band tapped again
+  soon after always does), so someone at the door cycling made-up tag IDs
+  can't fill Home Assistant's tag list. The reader still welcomes or denies
+  every tap as usual, and bands on its list are never held back. In *Welcome
+  every band* or *Ask Home Assistant* mode without an allowed list, a crowd
+  of new bands beyond that rate isn't reported (in *Ask Home Assistant* mode,
+  they're denied).

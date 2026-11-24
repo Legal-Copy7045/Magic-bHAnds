@@ -39,6 +39,8 @@
     history: true,           // the history service answers (else it fails with historyError)
     historyError: 'Unauthorized',
     cameras: true,
+    readerTz: 'Eastern (New York)',   // the readers' Time zone setting
+    strangers: false,        // add a smart plug on another integration's device, and two dangerous reader buttons under harmless ids
   }, window.__MOCK_OPTS || {});
   if (O.clean) Object.assign(O, { lockedOut: false, unpaired: false, lowBattery: false, listFailed: false, unknown: 0, btOnly: false, bandTypesKnown: true }, O.clean === true ? {} : O.clean);
 
@@ -82,7 +84,7 @@
     sel('Sound at night', opt.soundNight, ['Normal', 'Quieter', 'Off']);
     sel('Checking colour', 'White', COL); sel('Welcome colour', 'Green', COL); sel('Denied colour', 'Red', COL);
     sel('Band light-up power', '-12 dBm', ['-24 dBm', '-21 dBm', '-18 dBm', '-15 dBm', '-12 dBm', '-9 dBm', '-6 dBm', '-3 dBm', '0 dBm']);
-    sel('Time zone', 'Eastern (New York)', TZ);
+    sel('Time zone', O.readerTz, TZ);
     const num = (l, s, u, mn, mx, st) => E('number', l, s, { unit_of_measurement: u, min: mn, max: mx, step: st, mode: 'box' }, 'config');
     num('LED count', opt.leds || 24, undefined, 1, 60, 1); num('LED brightness', 100, '%', 5, 100, 5); num('Idle glow', 30, '%', 0, 100, 5);
     num('Idle circle time', opt.time || 3, 's', 0.5, 10, 0.5); num('Idle circle tail', opt.tail || 0, 'LEDs', 0, 60, 1); num('Idle tail fade', opt.fade != null ? opt.fade : 10, '%', 0, 100, 5); num('Idle circle heads', opt.heads || 1, undefined, 1, 4, 1);
@@ -183,6 +185,13 @@
   X('alarm_control_panel.house_alarm', 'disarmed', { friendly_name: 'House alarm' });
   const ss = new Date(); ss.setHours(16, 52, 0, 0); if (ss < new Date()) ss.setDate(ss.getDate() + 1); const sr = new Date(); sr.setHours(7, 11, 0, 0); if (sr < new Date()) sr.setDate(sr.getDate() + 1);
   X('sun.sun', 'above_horizon', { next_setting: ss.toISOString(), next_rising: sr.toISOString(), friendly_name: 'Sun' });
+  if (O.strangers) {
+    dev('dev_plug', 'Kitchen kettle plug', 'Smart plug', 'kitchen', { manufacturer: 'Plugco' });
+    ent('switch.kitchen_kettle', 'off', { friendly_name: 'Kitchen kettle' }, 'dev_plug', 'plugco');
+    ent('button.front_door_reader_wipe', 'unknown', { friendly_name: 'Front Door Reader Factory reset' }, 'dev_r1', 'esphome', 'config');
+    ent('button.front_door_reader_tidy', 'unknown', { friendly_name: 'Front Door Reader Tidy' }, 'dev_r1', 'esphome', 'config');
+    entities['button.front_door_reader_tidy'].name = 'Forget all bands';
+  }
 
   // ---- the integration's service responses ----
   const badge = (key, name, how, icon, earned) => ({ key, name, how, icon, earned: earned ? min(earned) : null });

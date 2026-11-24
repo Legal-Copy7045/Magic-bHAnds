@@ -136,7 +136,7 @@ summary:focus-visible{border-radius:4px}
 .plist{display:flex;flex-direction:column}
 .pc{border-top:1px solid var(--line);padding:12px 0 6px;min-width:0}.pc:first-child{border-top:0;padding-top:2px}
 .pc .pr{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) minmax(0,1.3fr) minmax(0,1fr) auto;grid-template-areas:"n ha b t a";gap:6px 16px;align-items:start;font-size:13.5px}
-.pc-n{grid-area:n;min-width:0}.pc-ha{grid-area:ha;min-width:0}.pc-b{grid-area:b;min-width:0}.pc-t{grid-area:t;min-width:0}.pc-a{grid-area:a;display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;align-self:center}
+.pc-n{grid-area:n;min-width:0}.pc-ha{grid-area:ha;min-width:0}.pc-b{grid-area:b;min-width:0}.pc-t{grid-area:t;min-width:0}.pc-a{grid-area:a;display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;align-self:start}
 .pc h3{margin:0;font:700 15.5px "Bricolage Grotesque",sans-serif}.pc-l{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:2px}
 .pc-ha select{width:100%;max-width:240px}.pc .pm details.more{margin-top:6px}
 @media (max-width:760px){.pc .pr{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"n n" "b t" "ha ha" "a a";gap:8px 12px}.pc-a{justify-content:flex-start}.pc-ha select{max-width:100%}
@@ -168,7 +168,8 @@ table.t .tag{white-space:nowrap}table.t td.when{white-space:nowrap}table.t td.pi
   select,input[type=text],input[type=search],input[type=number],input[type=time],input[type=datetime-local],.access input[type=time],.access input[type=datetime-local],.access input[type=number],.bar input[type=search]{min-height:44px;box-sizing:border-box}
   .sg .nu{min-height:44px}.sg .nu input[type=text]{min-height:42px}
   .sparkbtn{min-width:44px;min-height:44px}.snap{height:44px}.set{row-gap:14px}
-  .jump a,.wrap .jump a{padding:9px 13px}.status .pchip,.wrap .status .pchip{padding:8px 12px}
+  .jump a,.wrap .jump a{display:inline-flex;align-items:center;min-height:44px;box-sizing:border-box;padding:9px 13px}
+  .status .pchip,.wrap .status .pchip{min-height:44px;box-sizing:border-box;padding:8px 12px}
 }
 </style></head><body>
 <div class="wrap">
@@ -268,7 +269,11 @@ function pick(I,d,dom,label){ const L=(I.byDev[d.id]||[]).filter(e=>e.startsWith
   return L.find(e=>{ const fn=String(A(e).friendly_name||'').toLowerCase(), dn=dname(d).toLowerCase(); return (fn.startsWith(dn)?fn.slice(dn.length).trim():fn)===want; })||null; }
 function firmware(I,d){ const u=(I.byDev[d.id]||[]).filter(e=>e.startsWith('update.')).map(e=>A(e).installed_version).filter(v=>v&&!/^20/.test(String(v)));
   return u[0]||null; }
-const online=(I,d)=>(I.byDev[d.id]||[]).some(avail);
+// online = any of the device's own (ESPHome) entities is available. The integration puts a few of its own on
+// readers (Allowed list, Last band name) that never go unavailable, so they don't count. Without the entity
+// registry (no platform known), those are told apart by their attributes.
+const mbOwn=(I,e)=>I.plat[e]?I.plat[e]==='magicband':(e.startsWith('sensor.')&&('band_id' in A(e)||('last_sync' in A(e)&&'welcome_colours' in A(e))||/ (allowed list|last band name)$/i.test(String(A(e).friendly_name||''))));
+const online=(I,d)=>(I.byDev[d.id]||[]).some(e=>!mbOwn(I,e)&&avail(e));
 // the integration's devices: a band has band sensors (a tap counter or Bluetooth sightings); the others are the
 // integration's own service devices, whatever they've been renamed to
 function mbDevices(I){ const D=H().devices(); const mbDev=new Set(Object.keys(I.plat).filter(e=>I.plat[e]==='magicband').map(e=>(H().meta(e)||{}).device_id)); return D.filter(d=>mbDev.has(d.id)); }
@@ -392,14 +397,14 @@ function unknownJob(I,P,unk){ const lt=lastTapSensor(I), la=lt?A(lt):{};
     return `<div class="item" id="unk-${esc(slugId(id))}"><div class="t"><span>${esc(id)}</span><span class="sub2">${u.last_seen||u.first_seen?'tapped '+esc(rel(u.last_seen||u.first_seen)):''}${u.reader||u.last_reader?' on '+esc(u.reader||u.last_reader):''}${u.scans?' · '+(Number(u.scans)||0)+' taps':''}</span></div>
       <div class="form"><select data-u-person="${key}" aria-label="Whose band is ${esc(id)}?"><option value="">Whose band?</option>${personOptions(P)}<option value="__new">+ Someone new…</option></select>
       <input type="text" data-u-new="${key}" placeholder="Their name" aria-label="Their name" hidden><input type="text" data-u-label="${key}" placeholder="Nickname, e.g. Castle (optional)" aria-label="Nickname for this band (optional)">
-      <button class="btn pri" data-u-go="${key}" data-band="${esc(id)}"${BUSY[key]?' disabled':''}>Assign</button></div><div class="msg" id="msg-${key}"></div></div>`; }).join('')+last;
+      <button class="btn pri" data-u-go="${key}" data-band="${esc(id)}"${BUSY[key]?' disabled':''}>Assign</button></div>${msgLine(key)}</div>`; }).join('')+last;
   document.querySelectorAll('[data-u-person]').forEach(s=>s.onchange=()=>{ const k=s.dataset.uPerson; document.querySelector(`[data-u-new="${k}"]`).hidden=s.value!=='__new'; });
   document.querySelectorAll('[data-u-go]').forEach(b=>b.onclick=async()=>{ const k=b.dataset.uGo, band=b.dataset.band, sel=document.querySelector(`[data-u-person="${k}"]`).value,
-      nw=document.querySelector(`[data-u-new="${k}"]`).value.trim(), label=document.querySelector(`[data-u-label="${k}"]`).value.trim(), msg=$('msg-'+k);
-    let person=sel; if(!sel){ msg.className='msg bad'; msg.textContent='Pick who it’s for first.'; return; }
-    if(sel==='__new'){ if(!nw){ msg.className='msg bad'; msg.textContent='Type their name.'; return; } person=nw; }
+      nw=document.querySelector(`[data-u-new="${k}"]`).value.trim(), label=document.querySelector(`[data-u-label="${k}"]`).value.trim();
+    let person=sel; if(!sel){ note(k,'bad','Pick who it’s for first.'); return; }
+    if(sel==='__new'){ if(!nw){ note(k,'bad','Type their name.'); return; } person=nw; }
     const go=(sel==='__new'?mb('add_person',{name:nw,allowed:true},true):Promise.resolve()).then(()=>mb('assign_band',Object.assign({band,person},label?{label}:{})));
-    act(go,k,msg,`Assigned to ${person}. The readers update within a few seconds.`); }); }
+    act(go,k,k,`Assigned to ${person}. The readers update within a few seconds.`); }); }
 
 // Bluetooth halves with no NFC side, and NFC bands with no Bluetooth: link one to the other
 // NFC bands nobody has said are a MagicBand+ or a standard band: ask (a standard band has no Bluetooth, so it's never heard)
@@ -428,12 +433,12 @@ function linkJob(I,B,P,BR){ const btOnly=((BT&&BT.bluetooth_bands)||[]).filter(b
     const guess=nfcOnly.find(x=>b.person&&x.person===b.person)||(nfcOnly.length===1?nfcOnly[0]:null);
     return `<div class="item"><div class="t"><span>${esc(b.name||b.id)}</span><span class="sub2">${b.nearby?'nearby · ':''}heard ${esc(rel(b.last_seen))}${b.heard_by?' by '+esc(b.heard_by):''}${b.battery!=null?' · battery '+esc(b.battery)+'%':''}</span></div>
       <div class="form"><select data-l-to="${key}" aria-label="Link ${esc(b.name||b.id)} to a band or person">${linkOptions(nfcOnly,P,guess)}</select>
-      <button class="btn pri" data-l-go="${key}" data-bt="${esc(b.id)}"${BUSY[key]?' disabled':''}>Link</button>${guess?`<span class="sub2">suggested: ${esc(guess.name)}</span>`:''}</div><div class="msg" id="msg-${key}"></div></div>`; }).join('')+waitP+msgLine('link');
+      <button class="btn pri" data-l-go="${key}" data-bt="${esc(b.id)}"${BUSY[key]?' disabled':''}>Link</button>${guess?`<span class="sub2">suggested: ${esc(guess.name)}</span>`:''}</div>${msgLine(key)}</div>`; }).join('')+waitP+msgLine('link');
   document.querySelectorAll('[data-wakeall]').forEach(x=>x.onclick=()=>act(mb('send',{effect:'wake'},true),'wk','link','Wake sent through every bridge: bands nearby advertise for the next 15 s.'));
-  document.querySelectorAll('[data-l-go]').forEach(b=>b.onclick=()=>{ const k=b.dataset.lGo, v=document.querySelector(`[data-l-to="${k}"]`).value, msg=$('msg-'+k);
-    if(!v){ msg.className='msg bad'; msg.textContent='Pick the band or person first.'; return; }
+  document.querySelectorAll('[data-l-go]').forEach(b=>b.onclick=()=>{ const k=b.dataset.lGo, v=document.querySelector(`[data-l-to="${k}"]`).value;
+    if(!v){ note(k,'bad','Pick the band or person first.'); return; }
     const [kind,val_]=[v.slice(0,v.indexOf(':')),v.slice(v.indexOf(':')+1)];
-    act(mb('link_bluetooth',{bluetooth_band:b.dataset.bt,[kind]:val_}),k,msg,'Linked.'); }); }
+    act(mb('link_bluetooth',{bluetooth_band:b.dataset.bt,[kind]:val_}),k,k,'Linked.'); }); }
 
 // grouping and sorting of the band cards; the choice is remembered in this browser
 const BV={group:'none',sort:'person',find:''}; try{ Object.assign(BV,JSON.parse(localStorage.getItem('mbh-bands')||'{}'),{find:''}); }catch(e){}
@@ -719,7 +724,7 @@ function readerCards(I,RD,B){ $('readers').innerHTML=RD.map(d=>{ const p=l=>pick
       ${msgLine(mk)}
       <details class="more hp" data-k="h-${esc(d.id)}"><summary>Health${HT.sum?` <span class="sub2">· ${esc(HT.sum)}</span>`:''}</summary>${HT.html}
         ${p(['switch','Automatic updates'])?`<div class="row" title="Installs a new signed release by itself between 3 and 4 am (local time), without Home Assistant starting it"><span>Automatic updates <span class="hn">installs new releases between 3 and 4 am</span></span>${tg(p(['switch','Automatic updates']),'Automatic updates',dname(d))}</div>`:''}
-        ${p(['select','Time zone'])?`<div class="row" title="The local time zone for this reader's clocks: night mode and the automatic-update window"><span>Time zone</span>${setCtl(p(['select','Time zone']),'select')}</div>`:''}
+        ${p(['select','Time zone'])?`<div class="row" title="The local time zone for this reader's clocks: night mode and the automatic-update window"><label for="${cid(p(['select','Time zone']))}">Time zone</label>${setCtl(p(['select','Time zone']),'select')}</div>`:''}
         ${rs?`<div class="btns"><button class="btn sm ${ARM['rs'+rs]?'arm':''}" data-restart="${esc(rs)}" title="Asks for a second tap"${avail(rs)?'':' disabled'}>${ARM['rs'+rs]?'Tap again to restart':'Restart'}</button></div>`:''}</details>
       <details class="more" data-k="${esc(d.id)}"><summary>Ring and tap settings</summary>${readerSettings(p,mk,dname(d))}</details></section>`; }).join('')||'<p class="muted">No MagicBand readers found (ESPHome model magicband-reader).</p>'; }
 
@@ -749,7 +754,7 @@ function renderShow(show,t,n){
     for(let i=0;i<n;i++){ if(k>=6) put(i,C[5],e); else if(i<=lit) put(i,C[k],e); else if(k>0) put(i,under,e); } }
   else if(show===4){ const e=env(500,700); for(let i=0;i<n;i++){ const h=showHash(i,99), per=900+(h%800), ph=((h>>>10)%1000)/1000, s=Math.sin(6.2832*(T/per+ph)), v=s>0?s*s*s:0, kd=(h>>>20)%3;
       put(i,kd===0?[1,1,1]:kd===1?[.55,.7,1]:[1,.75,.35],e*(.05+.95*v)); } }
-  else if(show===5){ const p=T%1400; let v=0; if(p<220) v=Math.sin(Math.PI*p/220); else if(p>=300&&p<560) v=.7*Math.sin(Math.PI*(p-300)/260);
+  else if(show===5){ const p=T%1400; let v=0; if(T>=4200) v=0; else if(p<220) v=Math.sin(Math.PI*p/220); else if(p>=300&&p<560) v=.7*Math.sin(Math.PI*(p-300)/260);
     for(let i=0;i<n;i++){ const d=Math.abs(i/n-.5)*2; put(i,[1,.08,.25],v*(.45+.55*d)); } }
   else if(show===6){ const e=env(500,600); for(let i=0;i<n;i++){ const w=.5+.5*Math.sin(6.2832*(i/n*2-T/1500)), w2=.5+.5*Math.sin(6.2832*(i/n*3+T/2300)), m=cl(.6*w+.4*w2); put(i,[0,.15+.65*m,.6+.1*m],e*(.3+.7*m)); } }
   else if(show===7){ const e=env(400,700), f0=Math.floor(t/70), f=(T-f0*70)/70; for(let i=0;i<n;i++){ const a=(showHash(i,f0)&255)/255, b=(showHash(i,f0+1)&255)/255, d=1-Math.abs(i/n-.5)*2, ht=cl((a+(b-a)*f)*.55+d*.5);
@@ -814,7 +819,7 @@ function renderShow(show,t,n){
 // the chase while the band is read, then the welcome or the denied pulses.
 const TWIN_SET=[['number','LED count'],['number','Circle time'],['number','Circle tail'],['number','Welcome fade in'],['number','Welcome hold'],
   ['number','Welcome fade out'],['number','Welcome pulses'],['number','Denied pulses'],['number','Pulse time'],['number','Idle glow'],['number','Idle circle time'],['number','Idle circle tail'],['number','Idle circle heads'],['number','Idle tail fade'],['select','Idle circle direction'],
-  ['number','Idle glow at night'],['select','Night mode'],['number','Night from'],['number','Night until'],['number','Night starts after sunset'],['number','Night ends after sunrise'],['binary_sensor','Night now']];
+  ['number','Idle glow at night'],['select','Night mode'],['number','Night from'],['number','Night until'],['number','Night starts after sunset'],['number','Night ends after sunrise'],['binary_sensor','Night now'],['select','Time zone']];
 const TWIN_START={};
 let TWIN_STYLE='leds'; try{ TWIN_STYLE=localStorage.getItem('mbh-twin-style')==='diffused'?'diffused':'leds'; }catch(e){}
 // The emblem in the middle of the twin's pad: a page that hosts this one can set
@@ -852,9 +857,9 @@ function twinHTML(p,ring,sp,on,band,size){ if(!ring) return '';
     <svg x="${70-(R-17)}" y="${70-(R-17)}" width="${2*(R-17)}" height="${2*(R-17)}" viewBox="0 0 100 100" class="tw-emblem">${emb}</svg></g></svg>
     <div class="tw-side"><b class="tw-cap">&nbsp;</b><span class="tw-sub sub2">&nbsp;</span>${size?'<span class="tw-live sub2"><span class="dot" id="ldot"></span> <span id="lstatus">Connecting to Home Assistant…</span></span>':''}</div></div>`; }
 function twinNight(ids){ const nn=ids['Night now']&&S(ids['Night now']); if(nn&&(nn.state==='on'||nn.state==='off')) return nn.state==='on';  // the reader's own answer
-  const g=l=>ids[l]&&S(ids[l])?S(ids[l]).state:null, f=l=>parseFloat(g(l))||0, now=new Date(), m=now.getHours()*60+now.getMinutes();
+  const g=l=>ids[l]&&S(ids[l])?S(ids[l]).state:null, f=l=>parseFloat(g(l))||0, tz=readerTz(g('Time zone')), m=minsIn(new Date(),tz);
   let from=f('Night from')*60, until=f('Night until')*60;
-  if(g('Night mode')==='Sunset to sunrise'){ const ss=sunMins('next_setting'), sr=sunMins('next_rising'); if(ss!=null&&sr!=null){ from=ss+f('Night starts after sunset'); until=sr+f('Night ends after sunrise'); } }
+  if(g('Night mode')==='Sunset to sunrise'){ const ss=sunMins('next_setting',tz), sr=sunMins('next_rising',tz); if(ss!=null&&sr!=null){ from=ss+f('Night starts after sunset'); until=sr+f('Night ends after sunrise'); } }
   from=((from%1440)+1440)%1440; until=((until%1440)+1440)%1440;
   return from!==until&&(from<until?(m>=from&&m<until):(m>=from||m<until)); }
 function twinFrame(){
@@ -908,12 +913,20 @@ const SWATCH={White:'#f4f4f5','Warm white':'#ffd8a0',Red:'#ef4444',Orange:'#f973
 // the unit sits inside the number box, so boxes end where the drop-downs end
 function setCtl(e,dom,lab,who){ if(!e) return null; if(dom==='select') return selectFor(e); if(dom==='switch') return tg(e,lab||A(e).friendly_name||'',who,cid(e)); const u=A(e).unit_of_measurement; return `<span class="nu">${numberFor(e)}<span class="u">${u?esc(u):''}</span></span>`; }
 function hm(mins){ mins=((Math.round(mins)%1440)+1440)%1440; return String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0'); }
-function sunMins(attr){ const s=S('sun.sun'), v=s&&s.attributes?s.attributes[attr]:null, t=v?new Date(v):null; return t&&!isNaN(t)?t.getHours()*60+t.getMinutes():null; }
+// the reader keeps its clocks in its own Time zone setting (not Home Assistant's or this browser's): its options, as IANA zones
+const READER_TZ={'Eastern (New York)':'America/New_York','Central (Chicago)':'America/Chicago','Mountain (Denver)':'America/Denver','Arizona (Phoenix)':'America/Phoenix',
+  'Pacific (Los Angeles)':'America/Los_Angeles','Alaska (Anchorage)':'America/Anchorage','Hawaii (Honolulu)':'Pacific/Honolulu','UK (London)':'Europe/London',
+  'Central Europe (Paris)':'Europe/Paris','UTC':'UTC'};
+const readerTz=opt=>READER_TZ[opt]||null;   // null: no Time zone setting (older firmware), so this browser's zone
+// minutes after midnight of a moment, in a time zone (null = this browser's)
+function minsIn(t,tz){ if(tz){ try{ const P={}; new Intl.DateTimeFormat('en-GB',{timeZone:tz,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(t).forEach(x=>P[x.type]=x.value);
+    return (+P.hour%24)*60+(+P.minute); }catch(e){ /* an unknown zone: the browser's */ } } return t.getHours()*60+t.getMinutes(); }
+function sunMins(attr,tz){ const s=S('sun.sun'), v=s&&s.attributes?s.attributes[attr]:null, t=v?new Date(v):null; return t&&!isNaN(t)?minsIn(t,tz):null; }
 function readerSettings(p,mk,who){
   const v=(dom,l)=>{ const e=p([dom,l]); return e&&avail(e)?S(e).state:null; }, f=(l)=>parseFloat(v('number',l));
   const sunMode=v('select','Night mode')==='Sunset to sunrise';
   let night='';
-  if(sunMode){ const ss=sunMins('next_setting'), sr=sunMins('next_rising');
+  if(sunMode){ const tz=readerTz(v('select','Time zone')), ss=sunMins('next_setting',tz), sr=sunMins('next_rising',tz);
     night=ss==null||sr==null?"Home Assistant's sun isn't available, so the reader uses Night from and Night until."
       :`Tonight: ${hm(ss+(f('Night starts after sunset')||0))} to ${hm(sr+(f('Night ends after sunrise')||0))} (sunset ${hm(ss)}, sunrise ${hm(sr)}).`; }
   else { const a=f('Night from'), b=f('Night until'); night=isNaN(a)||isNaN(b)?'':a===b?'Off: the same hour in both keeps Idle glow all day.':`${hm(a*60)} to ${hm(b*60)}.`; }
@@ -989,7 +1002,7 @@ function bridgeCards(I,BR){ $('bridges').innerHTML=BR.map(d=>{ const p=(dom,l)=>
       <div class="row" title="Mixes the fast-mode ping into every broadcast, so bands listen continuously and effects reach them sooner (on by default)"><span>Fast mode <span class="hn">bands listen all the time, so effects land sooner</span></span>${tg(p('switch','Fast mode'),'Fast mode',dname(d))}</div>
       <div class="row" title="Also use this bridge as a Home Assistant Bluetooth proxy (off by default)"><span>Bluetooth proxy <span class="hn">also extends Home Assistant’s Bluetooth range</span></span>${p('switch','Bluetooth proxy')?tg(p('switch','Bluetooth proxy'),'Bluetooth proxy',dname(d)):'<span class="sub2">not on this bridge</span>'}</div>
       ${p('switch','Automatic updates')?`<div class="row" title="Installs a new signed release by itself between 3 and 4 am (local time), without Home Assistant starting it"><span>Automatic updates <span class="hn">installs new releases between 3 and 4 am</span></span>${tg(p('switch','Automatic updates'),'Automatic updates',dname(d))}</div>`:''}
-      ${p('select','Time zone')?`<div class="row" title="The local time zone for this bridge's clocks (the automatic-update window)"><span>Time zone</span>${setCtl(p('select','Time zone'),'select')}</div>`:''}
+      ${p('select','Time zone')?`<div class="row" title="The local time zone for this bridge's clocks (the automatic-update window)"><label for="${cid(p('select','Time zone'))}">Time zone</label>${setCtl(p('select','Time zone'),'select')}</div>`:''}
       <div class="btns">${bt(p('button','Wake bands'),'Wake bands','','Sends the fast-mode ping on its own for 15 s: bands near this bridge wake up and react quickly to what follows')}${bt(p('button','Ping'),'Ping','','Sends a ping that bands answer: a quick check of which bands this bridge reaches')}</div>${msgLine(mk)}
       ${healthTiles(I,d).html}</section>`; }).join('')||'<p class="muted">No MagicBand bridges found.</p>'; }
 

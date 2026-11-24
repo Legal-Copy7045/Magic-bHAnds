@@ -29,7 +29,9 @@ namespace magicband {
 // full-brightness proportions (gamma 2.8, the light's default). A channel with
 // at least a fifth of the brightest one's share never drops out: the LED stays
 // at the dimmest level that still shows it, so a tail keeps its colour to the
-// end. Smaller shares (warm white's blue) may round away. On RGBW rings with
+// end (where the whole colour is fewer steps than its mix needs, at the very
+// dimmest settings, each such channel gets one step, like the top one).
+// Smaller shares (warm white's blue) may round away. On RGBW rings with
 // the white LED in use, colours are scaled the plain way. (An RGB light still
 // hands effects a white value, so test the LED itself, not c.w: going by c.w
 // sent RGB rings down the plain path, and a warm tail faded to one step of
@@ -72,8 +74,19 @@ inline void put_dimmed(light::ESPColorView led, Color c, uint8_t level) {
   int least = 1;
   for (int k = 0; k < 3; k++)
     if (k != top && share[k] >= 0.2f) least = std::max(least, static_cast<int>(ceilf(0.5f / share[k])));
-  steps = std::min(std::max(steps, least), std::max(most, 1));
   uint8_t v[3];
+  if (most < least) {
+    // At the very dimmest settings (LED brightness x power cap or light
+    // brightness of about a tenth or less) the whole colour is fewer steps than
+    // the mix needs. The proportions can't be shown, so light the top channel
+    // and every channel with a fifth or more of its share at one step each (warm
+    // white: 1,1,0) rather than the top one alone (plain red). Scaling the plain
+    // way doesn't do it either: it rounds the minor channels away first.
+    for (int k = 0; k < 3; k++) v[k] = k == top || share[k] >= 0.2f ? value_for(1, k) : 0;
+    led = Color(v[0], v[1], v[2]);
+    return;
+  }
+  steps = std::min(std::max(steps, least), std::max(most, 1));
   for (int k = 0; k < 3; k++)
     v[k] = k == top ? value_for(steps, k) : value_for(static_cast<int>(lroundf(steps * share[k])), k);
   led = Color(v[0], v[1], v[2]);
@@ -239,9 +252,11 @@ inline bool render_show(int show, uint32_t t, int n, uint8_t *rgb) {
       break;
     }
     case 5: {  // Heartbeat: three "lub-dub" beats in warm red, spreading from the top
+      // Only three: a fourth would start at 4200 ms and be cut off bright at 4300.
       const float beat = 1400, p = fmodf(T, beat);
       float v = 0;
-      if (p < 220) v = sinf(3.1416f * p / 220);
+      if (T >= 3 * beat) v = 0;
+      else if (p < 220) v = sinf(3.1416f * p / 220);
       else if (p >= 300 && p < 560) v = 0.7f * sinf(3.1416f * (p - 300) / 260);
       for (int i = 0; i < n; i++) {
         const float d = fabsf((float) i / n - 0.5f) * 2;  // 0 at the bottom, 1 at the top

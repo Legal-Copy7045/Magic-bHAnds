@@ -23,7 +23,7 @@ substitutions:
   timezone: America/New_York
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.10.31"
+  project_version: "0.10.32"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -62,6 +62,11 @@ esphome:
       - binary_sensor.template.publish:
           id: paired
           state: !lambda 'return magicband::reader_paired(id(pair_key));'
+      # A real state from the start (no lockout after a restart), so Home
+      # Assistant shows "off" rather than "unknown" until the first lockout.
+      - binary_sensor.template.publish:
+          id: tap_lockout_active
+          state: !lambda 'return id(lockout_until) != 0;'
       - script.execute: apply_ring_settings
       # The start-up light show ("Startup show"), then the idle glow.
       - if:
@@ -73,10 +78,22 @@ esphome:
                 show: !lambda 'return id(startup_show).current_option().str();'
           else:
             - script.execute: reader_idle
+      # The start-up sound. After a power cut the clock isn't set yet, so it
+      # waits for the time (up to 20 s) to know whether it's night. If the time
+      # is still unknown it plays only with "Sound at night" Normal.
+      - wait_until:
+          condition:
+            lambda: 'return id(sntp_time).now().is_valid() || id(ha_time).now().is_valid();'
+          timeout: 20s
+      - script.execute: update_night
       - if:
           condition:
             # "Sound" on, and not night with "Sound at night" Off
-            lambda: 'return id(sound_enabled).state && !(id(night) && id(sound_at_night).current_option() == "Off");'
+            lambda: |-
+              if (!id(sound_enabled).state) return false;
+              if (!id(sntp_time).now().is_valid() && !id(ha_time).now().is_valid())
+                return id(sound_at_night).current_option() == "Normal";  // might be night
+              return !(id(night) && id(sound_at_night).current_option() == "Off");
           then:
             - media_player.speaker.play_on_device_media_file:
                 media_file: snd_startup
@@ -137,6 +154,7 @@ api:
   actions:
     # Plays a light show: show = one of the shows in "Show", or "Random".
     # (esphome.<node>_play_show, or the integration's magicband.play_show.)
+    # Any Home Assistant user can call it, so at most 12 shows a minute.
     - action: play_show
       variables:
         show: string
@@ -147,6 +165,10 @@ api:
                 - lambda: 'return id(ring_ready);'
                 - not:
                     script.is_running: band_tapped
+                - lambda: |-
+                    if (id(show_calls).allow(millis(), 60000)) return true;
+                    ESP_LOGW("reader", "play_show ignored: more than 12 shows a minute");
+                    return false;
             then:
               - script.execute:
                   id: play_show
@@ -155,7 +177,9 @@ api:
     # reader_key.h): afterwards accept, deny, set_known_bands and
     # set_band_colours need its key, so other Home Assistant users can't use
     # them. A paired reader never takes a different key over the network: the
-    # key holder can release it (unpair), or erase it over USB.
+    # key holder can release it (unpair), or erase it over USB. An unpaired
+    # reader's first request waits 2 minutes for a tap; meanwhile another key
+    # is refused with PAIRING_BUSY, and asking again doesn't extend the wait.
     - action: pair
       variables:
         key: string
@@ -978,6 +1002,10 @@ globals:
   - id: pending_until
     type: uint32_t
     initial_value: "0"
+  - id: show_calls        # recent play_show actions (at most 12 a minute)
+    type: magicband::RateLimit<12>
+  - id: unknown_tags      # unknown bands recently reported to Home Assistant (see band_tapped)
+    type: magicband::UnknownTagLimit
   - id: sync_error        # why the last set_known_bands failed ("" = applied)
     type: std::string
   # Each allowed band's owner's welcome colour: ",UID=Colour,UID=Colour,"
@@ -1406,7 +1434,13 @@ select:
             lambda: 'return id(ring_ready);'
           then:
             - script.execute: apply_ring_settings
-            - script.execute: reader_idle
+            # Not during a tap: the welcome or denied sequence finishes first.
+            - if:
+                condition:
+                  not:
+                    script.is_running: band_tapped
+                then:
+                  - script.execute: reader_idle
 
 number:
   # The ring's tap sequence timing.
@@ -1659,7 +1693,13 @@ number:
             lambda: 'return id(ring_ready);'
           then:
             - script.execute: apply_ring_settings
-            - script.execute: reader_idle
+            # Not during a tap: the welcome or denied sequence finishes first.
+            - if:
+                condition:
+                  not:
+                    script.is_running: band_tapped
+                then:
+                  - script.execute: reader_idle
   # Scales everything the ring shows (spin, welcome, deny, idle glow, and the
   # Ring light in Home Assistant). On top of the automatic power cap.
   - platform: template
@@ -1681,7 +1721,13 @@ number:
             lambda: 'return id(ring_ready);'
           then:
             - script.execute: apply_ring_settings
-            - script.execute: reader_idle
+            # Not during a tap: the welcome or denied sequence finishes first.
+            - if:
+                condition:
+                  not:
+                    script.is_running: band_tapped
+                then:
+                  - script.execute: reader_idle
   # How bright the glow is while waiting for a band (in "Idle colour"); 0 turns it off.
   - platform: template
     id: idle_glow
@@ -1699,7 +1745,10 @@ number:
     on_value:
       - if:
           condition:
-            lambda: 'return id(ring_ready);'
+            and:
+              - lambda: 'return id(ring_ready);'
+              - not:
+                  script.is_running: band_tapped
           then:
             - script.execute: reader_idle
   # A separate idle glow for the night, between "Night from" and "Night until"
@@ -1811,8 +1860,8 @@ binary_sensor:
     device_class: problem
 
 switch:
-  # Installs new releases by itself between 03:00 and 04:00 (local time, from
-  # Home Assistant's clock), without Home Assistant having to start it.
+  # Installs new releases by itself between 03:00 and 04:00 (local time in the
+  # "Time zone" setting, by the internet clock), without Home Assistant.
   - platform: template
     id: auto_update
     name: "Automatic updates"
@@ -1860,7 +1909,8 @@ event:
 debug:
   update_interval: 300s
 
-# The time, from Home Assistant: needed for "Last restart".
+# The time, from Home Assistant and from an internet time server (sntp_time
+# below): for "Last restart", night mode and the automatic-update window.
 time:
   - platform: homeassistant
     id: ha_time
@@ -1885,7 +1935,9 @@ time:
       # between 03:00 and 04:00 local time, by the internet clock so it doesn't
       # need Home Assistant (tried every 10 minutes, so a failed
       # download gets another go). Only signed releases install (see
-      # docs/security.md, "Signed updates").
+      # docs/security.md, "Signed updates"), and only a newer one: the job
+      # never goes back to an older signed release. Installing from Home
+      # Assistant's Firmware entity is up to you.
       - seconds: 0
         minutes: 55
         hours: 2
@@ -1904,8 +1956,16 @@ time:
                 and:
                   - switch.is_on: auto_update
                   - update.is_available: firmware_update
+                  - lambda: |-
+                      const auto &info = id(firmware_update).update_info;
+                      if (magicband::release_newer(info.latest_version, info.current_version)) return true;
+                      ESP_LOGW("update", "Automatic update: %s is not newer than %s, not installing",
+                               info.latest_version.c_str(), info.current_version.c_str());
+                      return false;
               then:
-                - logger.log: "Automatic update: installing the new release"
+                - logger.log:
+                    format: "Automatic update: installing the new release"
+                    level: INFO
                 - update.perform: firmware_update
 
 sensor:
@@ -2024,6 +2084,24 @@ script:
       - lambda: |-
           if (!magicband::set_time_zone(id(time_zone).current_option()))
             ESP_LOGW("time", "Unknown time zone: %s", id(time_zone).current_option().c_str());
+      # The stored sunset and sunrise are local minutes: work them out again in
+      # the new zone from Home Assistant's sun times (sun_time runs update_night).
+      - if:
+          condition:
+            lambda: 'return !id(sun_next_setting).state.empty();'
+          then:
+            - script.execute:
+                id: sun_time
+                iso: !lambda 'return id(sun_next_setting).state;'
+                rising: false
+      - if:
+          condition:
+            lambda: 'return !id(sun_next_rising).state.empty();'
+          then:
+            - script.execute:
+                id: sun_time
+                iso: !lambda 'return id(sun_next_rising).state;'
+                rising: true
       - script.execute: update_night
   # Applies "LED count", "LED colour order" and "Ring type", and caps the
   # output so the ring never draws more than about 1.44 A: 24 LEDs' worth of
@@ -2335,7 +2413,8 @@ script:
                 level: !lambda 'return (id(night) ? id(idle_glow_night).state : id(idle_glow).state) / 100.0f;'
 
   # A first pairing is waiting for a band tap (see the pair action): the ring
-  # breathes blue for up to 2 minutes, then goes back to normal.
+  # breathes blue until the wait ends (2 minutes after the first request;
+  # asking again doesn't extend it), then goes back to normal.
   - id: pair_wait
     mode: restart
     then:
@@ -2348,7 +2427,7 @@ script:
                 id: ring_on
                 effect: "Offline"
                 level: 0.8
-      - delay: 2min
+      - delay: !lambda 'return std::max<int32_t>(0, static_cast<int32_t>(id(pending_until) - millis()));'
       - if:
           condition:
             lambda: 'return id(ring_ready);'
@@ -2364,9 +2443,23 @@ script:
           id: last_band
           state: !lambda 'return uid;'
       # Not for "Test welcome": automations that react to any tag scan would fire.
+      # Bands that aren't on the reader's list are limited (6 new IDs a minute,
+      # 30 an hour; a recent one tapped again always goes), so made-up IDs
+      # can't fill Home Assistant's tag list. Bands on the list always go.
       - if:
           condition:
-            lambda: 'return uid != "TEST";'
+            and:
+              - lambda: 'return uid != "TEST";'
+              - lambda: |-
+                  std::string key;
+                  for (char c : uid)
+                    if (std::isxdigit(static_cast<unsigned char>(c)))
+                      key += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+                  std::string list(id(known_list).data());
+                  if (!key.empty() && list.find("," + key + ",") != std::string::npos) return true;  // on the list
+                  if (id(unknown_tags).allow(key, millis())) return true;
+                  ESP_LOGW("reader", "Unknown band not sent to Home Assistant: too many new bands this minute or hour");
+                  return false;
           then:
             - homeassistant.tag_scanned: !lambda 'return uid;'
       - globals.set: {id: decision, value: "0"}
@@ -2464,8 +2557,14 @@ script:
       - if:
           condition:
             # "Sound" on, not night with "Sound at night" Off, and the band's owner has
-            # no welcome sound of their own (MagicbHAnds plays that one on this speaker)
-            lambda: 'return id(sound_enabled).state && !(id(night) && id(sound_at_night).current_option() == "Off") && !id(own_sound);'
+            # no welcome sound of their own (MagicbHAnds plays that one on this speaker,
+            # so only while Home Assistant is connected; otherwise the reader's chime)
+            and:
+              - lambda: 'return id(sound_enabled).state && !(id(night) && id(sound_at_night).current_option() == "Off");'
+              - or:
+                  - lambda: 'return !id(own_sound);'
+                  - not:
+                      api.connected:
           then:
             - media_player.speaker.play_on_device_media_file:
                 media_file: snd_tap_in
@@ -2523,8 +2622,8 @@ script:
 
 button:
   # Manage the reader's own list from its device page: tap a band, then press.
-  # With the MagicBand integration, manage bands there instead: it replaces
-  # this list whenever it syncs.
+  # With the MagicBand integration, manage bands there instead: on a paired
+  # reader these buttons do nothing (any Home Assistant user can press them).
   - platform: template
     name: "Allow last band"
     icon: mdi:account-plus
@@ -2555,6 +2654,10 @@ button:
     entity_category: config
     on_press:
       - lambda: |-
+          if (magicband::reader_paired(id(pair_key))) {  // MagicbHAnds decides who's allowed
+            ESP_LOGW("reader", "This reader is paired with MagicbHAnds: remove bands there");
+            return;
+          }
           std::string key;
           for (char c : id(last_band).state)
             if (std::isxdigit(static_cast<unsigned char>(c)))
@@ -2572,7 +2675,13 @@ button:
     icon: mdi:account-multiple-remove
     entity_category: config
     on_press:
-      - lambda: 'std::fill(id(known_list).begin(), id(known_list).end(), 0);'
+      - lambda: |-
+          if (magicband::reader_paired(id(pair_key))) {  // MagicbHAnds decides who's allowed
+            ESP_LOGW("reader", "This reader is paired with MagicbHAnds: remove bands there");
+            return;
+          }
+          std::fill(id(known_list).begin(), id(known_list).end(), 0);
+          ESP_LOGI("reader", "Forgot all bands");
       - component.update: known_band_count
   - platform: template
     name: "Test welcome"

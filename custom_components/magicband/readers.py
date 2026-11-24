@@ -38,6 +38,11 @@ _LOGGER = logging.getLogger(__name__)
 # including the terminator (esphome/magicband-reader.yaml, known_list): 213
 # bands with 7-byte IDs. Readers on 0.10.3 or earlier hold 1,600 (106 bands).
 READER_LIST_CAPACITY = 3199
+# The reader's other two lists (same file): band_colours ",UID=Colour,..." in 4,096 characters and band_sounds
+# ",UID,..." in 1,600, both including the terminator. A list that doesn't fit is refused whole, so only what fits
+# is sent (whole entries) and a repair names the reader.
+COLOURS_CAPACITY = 4095
+SOUNDS_CAPACITY = 1599
 COLOURS_SERVICE_SUFFIX = "_set_band_colours"
 SOUNDS_SERVICE_SUFFIX = "_set_band_sounds"  # reader firmware 0.10.26+: bands with their own welcome sound
 # The reader firmware (0.10.4+) reports its ESPHome node name in this diagnostic text sensor.
@@ -57,6 +62,9 @@ SHOW_NAMES = (
 )
 SHOW_SERVICE_SUFFIX = "_play_show"
 PAIR_SERVICE_SUFFIX = "_pair"
+PAIRING_BUSY = "PAIRING_BUSY"  # another key's pairing request is waiting on the reader (someone else is pairing it)
+PAIRING_COOLDOWN = "PAIRING_COOLDOWN"  # our own request expired without a tap: it may ask again 2 minutes later
+PAIRING_RETRY = 120  # seconds before a busy or cooling-down reader is asked again
 PAIRING_PENDING = "PAIRING_PENDING"  # the reader's reply while a first pairing waits for its tap  # readers from 0.10.20: the protected actions then need the key
 CONF_READER_KEY = "reader_key"
 
@@ -95,7 +103,14 @@ def is_reader_device(hass: HomeAssistant, device_id: str | None) -> bool:
 
 
 def reader_devices(hass: HomeAssistant) -> list[dr.DeviceEntry]:
-    return [d for d in dr.async_get(hass).devices.values() if is_reader_device(hass, d.id)]
+    """Every reader: among the ESPHome config entries' devices (readers are always ESPHome devices)."""
+    dev_reg, seen, out = dr.async_get(hass), set(), []
+    for esphome_entry in hass.config_entries.async_entries("esphome"):
+        for device in dr.async_entries_for_config_entry(dev_reg, esphome_entry.entry_id):
+            if device.id not in seen and is_reader_device(hass, device.id):
+                seen.add(device.id)
+                out.append(device)
+    return out
 
 
 def node_name(hass: HomeAssistant, device: dr.DeviceEntry) -> str | None:
@@ -124,6 +139,18 @@ def firmware_version(device: dr.DeviceEntry) -> tuple[int, ...] | None:
 def list_size(uids: list[str]) -> int:
     """Characters the reader needs for this list (",UID,UID,")."""
     return 1 + sum(len(u) + 1 for u in uids)
+
+
+def fit_entries(entries: list[str], capacity: int) -> list[str]:
+    """The leading entries whose reader form (",a,b,") fits in `capacity` characters."""
+    kept: list[str] = []
+    size = 1
+    for entry in entries:
+        size += len(entry) + 1
+        if size > capacity:
+            break
+        kept.append(entry)
+    return kept
 
 
 def _manager(hass: HomeAssistant) -> "ReaderManager | None":
@@ -196,6 +223,8 @@ class ReaderManager:
         self.statuses: dict[str, ReaderStatus] = {}
         self._offline_since: dict[str, datetime] = {}
         self._last_sent: tuple | None = None
+        self.sounds_left_out: set[str] = set()  # bands with a sound that didn't fit in the readers' list
+        self._retry_at: float | None = None  # when a reader that couldn't pair yet is asked again (monotonic)
 
     # ------------------------------------------------------------------ sync
 
@@ -207,9 +236,22 @@ class ReaderManager:
         now = dt_util.now()
         uids = self.registry.allowed_uids(now)
         colours = self.registry.welcome_colours(now)
-        sound_list = ",".join(self.registry.sound_uids(now))
+        all_sounds = self.registry.sound_uids(now)
+        sound_uids = fit_entries(all_sounds, SOUNDS_CAPACITY)
+        self.sounds_left_out = set(all_sounds) - set(sound_uids)
+        sound_list = ",".join(sound_uids)
         bands = ",".join(uids)
-        colour_list = ",".join(f"{uid}={colour}" for uid, colour in colours.items())
+        all_colours = [f"{uid}={colour}" for uid, colour in colours.items()]
+        colour_entries = fit_entries(all_colours, COLOURS_CAPACITY)
+        colour_list = ",".join(colour_entries)
+        if len(colour_entries) < len(all_colours):
+            _LOGGER.warning("The welcome colours of %d band(s) don't fit in a reader (room for %d of %d): "
+                            "they're welcomed in the reader's Welcome colour",
+                            len(all_colours) - len(colour_entries), len(colour_entries), len(all_colours))
+        if self.sounds_left_out:
+            _LOGGER.warning("%d band(s) with their own welcome sound don't fit in a reader's list (room for %d of %d): "
+                            "they get the reader's tap-in sound", len(self.sounds_left_out), len(sound_uids),
+                            len(all_sounds))
         self._last_sent = (tuple(uids), tuple(sorted(colours.items())))
         too_long = list_size(uids) > READER_LIST_CAPACITY
         self._issue("list_too_long", too_long, "list_too_long", {"bands": str(len(uids)), "capacity": "213"})
@@ -261,6 +303,9 @@ class ReaderManager:
                     )
                 except Exception as err:  # noqa: BLE001 - colours are cosmetic
                     _LOGGER.warning("Reader %s didn't take the welcome colours: %s", status.name, err)
+            self._issue(f"colours_too_long_{device.id}", bool(status.colours) and len(colour_entries) < len(all_colours),
+                        "colours_too_long", {"reader": status.name, "kept": str(len(colour_entries)),
+                                             "total": str(len(all_colours))})
             # Which bands have their own welcome sound. Until a reader has taken it, MagicbHAnds doesn't
             # play people's sounds there (the reader would play its tap-in sound as well).
             sound_service = _service_for(node, SOUNDS_SERVICE_SUFFIX)
@@ -274,6 +319,9 @@ class ReaderManager:
                     status.sounds = True
                 except Exception as err:  # noqa: BLE001 - sounds are cosmetic
                     _LOGGER.warning("Reader %s didn't take the welcome sounds: %s", status.name, err)
+            self._issue(f"sounds_too_long_{device.id}", status.sounds and bool(self.sounds_left_out),
+                        "sounds_too_long", {"reader": status.name, "kept": str(len(sound_uids)),
+                                            "total": str(len(all_sounds))})
             self._issue(
                 f"reader_sync_failed_{device.id}",
                 status.state == FAILED,
@@ -302,11 +350,37 @@ class ReaderManager:
         try:
             await self._pair(node)
         except Exception as err:
-            if PAIRING_PENDING not in str(err):
+            text = str(err)
+            if PAIRING_BUSY in text:
+                # Someone else's pairing request is waiting on it: a tap now would pair it with them. Say so,
+                # don't ask for a tap, and ask again after their request has run out.
+                self._issue(f"reader_pairing_{device.id}", False, "reader_pairing", {"reader": name})
+                self._issue(f"reader_pairing_busy_{device.id}", True, "reader_pairing_busy", {"reader": name})
+                self._retry_later()
+                return
+            if PAIRING_COOLDOWN in text:  # our wait ran out without a tap: asked again in 2 minutes
+                self._issue(f"reader_pairing_busy_{device.id}", False, "reader_pairing_busy", {"reader": name})
+                self._issue(f"reader_pairing_{device.id}", True, "reader_pairing", {"reader": name})
+                self._retry_later()
+                return
+            if PAIRING_PENDING not in text:
                 raise
+            self._issue(f"reader_pairing_busy_{device.id}", False, "reader_pairing_busy", {"reader": name})
             self._issue(f"reader_pairing_{device.id}", True, "reader_pairing", {"reader": name})
             return
         self._issue(f"reader_pairing_{device.id}", False, "reader_pairing", {"reader": name})
+        self._issue(f"reader_pairing_busy_{device.id}", False, "reader_pairing_busy", {"reader": name})
+
+    def _retry_later(self) -> None:
+        if self._retry_at is None:
+            self._retry_at = time.monotonic() + PAIRING_RETRY
+
+    def retry_due(self) -> bool:
+        """Whether a reader that was busy pairing (or cooling down) should be asked again now (checked every minute)."""
+        if self._retry_at is None or time.monotonic() < self._retry_at:
+            return False
+        self._retry_at = None
+        return True
 
     async def async_unpair(self, device_id: str, context: Context | None = None) -> None:
         """Release a reader from this integration's key (to move it to another Home Assistant)."""
@@ -323,6 +397,7 @@ class ReaderManager:
         # waits, block the Home Assistant it's moving to).
         self.registry.set_reader_released(device_id, True)
         self._issue(f"reader_pairing_{device_id}", False, "reader_pairing", {})
+        self._issue(f"reader_pairing_busy_{device_id}", False, "reader_pairing_busy", {})
         self._issue(f"reader_sync_failed_{device_id}", False, "reader_sync_failed", {})
 
     async def async_reclaim(self, device_id: str) -> dict[str, Any]:
@@ -387,12 +462,23 @@ class ReaderManager:
             if device_id not in devices:
                 self.statuses.pop(device_id)
                 self._offline_since.pop(device_id, None)
-                for issue in (f"reader_offline_{device_id}", f"reader_sync_failed_{device_id}", f"reader_pairing_{device_id}"):
+                for issue in (f"reader_offline_{device_id}", f"reader_sync_failed_{device_id}", f"reader_pairing_{device_id}",
+                              f"reader_pairing_busy_{device_id}"):
                     ir.async_delete_issue(self.hass, DOMAIN, issue)
         async_dispatcher_send(self.hass, SIGNAL_READER_STATUS)
 
     def status_of(self, device_id: str) -> ReaderStatus | None:
         return self.statuses.get(device_id)
+
+    def takes_sounds(self, device_id: str) -> bool:
+        """Whether the reader's firmware knows about people's own sounds (has set_band_sounds, 0.10.26+).
+
+        Such a reader keeps the last list it took across restarts (Home Assistant's too), so it skips its own
+        tap-in sound for those bands even before this Home Assistant's first sync: HA plays theirs.
+        """
+        device = dr.async_get(self.hass).async_get(device_id)
+        node = node_name(self.hass, device) if device else None
+        return bool(node) and self.hass.services.has_service("esphome", _service_for(node, SOUNDS_SERVICE_SUFFIX))
 
     def report(self) -> list[dict[str, Any]]:
         return [asdict(s) for s in self.statuses.values()]

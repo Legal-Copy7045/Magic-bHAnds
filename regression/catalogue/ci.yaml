@@ -16,6 +16,10 @@
   since: 0.10.30
   docs: CLAUDE.md
   checks: [CI-020, CI-021, CI-022, CI-023, CI-024, CI-025, CI-026, CI-027]
+- feature: "Privacy guard: every commit in the pushed range (added lines and files), new branches from the merge base, file names, binary text runs and zip members"
+  since: 0.10.32
+  docs: docs/security.md#the-privacy-guard-this-repository
+  checks: [CI-041, CI-042, CI-043, CI-044, CI-045]
 - feature: "Web installer site and update manifests (make_site.py, vendored ESP Web Tools)"
   since: 0.10.4
   docs: docs/security.md#devices-and-updates
@@ -28,3 +32,7 @@
   since: 0.10.4
   docs: docs/security.md#devices-and-updates
   checks: [CI-032, CI-033, CI-034, CI-035, CI-036, CI-037, CI-038, CI-039, CI-040]
+- feature: "Signing job hardening: tag commits must be on main before the key; tools installed only by hash; attestations verified against the workflow and main"
+  since: 0.10.32
+  docs: docs/security.md#devices-and-updates
+  checks: [CI-037, CI-046, CI-047, CI-048]

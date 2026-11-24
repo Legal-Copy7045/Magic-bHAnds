@@ -206,7 +206,8 @@ battery at 20% or less), above the totals (click one to jump to it).
   its own emblem in the middle of the twin by setting
   `window.MBH_READER_EMBLEM` to SVG drawn in a 100 × 100 box.)
   **Ring and tap settings** has the reader's settings in groups: Waiting for a
-  band, Night (set hours or sunset to sunrise, with tonight's times), Reading
+  band, Night (set hours or sunset to sunrise, with tonight's times in the
+  reader's own **Time zone** setting), Reading
   a band, Welcome (with a picture of its shape, Light up MagicBand+ and Band
   light-up power), Denied, Refused-tap lockout, Shows, and Hardware (ring
   type, LED count, colour order, max brightness: these restart the reader,
@@ -354,9 +355,14 @@ instead of its tap-in sound. The file stays in Home Assistant
 only learn which bands have a sound of their own (reader firmware 0.10.26 or
 later); when one of them welcomes such a band, Home Assistant plays the
 sound on that reader's speaker through a link that works for a few minutes.
-So a welcome sound needs Home Assistant running; a reader that can't reach
-it welcomes silently. The reader's **Sound** switch and its **Sound at
-night** setting still apply.
+So a welcome sound needs Home Assistant running; Home Assistant plays it as
+soon as it's back (even before it has sent the reader its list again), and
+while the reader can't reach Home Assistant it plays its own tap-in sound
+(reader firmware that does so). The reader's **Sound** switch and its **Sound
+at night** setting still apply. A reader holds about 106 bands with a sound
+of their own and welcome colours for about 180 bands: past that, Home
+Assistant sends what fits and a repair names the reader; the bands left out
+get the reader's tap-in sound or Welcome colour.
 
 ## Reacting to taps
 
@@ -393,8 +399,9 @@ Two more events:
   a MagicBand+ dropped to the reminder level.
 - **`magicband_lockout`** (`reader`, `reader_device_id`, `locked`): a reader's
   **Refused-tap lockout** started (`locked: true`) or ended. A notification
-  shows in Home Assistant while it lasts; use the event to send one to your
-  phone as well.
+  shows in Home Assistant while it lasts (it goes when the reader reports it
+  isn't locked out, also after the reader restarts); use the event to send one
+  to your phone as well.
 
 Example: welcome Morgan by name.
 

@@ -26,6 +26,12 @@ static constexpr size_t READER_KEY_SIZE = 65;  // 64 hex characters + terminator
 static constexpr uint32_t PAIR_CONFIRM_MS = 2 * 60 * 1000;
 // Returned by reader_request_pair while a first pairing waits for its tap.
 static constexpr const char *PAIRING_PENDING = "PAIRING_PENDING: tap any band on the reader within 2 minutes to finish pairing";
+// Returned (at the start of the message) when another key's first pairing is
+// waiting: the requester lost the race and shouldn't ask anyone to tap.
+static constexpr const char *PAIRING_BUSY = "PAIRING_BUSY";
+// Returned (at the start of the message) when this key's own wait has just
+// expired without a tap: it may ask again PAIR_CONFIRM_MS after the expiry.
+static constexpr const char *PAIRING_COOLDOWN = "PAIRING_COOLDOWN";
 using ReaderKey = std::array<char, READER_KEY_SIZE>;
 
 inline bool reader_paired(const ReaderKey &stored) { return stored[0] != 0; }
@@ -65,10 +71,14 @@ inline std::string reader_pair(ReaderKey &stored, const std::string &key) {
 
 // First pairing needs someone at the reader: the key waits as `pending` until a
 // band is tapped on the reader (reader_confirm_pair) within PAIR_CONFIRM_MS. A
-// Home Assistant user elsewhere can't tap, so can't claim a new reader; and a
-// pending key can't be replaced by another until it expires, so the
-// integration notices (its own request is refused) instead of someone else's
-// key being confirmed unnoticed.
+// Home Assistant user elsewhere can't tap, so can't claim a new reader.
+// The first request wins: while it waits no other key can replace it (the
+// other requester gets PAIRING_BUSY, so the integration notices it lost
+// instead of someone else's key being confirmed unnoticed). Asking again with
+// the waiting key answers PAIRING_PENDING but doesn't extend the wait, and once
+// a wait has expired the same key must leave a PAIR_CONFIRM_MS gap
+// (PAIRING_COOLDOWN) in which any other key may ask, so no one key can hold a
+// new reader's pairing open indefinitely.
 // Returns "" when paired (already, with this key), PAIRING_PENDING when waiting
 // for the tap, else why not.
 inline std::string reader_request_pair(ReaderKey &stored, ReaderKey &pending, uint32_t &pending_until,
@@ -79,10 +89,21 @@ inline std::string reader_request_pair(ReaderKey &stored, ReaderKey &pending, ui
   const std::string err = reader_pair(check, key);  // validates the key's format
   if (!err.empty())
     return err;
-  const bool waiting = reader_paired(pending) && static_cast<int32_t>(pending_until - now) > 0;
-  if (waiting && !reader_key_ok(pending, key))
-    return "Another pairing request is already waiting on this reader (not from this key). Don't tap a band: "
-           "wait 2 minutes and try again";
+  if (reader_paired(pending)) {
+    // Time since the waiting (or last) request, valid for 49 days of millis().
+    const uint32_t age = now - (pending_until - PAIR_CONFIRM_MS);
+    const bool same = reader_key_ok(pending, key);
+    if (age < PAIR_CONFIRM_MS) {
+      if (same)
+        return PAIRING_PENDING;  // still waiting: the deadline stays where it is
+      return std::string(PAIRING_BUSY) +
+             ": another pairing request is already waiting on this reader (not from this key). Don't tap a band: "
+             "wait 2 minutes and try again";
+    }
+    if (same && age < 2 * PAIR_CONFIRM_MS)
+      return std::string(PAIRING_COOLDOWN) +
+             ": this key's pairing request expired without a tap; it can ask again 2 minutes after that";
+  }
   pending = check;
   pending_until = now + PAIR_CONFIRM_MS;
   return PAIRING_PENDING;

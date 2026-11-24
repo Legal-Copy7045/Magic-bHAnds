@@ -50,13 +50,7 @@ window.__push=()=>{ const h=window.__mbHass; h.states=Object.assign({},h.states)
 // ───────── results ─────────
 const results = [], seen = new Set();
 // known page bugs, by check id: why the failure is the page's, not the harness's (added after checking each failure by hand)
-const TZ_LABEL = 'the Time zone rows (reader Health in readerCards() and bridgeCards() in page.html) name the setting in a <span>, and selectFor() gives the <select> only an id: no <label for>, aria-label or title, so it is an unnamed combo box to a screen reader (every other select on the page is labelled)';
-const BUGS = {
-  'PAGE-072': TZ_LABEL, 'PAGE-132': TZ_LABEL,
-  'PAGE-122': 'the touch block in page.html (@media (pointer:coarse), commented "44 px targets") only pads .jump a (9 px) and .status .pchip (8 px): at 390 px they render about 35 px and 37 px tall, under 44 px',
-  'PAGE-166': 'online() in page.html calls a reader online when any entity on its device is available, but the integration puts its own Allowed list and Last band sensors on the reader device (sensor.py ReaderSyncSensor, ReaderLastBandSensor) and they stay available when the ESPHome entities go unavailable (Allowed list reads "offline"). So an offline reader gets the green Online tag, no "is offline" problem, and Readers OK counts it as fine',
-  'PAGE-173': 'unknownJob() and linkJob() pass act() the message element $(\'msg-\'+k) found before act() calls render(); render() redraws #unknown / #link (the button turns disabled), so the error is written to a detached element (capturedLineStillOnPage false, capturedLineText holds the error) and nothing shows. The other cards pass a note() key, which survives redraws',
-};
+const BUGS = {};
 const clip = (x, n) => { let s = typeof x === 'string' ? x : JSON.stringify(x); if (s === undefined) s = String(x); return s.length > (n || 900) ? s.slice(0, n || 900) + '…' : s; };
 async function chk(id, feature, check, fn, evidence) {
   if (seen.has(id)) throw new Error('duplicate check id ' + id);
@@ -74,6 +68,7 @@ const IGNORE = /Failed to load resource|net::ERR_|MOCK-REJECT/;
 async function open(browser, o) {
   o = o || {};
   const ctx = await browser.newContext(Object.assign({ viewport: { width: o.width || 1400, height: o.height || 900 }, colorScheme: o.dark ? 'dark' : 'light', deviceScaleFactor: 1 },
+    o.tz ? { timezoneId: o.tz } : {},
     o.touch ? { hasTouch: true, isMobile: true, deviceScaleFactor: 2 } : {}));
   const p = await ctx.newPage(), errs = [];
   p.on('pageerror', e => errs.push('pageerror: ' + e.message));
@@ -151,6 +146,7 @@ const F = {   // feature names (the catalogue maps these to IDs)
   twin: 'Live ring twin', bridges: 'Bridge cards', send: 'Send to bands', celeb: 'Celebrations', passport: 'Tap passport', msgs: 'Per-card messages and revert on error',
   numbers: 'Number range validation', redraw: 'Redraw guard', arm: 'Second tap for removals and loosening access', fw: 'Older firmware hides settings gracefully',
   rgbw: 'RGBW rings', ago: 'Relative times (ago)', camera: 'Tap pictures and cameras', battery: 'Battery history', enrol: 'Enrolment', offline: 'Offline devices',
+  security: 'Page controls reach only MagicbHAnds devices',
 };
 
 // ── 1. desktop, default mock: structure, wording, navigation (from probe4) ──
@@ -764,6 +760,10 @@ scenario('reader-offline', { width: 1400, opts: { garageOffline: true } }, async
   await chk('PAGE-166', F.offline, 'Offline reader: Offline tag, “Garage Reader is offline” first in the status strip and attention list, Readers OK 1 / 2', async () =>
     [/Offline/.test(r.tags) && /Garage Reader is offline/.test(r.st[0]) && /Garage Reader is offline/.test(r.pr) && /1 \/ 21 problem/.test(r.kpi), r]);
   await chk('PAGE-167', F.offline, 'Offline reader: its twin says “Reader offline” and its controls are disabled', async () => [r.cap === 'Reader offline' && r.dis, r]);
+  await chk('PAGE-174', F.offline, 'Offline reader without the entity registry\'s platforms: still offline (the integration\'s Allowed list and Last band name are told apart by their attributes); the front reader stays online', async () => {
+    const r = await f.evaluate(() => { const I = index(), D = H().devices(), g = D.find(d => d.name === 'Garage Reader'), fr = D.find(d => d.name === 'Front Door Reader');
+      const bare = Object.assign({}, I, { plat: {} }); return { withPlat: online(I, g), garage: online(bare, g), front: online(bare, fr), avail: (I.byDev[g.id] || []).filter(e => avail(e)) }; });
+    return [r.withPlat === false && r.garage === false && r.front === true && r.avail.length === 2, r]; });
   await chk('PAGE-168', F.render, 'No console errors or page errors (reader offline)', async () => [!errs.length, errs]);
 });
 
@@ -775,6 +775,46 @@ scenario('no-history', { width: 1400, opts: { history: false, guestPass: 'none',
     [!/guest pass \(all their bands\)/.test(r.sam) && !!(await f.evaluate(() => document.querySelector('[data-guest="Sam"]:not(.on)'))) && r.pass.includes('Sam'), r]);
   await chk('PAGE-171', F.camera, 'No cameras in Home Assistant: no Camera row and no “kept for” box', async () => [!r.cam && !r.days, r]);
   await chk('PAGE-172', F.render, 'No console errors or page errors (no history, no cameras)', async () => [!errs.length, errs]);
+});
+
+// ── 13. the browser is in another time zone than the readers' Time zone setting ──
+const TZ_NIGHT = async f => f.evaluate(() => { window.__openAll(); const card = __card(/Front/);
+  const hint = [...card.querySelectorAll('.sg')].find(g => /^Night/.test(g.querySelector('h4').textContent)).querySelector('.hint').textContent;
+  return { hint, browserZone: Intl.DateTimeFormat().resolvedOptions().timeZone }; });
+scenario('reader-time-zone', { width: 1400, tz: 'America/Los_Angeles', opts: {} }, async ({ p, f, errs }) => {
+  // the mock's sunset is 16:52 and sunrise 07:11 in the browser's zone (Los Angeles): 19:52 and 10:11 in New York
+  const r = await TZ_NIGHT(f);
+  await chk('PAGE-175', F.night, 'Browser in Los Angeles, reader Time zone Eastern: “Tonight” shows sunset and sunrise in the reader\'s zone (19:52, 10:11), not the browser\'s', async () =>
+    [r.browserZone === 'America/Los_Angeles' && /sunset 19:52, sunrise 10:11/.test(r.hint) && /Tonight: 19:52 to 10:41/.test(r.hint), r]);
+  await chk('PAGE-176', F.night, 'Without the reader\'s own Night now answer, the twin judges night in the reader\'s zone: Set hours from this hour to the next in New York is night, and from this hour to the next in Los Angeles is not', async () => {
+    const t = await f.evaluate(() => { const st = H().all(), card = __card(/Front/), ids = Object.assign({}, JSON.parse(card.querySelector('[data-twin]').dataset.ids));
+      delete ids['Night now']; const keys = ['Night mode', 'Night from', 'Night until'], saved = keys.map(k => st[ids[k]].state);
+      const set = (from) => { st[ids['Night mode']].state = 'Set hours'; st[ids['Night from']].state = String(from); st[ids['Night until']].state = String((from + 1) % 24); return twinNight(ids); };
+      const nyH = Math.floor(minsIn(new Date(), 'America/New_York') / 60), laH = new Date().getHours();
+      const r = { nyH, laH, nyHour: set(nyH), laHour: set(laH), hasTz: !!ids['Time zone'] }; keys.forEach((k, i) => st[ids[k]].state = saved[i]); return r; });
+    return [t.hasTz && t.nyH !== t.laH && t.nyHour === true && t.laHour === false, t]; });
+  await chk('PAGE-177', F.render, 'No console errors or page errors (browser in another time zone)', async () => [!errs.length, errs]);
+});
+scenario('reader-time-zone-pacific', { width: 1400, tz: 'America/Los_Angeles', opts: { readerTz: 'Pacific (Los Angeles)' } }, async ({ p, f, errs }) => {
+  const r = await TZ_NIGHT(f);
+  await chk('PAGE-178', F.night, 'Reader Time zone Pacific and the browser in Los Angeles: “Tonight” shows the browser\'s own times (sunset 16:52, sunrise 07:11)', async () =>
+    [/sunset 16:52, sunrise 07:11/.test(r.hint), r]);
+});
+
+// ── 14. the page's controls reach only MagicbHAnds devices ──
+scenario('shim-scope', { width: 1400, opts: { strangers: true } }, async ({ p, f, errs }) => {
+  const r = await f.evaluate(async () => { const n0 = __C(), tryIt = (...a) => H().call(...a).then(() => 'ok', e => String(e.message || e));
+    const out = { plug: await tryIt('switch', 'turn_on', 'switch.kitchen_kettle'), wipe: await tryIt('button', 'press', 'button.front_door_reader_wipe'),
+      tidy: await tryIt('button', 'press', 'button.front_door_reader_tidy'), ping: await tryIt('button', 'press', 'button.kitchen_bridge_ping'),
+      bandType: await tryIt('select', 'select_option', 'select.blue_band_type', { option: 'classic' }), ring: await tryIt('light', 'turn_on', 'light.front_door_reader_ring') };
+    await __w(200); out.calls = __since(n0).map(c => c[2] + ':' + (c[3] && c[3].entity_id)); return out; });
+  await chk('PAGE-179', F.security, 'Controls reach only MagicbHAnds devices: a switch on another integration\'s device is refused and never called', async () =>
+    [/not a MagicbHAnds device/.test(r.plug) && !r.calls.some(c => /kitchen_kettle/.test(c)), r]);
+  await chk('PAGE-180', F.security, 'A reader button named Factory reset (friendly name) or Forget all bands (registry name) is refused whatever its entity id', async () =>
+    [/not allowed from this page/.test(r.wipe) && /not allowed from this page/.test(r.tidy) && !r.calls.some(c => /_wipe|_tidy/.test(c)), r]);
+  await chk('PAGE-181', F.security, 'The page\'s own controls still work: a bridge button, a band\'s type (the integration\'s entity), a reader\'s ring', async () =>
+    [r.ping === 'ok' && r.bandType === 'ok' && r.ring === 'ok', r]);
+  await chk('PAGE-182', F.render, 'No console errors or page errors (controls scope)', async () => [!errs.length, errs]);
 });
 
 // ───────── run ─────────

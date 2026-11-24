@@ -106,7 +106,7 @@ def _find(items, **kw):
 def device_invariants(d: str, plain: dict | None, signed: dict | None, tz: list[str]) -> list[dict]:
     feat = f"Device file: {LABEL[d]}"
     b = BASE[d]
-    ids = [f"FW-{b + k:03d}" for k in range(13)]
+    ids = [f"FW-{b + k:03d}" for k in range(15)]
     if plain is None or signed is None:
         return [dict(id=i, feature=feat, check="invariants", status="skip", detail="config did not resolve (see FW-001..008)") for i in ids]
     out = []
@@ -175,13 +175,16 @@ def device_invariants(d: str, plain: dict | None, signed: dict | None, tz: list[
             msgs.append("02:55 check missing or not guarded by auto_update")
         if not inst or "update.perform" not in str(inst[0]) or "auto_update" not in str(inst[0]) or "update.is_available" not in str(inst[0]):
             msgs.append("03:00-03:50 install missing or not guarded by auto_update + update.is_available")
+        elif not re.search(r"release_newer\(id\(firmware_update\)\.update_info\.latest_version, id\(firmware_update\)\.update_info\.current_version\)|"
+                           r"release_newer\(info\.latest_version, info\.current_version\)", str(inst[0]["then"][0]["if"]["condition"])):
+            msgs.append("03:00-03:50 install doesn't check the release is newer (release_newer): the job could go back to an older signed release")
         others = [j for j in ot if j not in check + inst and "update" in str(j.get("then"))]
         if others:
             msgs.append(f"other update jobs: {others}")
         return ", ".join(msgs)
     f = each(jobs)
-    out.append(r(ids[3], "Automatic updates", f"{LABEL[d]}: sntp clock checks at 02:55 and installs every 10 min 03:00-03:50, only with the switch on and an update available", not f,
-                 "; ".join(f) or "02:55 component.update + 03:00..03:50 update.perform"))
+    out.append(r(ids[3], "Automatic updates", f"{LABEL[d]}: sntp clock checks at 02:55 and installs every 10 min 03:00-03:50, only with the switch on, an update available and the release newer (no rollback)", not f,
+                 "; ".join(f) or "02:55 component.update + 03:00..03:50 update.perform, guarded by release_newer"))
 
     # e both clocks have a zone
     def clocks(c):
@@ -287,6 +290,33 @@ def device_invariants(d: str, plain: dict | None, signed: dict | None, tz: list[
     f = each(proj)
     pv = (plain.get("esphome") or {}).get("project", {})
     out.append(r(ids[12], "Firmware updates", f"{LABEL[d]}: project name/version set (the update entity compares them) and Take control offered", not f, "; ".join(f) or f"{pv.get('name')} {pv.get('version')}"))
+
+    # n every logger.log is visible at the device's logger level (not compiled out)
+    def visible(c):
+        lv = (c.get("logger") or {}).get("level", "DEBUG")
+        hidden = []
+
+        def scan(x):
+            if isinstance(x, dict):
+                for k, v in x.items():
+                    if k == "logger.log" and isinstance(v, dict) and LOG_ORDER.index(str(v.get("level", "DEBUG"))) > LOG_ORDER.index(lv):
+                        hidden.append(f"{v.get('format')!r} at {v.get('level')} under {lv}")
+                    else:
+                        scan(v)
+            elif isinstance(x, list):
+                for i in x:
+                    scan(i)
+        scan(c)
+        return "; ".join(hidden)
+    f = each(visible)
+    out.append(r(ids[13], "Automatic updates", f"{LABEL[d]}: every logger.log is at or above the logger level, so none is compiled out", not f, "; ".join(f) or "all visible"))
+
+    # o no safe-mode button open to every Home Assistant user
+    def safe_btn(c):
+        bad = [b.get("name") for b in as_list(c.get("button")) if b.get("platform") == "safe_mode" and not b.get("disabled_by_default")]
+        return f"safe-mode button(s) {bad} any Home Assistant user can press (the board then drops its API and proxy until safe mode times out)" if bad else ""
+    f = each(safe_btn)
+    out.append(r(ids[14], "No factory-reset button", f"{LABEL[d]}: no Safe Mode Boot button open to every Home Assistant user", not f, "; ".join(f) or "none"))
     return out
 
 
@@ -474,6 +504,68 @@ def reader_checks(c: dict) -> list[dict]:
     scan(c)
     out.append(r("FW-166", "Automatic updates", f"Reader: every logger.log is at or above the logger level ({lv}), so it isn't compiled out",
                  not hidden, ("Messages that never appear in the reader's logs: " + "; ".join(hidden)) if hidden else "all visible"))
+
+    # FW-167 BUG-002: Tap lockout has a real state from boot (not unknown in Home Assistant)
+    boot = as_list((c.get("esphome") or {}).get("on_boot"))
+    pubs = [a for b in boot for a in as_list(b.get("then")) if isinstance(a, dict) and (a.get("binary_sensor.template.publish") or {}).get("id") == "tap_lockout_active"]
+    ok = bool(pubs) and "lockout_until" in str(pubs[0])
+    out.append(r("FW-167", "Refused-tap lockout", "Reader: on_boot publishes 'Tap lockout' (off unless a lockout is active), so Home Assistant never shows it unknown after a restart",
+                 ok, "published at boot from lockout_until" if ok else "on_boot doesn't publish tap_lockout_active: it stays unknown until the first lockout ends"))
+
+    # FW-168 BUG-005: a band with its own sound skips the reader's chime only while Home Assistant is connected
+    msgs = []
+    steps = [st for st in as_list(scripts.get("reader_welcome", {}).get("then")) if "snd_tap_in" in str(st)]
+    if not steps:
+        msgs.append("reader_welcome doesn't play snd_tap_in")
+    else:
+        cond = steps[0]["if"]["condition"]
+        cs = str(cond)
+        if "own_sound" in cs and not re.search(r"'or': \[[^\]]*own_sound[^\]]*'not': \{'api.connected'", cs):
+            msgs.append(f"own_sound skips the chime without checking api.connected: {cs[:300]}")
+    out.append(r("FW-168", "Welcome sounds", "Reader: a band with its own welcome sound skips the tap-in chime only while Home Assistant is connected (it plays the person's sound)",
+                 not msgs, "; ".join(msgs) or "or(!own_sound, not api.connected)"))
+
+    # FW-169 BUG-006: settings that redraw the idle glow don't cut off a tap sequence
+    msgs = []
+    for kind in ("number", "select", "switch"):
+        for e in as_list(c.get(kind)):
+            for trig in ("on_value", "on_turn_on", "on_turn_off"):
+                for step in as_list(e.get(trig)):
+                    if "'reader_idle'" in str(step) and "band_tapped" not in str(step):
+                        msgs.append(f"{kind} {e.get('id')} {trig} redraws the idle glow during a tap")
+    out.append(r("FW-169", "Ring effects", "Reader: every setting that redraws the idle glow (LED count, LED brightness, Idle glow, ...) waits for a tap's sequence (band_tapped not running)",
+                 not msgs, "; ".join(msgs) or "all guarded"))
+
+    # FW-171 BUG-007: a Time zone change recomputes sunset and sunrise from Home Assistant's sun times
+    tzs = str(scripts.get("apply_time_zone", {}).get("then"))
+    ok = all(x in tzs for x in ("'id': 'sun_time'", "sun_next_setting).state", "sun_next_rising).state"))
+    out.append(r("FW-171", "Night mode", "Reader: apply_time_zone re-runs sun_time with sun.sun's next_setting and next_rising, so the stored sunset/sunrise follow a Time zone change",
+                 ok, "both sun times recomputed in the new zone" if ok else "apply_time_zone keeps the old zone's sunset/sunrise minutes until sun.sun next updates"))
+
+    # FW-173 BUG-008: the start-up sound waits (up to 20 s) for the time before deciding about night
+    msgs = []
+    then = [a for b in boot for a in as_list(b.get("then"))]
+    idx_snd = next((i for i, a in enumerate(then) if "snd_startup" in str(a)), None)
+    idx_wait = next((i for i, a in enumerate(then) if isinstance(a, dict) and "wait_until" in a and "is_valid" in str(a)), None)
+    idx_night = next((i for i, a in enumerate(then) if isinstance(a, dict) and (a.get("script.execute") or {}).get("id") == "update_night"), None)
+    if idx_snd is None:
+        msgs.append("no start-up sound in on_boot")
+    elif idx_wait is None or idx_wait > idx_snd:
+        msgs.append("the start-up sound doesn't wait for a valid time")
+    else:
+        to = str(then[idx_wait]["wait_until"].get("timeout", ""))
+        if not to or not re.fullmatch(r"(\d+)s|(\d+)ms", to) or (int(re.match(r"\d+", to).group()) / (1000 if to.endswith("ms") else 1)) > 20:
+            msgs.append(f"wait for the time has timeout {to!r} (want <= 20 s)")
+        if idx_night is None or not idx_wait < idx_night < idx_snd:
+            msgs.append("night isn't worked out (update_night) between the wait and the sound")
+    out.append(r("FW-173", "Sound at night", "Reader: on_boot waits up to 20 s for the time and runs update_night before deciding on the start-up sound",
+                 not msgs, "; ".join(msgs) or "wait_until time valid (<= 20 s), update_night, then the sound"))
+
+    # FW-177 SEC-005: the blue breathing ends with the pairing wait (asking again doesn't extend it)
+    pw = scripts.get("pair_wait", {})
+    ok = "pending_until" in str(pw.get("then")) and "2min" not in str(pw.get("then"))
+    out.append(r("FW-177", "Reader pairing", "Reader: pair_wait (blue breathing) lasts until the pairing wait's own deadline, not 2 minutes from the latest request",
+                 ok, "delay until pending_until" if ok else "pair_wait waits a fixed 2 minutes from each request"))
 
     # FW-165 airtime budget constants (bridge / add-on component)
     h = (REPO / "components/magicband/magicband.h").read_text()

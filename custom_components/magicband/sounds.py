@@ -17,10 +17,15 @@ import logging
 from pathlib import Path
 import re
 
-from aiohttp import web
+from aiohttp import hdrs, web
 
 from homeassistant.components.http import HomeAssistantView
-from homeassistant.components.http.auth import async_sign_path
+from homeassistant.components.http.auth import (
+    SIGN_QUERY_PARAM,
+    STORAGE_KEY as AUTH_STORAGE_KEY,
+    async_sign_path,
+)
+from homeassistant.components.http.const import KEY_HASS_REFRESH_TOKEN_ID, KEY_HASS_USER
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.network import NoURLAvailableError, get_url
@@ -71,6 +76,26 @@ async def async_remove(hass: HomeAssistant, person_id: str) -> None:
     await hass.async_add_executor_job(_remove_all, hass, person_id)
 
 
+def admin_or_signed(request: web.Request) -> bool:
+    """Whether a GET may have a sound or snapshot: a logged-in admin, or a link this integration signed.
+
+    Home Assistant checks the Authorization header first and only validates ``authSig`` when there is no
+    valid header, so the query string alone proves nothing (a non-admin token plus ``?authSig=x`` would
+    pass). Our links are signed for Home Assistant's content user, so a request authenticated by one has no
+    Authorization header and carries the content user's refresh token.
+    """
+    user = request.get(KEY_HASS_USER)
+    if user is not None and user.is_admin:
+        return True
+    hass: HomeAssistant = request.app["hass"]
+    return (
+        SIGN_QUERY_PARAM in request.query
+        and hdrs.AUTHORIZATION not in request.headers
+        and request.get(KEY_HASS_REFRESH_TOKEN_ID) is not None
+        and request.get(KEY_HASS_REFRESH_TOKEN_ID) == hass.data.get(AUTH_STORAGE_KEY)
+    )
+
+
 def _registry(hass: HomeAssistant):
     from . import _get_registry  # noqa: PLC0415 - avoids an import cycle
 
@@ -86,8 +111,7 @@ class SoundView(HomeAssistantView):
 
     async def get(self, request: web.Request, person_id: str) -> web.StreamResponse:
         hass: HomeAssistant = request.app["hass"]
-        user = request.get("hass_user")
-        if "authSig" not in request.query and not (user and user.is_admin):
+        if not admin_or_signed(request):
             raise web.HTTPForbidden
         person = _registry(hass).get_person(person_id)
         path = sound_path(hass, person_id, person.welcome_sound) if person and person.welcome_sound else None
@@ -104,7 +128,13 @@ class SoundView(HomeAssistantView):
         registry = _registry(hass)
         if registry.get_person(person_id) is None or not _PERSON_ID.match(person_id):
             raise web.HTTPNotFound
-        data = await request.content.read(MAX_BYTES + 1)
+        # read() returns only what is buffered; read the whole body, stopping once it is over the limit.
+        body = bytearray()
+        async for chunk in request.content.iter_chunked(65536):
+            body.extend(chunk)
+            if len(body) > MAX_BYTES:
+                break
+        data = bytes(body)
         if len(data) > MAX_BYTES:
             return self.json_message(f"That file is over {MAX_BYTES // (1024 * 1024)} MB: use a shorter sound", 413)
         name = request.query.get("name", "")

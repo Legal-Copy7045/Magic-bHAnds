@@ -27,6 +27,8 @@ from homeassistant.components.http.auth import async_sign_path
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.util import dt as dt_util
 
+from .sounds import admin_or_signed
+
 _LOGGER = logging.getLogger(__name__)
 
 FOLDER = "magicbhands_snapshots"
@@ -101,9 +103,7 @@ class SnapshotView(HomeAssistantView):
 
     async def get(self, request: web.Request, day: str, snap: str) -> web.StreamResponse:
         hass: HomeAssistant = request.app["hass"]
-        user = request.get("hass_user")
-        signed = "authSig" in request.query
-        if not signed and not (user and user.is_admin):
+        if not admin_or_signed(request):
             raise web.HTTPForbidden
         path = _path(hass, f"{day}/{snap}")
         if path is None or not await hass.async_add_executor_job(path.is_file):

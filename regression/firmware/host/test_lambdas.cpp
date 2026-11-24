@@ -396,6 +396,107 @@ static void fw161_tag_pairing() {
   result("FW-161", why.empty(), why.empty() ? "on_tag: a tap confirms a waiting first pairing (also during a refused-tap lockout) and does nothing else; with nothing pending it falls through" : why);
 }
 
+// SEC-006: Forget last band / Forget all bands do nothing on a paired reader
+static void fw174_forget_buttons() {
+  std::string why;
+  using namespace esphome::magicband;
+  auto list = [] { return std::string(mock::known_list.data()); };
+  const std::string two = ",04A1B2C3D4E5F6,0A0B0C0D,";
+  mock::pair_key.fill(0);
+  reader_pair(mock::pair_key, std::string(64, 'a'));
+  set_list(two);
+  mock::last_band.state = "0A0B0C0D";
+  gen::forget_last_band();
+  if (list() != two) why += "paired: Forget last band changed the list (" + list() + "); ";
+  gen::forget_all_bands();
+  if (list() != two) why += "paired: Forget all bands changed the list (" + list() + "); ";
+  mock::pair_key.fill(0);
+  gen::forget_last_band();
+  if (list() != ",04A1B2C3D4E5F6,") why += "unpaired: Forget last band didn't remove the band (" + list() + "); ";
+  gen::forget_all_bands();
+  if (!list().empty()) why += "unpaired: Forget all bands didn't empty the list (" + list() + "); ";
+  set_list("");
+  result("FW-174", why.empty(), why.empty() ? "Forget last band and Forget all bands leave a paired reader's list alone and work as before on an unpaired one" : why);
+}
+
+// SEC-008: unknown bands reach Home Assistant at most 6 new a minute / 30 an hour; listed bands always
+static void fw175_tag_report() {
+  std::string why;
+  mock::unknown_tags = esphome::magicband::UnknownTagLimit{};
+  set_list(",04A1B2C3D4E5F6,");
+  uint32_t t = 5000;
+  int sent = 0;
+  // a flood of made-up 7-byte IDs, one every 3 s for an hour
+  for (int i = 0; i < 1200; i++, t += 3000) {
+    mock::now_ms = t;
+    if (gen::tag_report(fmt("04%012X", 0x100000 + i))) sent++;
+    // the household's listed band in between, in any spelling, is always sent
+    if (i % 50 == 0 && !gen::tag_report("04-a1-b2-c3-d4-e5-f6")) why += fmt("a listed band was held back at t=%u; ", t);
+  }
+  if (sent > 30) why += fmt("%d made-up IDs reported in an hour (limit 30); ", sent);
+  if (sent < 30) why += fmt("only %d made-up IDs reported in an hour (expected 30: the limit shouldn't be stricter than documented); ", sent);
+  // within a minute: no more than 6 new ones, and a reported one tapped again still goes
+  mock::unknown_tags = esphome::magicband::UnknownTagLimit{};
+  int minute = 0;
+  for (int i = 0; i < 20; i++) {
+    mock::now_ms = 10000000 + i * 1000;
+    if (gen::tag_report(fmt("0A0B%04X", i))) minute++;
+  }
+  if (minute != 6) why += fmt("%d new IDs in 20 s (want 6); ", minute);
+  mock::now_ms += 1000;
+  if (!gen::tag_report("0A0B0003")) why += "a band reported a moment ago, tapped again, was held back; ";
+  // after the minute, new ones go again
+  mock::now_ms += 61000;
+  if (!gen::tag_report("0A0BFFFF")) why += "no new ID reported a minute later; ";
+  set_list("");
+  mock::unknown_tags = esphome::magicband::UnknownTagLimit{};
+  result("FW-175", why.empty(), why.empty() ? fmt("unknown bands: 6 new a minute and 30 an hour reach Home Assistant (a 1-hour flood of 1,200 made-up IDs: %d), retaps of a reported band and listed bands always do", sent) : why);
+}
+
+// SEC-011: the play_show action plays at most 12 shows a minute
+static void fw176_play_show_limit() {
+  std::string why;
+  mock::show_calls = esphome::magicband::RateLimit<12>{};
+  int ok = 0;
+  for (int i = 0; i < 40; i++) {
+    mock::now_ms = 0xFFFFFFFFu - 20000 + i * 1000;  // across the millis() wrap
+    if (gen::play_show_allowed()) ok++;
+  }
+  if (ok != 12) why += fmt("%d of 40 calls in 40 s allowed (want 12); ", ok);
+  mock::now_ms += 60000;
+  if (!gen::play_show_allowed()) why += "a call a minute later was refused; ";
+  mock::show_calls = esphome::magicband::RateLimit<12>{};
+  ok = 0;
+  for (int i = 0; i < 120; i++) {
+    mock::now_ms = 100000 + i * 5000;  // one every 5 s for 10 minutes
+    if (gen::play_show_allowed()) ok++;
+  }
+  if (ok != 120) why += fmt("one call every 5 s: %d of 120 allowed (want all); ", ok);
+  result("FW-176", why.empty(), why.empty() ? "play_show action: 12 calls a minute, sliding (also across the millis() wrap); one every 5 s always plays" : why);
+}
+
+// BUG-008: start-up sound after a power cut, before the clock is set
+static void fw172_boot_sound() {
+  std::string why;
+  struct C { bool sound, valid, night; const char *mode; bool want; } cs[] = {
+      {true, false, false, "Normal", true},  {true, false, false, "Quieter", false}, {true, false, false, "Off", false},
+      {true, true, true, "Off", false},      {true, true, false, "Off", true},       {true, true, true, "Quieter", true},
+      {true, true, true, "Normal", true},    {false, true, false, "Normal", false},  {false, false, false, "Normal", false}};
+  for (auto &c : cs) {
+    mock::sound_enabled.state = c.sound;
+    mock::sntp_time.t.valid = c.valid;
+    mock::ha_time.t.valid = false;
+    mock::night = c.night;
+    mock::sound_at_night.opt = c.mode;
+    if (gen::boot_sound() != c.want)
+      why += fmt("sound %d, time %s, night %d, Sound at night %s: %s; ", c.sound, c.valid ? "known" : "unknown", c.night, c.mode, c.want ? "silent" : "played");
+  }
+  mock::sntp_time.t.valid = false;
+  mock::ha_time.t.valid = true, mock::night = true, mock::sound_at_night.opt = "Off", mock::sound_enabled.state = true;
+  if (gen::boot_sound()) why += "Home Assistant's clock alone set, night, Off: played; ";
+  result("FW-172", why.empty(), why.empty() ? "start-up sound: with the time unknown only 'Sound at night' Normal plays it; with the time known, Off at night is silent" : why);
+}
+
 int main() {
   fw150_idle_circle();
   fw151_other_effects();
@@ -408,5 +509,9 @@ int main() {
   fw158_known_decision();
   fw159_allow_last_band();
   fw161_tag_pairing();
+  fw172_boot_sound();
+  fw174_forget_buttons();
+  fw175_tag_report();
+  fw176_play_show_limit();
   return 0;
 }

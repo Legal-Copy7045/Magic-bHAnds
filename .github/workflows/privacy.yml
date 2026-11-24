@@ -9,11 +9,16 @@ jobs:
   privacy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # The whole history: the guard checks every commit in BASE..HEAD, and
+          # for a new branch or tag (before = all zeros) the commits since its
+          # merge base with origin/main.
           fetch-depth: 0
           persist-credentials: false
       - name: Check for personal details
+        # push: BASE = the branch's previous tip (all zeros for a new branch or
+        # tag), HEAD = the pushed commit. pull_request: the PR's base and head.
         env:
           PRIVACY_DENYLIST: ${{ secrets.PRIVACY_DENYLIST }}
           BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}

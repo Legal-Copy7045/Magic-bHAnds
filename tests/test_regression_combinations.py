@@ -340,6 +340,19 @@ async def test_welcome_sound_only_after_a_recent_welcome(
     assert device_id not in _data(hass).pending_sounds  # a denied tap never queues a sound
 
 
+async def test_own_sound_plays_before_the_first_sync(
+    hass: HomeAssistant, setup_integration, reader_device, monkeypatch
+) -> None:
+    """BUG-005: after a Home Assistant restart (no sync yet, or a failed one) the reader still skips its own
+    tap-in sound for the bands it last heard of, so Home Assistant must play the person's sound."""
+    _, played, scan = await _sound_setup(hass, reader_device, monkeypatch)
+    _data(hass).readers.status_of(reader_device.id).sounds = False  # as after a restart or a failed sync
+    await _tap(hass, TAG, reader_device.id)
+    hass.states.async_set(scan, "2026-11-24T10:00:00", {"event_type": "welcomed"})
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert len(played) == 1
+
+
 async def test_sound_not_queued_for_a_reader_without_the_sound_list(
     hass: HomeAssistant, setup_integration, reader_device
 ) -> None:
@@ -384,12 +397,6 @@ async def test_removing_a_person_with_a_sound_and_a_pass(
     assert calls["bands"][-1].data["bands"] == "" and calls["sounds"][-1].data["bands"] == ""
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="BUG: Configure -> Remove a person (config_flow.async_step_remove_person) only calls registry.remove_person: "
-    "the person's welcome sound file stays in magicbhands_sounds and their passport stays in .storage "
-    "(magicband.remove_person does both)",
-)
 async def test_removing_a_person_in_configure_also_removes_sound_and_passport(
     hass: HomeAssistant, setup_integration, reader_device
 ) -> None:
@@ -502,11 +509,26 @@ async def test_sound_view_needs_an_admin_or_a_signed_link(
     assert (await anon.get(tampered)).status == 401
 
 
-_PARTIAL_READ = (
-    "BUG: sounds.SoundView.post reads the body with request.content.read(MAX_BYTES + 1), which returns only the "
-    "bytes already buffered (one chunk), not up to that many: a large upload is stored cut short and the 2 MB "
-    "limit is never reached. Not strict: how much arrives in the first read depends on buffering."
-)
+async def test_non_admin_token_with_a_made_up_signature_gets_no_sound(
+    hass: HomeAssistant, setup_integration, hass_client, hass_client_no_auth, hass_read_only_access_token
+) -> None:
+    """SEC-001: Home Assistant skips the signature when a valid token is sent, so `?authSig=` alone proves nothing."""
+    from homeassistant.components.http.auth import async_sign_path
+
+    morgan = await _person_with_band(hass, "Morgan")
+    _give_sound(hass, morgan)
+    url = f"/api/magicband/sound/{morgan}"
+    user = await hass_client(hass_read_only_access_token)
+    assert (await user.get(url + "?authSig=x")).status == 403
+    signed = async_sign_path(hass, url, timedelta(minutes=5), use_content_user=True)
+    assert (await user.get(url + "?authSig=" + signed.split("authSig=")[1])).status == 403
+    assert (await (await hass_client()).get(url + "?authSig=x")).status == 200  # admins may anyway
+    resp = await (await hass_client_no_auth()).get(signed)
+    assert resp.status == 200 and await resp.read() == MP3
+    # A link signed for another user (not the content user our links use) isn't ours.
+    other = async_sign_path(hass, url, timedelta(minutes=5),
+                            refresh_token_id=hass.auth.async_validate_access_token(hass_read_only_access_token).id)
+    assert (await (await hass_client_no_auth()).get(other)).status == 403
 
 
 async def test_sound_upload_name_is_only_a_label(hass: HomeAssistant, setup_integration, hass_client) -> None:
@@ -517,7 +539,6 @@ async def test_sound_upload_name_is_only_a_label(hass: HomeAssistant, setup_inte
     assert sorted(p.name for p in Path(hass.config.path(sounds.FOLDER)).iterdir()) == [f"{morgan}.mp3"]
 
 
-@pytest.mark.xfail(strict=False, reason=_PARTIAL_READ)
 async def test_sound_over_2mb_is_refused(hass: HomeAssistant, setup_integration, hass_client) -> None:
     morgan = await _person_with_band(hass, "Morgan")
     client = await hass_client()
@@ -527,7 +548,6 @@ async def test_sound_over_2mb_is_refused(hass: HomeAssistant, setup_integration,
     assert _data(hass).registry.get_person(morgan).welcome_sound is None
 
 
-@pytest.mark.xfail(strict=False, reason=_PARTIAL_READ)
 async def test_a_large_sound_is_stored_whole(hass: HomeAssistant, setup_integration, hass_client) -> None:
     """A 1.5 MB upload (under the 2 MB limit) must be stored in full, however the body arrives."""
     morgan = await _person_with_band(hass, "Morgan")
@@ -568,6 +588,8 @@ async def test_snapshot_view_needs_an_admin_or_a_signed_link(
     assert (await anon.get(plain)).status == 401
     assert (await (await hass_client(hass_read_only_access_token)).get(plain)).status == 403
     assert (await (await hass_client()).get(plain)).status == 200
+    # SEC-001: a non-admin token plus a made-up signature is still refused.
+    assert (await (await hass_client(hass_read_only_access_token)).get(plain + "?authSig=x")).status == 403
     resp = await anon.get(url)
     assert resp.status == 200 and (await resp.read()).startswith(b"\xff\xd8")
     with pytest.raises((vol.Invalid, ServiceValidationError)):

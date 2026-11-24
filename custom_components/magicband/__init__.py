@@ -65,7 +65,7 @@ from .passport import Passport
 from .history import TapHistory
 from .listener import BandListener
 from .readers import CONF_READER_KEY, READER_LIST_CAPACITY, ReaderManager, is_reader_device  # noqa: F401 - re-exported
-from .registry import Band, MagicBandRegistry, display_uid, parse_uid
+from .registry import Band, MagicBandRegistry, display_uid, normalize_uid, parse_uid
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -200,7 +200,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
     @callback
     def _every_minute(_now) -> None:
         # A band's schedule opened or closed: the readers' lists change.
-        if readers.schedule_changed():
+        if readers.schedule_changed() or readers.retry_due():  # a band's schedule, or a reader to pair again
             hass.async_create_task(debouncer.async_call())
         readers.check_health()
         lockdown = bool(registry.lockdown_reasons())
@@ -231,6 +231,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
         return entity.startswith(("event.", "binary_sensor.")) and _reader_entity_name(entity)[0] in (
             "Band scan", "Tap lockout")
 
+    locked_readers: dict[str, bool] = {}  # reader device -> locked out, as last reported
+
     @callback
     def _reader_signal(event: Event) -> None:
         name, device_id = _reader_entity_name(event.data.get("entity_id"))
@@ -243,9 +245,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
                 if person := registry.get_person(pending[0]):
                     hass.async_create_background_task(sounds.async_play(hass, person, device_id),
                                                       f"{DOMAIN}_welcome_sound")
-        elif name == "Tap lockout" and old is not None and old.state in ("on", "off") and new.state != old.state \
-                and new.state in ("on", "off"):
+        elif name == "Tap lockout" and new.state in ("on", "off"):
+            # unknown/unavailable say nothing about the lockout (a reader restarting, or one that hasn't
+            # published the sensor yet), so they change nothing; "on" straight after "unknown" is a lockout
+            # start. Coming back from unavailable (a reconnect) is recorded but not announced, except that
+            # "off" always takes the notification down, so none is left up after a restart.
             locked = new.state == "on"
+            was = locked_readers.get(device_id, old is not None and old.state == "on")
+            locked_readers[device_id] = locked
+            if locked == was or (old is not None and old.state == "unavailable"):
+                if not locked:  # e.g. back "off" after a restart: no notification is left up
+                    persistent_notification.async_dismiss(hass, f"{DOMAIN}_lockout_{device_id}")
+                return
             reader = _reader_name(hass, device_id)
             hass.bus.async_fire(EVENT_LOCKOUT, {"reader": reader, "reader_device_id": device_id, "locked": locked})
             note = f"{DOMAIN}_lockout_{device_id}"
@@ -315,13 +326,34 @@ async def async_unload_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) -
 
 
 @callback
+def _forget_band(hass: HomeAssistant, data: MagicBandData, uid: str) -> None:
+    """After an NFC band left the registry: its notification goes and no Bluetooth band stays linked to it."""
+    persistent_notification.async_dismiss(hass, f"{DOMAIN}_unknown_{normalize_uid(uid)}")
+    data.beacons.unlink_nfc(uid)
+
+
+@callback
+def async_remove_band(hass: HomeAssistant, data: MagicBandData, uid: str) -> None:
+    """Remove an NFC band (the remove_band action and Configure share this)."""
+    uid = normalize_uid(uid)
+    data.registry.remove_band(uid)
+    _forget_band(hass, data, uid)
+
+
+async def async_remove_person(hass: HomeAssistant, data: MagicBandData, person_id: str) -> None:
+    """Remove a person with their passport and welcome sound (the remove_person action and Configure share this)."""
+    data.registry.remove_person(person_id)
+    data.passport.forget(person_id)
+    await sounds.async_remove(hass, person_id)
+
+
+@callback
 def _handle_scan(hass: HomeAssistant, data: MagicBandData, tag_id: str, device_id: str | None) -> None:
     registry = data.registry
     reader = _reader_name(hass, device_id)
     if registry.get_band(tag_id) is None:
         for old in registry.prune_unassigned():
-            persistent_notification.async_dismiss(hass, f"{DOMAIN}_unknown_{old}")
-            data.beacons.unlink_nfc(old)
+            _forget_band(hass, data, old)
     band, is_new = registry.record_scan(tag_id, reader)
     enrolled = _maybe_enrol(hass, data, band.uid, device_id)
     person = registry.get_person(band.person_id)
@@ -331,8 +363,9 @@ def _handle_scan(hass: HomeAssistant, data: MagicBandData, tag_id: str, device_i
     name = data.beacons.band_display_name(band.uid)
     badges, celebration = _welcome_extras(hass, data, person, device_id) if allowed and person else ([], None)
     if allowed and person and person.welcome_sound and device_id:
-        status = data.readers.status_of(device_id)
-        if status is not None and status.sounds:
+        # Whenever the reader can take the sound list, not only once this Home Assistant has sent it: after a
+        # restart, or a failed sync, the reader still skips its own tap-in sound for the bands it last heard of.
+        if data.readers.takes_sounds(device_id) and band.uid not in data.readers.sounds_left_out:
             data.pending_sounds[device_id] = (person.id, time.monotonic())
 
     hass.bus.async_fire(
@@ -553,9 +586,7 @@ def _register_services(hass: HomeAssistant) -> None:
     async def remove_person(call: ServiceCall) -> None:
         registry = _get_registry(hass)
         person = _resolve_person(registry, call.data[ATTR_PERSON])
-        registry.remove_person(person.id)
-        _data().passport.forget(person.id)
-        await sounds.async_remove(hass, person.id)
+        await async_remove_person(hass, _data(), person.id)
 
     async def assign_band(call: ServiceCall) -> None:
         registry = _get_registry(hass)
@@ -573,7 +604,7 @@ def _register_services(hass: HomeAssistant) -> None:
 
     async def remove_band(call: ServiceCall) -> None:
         registry = _get_registry(hass)
-        registry.remove_band(_resolve_band(registry, call.data[ATTR_BAND]))
+        async_remove_band(hass, _data(), _resolve_band(registry, call.data[ATTR_BAND]))
 
     sync_times: deque[float] = deque()
 
