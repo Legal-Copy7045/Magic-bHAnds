@@ -1,6 +1,6 @@
 # Stable IDs for the integration tests (regression/integration/run.py). Append-only: never renumber or
 # reuse an ID. Renamed a test? Edit its line here to keep its ID.
-# highest issued: INT-244
+# highest issued: INT-246
 INT-001: "tests/test_beacons.py::test_parse"
 INT-002: "tests/test_beacons.py::test_real_beacons_make_two_bands"
 INT-003: "tests/test_beacons.py::test_nearby_goes_off_after_missed_beacons"
