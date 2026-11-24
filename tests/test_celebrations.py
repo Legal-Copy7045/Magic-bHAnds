@@ -263,3 +263,24 @@ async def test_list_has_the_new_fields(hass: HomeAssistant, setup_integration) -
     assert "holidays" in result["today"] and len(result["upcoming"]) == 4
     with pytest.raises(ServiceValidationError):
         await hass.services.async_call(DOMAIN, "update_person", {"person": "Alice", "birthday": "13-40"}, blocking=True)
+
+
+async def test_a_show_the_reader_refuses_isnt_counted_as_played(
+    hass: HomeAssistant, setup_integration, reader_device, freezer: FrozenDateTimeFactory, caplog
+) -> None:
+    """A reader that answers play_show with an error (ESPHome raises it in Home Assistant): the show is reported
+    under "skipped", not "played", and logged, both for magicband.play_show and a celebration after a welcome."""
+    from homeassistant.exceptions import HomeAssistantError
+
+    def refuse(call):
+        raise HomeAssistantError("Show refused: the reader is busy")
+
+    hass.services.async_register("esphome", "lounge_reader_play_show", refuse)
+    result = await hass.services.async_call(DOMAIN, "play_show", {"show": "Fire"}, blocking=True, return_response=True)
+    assert result["played"] == [] and result["skipped"] == [reader_device.name]
+    assert "didn't play the light show: Show refused" in caplog.text
+    caplog.clear()
+    freezer.move_to(datetime(2026, 10, 31, 15, 0, tzinfo=dt_util.get_default_time_zone()))  # Halloween
+    await _person_with_band(hass, "Alice")
+    await _tap(hass, TAG, reader_device.id)  # the Stamp show after the welcome
+    assert "didn't play the light show: Show refused" in caplog.text

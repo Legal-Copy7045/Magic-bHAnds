@@ -593,3 +593,37 @@ async def test_reader_device_stays_esphomes_and_no_deprecated_device_registry_us
     assert "deprecat" not in caplog.text.lower()
     source = "\n".join(p.read_text() for p in Path(__file__).resolve().parents[1].glob("custom_components/magicband/*.py"))
     assert not re.search(r"\.devices\b|add_config_entry_id|remove_config_entry_id", source)
+
+
+async def test_removing_a_reader_removes_its_magicbhands_sensors(hass: HomeAssistant, setup_integration, reader_device) -> None:
+    """BUG-015: the reader's device isn't linked to MagicbHAnds' config entry (0.10.32), so Home Assistant leaves our
+    sensors behind when the device goes; MagicbHAnds removes them itself, without linking the entry to the device."""
+    from homeassistant.helpers import entity_registry as er
+
+    ent_reg = er.async_get(hass)
+    ids = [f"reader_{reader_device.id}_last_band", f"reader_{reader_device.id}_allowed_list"]
+    hass.bus.async_fire("tag_scanned", {"tag_id": "04C1D2E3F40590", "device_id": reader_device.id})
+    await hass.async_block_till_done()
+    assert all(ent_reg.async_get_entity_id("sensor", DOMAIN, u) for u in ids)
+    dr.async_get(hass).async_remove_device(reader_device.id)
+    await hass.async_block_till_done()
+    assert not any(ent_reg.async_get_entity_id("sensor", DOMAIN, u) for u in ids)
+
+
+async def test_reader_sensors_left_from_a_reader_removed_while_unloaded_go_at_setup(
+    hass: HomeAssistant, setup_integration, reader_device
+) -> None:
+    from homeassistant.helpers import entity_registry as er
+
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    hass.bus.async_fire("tag_scanned", {"tag_id": "04C1D2E3F40590", "device_id": reader_device.id})
+    await hass.async_block_till_done()
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    dr.async_get(hass).async_remove_device(reader_device.id)
+    await hass.async_block_till_done()
+    ent_reg = er.async_get(hass)
+    assert ent_reg.async_get_entity_id("sensor", DOMAIN, f"reader_{reader_device.id}_last_band")  # still there
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert not ent_reg.async_get_entity_id("sensor", DOMAIN, f"reader_{reader_device.id}_last_band")
+    assert not ent_reg.async_get_entity_id("sensor", DOMAIN, f"reader_{reader_device.id}_allowed_list")

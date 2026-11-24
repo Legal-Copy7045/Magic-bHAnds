@@ -309,6 +309,8 @@ const lastTapSensor=I=>svcSensor(I,e=>e.startsWith('sensor.')&&'reader' in A(e)&
 // ───────── helpers ─────────
 const rel=t=>t&&!/unknown|unavailable/.test(t)?ago(t):'never';
 const slugId=x=>String(x).replace(/[^\w]/g,'');
+// a band's ID as a message/busy key safe in ids and attribute selectors: [A-Za-z0-9_-] only, and two IDs never share one
+const idKey=x=>String(x).replace(/[^A-Za-z0-9-]/g,c=>'_'+c.charCodeAt(0).toString(16)+'_');
 // msgEl: an element, or the key of a message line drawn with msgLine() (kept through redraws); onFail puts the control back
 function act(p,key,msgEl,ok,onFail){ BUSY[key]=1; render(); const k=typeof msgEl==='string'?msgEl:null;
   return p.then(r=>{ if(k) note(k,'ok',ok||'Done.'); else if(msgEl){ msgEl.className='msg ok'; msgEl.textContent=ok||'Done.'; } return r; })
@@ -371,7 +373,7 @@ function problems(I,RD,BR,B){ const out=[];
     if(!R.on){ out.push(['b',n+' is offline',go,'Check its power and Wi-Fi; it reconnects on its own.',1]); return; }
     if(R.st==='failed') out.push(['b',n+': list not applied',go,(R.err?esc(R.err)+'. ':'')+'The reader turned the allowed list down. <span class="btns"><button class="btn sm" data-sync>Re-send list to readers</button></span>',1]);
     if(R.locked) out.push(['b',n+' is locked out',go,'Too many turned-away taps: it ignores taps until the lockout time is up.'+(R.lockSw?` <span class="btns"><button class="btn sm" data-endlock="${esc(R.lockSw)}">End lockout now</button></span>`:''),1]);
-    if(R.unpaired) out.push(['w',n+' isn’t paired',go,'Tap any band on it while its ring breathes blue (within 2 minutes of pairing).',1]); });
+    if(R.unpaired) out.push(['w',n+' isn’t paired',go,'Tap a band on it only while MagicbHAnds’ notice in Settings → Repairs asks you to (it shows for 2 minutes at a time). The ring also breathes blue when someone else asks to pair it: a tap then would pair it with them.',1]); });
   BR.forEach(d=>{ if(!online(I,d)) out.push(['b',dname(d)+' is offline','br'+devKey(d),'Check its power and network; it reconnects on its own.',1]); });
   const L=LIST&&LIST.lockdown; if(L&&L.length) out.push(['w','Lockdown is on','rules-card','Only the people you choose get in ('+esc(L.join(' · '))+').',0]);
   B.forEach(b=>{ const v=b.s.bat?num(b.s.bat):null; if(v!=null&&v<=LOW_BAT) out.push(['w',b.name+': battery '+Math.round(v)+'%','band-b'+String(b.d.id).replace(/[^\w]/g,''),'Charge it soon (a MagicBand+ charges on its USB cable).',1]); });
@@ -392,19 +394,22 @@ document.addEventListener('click',ev=>{ const a=ev.target.closest&&ev.target.clo
 function unknownJob(I,P,unk){ const lt=lastTapSensor(I), la=lt?A(lt):{};
   const last=lt&&!/unknown|unavailable/.test(S(lt).state)?`<p class="sub2" style="margin:8px 0 0">Last tap: <b>${esc(la.person||'unknown band')}</b>${la.band?' ('+esc(la.band)+')':''} on ${esc(la.reader||'a reader')}, ${esc(rel(S(lt).state))}${la.allowed===false?' <span class="tag no">turned away</span>':''}.</p>`:'';
   $('j-unknown').hidden=!unk.length;
-  if(!unk.length){ $('unknown').innerHTML=`<p class="muted" style="margin:10px 0 0">No new bands waiting. Tap a band nobody owns on a reader and it appears here.</p>`+last; return; }
-  $('unknown').innerHTML=unk.map((u,i)=>{ const id=u.band||u.id||u, key='u'+i;
+  if(!unk.length){ $('unknown').innerHTML=`<p class="muted" style="margin:10px 0 0">No new bands waiting. Tap a band nobody owns on a reader and it appears here.</p>`+msgLine('unk')+last; return; }
+  // messages and busy state are keyed by the band, not its place in the list (which changes as bands are assigned)
+  $('unknown').innerHTML=unk.map(u=>{ const id=u.band||u.id||u, key='u-'+idKey(id);
     return `<div class="item" id="unk-${esc(slugId(id))}"><div class="t"><span>${esc(id)}</span><span class="sub2">${u.last_seen||u.first_seen?'tapped '+esc(rel(u.last_seen||u.first_seen)):''}${u.reader||u.last_reader?' on '+esc(u.reader||u.last_reader):''}${u.scans?' · '+(Number(u.scans)||0)+' taps':''}</span></div>
       <div class="form"><select data-u-person="${key}" aria-label="Whose band is ${esc(id)}?"><option value="">Whose band?</option>${personOptions(P)}<option value="__new">+ Someone new…</option></select>
       <input type="text" data-u-new="${key}" placeholder="Their name" aria-label="Their name" hidden><input type="text" data-u-label="${key}" placeholder="Nickname, e.g. Castle (optional)" aria-label="Nickname for this band (optional)">
-      <button class="btn pri" data-u-go="${key}" data-band="${esc(id)}"${BUSY[key]?' disabled':''}>Assign</button></div>${msgLine(key)}</div>`; }).join('')+last;
+      <button class="btn pri" data-u-go="${key}" data-band="${esc(id)}"${BUSY[key]?' disabled':''}>Assign</button></div>${msgLine(key)}</div>`; }).join('')+msgLine('unk')+last;
   document.querySelectorAll('[data-u-person]').forEach(s=>s.onchange=()=>{ const k=s.dataset.uPerson; document.querySelector(`[data-u-new="${k}"]`).hidden=s.value!=='__new'; });
   document.querySelectorAll('[data-u-go]').forEach(b=>b.onclick=async()=>{ const k=b.dataset.uGo, band=b.dataset.band, sel=document.querySelector(`[data-u-person="${k}"]`).value,
       nw=document.querySelector(`[data-u-new="${k}"]`).value.trim(), label=document.querySelector(`[data-u-label="${k}"]`).value.trim();
     let person=sel; if(!sel){ note(k,'bad','Pick who it’s for first.'); return; }
     if(sel==='__new'){ if(!nw){ note(k,'bad','Type their name.'); return; } person=nw; }
     const go=(sel==='__new'?mb('add_person',{name:nw,allowed:true},true):Promise.resolve()).then(()=>mb('assign_band',Object.assign({band,person},label?{label}:{})));
-    act(go,k,k,`Assigned to ${person}. The readers update within a few seconds.`); }); }
+    // the band leaves the list once assigned, so the success message goes on the card's own line
+    const ok=`Assigned ${band} to ${person}. The readers update within a few seconds.`;
+    act(go.then(r=>{ note(k,'',''); note('unk','ok',ok); return r; }),k,k,ok); }); }
 
 // Bluetooth halves with no NFC side, and NFC bands with no Bluetooth: link one to the other
 // NFC bands nobody has said are a MagicBand+ or a standard band: ask (a standard band has no Bluetooth, so it's never heard)
@@ -428,7 +433,7 @@ function linkJob(I,B,P,BR){ const btOnly=((BT&&BT.bluetooth_bands)||[]).filter(b
   document.querySelectorAll('[data-type]').forEach(x=>x.onclick=()=>act(H().call('select','select_option',x.dataset.type,{option:x.dataset.opt}),'t'+x.dataset.type,'types','Saved: '+TYPE_LABEL[x.dataset.opt]+'.'));
   const waitP=wait.length?`<p class="sub2" style="margin:10px 0 0">${wait.length} MagicBand+ ${wait.length>1?'haven’t':'hasn’t'} been heard over Bluetooth yet (${esc(wait.map(b=>b.name).join(', '))}). Wake bands from a bridge to make them advertise.${BR.length?` <button class="btn sm" data-wakeall title="Sends the fast-mode ping through every bridge for 15 s: bands nearby wake and advertise"${BUSY.wk?' disabled':''}>Wake bands</button>`:''}</p>`:'';
   $('j-link').hidden=!btOnly.length&&!wait.length;
-  $('link').innerHTML=btOnly.map((b,i)=>{ const key='l'+i;
+  $('link').innerHTML=btOnly.map(b=>{ const key='l-'+idKey(b.id);
     // best guess: an NFC band of the same person with no Bluetooth yet, else any NFC-only band
     const guess=nfcOnly.find(x=>b.person&&x.person===b.person)||(nfcOnly.length===1?nfcOnly[0]:null);
     return `<div class="item"><div class="t"><span>${esc(b.name||b.id)}</span><span class="sub2">${b.nearby?'nearby · ':''}heard ${esc(rel(b.last_seen))}${b.heard_by?' by '+esc(b.heard_by):''}${b.battery!=null?' · battery '+esc(b.battery)+'%':''}</span></div>
@@ -438,7 +443,8 @@ function linkJob(I,B,P,BR){ const btOnly=((BT&&BT.bluetooth_bands)||[]).filter(b
   document.querySelectorAll('[data-l-go]').forEach(b=>b.onclick=()=>{ const k=b.dataset.lGo, v=document.querySelector(`[data-l-to="${k}"]`).value;
     if(!v){ note(k,'bad','Pick the band or person first.'); return; }
     const [kind,val_]=[v.slice(0,v.indexOf(':')),v.slice(v.indexOf(':')+1)];
-    act(mb('link_bluetooth',{bluetooth_band:b.dataset.bt,[kind]:val_}),k,k,'Linked.'); }); }
+    const ok=`Linked ${b.dataset.bt}.`;
+    act(mb('link_bluetooth',{bluetooth_band:b.dataset.bt,[kind]:val_}).then(r=>{ note(k,'',''); note('link','ok',ok); return r; }),k,k,ok); }); }
 
 // grouping and sorting of the band cards; the choice is remembered in this browser
 const BV={group:'none',sort:'person',find:''}; try{ Object.assign(BV,JSON.parse(localStorage.getItem('mbh-bands')||'{}'),{find:''}); }catch(e){}

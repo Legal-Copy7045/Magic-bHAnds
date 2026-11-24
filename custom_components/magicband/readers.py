@@ -23,10 +23,11 @@ import re
 import time
 from typing import Any
 
-from homeassistant.core import Context, HomeAssistant, callback
+from homeassistant.core import CALLBACK_TYPE, Context, HomeAssistant, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import device_registry as dr, entity_registry as er, issue_registry as ir
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.event import async_call_later
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, READER_MODEL, READER_SET_SERVICE_SUFFIX
@@ -66,6 +67,11 @@ PAIRING_BUSY = "PAIRING_BUSY"  # another key's pairing request is waiting on the
 PAIRING_COOLDOWN = "PAIRING_COOLDOWN"  # our own request expired without a tap: it may ask again 2 minutes later
 PAIRING_RETRY = 120  # seconds before a busy or cooling-down reader is asked again
 PAIRING_PENDING = "PAIRING_PENDING"  # the reader's reply while a first pairing waits for its tap  # readers from 0.10.20: the protected actions then need the key
+PAIRING_WINDOW = 120  # seconds the reader waits for the tap that confirms a pairing request (PAIR_CONFIRM_MS)
+PAIRED_ELSEWHERE = "paired with another key"  # the reader's refusal once another key has been confirmed
+# A reader's repairs, removed with the reader (or when it is released).
+READER_ISSUES = ("reader_offline", "reader_sync_failed", "reader_pairing", "reader_pairing_busy",
+                 "reader_paired_elsewhere", "colours_too_long", "sounds_too_long")
 CONF_READER_KEY = "reader_key"
 
 # States of a reader's "Allowed list" sensor.
@@ -225,6 +231,12 @@ class ReaderManager:
         self._last_sent: tuple | None = None
         self.sounds_left_out: set[str] = set()  # bands with a sound that didn't fit in the readers' list
         self._retry_at: float | None = None  # when a reader that couldn't pair yet is asked again (monotonic)
+        # Readers on which MagicbHAnds' own pairing request is waiting for its tap: device -> cancels the
+        # scheduled end of that request's 2-minute window. "Tap a band" shows only while one is here.
+        self._pair_windows: dict[str, CALLBACK_TYPE] = {}
+        # People whose own welcome sound couldn't be played (file missing, playback failed): their bands are left
+        # out of the readers' own-sound list, so the readers chime for them, until the sound is uploaded again.
+        self.sounds_failing: set[str] = set()
 
     # ------------------------------------------------------------------ sync
 
@@ -236,7 +248,8 @@ class ReaderManager:
         now = dt_util.now()
         uids = self.registry.allowed_uids(now)
         colours = self.registry.welcome_colours(now)
-        all_sounds = self.registry.sound_uids(now)
+        all_sounds = [uid for uid in self.registry.sound_uids(now)
+                      if (band := self.registry.get_band(uid)) is None or band.person_id not in self.sounds_failing]
         sound_uids = fit_entries(all_sounds, SOUNDS_CAPACITY)
         self.sounds_left_out = set(all_sounds) - set(sound_uids)
         sound_list = ",".join(sound_uids)
@@ -269,6 +282,7 @@ class ReaderManager:
                 # Released with unpair_reader: left alone (no list, no pairing) so another
                 # Home Assistant can pair it. magicband.pair_reader takes it back.
                 status.state, status.error = OFFLINE, "Released: not managed by this Home Assistant"
+                self._delete_issues(device.id)
                 continue
             node = node_name(self.hass, device)
             service = _service_for(node, READER_SET_SERVICE_SUFFIX) if node else None
@@ -345,31 +359,68 @@ class ReaderManager:
 
     async def _pair_or_wait(self, device: dr.DeviceEntry, name: str, node: str) -> None:
         """Pair the reader. A reader that's never been paired waits for a band tap on it to confirm
-        (reader_key.h): until then a repair says so, and the list is sent anyway (an unpaired reader
-        takes it). Any other refusal is raised."""
+        (reader_key.h): while MagicbHAnds' own request waits, a repair asks for that tap, and the list is
+        sent anyway (an unpaired reader takes it). Any other refusal is raised.
+
+        "Tap a band" shows only from the moment the reader accepts our request until that request's 2-minute
+        window ends (or the tap confirms it): outside it another key's request may be the one waiting, and a
+        tap would pair the reader with them."""
+        asked = time.monotonic()
+        busy, tap = f"reader_pairing_busy_{device.id}", f"reader_pairing_{device.id}"
         try:
             await self._pair(node)
         except Exception as err:
             text = str(err)
+            if PAIRING_PENDING in text:  # ours is the request waiting (asking again doesn't extend it)
+                self._issue(busy, False, "reader_pairing_busy", {"reader": name})
+                if device.id not in self._pair_windows:
+                    left = max(1.0, PAIRING_WINDOW - (time.monotonic() - asked))
+                    self._pair_windows[device.id] = async_call_later(
+                        self.hass, left, callback(lambda _now, d=device.id: self._pair_window_ended(d)))
+                    self._issue(tap, True, "reader_pairing", {"reader": name})
+                return
+            self._end_pair_window(device.id)
             if PAIRING_BUSY in text:
                 # Someone else's pairing request is waiting on it: a tap now would pair it with them. Say so,
                 # don't ask for a tap, and ask again after their request has run out.
-                self._issue(f"reader_pairing_{device.id}", False, "reader_pairing", {"reader": name})
-                self._issue(f"reader_pairing_busy_{device.id}", True, "reader_pairing_busy", {"reader": name})
+                self._issue(busy, True, "reader_pairing_busy", {"reader": name})
                 self._retry_later()
                 return
-            if PAIRING_COOLDOWN in text:  # our wait ran out without a tap: asked again in 2 minutes
-                self._issue(f"reader_pairing_busy_{device.id}", False, "reader_pairing_busy", {"reader": name})
-                self._issue(f"reader_pairing_{device.id}", True, "reader_pairing", {"reader": name})
+            if PAIRING_COOLDOWN in text:
+                # Our wait ran out without a tap; for 2 minutes the reader won't take our key again, and any other
+                # key may ask meanwhile, so no "Tap a band" now: asked again after the gap.
+                self._issue(busy, False, "reader_pairing_busy", {"reader": name})
                 self._retry_later()
                 return
-            if PAIRING_PENDING not in text:
-                raise
-            self._issue(f"reader_pairing_busy_{device.id}", False, "reader_pairing_busy", {"reader": name})
-            self._issue(f"reader_pairing_{device.id}", True, "reader_pairing", {"reader": name})
-            return
-        self._issue(f"reader_pairing_{device.id}", False, "reader_pairing", {"reader": name})
-        self._issue(f"reader_pairing_busy_{device.id}", False, "reader_pairing_busy", {"reader": name})
+            self._issue(busy, False, "reader_pairing_busy", {"reader": name})
+            if PAIRED_ELSEWHERE in text:
+                _LOGGER.warning("Reader %s is paired with another key, not MagicbHAnds'", name)
+                self._issue(f"reader_paired_elsewhere_{device.id}", True, "reader_paired_elsewhere", {"reader": name},
+                            severity=ir.IssueSeverity.ERROR)
+            raise
+        self._end_pair_window(device.id)
+        self._issue(busy, False, "reader_pairing_busy", {"reader": name})
+        self._issue(f"reader_paired_elsewhere_{device.id}", False, "reader_paired_elsewhere", {})
+
+    @callback
+    def _end_pair_window(self, device_id: str) -> None:
+        """Our pairing request on this reader is no longer waiting: "Tap a band" goes."""
+        if (cancel := self._pair_windows.pop(device_id, None)) is not None:
+            cancel()
+        ir.async_delete_issue(self.hass, DOMAIN, f"reader_pairing_{device_id}")
+
+    @callback
+    def _pair_window_ended(self, device_id: str) -> None:
+        """Our request's 2 minutes are up without a tap: stop asking for one, and ask the reader again later."""
+        self._pair_windows.pop(device_id, None)
+        ir.async_delete_issue(self.hass, DOMAIN, f"reader_pairing_{device_id}")
+        self._retry_later()
+
+    @callback
+    def pairing_confirmed(self, device_id: str) -> None:
+        """The reader's "Paired with MagicbHAnds" sensor turned on (a tap confirmed a pairing): "Tap a band" goes
+        now. The sync that follows checks that the reader took MagicbHAnds' key, not another one."""
+        self._end_pair_window(device_id)
 
     def _retry_later(self) -> None:
         if self._retry_at is None:
@@ -390,15 +441,16 @@ class ReaderManager:
             raise ServiceValidationError("That device isn't a MagicBand reader")
         if not self._keyed(node):
             raise ServiceValidationError("The reader isn't connected, or its firmware can't be paired")
+        # Its own-sound list goes first (with the key, while it still needs it): released, MagicbHAnds no longer
+        # plays anyone's sound there, so the reader chimes for every band again.
+        await self._clear_sounds(device, node, keyed=True)
         await self.hass.services.async_call(
             "esphome", _service_for(node, "_unpair"), {"key": self.key}, blocking=True, context=context
         )
         # Stop syncing it, or the next sync would ask to pair it again (and, while that request
         # waits, block the Home Assistant it's moving to).
         self.registry.set_reader_released(device_id, True)
-        self._issue(f"reader_pairing_{device_id}", False, "reader_pairing", {})
-        self._issue(f"reader_pairing_busy_{device_id}", False, "reader_pairing_busy", {})
-        self._issue(f"reader_sync_failed_{device_id}", False, "reader_sync_failed", {})
+        self._delete_issues(device_id)
 
     async def async_reclaim(self, device_id: str) -> dict[str, Any]:
         """Manage a released reader again (pair_reader): it pairs on this sync (a band tap confirms)."""
@@ -462,9 +514,7 @@ class ReaderManager:
             if device_id not in devices:
                 self.statuses.pop(device_id)
                 self._offline_since.pop(device_id, None)
-                for issue in (f"reader_offline_{device_id}", f"reader_sync_failed_{device_id}", f"reader_pairing_{device_id}",
-                              f"reader_pairing_busy_{device_id}"):
-                    ir.async_delete_issue(self.hass, DOMAIN, issue)
+                self._delete_issues(device_id)
         async_dispatcher_send(self.hass, SIGNAL_READER_STATUS)
 
     def status_of(self, device_id: str) -> ReaderStatus | None:
@@ -483,7 +533,63 @@ class ReaderManager:
     def report(self) -> list[dict[str, Any]]:
         return [asdict(s) for s in self.statuses.values()]
 
+    # ------------------------------------------------------------------ own sounds
+
+    @callback
+    def sound_failed(self, person_id: str) -> bool:
+        """A person's own sound couldn't be played: their bands come off the readers' own-sound list at the next
+        sync (the reader chimes for them from then on). True if that's news (a sync is needed)."""
+        if person_id in self.sounds_failing:
+            return False
+        self.sounds_failing.add(person_id)
+        return True
+
+    @callback
+    def sound_ok(self, person_id: str) -> bool:
+        """The person's sound was uploaded again (or played): back on the list. True if it had been taken off."""
+        if person_id not in self.sounds_failing:
+            return False
+        self.sounds_failing.discard(person_id)
+        return True
+
+    async def _clear_sounds(self, device: dr.DeviceEntry, node: str, keyed: bool | None = None) -> None:
+        """Send the reader an empty own-sound list, so it plays its own tap-in sound for every band again."""
+        service = _service_for(node, SOUNDS_SERVICE_SUFFIX)
+        if not self.hass.services.has_service("esphome", service):
+            return
+        if keyed is None:
+            keyed = self._keyed(node)
+        try:
+            await self.hass.services.async_call(
+                "esphome", service, {"bands": "", **({"key": self.key} if keyed else {})}, blocking=True)
+        except Exception as err:  # noqa: BLE001 - best effort: the reader may be going too
+            _LOGGER.warning("Couldn't clear %s's list of bands with their own sound: %s",
+                            device.name_by_user or device.name, err)
+
+    async def async_release_sounds(self) -> None:
+        """MagicbHAnds is unloading (disabled, removed, reloaded): it stops playing people's own sounds, so every
+        managed reader that's online gets an empty own-sound list and chimes for every band again."""
+        for device in reader_devices(self.hass):
+            if self.registry.reader_released(device.id):
+                continue
+            if node := node_name(self.hass, device):
+                await self._clear_sounds(device, node)
+
     # ------------------------------------------------------------------ helpers
+
+    @callback
+    def _delete_issues(self, device_id: str) -> None:
+        """A reader removed or released: none of its repairs stays."""
+        if (cancel := self._pair_windows.pop(device_id, None)) is not None:
+            cancel()
+        for issue in READER_ISSUES:
+            ir.async_delete_issue(self.hass, DOMAIN, f"{issue}_{device_id}")
+
+    @callback
+    def async_shutdown(self) -> None:
+        for cancel in self._pair_windows.values():
+            cancel()
+        self._pair_windows.clear()
 
     def _status(self, device: dr.DeviceEntry) -> ReaderStatus:
         status = self.statuses.setdefault(device.id, ReaderStatus(device_id=device.id, name=""))

@@ -96,6 +96,12 @@ def admin_or_signed(request: web.Request) -> bool:
     )
 
 
+def _readers(hass: HomeAssistant):
+    from .readers import _manager  # noqa: PLC0415 - avoids an import cycle
+
+    return _manager(hass)
+
+
 def _registry(hass: HomeAssistant):
     from . import _get_registry  # noqa: PLC0415 - avoids an import cycle
 
@@ -148,6 +154,8 @@ class SoundView(HomeAssistantView):
             sound_path(hass, person_id, kind).write_bytes(data)
 
         await hass.async_add_executor_job(_write)
+        if (manager := _readers(hass)) is not None:
+            manager.sound_ok(person_id)  # a new file: back on the readers' own-sound list (the save below syncs)
         person = registry.set_welcome_sound(person_id, kind, name or f"sound.{kind}")
         _LOGGER.info("Welcome sound for %s: %s (%d bytes)", person.name, person.welcome_sound_name, len(data))
         return self.json({"person": person.name, "sound": person.welcome_sound_name})
@@ -200,20 +208,30 @@ def _base_url(hass: HomeAssistant) -> str:
         return get_url(hass)
 
 
+# What async_play_status reports. MISSING and FAILED mean the sound itself can't be played (the readers are then
+# told to chime for that person's bands instead, see readers.ReaderManager.sound_failed).
+PLAYED, NO_SOUND, NO_SPEAKER, MUTED, MISSING, FAILED = "played", "no_sound", "no_speaker", "muted", "missing", "failed"
+
+
 async def async_play(hass: HomeAssistant, person, device_id: str, *, check_settings: bool = True) -> bool:
     """Play `person`'s welcome sound on the reader's speaker. False if it couldn't (no sound, no speaker, muted)."""
+    return await async_play_status(hass, person, device_id, check_settings=check_settings) == PLAYED
+
+
+async def async_play_status(hass: HomeAssistant, person, device_id: str, *, check_settings: bool = True) -> str:
+    """Like async_play, but says what happened (PLAYED, NO_SOUND, NO_SPEAKER, MUTED, MISSING or FAILED)."""
     if not person.welcome_sound:
-        return False
+        return NO_SOUND
     player = _reader_entity(hass, device_id, "media_player")
     if player is None:
         _LOGGER.warning("No speaker found on the reader to play %s's welcome sound", person.name)
-        return False
+        return NO_SPEAKER
     if check_settings and not reader_sound_allowed(hass, device_id):
-        return False
+        return MUTED
     path = sound_path(hass, person.id, person.welcome_sound)
     if path is None or not await hass.async_add_executor_job(path.is_file):
         _LOGGER.warning("%s's welcome sound file is missing; upload it again", person.name)
-        return False
+        return MISSING
     signed = async_sign_path(hass, f"{URL}/{person.id}", SIGNED_FOR, use_content_user=True)
     try:
         await hass.services.async_call(
@@ -224,5 +242,5 @@ async def async_play(hass: HomeAssistant, person, device_id: str, *, check_setti
         )
     except Exception as err:  # noqa: BLE001 - a missing sound mustn't affect the tap
         _LOGGER.warning("Couldn't play %s's welcome sound on %s: %s", person.name, player, err)
-        return False
-    return True
+        return FAILED
+    return PLAYED

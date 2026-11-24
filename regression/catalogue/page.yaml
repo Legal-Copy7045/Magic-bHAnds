@@ -73,7 +73,7 @@
 - feature: Paired with MagicbHAnds
   since: 0.10.28
   docs: docs/reader.md#pairing-with-magicbhands
-  checks: [PAGE-059]
+  checks: [PAGE-059, PAGE-184]
 - feature: Band light-up power
   since: 0.10.28
   docs: docs/reader.md
@@ -126,7 +126,7 @@
   checks: [PAGE-077]
 - feature: Per-card messages and revert on error
   since: 0.10.28
-  checks: [PAGE-047, PAGE-048, PAGE-049, PAGE-050, PAGE-051, PAGE-052, PAGE-053, PAGE-173]
+  checks: [PAGE-047, PAGE-048, PAGE-049, PAGE-050, PAGE-051, PAGE-052, PAGE-053, PAGE-173, PAGE-183]
 - feature: Number range validation
   since: 0.10.28
   checks: [PAGE-054, PAGE-055]

@@ -169,3 +169,134 @@ async def test_lockout_after_a_reader_restart(hass: HomeAssistant, setup_integra
         hass.states.async_set(lockout, state)
         await hass.async_block_till_done()
     assert events == [True, False] and note() is None
+
+
+async def test_lockout_across_a_reconnect_is_announced(hass: HomeAssistant, setup_integration, reader_device) -> None:
+    """BUG-014: a reader that reconnects goes unavailable -> on/off directly (it publishes Tap lockout at boot).
+    A lockout that began, or ended, while it was cut off is announced; one already announced isn't repeated."""
+    from homeassistant.components import persistent_notification
+
+    def note():
+        return persistent_notification._async_get_or_create_notifications(hass).get(
+            f"{DOMAIN}_lockout_{reader_device.id}")
+
+    lockout = _reader_entity(hass, reader_device, "binary_sensor", "Tap lockout", "bs1")
+    events = []
+    hass.bus.async_listen("magicband_lockout", lambda e: events.append(e.data["locked"]))
+
+    async def to(*states):
+        for state in states:
+            hass.states.async_set(lockout, state)
+            await hass.async_block_till_done()
+
+    await to("off", "on")
+    assert events == [True] and note() is not None
+    await to("unavailable", "on")  # reconnects still locked out: already announced
+    assert events == [True] and note() is not None
+    await to("unavailable", "off")  # restarted to clear it: the lockout ended
+    assert events == [True, False] and note() is None
+    await to("unavailable", "on")  # locked out while cut off from Home Assistant (the lockout works offline)
+    assert events == [True, False, True] and note() is not None
+    await to("unavailable", "unknown", "on")  # still the same lockout
+    assert events == [True, False, True]
+
+
+# ---------------------------------------------------------------------------- BUG-021: own sounds the integration can't play
+
+
+async def test_unloading_sends_the_readers_an_empty_sound_list(hass: HomeAssistant, setup_integration, reader_device) -> None:
+    """BUG-021: MagicbHAnds disabled, removed or reloaded: the readers chime for every band again."""
+    calls = _reader_services(hass)
+    person_id = await _person_with_band(hass)
+    _give_sound(hass, person_id)
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True)
+    assert calls[-1].data["bands"] == TAG
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    assert calls[-1].data["bands"] == ""
+
+
+async def test_restarting_home_assistant_keeps_the_readers_sound_list(
+    hass: HomeAssistant, setup_integration, reader_device
+) -> None:
+    from homeassistant.core import CoreState
+
+    calls = _reader_services(hass)
+    person_id = await _person_with_band(hass)
+    _give_sound(hass, person_id)
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True)
+    n = len(calls)
+    hass.set_state(CoreState.stopping)
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    hass.set_state(CoreState.running)
+    assert len(calls) == n  # the readers keep it: MagicbHAnds plays the sounds again once it's back
+
+
+async def test_releasing_a_reader_clears_its_sound_list_with_the_key(
+    hass: HomeAssistant, setup_integration, reader_device
+) -> None:
+    calls = _reader_services(hass)
+    order: list[str] = []
+    hass.services.async_register("esphome", "lounge_reader_pair", lambda c: None)
+    hass.services.async_register("esphome", "lounge_reader_set_band_sounds", lambda c: (calls.append(c), order.append("sounds")))
+    hass.services.async_register("esphome", "lounge_reader_unpair", lambda c: order.append("unpair"))
+    person_id = await _person_with_band(hass)
+    _give_sound(hass, person_id)
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True)
+    order.clear()
+    await hass.services.async_call(DOMAIN, "unpair_reader", {"device_id": reader_device.id}, blocking=True)
+    key = hass.config_entries.async_entries(DOMAIN)[0].data["reader_key"]
+    assert order == ["sounds", "unpair"] and calls[-1].data == {"bands": "", "key": key}
+
+
+@pytest.mark.parametrize("problem", ["missing", "failed"])
+async def test_a_sound_that_cant_play_goes_back_to_the_readers_chime(
+    hass: HomeAssistant, setup_integration, reader_device, monkeypatch: pytest.MonkeyPatch, caplog, problem: str,
+    hass_client, freezer,
+) -> None:
+    """BUG-021: the person's sound file is missing, or playing it fails: their band comes off the readers'
+    own-sound list at once (so the reader chimes for them), until the sound is uploaded again."""
+    from datetime import timedelta
+
+    from homeassistant.exceptions import HomeAssistantError
+    from pytest_homeassistant_custom_component.common import async_fire_time_changed
+
+    calls = _reader_services(hass)
+    person_id = await _person_with_band(hass)
+    _give_sound(hass, person_id)
+    _reader_entity(hass, reader_device, "media_player", "Speaker", "mp1")
+    scan = _reader_entity(hass, reader_device, "event", "Band scan", "ev1")
+
+    def play(call):
+        raise HomeAssistantError("The media proxy failed")
+
+    hass.services.async_register("media_player", "play_media", play if problem == "failed" else (lambda c: None))
+    monkeypatch.setattr(sounds, "async_sign_path", lambda hass, path, *a, **k: path + "?authSig=abc")
+    monkeypatch.setattr(sounds, "_base_url", lambda hass: "http://ha.local:8123")
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True)
+    assert calls[-1].data["bands"] == TAG
+    if problem == "missing":
+        Path(hass.config.path(sounds.FOLDER), f"{person_id}.mp3").unlink()
+
+    hass.bus.async_fire("tag_scanned", {"tag_id": TAG, "device_id": reader_device.id})
+    await hass.async_block_till_done()
+    hass.states.async_set(scan, "2026-11-22T10:00:00", {"event_type": "welcomed"})
+    await hass.async_block_till_done(wait_background_tasks=True)
+    freezer.tick(timedelta(seconds=5))  # the sync it asks for (debounced)
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert calls[-1].data["bands"] == ""  # the reader chimes for them from now on
+    assert "the readers play their own tap-in sound" in caplog.text
+    # The next welcome isn't queued for Home Assistant to play.
+    hass.bus.async_fire("tag_scanned", {"tag_id": TAG, "device_id": reader_device.id})
+    await hass.async_block_till_done()
+    assert reader_device.id not in _data(hass).pending_sounds
+
+    client = await hass_client()
+    resp = await client.post(f"/api/magicband/sound/{person_id}?name=hello.mp3", data=MP3)
+    assert resp.status == 200
+    freezer.tick(timedelta(seconds=5))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert calls[-1].data["bands"] == TAG  # uploaded again: back on the list

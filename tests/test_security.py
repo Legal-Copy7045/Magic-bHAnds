@@ -394,6 +394,8 @@ namespace magicband = esphome::magicband;
 static std::array<char, %d> known_list;
 static std::string sync_error;
 static magicband::ReaderKey pair_key{};
+// The firmware also records which bands HA listed (a component the host build doesn't have): a no-op here.
+static struct { template <class T> void add_list(const T &) {} } listed_bands;
 #define id(x) x
 #define ESP_LOGI(tag, ...) std::printf(__VA_ARGS__), std::printf("\n")
 #define ESP_LOGW(tag, ...) std::printf(__VA_ARGS__), std::printf("\n")
@@ -650,6 +652,8 @@ namespace magicband = esphome::magicband;
 static std::array<char, %d> band_colours;
 static std::string sync_error;
 static magicband::ReaderKey pair_key{};
+// The firmware also records which bands HA listed (a component the host build doesn't have): a no-op here.
+static struct { template <class T> void add_list(const T &) {} } listed_bands;
 #define id(x) x
 #define ESP_LOGI(tag, ...) std::printf(__VA_ARGS__), std::printf("\n")
 #define ESP_LOGW(tag, ...) std::printf(__VA_ARGS__), std::printf("\n")
