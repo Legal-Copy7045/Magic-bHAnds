@@ -1,0 +1,31 @@
+# Live, read-only checks against a running system (regression/live/run.py).
+# Device checks are numbered per model in blocks of ten: bridge LIVE-010.., BP2 LIVE-020.., reader
+# LIVE-030..; a second device of a model gets a block from LIVE-040 up.
+- feature: Integration installed and current
+  since: 0.10.4
+  docs: README.md
+  checks: [LIVE-001, LIVE-002, LIVE-006]
+- feature: Devices online and on the current firmware
+  since: 0.10.4
+  docs: README.md
+  checks: [LIVE-003, LIVE-010, LIVE-011, LIVE-012, LIVE-020, LIVE-021, LIVE-022, LIVE-030, LIVE-031, LIVE-032]
+- feature: Signed updates (published files signed with the project key; devices on signed firmware)
+  since: 0.10.30
+  docs: docs/security.md#signed-updates
+  checks: [LIVE-015, LIVE-025, LIVE-035, LIVE-028, LIVE-100, LIVE-101, LIVE-103, LIVE-104, LIVE-106, LIVE-107]
+- feature: Time zone setting
+  since: 0.10.31
+  docs: docs/reader.md
+  checks: [LIVE-013, LIVE-023, LIVE-033]
+- feature: Automatic updates
+  since: 0.10.31
+  docs: docs/reader.md
+  checks: [LIVE-014, LIVE-024, LIVE-034]
+- feature: Reader pairing and refused-tap lockout state
+  since: 0.10.26
+  docs: docs/reader.md
+  checks: [LIVE-036, LIVE-037]
+- feature: MagicbHAnds page served by the integration
+  since: 0.10.4
+  docs: docs/integration.md
+  checks: [LIVE-004, LIVE-005]
