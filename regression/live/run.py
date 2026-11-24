@@ -123,8 +123,17 @@ def ha_checks(ha: str) -> None:
         return
     add("LIVE-003", "Devices", "MagicbHAnds devices found in Home Assistant", "pass",
         ", ".join(f"{d['model']}" for d in devices))
-    n = 10
-    for d in devices:
+    # Stable IDs: each model has its own block (bridge 10s, BP2 20s, reader 30s); a second device of
+    # the same model takes the next free block from 40 up.
+    base = {"magicband-bridge": 10, "magicband-bp2-poe": 20, "magicband-reader": 30}
+    used, extra = set(), 40
+    for d in sorted(devices, key=lambda x: (x["model"], x["name"])):
+        n = base.get(d["model"], extra)
+        if n in used:
+            n = extra
+        if n == extra:
+            extra += 10
+        used.add(n)
         ents, builder = {}, []
         for e in d["entities"]:
             item = {"state": e[1], "attributes": {"options": e[2], "installed_version": e[3], "latest_version": e[4]}}
@@ -177,7 +186,6 @@ def ha_checks(ha: str) -> None:
             lock = ents.get("Tap lockout", {}).get("state")
             add(f"LIVE-{n + 7:03d}", "Refused-tap lockout", f"{tag}: not locked out now",
                 "pass" if lock == "off" else "fail", f"state {lock}")
-        n += 10
 
     code, page = curl(f"{ha}/api/magicband/page", auth=True)
     markers = ["Needs attention", "Automatic updates", "'Time zone'", "Idle circle heads"]
