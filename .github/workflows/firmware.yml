@@ -1,14 +1,19 @@
 name: Build, test & release
 
 # Every push (any branch) builds the firmware, runs the integration tests and
-# (from main) publishes the web installer. To release: Actions -> "Build, test & release"
-# -> Run workflow on main with "release" ticked. That tags v<VERSION> and
-# creates a GitHub Release with the firmware and integration attached.
-# (Pushing a v* tag yourself does the same.)
+# (from main) signs the firmware and publishes the web installer. Releases are
+# made ONLY with Actions -> "Build, test & release" -> Run workflow on main with
+# "release" ticked: that signs the build, tags v<VERSION> and creates a GitHub
+# Release with the firmware and integration attached.
+# A pushed v* tag only builds and tests: the sign job runs only for
+# refs/heads/main, so release (which needs sign) is skipped, and a tag can't
+# reach the signing key anyway: the release-signing environment's deployment
+# branches allow main only (no tag rule), so GitHub refuses the key to any
+# other ref, even if a tagged commit edits this file.
 on:
   push:
-    # Every branch builds and tests; only main publishes the site and only
-    # main or a v* tag can release (see the deploy and release jobs).
+    # Every branch builds and tests; only main signs, publishes the site and
+    # releases (see the sign, deploy and release jobs).
     branches: ["**"]
     tags: ["v*"]
   pull_request:
@@ -70,9 +75,11 @@ jobs:
       - name: Install ESPHome
         run: pip install "esphome==${ESPHOME_VERSION}"
 
-      # The official builds only install updates signed with the project's key
-      # (signed_build.py; the sign job signs them). The device files themselves
-      # stay unlocked for people who build their own.
+      # The official builds only install updates signed with the project's key,
+      # and the Wi-Fi ones (bridge, reader) get the setup hotspot, whose upload
+      # page that signature check covers (signed_build.py; the sign job signs
+      # them). The device files themselves stay unlocked, without a hotspot,
+      # for people who build their own.
       - name: Compile MagicBand Bridge
         working-directory: esphome
         # Build against this checkout's component, not the copy on main.
@@ -118,14 +125,17 @@ jobs:
             esphome/.esphome/build/*/build/firmware.ota.bin
             esphome/.esphome/build/*/build/firmware.factory.bin
   # Signs the firmware with the project's key, then assembles the site and the
-  # release files from the signed images. Only main and release tags get here,
-  # and the release-signing environment holding OTA_SIGNING_KEY allows
-  # only those, so pull requests and other branches never reach the key. A
-  # tag's commit must be on main before anything else runs. Give the
-  # release-signing environment a required reviewer (Settings -> Environments)
-  # so every signed build waits for approval (see docs/security.md).
+  # release files from the signed images. Only main gets here (a push to main
+  # or Run workflow on main), and the release-signing environment holding
+  # OTA_SIGNING_KEY allows only main (deployment branches: main, no tag rule),
+  # so pull requests, other branches and pushed tags never reach the key: that
+  # environment rule, not this file, is the real gate. The commit must also be
+  # on main before anything else runs. Every push to main is signed, so the
+  # account that can push to main is what protects releases: it should use
+  # two-factor authentication, and the environment stays limited to main
+  # (see docs/security.md).
   sign:
-    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     environment: release-signing
@@ -138,8 +148,8 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      # Same check as the release job, before the key is touched: a v* tag
-      # pushed on another branch is never signed.
+      # Same check as the release job, before the key is touched: only a
+      # commit on main is ever signed.
       - name: Check the commit is on main
         run: |
           git fetch --no-tags origin main
@@ -225,6 +235,8 @@ jobs:
       - id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
 
+  # Runs from "Run workflow" on main with release ticked. For a pushed v* tag
+  # this job is skipped: it needs sign, which only runs on main.
   release:
     if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release && github.ref == 'refs/heads/main')
     needs: [sign, test-integration]
@@ -244,8 +256,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      # Only commits on main are released, whatever started the run (a pushed
-      # v* tag on another branch would otherwise become an attested release).
+      # Only commits on main are released, whatever started the run.
       - name: Check the commit is on main
         run: |
           git fetch --no-tags origin main

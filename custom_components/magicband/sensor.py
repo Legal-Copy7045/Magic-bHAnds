@@ -94,6 +94,24 @@ async def async_setup_entry(
 
     entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_READER_STATUS, _add_new_readers))
 
+    # The two reader sensors sit on the reader's (ESPHome's) device without this config entry on it, so Home
+    # Assistant doesn't remove them with the device: they go here when their reader is deleted (and any left
+    # over from a reader deleted while MagicbHAnds wasn't running go at start-up).
+    _remove_orphaned_reader_sensors(hass, entry)
+
+    @callback
+    def _reader_device_removed(event) -> None:
+        device_id = event.data["device_id"]
+        readers.pop(device_id, None)
+        _remove_reader_sensors(hass, device_id)
+
+    @callback
+    def _is_removal(event_data) -> bool:
+        return event_data.get("action") == "remove"
+
+    entry.async_on_unload(hass.bus.async_listen(
+        dr.EVENT_DEVICE_REGISTRY_UPDATED, _reader_device_removed, event_filter=_is_removal))
+
     async_setup_band_entities(
         hass,
         entry.runtime_data.beacons,
@@ -438,6 +456,32 @@ class BandLastTapSensor(NfcBandEntity, SensorEntity):
             "bluetooth_band": ble.id if ble else None,
             "band_type": self._tracker.band_type(nfc.uid),
         }
+
+
+READER_SENSOR_SUFFIXES = ("_last_band", "_allowed_list")
+
+
+@callback
+def _remove_reader_sensors(hass: HomeAssistant, device_id: str) -> None:
+    """Remove a reader's "Last band name" and "Allowed list" from the entity registry."""
+    ent_reg = er.async_get(hass)
+    for suffix in READER_SENSOR_SUFFIXES:
+        if entity_id := ent_reg.async_get_entity_id("sensor", DOMAIN, f"reader_{device_id}{suffix}"):
+            ent_reg.async_remove(entity_id)
+
+
+@callback
+def _remove_orphaned_reader_sensors(hass: HomeAssistant, entry: MagicBandConfigEntry) -> None:
+    """Reader sensors whose reader device no longer exists."""
+    dev_reg, ent_reg = dr.async_get(hass), er.async_get(hass)
+    for ent in er.async_entries_for_config_entry(ent_reg, entry.entry_id):
+        if ent.domain != "sensor" or not ent.unique_id.startswith("reader_"):
+            continue
+        for suffix in READER_SENSOR_SUFFIXES:
+            if ent.unique_id.endswith(suffix):
+                device_id = ent.unique_id.removeprefix("reader_").removesuffix(suffix)
+                if dev_reg.async_get(device_id) is None:
+                    ent_reg.async_remove(ent.entity_id)
 
 
 @callback

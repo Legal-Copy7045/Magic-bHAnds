@@ -106,9 +106,12 @@ def _find(items, **kw):
 def device_invariants(d: str, plain: dict | None, signed: dict | None, tz: list[str]) -> list[dict]:
     feat = f"Device file: {LABEL[d]}"
     b = BASE[d]
+    # k = 6 (FW-026/046/066/086, "no setup hotspot" in any build) is retired: the official signed builds of the
+    # Wi-Fi devices have one since 0.10.33, checked by HOTSPOT_IDS. Never reuse it.
     ids = [f"FW-{b + k:03d}" for k in range(15)]
     if plain is None or signed is None:
-        return [dict(id=i, feature=feat, check="invariants", status="skip", detail="config did not resolve (see FW-001..008)") for i in ids]
+        return [dict(id=i, feature=feat, check="invariants", status="skip", detail="config did not resolve (see FW-001..008)")
+                for i in [*ids[:6], *ids[7:], HOTSPOT_IDS[d]]]
     out = []
     both = (("plain", plain), ("signed", signed))
 
@@ -213,23 +216,54 @@ def device_invariants(d: str, plain: dict | None, signed: dict | None, tz: list[
     out.append(r(ids[5], "Signed official builds", f"{LABEL[d]}: signed variant has the four CONFIG_SECURE_* options, the device file itself none", ok,
                  f"plain {sec_plain or 'none'}; signed {ss}"))
 
-    # g no fallback AP / captive portal
-    def ap(c):
-        msgs = []
-        if "captive_portal" in c:
-            msgs.append("captive_portal present")
-        if isinstance(c.get("wifi"), dict) and c["wifi"].get("ap"):
-            msgs.append("wifi.ap present")
-        return ", ".join(msgs)
-    f = each(ap)
-    out.append(r(ids[6], "No setup hotspot", f"{LABEL[d]}: no fallback Wi-Fi hotspot and no captive portal", not f, "; ".join(f) or ("Wi-Fi without ap" if "wifi" in plain else "Ethernet device, no Wi-Fi")))
+    # g setup hotspot: only in the signed builds of the Wi-Fi devices, open, after 2 minutes without Wi-Fi
+    def hotspot(c):
+        w = c.get("wifi") if isinstance(c.get("wifi"), dict) else {}
+        return w.get("ap"), "captive_portal" in c
+    msgs = []
+    ap, portal = hotspot(plain)
+    if ap or portal:
+        msgs.append(f"plain device file: {'wifi.ap ' if ap else ''}{'captive_portal' if portal else ''} (own builds aren't signed: "
+                    "anyone who joined could upload firmware)")
+    ap, portal = hotspot(signed)
+    wifi_dev = "wifi" in plain
+    if wifi_dev:
+        if not ap or not portal:
+            msgs.append(f"signed: wifi.ap {'present' if ap else 'missing'}, captive_portal {'present' if portal else 'missing'}")
+        else:
+            if str(ap.get("ap_timeout")) not in ("2min", "120s", "120000ms"):
+                msgs.append(f"signed: ap_timeout {ap.get('ap_timeout')} (want 2min)")
+            if ap.get("password"):
+                msgs.append("signed: the hotspot has a password (published in the repo, so it protects nothing)")
+            if not str(ap.get("ssid", "")).endswith(" Setup"):
+                msgs.append(f"signed: hotspot name {ap.get('ssid')!r} doesn't end in ' Setup'")
+        ss = (signed.get("esp32", {}).get("framework", {}) or {}).get("sdkconfig_options") or {}
+        if {k: str(v) for k, v in ss.items() if k.startswith("CONFIG_SECURE")} != SECURE:
+            msgs.append("signed: hotspot without signed updates on (its upload page would install anything)")
+    elif ap or portal or "wifi" in signed:
+        msgs.append("Ethernet device got Wi-Fi, an ap or a captive portal in its signed build")
+    detail = (f"plain: none; signed: open ap {ap.get('ssid')!r} after {ap.get('ap_timeout')} + captive_portal, signing on"
+              if wifi_dev and not msgs else "Ethernet device: no Wi-Fi, no hotspot in either build")
+    out.append(r(HOTSPOT_IDS[d], "Setup hotspot",
+                 f"{LABEL[d]}: " + ("the device file has no hotspot; the signed build has an open ap (2 min without Wi-Fi) and "
+                                    "captive_portal, with signed updates on" if wifi_dev else "no hotspot in the plain or signed build (Ethernet)"),
+                 not msgs, "; ".join(msgs) or detail))
 
-    # h ota http_request only
-    def ota(c):
+    # h ota http_request only; the signed Wi-Fi builds add only the setup hotspot's upload page (captive_portal
+    # auto-loads ota.web_server), which signing covers and which only listens while the hotspot is up
+    def ota(c, name):
         plats = [o.get("platform") for o in as_list(c.get("ota"))]
-        return "" if plats == ["http_request"] else f"ota platforms {plats}"
-    f = each(ota)
-    out.append(r(ids[7], "Signed official builds", f"{LABEL[d]}: the only OTA platform is http_request (no ESPHome upload port in the official file)", not f, "; ".join(f) or "http_request only"))
+        want = ["http_request"]
+        if name == "signed" and "captive_portal" in c:
+            want = ["http_request", "web_server"]
+            if "web_server" in c:
+                return "web_server: in the config (its HTTP server, with the upload page, would listen on the home network too)"
+        return "" if sorted(plats) == sorted(want) else f"ota platforms {plats} (want {want})"
+    f = [f"{name}: {m}" for name, c in both if (m := ota(c, name))]
+    sig_plats = [o.get("platform") for o in as_list(signed.get("ota"))]
+    out.append(r(ids[7], "Signed official builds", f"{LABEL[d]}: no ESPHome upload port: the only OTA platform is http_request, plus (signed "
+                 "Wi-Fi builds only) the setup hotspot's captive-portal upload, with no web_server component", not f,
+                 "; ".join(f) or f"plain: http_request; signed: {', '.join(sig_plats)}"))
 
     # i api encryption, no fixed key
     def api(c):
@@ -317,7 +351,75 @@ def device_invariants(d: str, plain: dict | None, signed: dict | None, tz: list[
         return f"safe-mode button(s) {bad} any Home Assistant user can press (the board then drops its API and proxy until safe mode times out)" if bad else ""
     f = each(safe_btn)
     out.append(r(ids[14], "No factory-reset button", f"{LABEL[d]}: no Safe Mode Boot button open to every Home Assistant user", not f, "; ".join(f) or "none"))
+
+    # SEC-018: a run of restarts from Home Assistant can't put the device in safe mode
+    def safe(c):
+        sm = c.get("safe_mode")
+        if sm is None:
+            return ""
+        if sm.get("disabled"):
+            return "safe_mode disabled (no boot-loop protection)"
+        n = int(sm.get("num_attempts", 10))
+        good = _secs(sm.get("boot_is_good_after", "1min"))
+        bad = []
+        if n < SAFE_MODE_MIN_ATTEMPTS:
+            bad.append(f"num_attempts {n} < {SAFE_MODE_MIN_ATTEMPTS}")
+        if good is None or not 0 < good <= SAFE_MODE_MAX_GOOD_AFTER_S:
+            bad.append(f"boot_is_good_after {sm.get('boot_is_good_after')} not within 0-{SAFE_MODE_MAX_GOOD_AFTER_S} s")
+        return "; ".join(bad)
+    f = each(safe)
+    src = esphome_restart_resets_safe_mode()
+    if src:
+        f.append(src)
+    sm = plain.get("safe_mode")
+    out.append(r(SAFE_IDS[d], "No factory-reset button",
+                 f"{LABEL[d]}: safe mode (if any) needs >= {SAFE_MODE_MIN_ATTEMPTS} starts in a row that each fail within {SAFE_MODE_MAX_GOOD_AFTER_S} s (SEC-018), "
+                 "and ESPHome's restart button restarts cleanly (resets the count)", not f,
+                 "; ".join(f) or (f"num_attempts {sm.get('num_attempts')}, boot_is_good_after {sm.get('boot_is_good_after')}" if sm else "no safe_mode")
+                 + "; restart button -> App.safe_reboot -> SafeModeComponent::on_safe_shutdown clears the count"))
     return out
+
+
+HOTSPOT_IDS = {"bridge": "FW-192", "reader": "FW-193", "bp2": "FW-194", "standalone": "FW-195"}
+SAFE_IDS = {"bridge": "FW-186", "reader": "FW-187", "bp2": "FW-188", "standalone": "FW-189"}
+SAFE_MODE_MIN_ATTEMPTS = 20
+SAFE_MODE_MAX_GOOD_AFTER_S = 30
+
+
+def _secs(v) -> float | None:
+    m = re.fullmatch(r"\s*([\d.]+)\s*(ms|s|min|h)?\s*", str(v))
+    if not m:
+        return None
+    return float(m.group(1)) * {"ms": 0.001, "s": 1, "min": 60, "h": 3600, None: 1}[m.group(2)]
+
+
+def esphome_src() -> Path | None:
+    try:
+        import esphome
+    except ImportError:
+        return None
+    return Path(esphome.__file__).resolve().parent
+
+
+def esphome_restart_resets_safe_mode() -> str:
+    """'' if the installed ESPHome's restart button restarts cleanly and that clears safe mode's boot count."""
+    base = esphome_src()
+    if base is None:
+        return "installed ESPHome not found"
+    try:
+        btn = next((base / "components/restart/button").glob("*.cpp")).read_text()
+        app = (base / "core/application.cpp").read_text()
+        sm = (base / "components/safe_mode/safe_mode.cpp").read_text()
+    except (StopIteration, OSError) as e:
+        return f"ESPHome sources not readable: {e}"
+    bad = []
+    if "App.safe_reboot()" not in btn:
+        bad.append("restart button no longer calls App.safe_reboot")
+    if not re.search(r"void Application::safe_reboot\(\) \{[^}]*run_safe_shutdown_hooks\(\)", app):
+        bad.append("safe_reboot no longer runs the safe-shutdown hooks")
+    if not re.search(r"void SafeModeComponent::on_safe_shutdown\(\) \{[^}]*clean_rtc\(\)", sm):
+        bad.append("safe_mode's on_safe_shutdown no longer clears the boot count")
+    return ("ESPHome changed: " + "; ".join(bad)) if bad else ""
 
 
 LOG_ARG_SECRETS = re.compile(r"\b(uid|key|last_band|known_list|band_colours|band_sounds|pair_key|pending_key|colours|sounds)\b")
@@ -566,6 +668,35 @@ def reader_checks(c: dict) -> list[dict]:
     ok = "pending_until" in str(pw.get("then")) and "2min" not in str(pw.get("then"))
     out.append(r("FW-177", "Reader pairing", "Reader: pair_wait (blue breathing) lasts until the pairing wait's own deadline, not 2 minutes from the latest request",
                  ok, "delay until pending_until" if ok else "pair_wait waits a fixed 2 minutes from each request"))
+
+    # FW-178 BUG-013: a show requested during a tap is queued (the script waits for the welcome), not dropped; refusals are reported
+    msgs = []
+    act = acts.get("play_show") or {}
+    athen = act.get("then")
+    if not act:
+        msgs.append("play_show action missing")
+    if "band_tapped" in str(athen):
+        msgs.append("the play_show action still checks band_tapped (a celebration sent during the welcome is dropped)")
+    if "'script.execute': {'id': 'play_show'" not in str(athen):
+        msgs.append("the action doesn't run the play_show script")
+    if "show_calls" not in str(athen):
+        msgs.append("the 12-a-minute limit is gone")
+    responds = re.findall(r"'api.respond': \{'success': (True|False)", str(athen))
+    if "True" not in responds or responds.count("False") < 2:
+        msgs.append(f"the action doesn't answer success: true when it plays and success: false (with a message) for the rate limit and a ring not ready (found {responds})")
+    if "error_message" not in str(athen):
+        msgs.append("a refusal has no error_message")
+    ps = scripts.get("play_show") or {}
+    first = (ps.get("then") or [{}])[0]
+    wu = first.get("wait_until") if isinstance(first, dict) else None
+    if not wu or "band_tapped" not in str(wu.get("condition")) or "not" not in str(wu.get("condition")):
+        msgs.append("the play_show script doesn't start by waiting for band_tapped to finish")
+    elif (_secs(wu.get("timeout")) or 0) < 10:
+        msgs.append(f"the script's wait for the welcome times out after {wu.get('timeout')} (a welcome can take several seconds)")
+    if ps.get("mode") not in ("restart", "queued"):
+        msgs.append(f"play_show script mode {ps.get('mode')} would drop a show sent while one waits")
+    out.append(r("FW-178", "Light shows", "Reader: the play_show action takes a show during a tap (BUG-013): no band_tapped guard, the script waits for the welcome; "
+                 "rate limit kept; success: false with a message when refused", not msgs, "; ".join(msgs) or "queued behind the welcome; responds"))
 
     # FW-165 airtime budget constants (bridge / add-on component)
     h = (REPO / "components/magicband/magicband.h").read_text()

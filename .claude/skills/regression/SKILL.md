@@ -77,6 +77,16 @@ risk again unless its description there is wrong or the limits it lists no
 longer hold (then report that, citing the entry); everything else in it still
 counts as a claim to check.
 
+**Calibrate to a home device** (CLAUDE.md, "What this is, and how much security
+it needs"): rate severity by what a realistic attacker could do to a family
+home, not by theoretical reach. A way to put code on a device, read private
+data or let someone in is serious; nuisance, clutter, a denial of service by
+someone at the door or by household members, or a race that needs an insider
+and the owner ignoring a prompt is low or info, and the recommendation should
+usually be "document it" rather than another protection. Every recommendation
+says what it would cost in convenience; don't recommend a protection whose
+cost outweighs a home-scale risk.
+
 Finding format: `{id, severity (critical|high|medium|low|info), area, title,
 file, line, description, scenario, recommendation, verified}`.
 

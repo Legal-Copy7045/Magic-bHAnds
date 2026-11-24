@@ -172,6 +172,9 @@ scenario('desk-structure', { width: 1400 }, async ({ p, f, errs }) => {
   const st = await f.evaluate(() => ({ st: [...document.querySelectorAll('#status .pchip')].map(x => x.textContent.trim()), pr: $('probs').textContent, hidden: $('attn-wrap').hidden,
     cols: [...document.querySelectorAll('.stack>.job:not([hidden])')].map(x => Math.round(x.getBoundingClientRect().width)), W: document.querySelector('.stack').getBoundingClientRect().width,
     near: [...document.querySelectorAll('#kpis .kpi')][1].textContent }));
+  await chk('PAGE-184', F.pair, 'Not paired: the attention hint says to tap only while MagicbHAnds’ Repairs notice asks (the ring also breathes blue for someone else’s request), not “tap any band while its ring breathes blue”', async () => {
+    const t = await f.evaluate(() => $('probs').textContent);
+    return [/isn’t paired/.test(t) && /only while MagicbHAnds’ notice in Settings → Repairs asks you to/.test(t) && /someone else asks to pair it/.test(t) && !/Tap any band on it while its ring breathes blue/.test(t), t.slice(0, 600)]; });
   await chk('PAGE-006', F.status, 'Status strip: problems first (list not applied, locked out, not paired, battery 15%)', async () => [/list not applied/.test(st.st[0]) && st.st.some(t => /locked out/.test(t)) && st.st.some(t => /paired/.test(t)) && st.st.some(t => /battery 15%/.test(t)), st.st]);
   await chk('PAGE-007', F.status, 'Needs attention shows reader problems (with End lockout now) and the low battery', async () => [!st.hidden && /End lockout now/.test(st.pr) && /battery 15%/.test(st.pr), st.pr.slice(0, 200)]);
   await chk('PAGE-008', F.status, 'Attention cards fill the row (no empty grid column)', async () => [st.cols.length >= 3 && Math.abs(st.cols.slice(0, 3).reduce((a, c) => a + c, 0) + 28 - st.W) < 4, { cols: st.cols, W: st.W }]);
@@ -750,6 +753,14 @@ scenario('combo', { width: 1400, opts: { night: true, lockdown: true, guestPass:
   await chk('PAGE-164', F.idle, 'Live twin, direction Reverse: the lit runs move backwards round the ring', async () => {
     const r = await f.evaluate(async () => { const tw = __card(/Front/).querySelector('[data-twin]'); const a = __lit(tw).map(x => x.i); await __w(260); const b = __lit(tw).map(x => x.i); return { a, b }; });
     const shift = bestShift(r.a, r.b, 24); return [shift < 0 && shift >= -4, Object.assign(r, { shift })]; });
+  await chk('PAGE-183', F.msgs, 'New bands: a failed Assign keeps its error under that band after another band is assigned and leaves the list, and the other band’s “Assigned” message never shows under it (messages keyed by band, not position)', async () => {
+    const r = await f.evaluate(async () => { const A = '04-99-88-77-66-55-44', B = '04-77-66-55-44-33-22', h = window.parent.__mbHass, U = 'sensor.magicband_unknown_bands';
+      const go = band => document.querySelector(`[data-u-go][data-band="${band}"]`), pick = band => { document.querySelector(`[data-u-person="${go(band).dataset.uGo}"]`).value = 'Casey'; };
+      window.parent.__mockReject = /^magicband\.assign_band$/; pick(B); go(B).click(); await __w(900); window.parent.__mockReject = null;
+      const keyB = go(B).dataset.uGo; pick(A); go(A).click(); await __w(300);
+      h.states[U] = Object.assign({}, h.states[U], { state: '1', attributes: Object.assign({}, h.states[U].attributes, { bands: h.states[U].attributes.bands.filter(u => u.band === B) }) }); __push(); await __w(900);
+      const item = $('unk-04776655443322'); return { keyB, items: document.querySelectorAll('#unknown .item').length, b: item ? item.textContent.replace(/\s+/g, ' ').slice(-120) : null, card: ($('msg-unk') || {}).textContent }; });
+    return [r.items === 1 && /Didn’t work/.test(r.b || '') && !/Assigned/.test(r.b || '') && /Assigned 04-99-88-77-66-55-44 to Casey/.test(r.card || '') && !/^u\d+$/.test(r.keyB), r]; });
   await chk('PAGE-165', F.render, 'No console errors or page errors (combination)', async () => [!errs.length, errs], await fullShot(p, f, 'combo'));
 });
 

@@ -47,10 +47,18 @@ a package so you can edit it and build your own firmware. The official firmware
 only accepts signed updates, so install your first own build over USB (see
 [security.md](security.md), "Signed updates").
 
-**If Wi-Fi setup fails, or your Wi-Fi changes later,** plug the board into a
-computer and use the web installer's **Change Wi-Fi** (Improv over USB). There's
-no fallback hotspot: an open setup hotspot would let anyone nearby upload their
-own firmware (see [security.md](security.md)).
+**If your Wi-Fi changes later** (a new router or password), you don't need
+USB: when the bridge can't reach its Wi-Fi for **2 minutes** (or has none set
+yet) it starts an open hotspot called **MagicBand Bridge Setup**. Join it from
+a phone, pick the new network on the page that opens (or browse to
+`http://192.168.4.1`) and enter its password; the hotspot goes away once the
+bridge is back on Wi-Fi, and never starts while its Wi-Fi works. Plugging the
+board into a computer and using the web installer's **Change Wi-Fi** (Improv
+over USB) still works too. Someone nearby during a Wi-Fi outage could join the
+hotspot and set a different network, taking the bridge offline, but can't
+install firmware through it: the official firmware only accepts signed
+updates. Your own builds don't have the hotspot (see [security.md](security.md),
+"Setup hotspot").
 
 ## Hardware
 
@@ -85,7 +93,7 @@ installer: the Wi-Fi setup step and logs run on that port.
 | **Command** (text, under Configuration) | Takes JSON commands so HA can send to one, several or all bridges. See [docs/commands.md](commands.md). |
 | **Bluetooth proxy** (switch, under Configuration) | Off by default. Turn it on to also use this board as a Home Assistant Bluetooth proxy. |
 | **Firmware** (update) | Installs new releases over Wi-Fi. |
-| **Automatic updates** | Off by default. On: the bridge installs a new release by itself between 3 and 4 am (local time, by its internet clock), without Home Assistant starting it. Only signed releases install, and only one newer than the bridge has: it never goes back to an older release (you can still install any offered release from **Firmware** yourself). |
+| **Automatic updates** | Off by default. On: the bridge installs a new release by itself between 3 and 4 am (local time, by its internet clock), without Home Assistant starting it. Only signed releases install, and only one newer than the bridge has: it never goes back to an older release by itself. An update you start from **Firmware** installs whichever signed release the site offers. |
 | **Time zone** | The bridge's local time zone for the automatic-update window (default Eastern, New York). It keeps time from an internet time server as well as from Home Assistant. |
 | **Wi-Fi signal**, **Wi-Fi network**, **IP address**, **CPU temperature**, **Last restart**, **Reset reason**, **Free memory**, **Largest free block**, **Loop time** (diagnostic) | Its health, shown as tiles on the MagicbHAnds page. Sent sparingly (on a real change or every 5 minutes). |
 

@@ -59,6 +59,14 @@
   since: 0.10.20
   docs: docs/security.md#who-can-change-whos-allowed-in
   checks: [INT-056, INT-057, INT-058, INT-059, INT-060, INT-061, INT-157, INT-158, INT-159, INT-111, INT-205, INT-206]
+- feature: "Pairing repairs: Tap a band only while MagicbHAnds' own request waits (2-minute window, gone on the Paired sensor), busy cleared when it ends, paired-with-another-key repair"
+  since: 0.10.33
+  docs: docs/integration.md#how-it-fits-with-the-reader
+  checks: [INT-206, INT-213, INT-214, INT-215, INT-216]
+- feature: "A reader's repairs (pairing, colours/sounds too long, offline, sync failed) go when it is removed or released"
+  since: 0.10.33
+  docs: docs/integration.md#how-it-fits-with-the-reader
+  checks: [INT-217, INT-218]
 - feature: "Access schedules per band (window, overnight, days, expiry, clear)"
   since: 0.10.4
   docs: docs/integration.md#management-page
@@ -91,6 +99,10 @@
   since: 0.9.10
   docs: docs/integration.md#entities
   checks: [INT-015, INT-016, INT-017]
+- feature: "Reader sensors (Last band name, Allowed list) are removed with their reader device"
+  since: 0.10.33
+  docs: docs/integration.md#entities
+  checks: [INT-211, INT-212]
 - feature: "Reader devices stay ESPHome's (no moving devices between config entries, no deprecated device registry use)"
   since: 0.10.32
   docs: docs/integration.md#entities
@@ -98,7 +110,7 @@
 - feature: "Celebrations: holiday and birthday shows after a welcome"
   since: 0.10.24
   docs: docs/integration.md#celebrations-and-the-tap-passport
-  checks: [INT-021, INT-022, INT-023, INT-024, INT-025, INT-026, INT-033, INT-116, INT-207, INT-208]
+  checks: [INT-021, INT-022, INT-023, INT-024, INT-025, INT-026, INT-033, INT-116, INT-207, INT-208, INT-209]
 - feature: "Tap passport (taps, streaks, 16 stamps, magicband_badge; not guests)"
   since: 0.10.24
   docs: docs/integration.md#celebrations-and-the-tap-passport
@@ -106,7 +118,7 @@
 - feature: "Light shows on readers (play_show, Random, Today, per-reader limit)"
   since: 0.10.17
   docs: docs/integration.md#management-page
-  checks: [INT-053, INT-054, INT-055, INT-035]
+  checks: [INT-053, INT-054, INT-055, INT-035, INT-224]
 - feature: "Welcome sounds: upload, play, remove, serve (admin or 5-minute signed link), 2 MB limit"
   since: 0.10.26
   docs: docs/integration.md#welcome-sounds
@@ -115,10 +127,14 @@
   since: 0.10.26
   docs: docs/integration.md#welcome-sounds
   checks: [INT-194, INT-195, INT-093, INT-094, INT-095, INT-096, INT-202]
+- feature: "Own sounds handed back to the reader's chime when HA can't play them (file missing, playback failed, unload, release)"
+  since: 0.10.33
+  docs: docs/integration.md#welcome-sounds
+  checks: [INT-219, INT-220, INT-221, INT-222, INT-223]
 - feature: "Refused-tap lockout: notification and magicband_lockout event"
   since: 0.10.26
   docs: docs/integration.md#reacting-to-taps
-  checks: [INT-197, INT-091, INT-092, INT-199]
+  checks: [INT-197, INT-091, INT-092, INT-199, INT-210]
 - feature: "Tap snapshots from a reader's camera (signed links, admin-only, pruning, days setting)"
   since: 0.10.23
   docs: docs/security.md#privacy

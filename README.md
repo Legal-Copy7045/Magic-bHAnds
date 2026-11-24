@@ -34,8 +34,8 @@ bridge needs no extra hardware.
 1. **Flash the firmware** from the web installer:
    **https://legal-copy7045.github.io/Magic-bHAnds/**. Choose *Install the
    bridge* or *Install the reader*, then enter your Wi-Fi details. No YAML is
-   needed. There's no setup hotspot: Wi-Fi is set (and later changed) over
-   USB with the web installer.
+   needed. To change Wi-Fi later, the device starts a setup hotspot when it
+   can't reach its Wi-Fi for 2 minutes (or use the web installer over USB).
 2. **Add the device** in Home Assistant when it's discovered (ESPHome).
 3. **Install the MagicbHAnds integration** from HACS:
    [![Open in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=Legal-Copy7045&repository=Magic-bHAnds&category=integration)
@@ -133,11 +133,13 @@ integration attached.
 To make a release: bump `VERSION` and the versions it lists (CI checks they
 match), add a `CHANGELOG.md` section, and merge to `main`. Then go to
 **Actions → Build, test & release → Run workflow**, tick **release**, and run
-it on `main`. It tags `v<VERSION>` and publishes the GitHub Release. Every
-push to `main` signs the firmware and publishes it to the update site; with a
-required reviewer on the `release-signing` environment (recommended, see
-[docs/security.md](docs/security.md#accepted-risks)), approve the **sign** job
-in the run first.
+it on `main`. It tags `v<VERSION>` and publishes the GitHub Release. This is
+the only way to release: pushing a `v*` tag yourself doesn't release (that run
+only builds and tests, and the `release-signing` environment gives its key to
+`main` only). Every push to `main` signs the firmware and publishes it to the update site,
+so the GitHub account that can push to `main` is what protects releases: give
+it two-factor authentication, and keep the `release-signing` environment
+limited to `main` (see [docs/security.md](docs/security.md#accepted-risks)).
 
 ## Repo layout
 

@@ -72,6 +72,7 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.SELECT, Platform.SENSOR]
 
 EVENT_TAG_SCANNED = "tag_scanned"
+PAIRED_SENSOR = "Paired with MagicbHAnds"  # the reader's binary sensor: on once a tap confirmed a pairing
 MAX_SYNCS_PER_MINUTE = 6
 MAX_ENROL_MINUTES = 15
 SIGNAL_ENROLMENT = f"{DOMAIN}_enrolment"
@@ -229,7 +230,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
     def _is_reader_signal(event_data) -> bool:
         entity = event_data.get("entity_id") or ""
         return entity.startswith(("event.", "binary_sensor.")) and _reader_entity_name(entity)[0] in (
-            "Band scan", "Tap lockout")
+            "Band scan", "Tap lockout", PAIRED_SENSOR)
 
     locked_readers: dict[str, bool] = {}  # reader device -> locked out, as last reported
 
@@ -243,17 +244,30 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
             pending = data.pending_sounds.pop(device_id, None)
             if pending and new.attributes.get("event_type") == "welcomed" and time.monotonic() - pending[1] < 15:
                 if person := registry.get_person(pending[0]):
-                    hass.async_create_background_task(sounds.async_play(hass, person, device_id),
+                    hass.async_create_background_task(_play_welcome_sound(hass, data, person, device_id),
                                                       f"{DOMAIN}_welcome_sound")
+        elif name == PAIRED_SENSOR:
+            if new.state == "on" and (old is None or old.state != "on"):
+                # A tap confirmed a pairing: "Tap a band" goes now, and a sync checks it was MagicbHAnds' key.
+                readers.pairing_confirmed(device_id)
+                hass.async_create_task(debouncer.async_call())
         elif name == "Tap lockout" and new.state in ("on", "off"):
             # unknown/unavailable say nothing about the lockout (a reader restarting, or one that hasn't
             # published the sensor yet), so they change nothing; "on" straight after "unknown" is a lockout
-            # start. Coming back from unavailable (a reconnect) is recorded but not announced, except that
-            # "off" always takes the notification down, so none is left up after a restart.
+            # start. Coming back from unavailable (a reconnect: the reader publishes the sensor at boot, so it
+            # goes unavailable -> on/off directly) is compared with the last state seen before it dropped: a
+            # lockout that began, or ended, while the reader was cut off is announced; one that was already
+            # announced isn't announced again. With nothing seen before (Home Assistant or the integration has
+            # just started) there is nothing to compare with, so nothing is announced. "off" always takes the
+            # notification down, so none is left up after a restart.
             locked = new.state == "on"
+            if old is not None and old.state == "unavailable" and device_id not in locked_readers:
+                if not locked:
+                    persistent_notification.async_dismiss(hass, f"{DOMAIN}_lockout_{device_id}")
+                return
             was = locked_readers.get(device_id, old is not None and old.state == "on")
             locked_readers[device_id] = locked
-            if locked == was or (old is not None and old.state == "unavailable"):
+            if locked == was:
                 if not locked:  # e.g. back "off" after a restart: no notification is left up
                     persistent_notification.async_dismiss(hass, f"{DOMAIN}_lockout_{device_id}")
                 return
@@ -315,6 +329,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) -
         for unsub in entry.runtime_data.unsubs:
             unsub()
         entry.runtime_data.sync.async_shutdown()
+        entry.runtime_data.readers.async_shutdown()
+        if not hass.is_stopping:
+            # Disabled, removed or reloaded: nobody plays people's own sounds now, so the readers chime for every
+            # band again (a reload sends the list again straight away). Not when Home Assistant is only
+            # restarting: the readers keep the list and MagicbHAnds plays the sounds again once it's back.
+            await entry.runtime_data.readers.async_release_sounds()
         for service in list(hass.services.async_services_for_domain(DOMAIN)):
             hass.services.async_remove(DOMAIN, service)
     return unload_ok
@@ -323,6 +343,19 @@ async def async_unload_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) -
 # ---------------------------------------------------------------------------
 # Scans
 # ---------------------------------------------------------------------------
+
+
+async def _play_welcome_sound(hass: HomeAssistant, data: MagicBandData, person, device_id: str) -> None:
+    """Play a welcomed person's own sound. If the sound itself can't be played (file missing, playback failed),
+    the reader would stay silent for them: their bands come off the readers' own-sound list (a sync now), so
+    the reader chimes for them from then on, until the sound is uploaded again."""
+    status = await sounds.async_play_status(hass, person, device_id)
+    if status in (sounds.MISSING, sounds.FAILED) and data.readers.sound_failed(person.id):
+        _LOGGER.warning("%s's welcome sound can't be played (%s): the readers play their own tap-in sound for "
+                        "their bands until it's uploaded again", person.name, status)
+        hass.async_create_task(data.sync.async_call())
+    elif status == sounds.PLAYED and data.readers.sound_ok(person.id):
+        hass.async_create_task(data.sync.async_call())
 
 
 @callback
@@ -365,7 +398,8 @@ def _handle_scan(hass: HomeAssistant, data: MagicBandData, tag_id: str, device_i
     if allowed and person and person.welcome_sound and device_id:
         # Whenever the reader can take the sound list, not only once this Home Assistant has sent it: after a
         # restart, or a failed sync, the reader still skips its own tap-in sound for the bands it last heard of.
-        if data.readers.takes_sounds(device_id) and band.uid not in data.readers.sounds_left_out:
+        if (data.readers.takes_sounds(device_id) and band.uid not in data.readers.sounds_left_out
+                and person.id not in data.readers.sounds_failing):
             data.pending_sounds[device_id] = (person.id, time.monotonic())
 
     hass.bus.async_fire(
@@ -756,6 +790,8 @@ def _register_services(hass: HomeAssistant) -> None:
                 continue
             name = device.name_by_user or device.name
             (played if await sounds.async_play(hass, person, device.id, check_settings=False) else skipped).append(name)
+        if played and _data().readers.sound_ok(person.id):  # it plays again: back on the readers' own-sound list
+            hass.async_create_task(_data().sync.async_call())
         return {"played": played, "skipped": skipped}
 
     async_register_admin_service(

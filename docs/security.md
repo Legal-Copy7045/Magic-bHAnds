@@ -4,6 +4,20 @@ What MagicbHAnds protects, what it can't, and what to do about it. The short
 version: **a MagicBand's NFC ID and Bluetooth beacon identify a band; they
 don't prove it's genuine.** Treat a tap like a cheap RFID fob, not a key.
 
+## Threat model
+
+MagicbHAnds is a home MagicBand reader for a family's front door, not a vault.
+Nobody realistically targets it to get into a house: a burglar breaks a
+window. So the hard lines are that the devices can never become a way in for
+malicious code, and nothing private leaks: official firmware installs only
+signed updates, the device-to-Home Assistant link is encrypted, changing who
+gets in needs an administrator, the page can't be made to run injected
+script, inputs and uploads are validated, and the signing key is out of
+reach of anything but `main`. Nuisance and denial of service, by someone
+standing at the door or by household members who have Home Assistant
+access, is accepted in favour of convenience and listed under
+[Accepted risks](#accepted-risks) rather than engineered around.
+
 ## What a tap does and doesn't prove
 
 | | Communication | The band itself |
@@ -88,13 +102,17 @@ you lose it (a fresh install without a backup), erase the reader over USB.
 with it, the ring breathes blue and Repairs asks you to tap any band on it
 within 2 minutes; the tap finishes pairing (and does nothing else). The first
 request wins: while it waits, no other key can replace it, and asking again
-with the same key doesn't extend the wait. Once a wait has run out, that key
-must leave a 2-minute gap before asking again, so nobody can hold a new
-reader's pairing open indefinitely. Any Home Assistant user can call an
-unpaired reader's own `pair` action, so someone else could ask first; then
-MagicbHAnds' own request is refused and it notices and says so in Repairs:
-**don't tap**; MagicbHAnds asks again by itself after 2 minutes. Only a tap while *MagicbHAnds*
-asks you to should finish pairing.
+with the same key doesn't extend the wait. Any Home Assistant user can call an
+unpaired reader's own `pair` action, so someone else can ask first.
+MagicbHAnds asks you to tap only while the reader tells it its own request
+is the one waiting. If a different key is waiting (the reader answers
+`PAIRING_BUSY`), Repairs says so: **don't tap**, and MagicbHAnds asks
+again by itself once that wait runs out. If a reader ever pairs with another
+key anyway, MagicbHAnds says so in Repairs (the reader then refuses its lists
+and answers) and how to recover: erase the reader over USB and add it again.
+Someone with Home Assistant access can still block or race the pairing of a
+new reader (see Accepted risks); only a tap while *MagicbHAnds* asks you to
+should finish pairing.
 The **Paired with MagicbHAnds** sensor on the reader shows its state.
 
 Home Assistant users who aren't administrators can still use the readers'
@@ -155,11 +173,13 @@ is welcomed in, not whether it's let in.
   Its **Safe Mode Boot** button is left out too (any user could press it, and
   the board would then sit without its API and Bluetooth proxy until safe mode
   times out); ESPHome's automatic safe mode after repeated boot failures stays.
-- **Unknown bands are rate-limited.** A reader reports at most 6 bands it
-  doesn't know a minute and 30 an hour to Home Assistant (a band tapped again
-  soon after is always reported), so a tag emulator cycling made-up IDs at the
-  door can't flood Home Assistant's tag list. Bands on the allowed list are
-  never held back.
+- **A flood guard on unknown bands.** A reader reports at most 60 bands it
+  doesn't know a minute and 600 an hour to Home Assistant, in every mode (a
+  band tapped again soon after is always reported), so a tag emulator cycling
+  made-up IDs at the door can't grow Home Assistant's tag list without bound.
+  That's far above what people can tap, so enrolling a family's bands or a
+  queue of guests never hits it. Bands on the allowed list, or that have been
+  on it, are never held back.
 - **"Test welcome"** on a reader plays the welcome without sending a tag scan
   to Home Assistant, so it can't set off automations.
 
@@ -167,9 +187,23 @@ is welcomed in, not whether it's let in.
   readers and bridges (ESPHome → the device → Configure). Tag scans and
   everything MagicbHAnds does work without it; with it on, a tampered device
   could call any action in Home Assistant (unlock a lock, disarm an alarm).
-- **No setup hotspot.** The bridge and reader firmware don't start a fallback
-  Wi-Fi hotspot: ESPHome's captive portal lets anyone who joins upload
-  firmware. Wi-Fi is set (and changed) over USB with the web installer.
+- **Setup hotspot (official bridge and reader firmware).** When the device
+  can't reach its Wi-Fi for 2 minutes, or has none set yet, it starts an open
+  hotspot ("MagicBand Reader Setup", "MagicBand Bridge Setup") with ESPHome's
+  captive portal, where you pick a new network; it stops as soon as the
+  device is back on Wi-Fi and never starts while Wi-Fi works. The captive
+  portal also accepts a firmware upload, but that upload goes through the
+  same signature check as every other update (ESP-IDF checks it before the
+  image can boot), so an image not signed with the project's key is refused:
+  nobody who joins can install their own code. *Its limits:* the hotspot has
+  no password (a password published in this repository would protect
+  nothing), so a stranger nearby during a Wi-Fi outage can join it and set a
+  different network, taking the device offline until you set it back (see
+  Accepted risks). It's added to the official signed builds only
+  (`.github/scripts/signed_build.py`): the device files in `esphome/` and
+  your own builds, which aren't signed, don't have it, since there anyone who
+  joined could upload any firmware. The BP2-POE uses Ethernet and has none.
+  Wi-Fi can still be set over USB with the web installer (Improv).
 - **First connection.** A freshly flashed board accepts the first client that
   gives it an encryption key, normally Home Assistant when you add it. Add new
   boards promptly, on a network you trust.
@@ -184,25 +218,32 @@ is welcomed in, not whether it's let in.
   gh attestation verify <file> --repo Legal-Copy7045/Magic-bHAnds --signer-workflow Legal-Copy7045/Magic-bHAnds/.github/workflows/firmware.yml --source-ref refs/heads/main
   ```
 
-  A release made by pushing a tag yourself (rather than from the Actions page)
-  was attested on that tag: use `--source-ref refs/tags/v<version>` for its
-  files. Only commits on `main` are signed or released: the signing job checks
-  that a tag's commit is on `main` before it touches the key.
+  Releases are made only with **Run workflow** on `main`, and only commits on
+  `main` are signed or released. The `sign` job runs only for `main` and
+  checks the commit is on `main` before it touches the key, but what really
+  guards the key is the `release-signing` environment that holds it: its
+  deployment branches allow only `main` (no tag rule), so GitHub refuses the
+  key to a pushed tag or any other branch, even one whose commit edits the
+  workflow. A pushed `v*` tag only builds and tests; it isn't signed or
+  released.
 - **Signed updates.** The official firmware (bridge, reader and BP2) only
   installs an update signed with the project's key, whether it comes from
-  Home Assistant, the ESPHome Device Builder or anything else over the air. A
+  Home Assistant, the ESPHome Device Builder, the setup hotspot or anything
+  else over the air. A
   compromised site or Home Assistant can't push new firmware to a device
   without that key. **The key is used automatically by CI, though: anyone who
-  can push to `main` gets their firmware signed and published**, unless the
-  `release-signing` environment has a required reviewer (see Accepted risks).
+  can push to `main` gets their firmware signed and published**, so the
+  account that can push to `main` is what protects releases: it should use
+  two-factor authentication (see Accepted risks).
   - The key is RSA-3072 (ESP-IDF's Secure Boot V2 scheme). CI signs the
-    builds in the `sign` job, which only `main` and release tags whose commit
-    is on `main` reach: the private key is the `OTA_SIGNING_KEY` secret of the
-    `release-signing` environment. That job installs its tools (esptool and
+    builds in the `sign` job, which only `main` reaches: the private key is the
+    `OTA_SIGNING_KEY` secret of the `release-signing` environment, which only
+    `main` may use. That job installs its tools (esptool and
     every package it depends on) from hash-pinned requirements files
     (`.github/requirements-signing*.txt`, `pip install --require-hashes`), so
     a new release of a dependency on PyPI can't run in the job that holds the
-    key. Each image is checked against the public key in
+    key. The images it signs are built in an earlier job whose toolchain isn't
+    pinned that way (see Accepted risks). Each image is checked against the public key in
     `esphome/firmware-signing-key.pub.pem` before it is published; check a
     download yourself with `espsecure verify-signature --version 2 --keyfile
     esphome/firmware-signing-key.pub.pem <file>.ota.bin`.
@@ -217,11 +258,12 @@ is welcomed in, not whether it's let in.
   - **Automatic updates** (a switch on each device, off by default) installs a
     new release between 3 and 4 am without Home Assistant starting it; the
     same signature check applies, so it only ever installs signed releases,
-    and it only installs a release **newer** than the one running: a site
-    serving an older signed release can't roll devices back through it. (An
-    update started by hand from Home Assistant still installs whatever signed
-    release the site offers, older ones included; ESP-IDF has no
-    anti-rollback without secure boot.)
+    and it only installs a release whose version in the site's manifest is
+    **newer** than the one running. That version number isn't signed, so
+    someone who controls the site could still offer an older signed release
+    under a higher number (see Accepted risks). (An update started by hand
+    from Home Assistant installs whatever signed release the site offers,
+    older ones included; ESP-IDF has no anti-rollback without secure boot.)
   - Signing is added to the official builds only (`.github/scripts/
     signed_build.py`); the device files in `esphome/` don't switch it on.
 - **The web installer** serves its own copy of ESP Web Tools, checked against
@@ -230,9 +272,7 @@ is welcomed in, not whether it's let in.
   component from this repository's `main` branch at build time, so a build
   picks up whatever `main` holds then. Your own builds aren't signed, so a
   device running official firmware refuses them over the air: flash your
-  first build over USB, after which your builds update each other as usual. The CI build installs ESPHome by
-  version, not by hash, so its toolchain is only as trustworthy as PyPI and
-  PlatformIO.
+  first build over USB, after which your builds update each other as usual.
 
 ## Limits on what nearby radios can do
 
@@ -300,11 +340,16 @@ tracked secrets files, and on private terms the owner keeps in an Actions
 secret (never in the repository). It checks commit messages and names, file
 names and paths, every tracked file, and everything **each new commit adds**,
 so a value added and removed again in one push is still caught (it stays in
-the public history). A new branch or tag is checked from where it leaves
-`main`. Binary files are checked by their readable text (ASCII and UTF-16
-runs of 6 characters or more), and `.zip` files by their members' names and
-contents. Matches are reported by commit, file, line and rule number, never
-by the text that matched.
+the public history). Each commit's files are listed NUL-separated and read one
+by one, so no file name and no byte inside a file (a control character,
+invalid UTF-8) can hide the rest of a commit. A new branch or tag is checked
+from where it leaves `main`; a force push from where the old and new
+histories meet, or the whole history when the old tip can't be found. Binary
+files are checked by their readable text (ASCII and UTF-16 runs of 6
+characters or more), and `.zip` files by their members' names and contents.
+Matches are reported by commit, file, line and rule number, never by the text
+that matched, and a file name or path that itself matches is never printed,
+only its position in a git listing.
 
 ## Accepted risks
 
@@ -335,9 +380,10 @@ wrong or its limits no longer hold.
   the page shows must be escaped like the rest.
 - **Home Assistant's own tag list can still grow slowly.** Every unknown band
   a reader reports becomes a tag in Home Assistant's tag registry, which
-  MagicbHAnds doesn't prune. *Why acceptable:* the reader reports at most 6
-  unknown bands a minute and 30 an hour, so a flood of made-up IDs grows the
-  list by at most 720 a day, and someone has to stand at the reader to do it.
+  MagicbHAnds doesn't prune. *Why acceptable:* the reader's flood guard reports
+  at most 60 unknown bands a minute and 600 an hour, so a flood of made-up IDs
+  grows the list by at most 14,400 a day, and someone has to stand at the
+  reader with a tag emulator to do it; it's clutter, not a way in.
   *Limits:* delete stray tags under Settings → Tags; MagicbHAnds keeps at most
   100 unassigned bands of its own.
 - **Welcome sounds can cross the LAN unencrypted.** The reader fetches a
@@ -352,25 +398,99 @@ wrong or its limits no longer hold.
   lockout** on (off by default), anyone with a few cards or a tag emulator
   can make enough refused taps (five by default) to lock the reader for the
   lockout time, and do it again; while locked out the reader ignores every
-  tap, the household's included. *Why acceptable:* it is opt-in, for readers
-  where someone trying cards at the door is the bigger worry; the reader's
-  **Tap lockout** sensor shows it and **End lockout now** clears it. *Limits:*
-  leave it off on a reader that opens a door you rely on; the lockout time is
-  at most 60 minutes.
+  tap, the household's included. The **Refused-tap lockout** switch and its
+  **Lockout after**, **Lockout window** and **Lockout time** numbers are
+  ordinary entities any Home Assistant user can change, though, so any user
+  (not only an administrator) can turn it on, down to 2 refused taps for 60
+  minutes. *Why acceptable:* it is off by default, meant for readers where
+  someone trying cards at the door is the bigger worry; the reader's **Tap
+  lockout** sensor shows it, **End lockout now** clears it, and the switch's
+  history shows who turned it on. *Limits:* leave it off on a reader that
+  opens a door you rely on and check it hasn't been turned on; the lockout
+  time is at most 60 minutes.
 - **Anyone who can push to `main` can ship signed firmware.** CI signs and
   publishes whatever `main` holds, and devices with Automatic updates install
   it overnight. *Why acceptable:* it's what makes releases automatic; signing
-  still stops anyone who controls only the site, Home Assistant or another
-  branch. *Limits:* the owner should give the `release-signing` environment a
-  **required reviewer** (Settings → Environments → release-signing → Required
-  reviewers) so every signed build waits for approval, and protect `main`;
-  tags whose commit isn't on `main` are never signed; Automatic updates never
-  install an older release.
+  still stops anyone who controls only Home Assistant, another branch or a
+  tag from getting firmware signed, and anyone who controls only the site
+  from installing firmware that wasn't signed (an older signed release is
+  another matter, below). *Limits:* the account that can push to `main` is
+  what protects releases, so it should use **two-factor authentication**;
+  protect `main`, and keep the `release-signing` environment's deployment
+  branches to only `main` (no tag rule), which is what keeps tags and other
+  branches away from the key, whatever their copy of the workflow says.
+- **Automatic updates trust the manifest's version number.** The "newer
+  only" check compares the `version` in the site's manifest, which isn't
+  signed, with the version of the firmware running. Someone who controls the
+  update site (but not the key) can make a device with Automatic updates
+  install an older *signed* release by listing it under a higher number.
+  *Why acceptable:* it still runs only firmware you signed, never anyone
+  else's code. *Limits:* manual installs can always downgrade anyway (ESP-IDF
+  has no anti-rollback without secure boot); the site is this repository's
+  GitHub Pages, published only from `main`; turn Automatic updates off on a
+  device if you'd rather start each update yourself.
+- **The signed firmware is only as clean as its build toolchain.** The `sign`
+  job installs only hash-pinned tools, but the images it signs come from the
+  `build` job, which installs ESPHome by version (not by hash) and fetches
+  the PlatformIO platforms and toolchains unpinned (and caches them). A
+  compromised release of ESPHome or one of its dependencies, of a PlatformIO
+  package, or of GitHub's runners would end up inside firmware that is then
+  signed and accepted by every device. *Why acceptable:* pinning every
+  toolchain by hash isn't practical for ESPHome builds, and these are the
+  same sources every ESPHome user builds from. *Limits:* signing proves an
+  image came from this workflow on `main`, not that the toolchain was clean;
+  the build is only as trustworthy as PyPI, PlatformIO and GitHub's runners;
+  ESPHome is pinned to one version (`ESPHOME_VERSION`), updated deliberately.
+- **Someone with Home Assistant access can block or race the first pairing
+  of a new reader.** Any Home Assistant user can call an unpaired reader's
+  own `pair` action, and whoever asks first holds its pairing for that wait,
+  so a user who keeps asking with fresh keys can stop MagicbHAnds pairing a
+  new reader, or have their own key waiting when you look at it. *Why
+  acceptable:* their key only gets in if someone taps a band on the reader
+  while MagicbHAnds says not to: it only asks for a tap while its own request
+  is waiting, says **don't tap** when another key is, and says so if a reader
+  ever pairs with another key. Who is let in is still decided by Home
+  Assistant; the key only controls the reader's own list, lights and
+  sounds. *Limits:* only readers that have never been paired (or were erased)
+  are exposed; pair new readers promptly and tap only when Repairs asks you
+  to; a reader paired with another key is erased over USB and added again.
+- **Rebooting a device over and over.** Any Home Assistant user can press a
+  device's restart button (**Restart**, or **Reboot Device** on the BP2), and
+  ESPHome counts quick reboots as failed boots: enough of them in a row put
+  the device in safe mode (no Home Assistant API, no Bluetooth proxy) for a
+  few minutes. The firmware raises the number of attempts before safe mode,
+  but a determined user can still reboot a device repeatedly. *Why
+  acceptable:* it's an availability nuisance only: it changes no setting and
+  lets no one in, and restarting a device is something any user can do
+  anyway. *Limits:* it needs a Home Assistant account and someone pressing
+  the button for as long as it lasts; the device recovers by itself.
+- **Unknown-band flood guard.** A reader reports at most 60 bands it doesn't
+  know a minute and 600 an hour to Home Assistant, the same in every mode
+  (bands on its list, or that it has had on its list, aren't held back). On a
+  reader that answers through **Ask Home Assistant**, a 61st new band in a
+  minute (or a 601st in an hour) never reaches Home Assistant and is refused
+  after 3 seconds. *Why acceptable:* nobody taps that fast at one reader, so
+  it only bites during a tag-emulator flood, which it exists to bound; a
+  family enrolling its bands or a queue of guests never comes close.
+  *Limits:* a band tapped again soon after is always reported.
+- **A stranger nearby can take a Wi-Fi device offline through its setup
+  hotspot.** While a bridge or reader can't reach its Wi-Fi (a router
+  restart, an outage, someone jamming it), it starts an open setup hotspot
+  after 2 minutes, and anyone in range can join it and give the device a
+  different network. *Why acceptable:* it's a nuisance, not a way in: the
+  hotspot's firmware upload refuses anything not signed with the project's
+  key, the device's encryption key and pairing aren't touched, and anyone at
+  the device with a USB cable could change its Wi-Fi (Improv) anyway; in
+  return a family changes Wi-Fi without unplugging anything. *Limits:* it
+  only starts after 2 minutes without Wi-Fi and stops once the device is
+  back; set the right network again through the hotspot or over USB. Builds
+  you make yourself don't have the hotspot.
 - **The privacy guard reports, it doesn't prevent.** It runs after a push, so
   a match is already public until the history is rewritten. It doesn't open
   compressed streams inside other binaries (PDF streams, compressed PNG text,
-  fonts), files over 20 MB, or archives other than `.zip`, and it only knows
-  the private terms the owner listed. Without the secret (a pull request from
+  fonts), files over 20 MB, or archives other than `.zip`, reports a binary
+  file whose content it has already checked in the same run only once, and it
+  only knows the private terms the owner listed. Without the secret (a pull request from
   a fork) private terms aren't checked. *Limits:* strip metadata from images
   and documents before adding them, and run the guard locally with your
   terms before pushing.

@@ -141,7 +141,10 @@ def upcoming(day: date, count: int = 4) -> list[dict]:
     for offset in range(0, 400):
         d = day + timedelta(days=offset)
         for h in holidays_on(d):
-            key = (h.key, d.year + (1 if h is NEW_YEAR and d.month == 12 else 0))
+            # One entry per multi-day holiday: New Year's Eve counts with the next year's day, and Hanukkah's
+            # January days with the festival that began the previous December.
+            year = d.year + (1 if h is NEW_YEAR and d.month == 12 else 0) - (1 if h is HANUKKAH and d.month == 1 else 0)
+            key = (h.key, year)
             if key in seen:
                 continue  # one entry per multi-day holiday
             seen.add(key)

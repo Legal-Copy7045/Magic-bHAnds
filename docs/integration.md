@@ -364,6 +364,30 @@ of their own and welcome colours for about 180 bands: past that, Home
 Assistant sends what fits and a repair names the reader; the bands left out
 get the reader's tap-in sound or Welcome colour.
 
+When Home Assistant is connected but can't play someone's sound, the reader
+would stay silent for them, so MagicbHAnds hands the sound back to the
+reader where it can:
+
+- **The sound file is missing, or playing it fails** (a media or network
+  error): that welcome is silent, the failure is logged,
+  and that person's bands come off the readers' list straight away, so the
+  readers play their own tap-in sound for them from the next tap. Uploading
+  the sound again (or **Play on readers** working again) puts them back.
+- **MagicbHAnds is disabled, removed or reloaded**: the readers that are
+  online get an empty list first, so they play their tap-in sound for every
+  band (a reload sends the list again straight away). Not when Home Assistant
+  is only restarting: the readers keep the list and Home Assistant plays the
+  sounds again once it's back.
+- **A reader is released** (`magicband.unpair_reader`): it gets an empty list
+  before it's released.
+
+Still silent: a reader whose speaker entity is missing or disabled in Home
+Assistant (fix the entity); a reader that is offline when MagicbHAnds is removed keeps its
+last list until it's re-flashed or set up with MagicbHAnds again; and
+during an ordinary restart of Home Assistant, a band tapped after the reader
+has reconnected but before MagicbHAnds has loaded, or a welcome whose
+**Band scan** arrives more than 15 seconds late, gets no sound.
+
 ## Reacting to taps
 
 Every tap on a reader fires a **`magicband_tap`** event:
@@ -401,7 +425,11 @@ Two more events:
   **Refused-tap lockout** started (`locked: true`) or ended. A notification
   shows in Home Assistant while it lasts (it goes when the reader reports it
   isn't locked out, also after the reader restarts); use the event to send one
-  to your phone as well.
+  to your phone as well. A lockout that started or ended while the reader was
+  cut off from Home Assistant (a restart or Wi-Fi drop) is announced when it
+  reconnects; one that was already announced before it dropped isn't
+  announced again. (Right after Home Assistant or MagicbHAnds starts, the
+  first state a reader reports is taken as it is, without an event.)
 
 Example: welcome Morgan by name.
 
@@ -579,7 +607,15 @@ back to 100 confirmed the battery reading.
 - Each reader replies whether it applied the list (firmware 0.10.4+). Its
   **Allowed list** sensor shows the result, and problems show in **Settings →
   Repairs**: a reader that rejected the list, a list too long for the readers
-  (they hold 213 bands), and a reader offline for 15 minutes. A reader that
+  (they hold 213 bands), and a reader offline for 15 minutes. Pairing (reader
+  firmware 0.10.20+) adds **Tap a band on … to pair it**, shown only while
+  MagicbHAnds' own pairing request waits on the reader (at most 2 minutes;
+  it goes as soon as the reader says it's paired, and comes back when
+  MagicbHAnds asks again), **Another pairing request is waiting** (don't tap),
+  and **… is paired with someone else's key** if the tap paired the reader
+  with another key (release it there, or erase it over USB; see
+  [reader.md](reader.md#pairing-with-magicbhands)). A reader's repairs go
+  when it is removed or released. A reader that
   can't apply a list empties its own list (denies every band) rather than
   keep an old one.
 - Keep the reader's **Response mode** on **Known bands only** (the default).

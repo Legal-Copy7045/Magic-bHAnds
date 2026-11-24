@@ -122,9 +122,14 @@ Install the firmware **before wiring anything else to the ESP32**, as step
    bands.
 
 Firmware updates then appear in Home Assistant as an update on the reader,
-and install over Wi-Fi: no USB needed. USB is only needed again to **change
-its Wi-Fi** (there's no setup hotspot: use the web installer's *Change
-Wi-Fi*) or to see its start-up log. Before plugging USB into the built
+and install over Wi-Fi: no USB needed. To **change its Wi-Fi** (a new router,
+a new password) you don't need USB either: when the reader can't reach its
+Wi-Fi for 2 minutes it starts its own open hotspot, **MagicBand Reader
+Setup**. Join it from a phone, pick the new network on the page that opens
+and enter its password; the hotspot goes away once the reader is back on
+Wi-Fi (see [Changing Wi-Fi](#changing-wi-fi)). USB is only needed again to
+see its start-up log, or if you'd rather use the web installer's *Change
+Wi-Fi*. Before plugging USB into the built
 reader, **first disconnect the ESP32's 5 V wire** from the 5 V rail or hub;
 the rest can stay powered.
 
@@ -230,6 +235,28 @@ reader shows up with **Take control**, which imports
 `esphome/magicband-reader.yaml` as a package; change its substitutions
 there. The official firmware only accepts signed updates, so install your
 first own build over USB (see [security.md](security.md), "Signed updates").
+Your own builds don't have the setup hotspot below: add `ap:` (under
+`wifi:`) and `captive_portal:` yourself if you want it, knowing that anyone
+who joins it could then upload firmware to an unsigned build.
+
+### Changing Wi-Fi
+
+The official firmware starts a setup hotspot when it can't use its Wi-Fi:
+
+1. When the reader can't reach its Wi-Fi for **2 minutes** (a new router, a
+   changed password), or has no Wi-Fi set yet, it starts an open hotspot
+   called **MagicBand Reader Setup** (your `friendly_name` + " Setup").
+2. Join it from a phone or laptop. A page opens by itself (or browse to
+   `http://192.168.4.1`): pick the new network and enter its password.
+3. The reader connects and the hotspot goes away. While its Wi-Fi works, the
+   hotspot never starts.
+
+Over USB, the web installer's *Change Wi-Fi* (Improv) still works too. The
+hotspot is open, so someone nearby during a Wi-Fi outage could join it and
+set a different network, taking the reader offline until you set it back;
+they can't install firmware through it, since the official firmware only
+accepts updates signed with the project's key (see
+[security.md](security.md), "Setup hotspot").
 
 ## Using it with Home Assistant
 
@@ -256,12 +283,12 @@ MagicBand+**, for example to turn on the lounge lights.
 | **Sound** | Chimes on/off |
 | **Test welcome** | Plays the welcome sequence without a band |
 | **Play show** | Plays the light show chosen in **Show** (or a random one) |
-| **Show** | Which show **Play show** plays: Random (one of the everyday shows), or Rainbow rush, Fireworks, Comet chase, Colour parade, Twinkle, Heartbeat, Ocean, Fire, Pinwheel, Confetti, Penguins (black and gold), Goal (three red pulses), Aurora, Candy cane, Thunderstorm, Sunrise, Disco; the celebration shows Birthday, New Year, Valentine, St Patrick, Easter, Stars and Stripes, Halloween, Thanksgiving, Hanukkah and Christmas; or Stamp (a new passport badge). The MagicbHAnds integration plays the celebration shows after a welcome on the day (see [integration.md](integration.md#celebrations-and-the-tap-passport)); a show sent during a tap waits for the welcome to finish. The reader plays at most 12 shows a minute from Home Assistant (its play_show action), whoever calls it |
+| **Show** | Which show **Play show** plays: Random (one of the everyday shows), or Rainbow rush, Fireworks, Comet chase, Colour parade, Twinkle, Heartbeat, Ocean, Fire, Pinwheel, Confetti, Penguins (black and gold), Goal (three red pulses), Aurora, Candy cane, Thunderstorm, Sunrise, Disco; the celebration shows Birthday, New Year, Valentine, St Patrick, Easter, Stars and Stripes, Halloween, Thanksgiving, Hanukkah and Christmas; or Stamp (a new passport badge). The MagicbHAnds integration plays the celebration shows after a welcome on the day (see [integration.md](integration.md#celebrations-and-the-tap-passport)); a show sent during a tap waits for the welcome to finish (it's queued, not dropped). The reader plays at most 12 shows a minute from Home Assistant (its play_show action), whoever calls it; the action answers with an error (`SHOW_RATE_LIMIT`, or `SHOW_NOT_READY` while the reader starts) when it doesn't take a show |
 | **Startup show** | The show played when the reader starts: Off, Random or one show (default Rainbow rush) |
 | **Allowed list** (diagnostic) | From the MagicbHAnds integration: whether this reader has the current allowed list (*Up to date*, *Not applied*, *Reader offline* …) |
 | **ESPHome name** (diagnostic) | The reader's ESPHome name; the integration uses it to find the reader's actions |
 | **Firmware** | Update entity: new firmware appears here and installs over Wi-Fi |
-| **Automatic updates** | Off by default. On: the reader installs a new release by itself between 3 and 4 am (local time, by its internet clock), without Home Assistant starting it. Only signed releases install, and only one newer than the reader has: it never goes back to an older release (you can still install any offered release from **Firmware** yourself) |
+| **Automatic updates** | Off by default. On: the reader installs a new release by itself between 3 and 4 am (local time, by its internet clock), without Home Assistant starting it. Only signed releases install, and only one newer than the reader has: it never goes back to an older release by itself. An update you start from **Firmware** installs whichever signed release the site offers |
 | **Time zone** | Eastern (New York) | The reader's local time zone (night mode, automatic updates). The reader keeps time from an internet time server as well as from Home Assistant, so the schedule works while Home Assistant is down |
 | **Restart** (diagnostic) | Restarts the reader |
 | **Wi-Fi signal**, **Wi-Fi network**, **IP address** (diagnostic) | Its connection; the signal is sent when it changes by 3 dB, or every 5 minutes |
@@ -287,7 +314,8 @@ Any Home Assistant user can call a reader's pair action, so on a new
 asking again doesn't extend that. Meanwhile any other key is refused
 (`PAIRING_BUSY`), and after an unconfirmed wait the same key must leave a
 2-minute gap in which another key can ask. Only tap a band when MagicbHAnds
-asks you to in Repairs.
+asks you to in Repairs: it asks only while the reader tells it its own
+request is the one waiting (another key's request is answered `PAIRING_BUSY`).
 See [security.md](security.md).
 
 ### No waiting on Home Assistant
@@ -401,11 +429,14 @@ reader at night, on the same schedule as **Idle glow at night**.
   nearby, not only the one on the reader. The reader transmits at −12 dBm by
   default (the **Band light-up power** setting) to keep that local.
 - Taps during a sequence are ignored; tap again once the reader is idle.
-- Bands that aren't on the reader's allowed list reach Home Assistant as tag
-  scans at most 6 new bands a minute and 30 an hour (a band tapped again
-  soon after always does), so someone at the door cycling made-up tag IDs
-  can't fill Home Assistant's tag list. The reader still welcomes or denies
-  every tap as usual, and bands on its list are never held back. In *Welcome
-  every band* or *Ask Home Assistant* mode without an allowed list, a crowd
-  of new bands beyond that rate isn't reported (in *Ask Home Assistant* mode,
-  they're denied).
+- Bands the reader doesn't know reach Home Assistant as tag scans, with only
+  a flood guard: at most 60 new bands a minute and 600 an hour, in every mode
+  (a band tapped again soon after always goes). That's far more than people
+  can tap one reader, so enrolling a family's bands or a queue of guests in
+  *Ask Home Assistant* mode never hits it; it only stops a tag emulator
+  cycling made-up IDs from filling Home Assistant's tag list without bound.
+  The reader still welcomes or denies every tap as usual. Never held back:
+  bands on its allowed list, and bands that have been on it since it was set
+  up (the last 128, kept through restarts), so a household band that's off
+  the list for now (outside its hours, during a lockdown) still shows up in
+  MagicbHAnds' history and refusal notices.

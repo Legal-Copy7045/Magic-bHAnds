@@ -7,7 +7,10 @@ For each of bridge, reader and bp2 (signed variant from prep.py):
   * the app plus the 4 KB signature sector fits the smallest app (ota_0/ota_1)
     partition from the build's partition table, with >= MARGIN free
   * firmware.factory.bin is bootloader/partitions/otadata + the app at 0x10000
-  * the image carries the project version (esp_app_desc) from the device file
+  * the image carries the project version from the device file
+  * the Wi-Fi setup hotspot (fallback access point + captive portal) is
+    compiled into the Wi-Fi devices' signed images (bridge, reader) and not
+    into the BP2's (Ethernet)
 
 Writes results to out/firmware-compile.json, merged by run.py. Usable on its
 own:  python3 regression/firmware/compile.py [bridge reader bp2]
@@ -31,11 +34,19 @@ import prep  # noqa: E402
 MARGIN = 0.10  # want at least 10 % of the app partition free after signing
 APP_OFFSET = 0x10000
 SIG_SECTOR = 0x1000
-IDS = {  # stable result IDs per device: compile, alignment, fits, factory layout, version, sdkconfig
-    "bridge": ("FW-200", "FW-201", "FW-202", "FW-203", "FW-204", "FW-205"),
-    "reader": ("FW-210", "FW-211", "FW-212", "FW-213", "FW-214", "FW-215"),
-    "bp2": ("FW-220", "FW-221", "FW-222", "FW-223", "FW-224", "FW-225"),
+# Stable result IDs per device: compile, alignment, fits, factory layout, version, sdkconfig, setup hotspot.
+# FW-206/216/226 (the image-version guard, removed in 0.10.33) are retired: never reuse them.
+IDS = {
+    "bridge": ("FW-200", "FW-201", "FW-202", "FW-203", "FW-204", "FW-205", "FW-207"),
+    "reader": ("FW-210", "FW-211", "FW-212", "FW-213", "FW-214", "FW-215", "FW-217"),
+    "bp2": ("FW-220", "FW-221", "FW-222", "FW-223", "FW-224", "FW-225", "FW-227"),
 }
+HOTSPOT = {"bridge": True, "reader": True, "bp2": False}  # Wi-Fi devices get the setup hotspot in signed builds
+
+
+def hotspot_check(dev: str) -> str:
+    return ("Setup hotspot (fallback access point + captive portal) compiled into the signed image" if HOTSPOT[dev]
+            else "No setup hotspot compiled in (Ethernet device)")
 SECURE = ("CONFIG_SECURE_SIGNED_APPS_NO_SECURE_BOOT=y", "CONFIG_SECURE_SIGNED_APPS_RSA_SCHEME=y",
           "CONFIG_SECURE_SIGNED_ON_UPDATE_NO_SECURE_BOOT=y")
 NOT_SET = ("CONFIG_SECURE_BOOT=y", "CONFIG_SECURE_FLASH_ENC_ENABLED=y", "CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES=y")
@@ -84,7 +95,7 @@ def _size(s: str) -> int:
 
 
 def check_build(dev: str, yaml_path: Path, log: Path, rc: int, secs: float) -> list[dict]:
-    cid, aid, fid, lid, vid, sid = IDS[dev]
+    cid, aid, fid, lid, vid, sid, hid = IDS[dev]
     feat = FEATURE[dev]
     res = []
     name = device_name(yaml_path)
@@ -101,7 +112,8 @@ def check_build(dev: str, yaml_path: Path, log: Path, rc: int, secs: float) -> l
                         evidence=str(rel)))
         for i, c in ((aid, "App image is padded to 64 KB"), (fid, "Signed app fits its OTA partition with margin"),
                      (lid, "Factory image = boot/partitions + app at 0x10000"), (vid, "Image carries the project version"),
-                     (sid, "Built sdkconfig has signed-on-update on, secure boot and flash encryption off")):
+                     (sid, "Built sdkconfig has signed-on-update on, secure boot and flash encryption off"),
+                     (hid, hotspot_check(dev))):
             res.append(dict(id=i, feature=feat, check=c, status="skip", detail="compile failed"))
         return res
     res.append(dict(id=cid, feature=feat, check=f"Signed {dev} variant compiles as in CI", status="pass",
@@ -140,7 +152,14 @@ def check_build(dev: str, yaml_path: Path, log: Path, rc: int, secs: float) -> l
     found = want is not None and (want.encode() in app)
     res.append(dict(id=vid, feature=feat, check="App image carries the device file's project_version (what the update entity compares)",
                     status="pass" if found else "fail",
-                    detail=f"device file version {want}: {'found' if found else 'NOT found'} in the image (esp_app_desc holds the ESPHome version {ver!r})"))
+                    detail=f"device file version {want}: {'found' if found else 'NOT found'} in the image (esp_app_desc version {ver!r})"))
+    defines = next(iter((yaml_path.parent / ".esphome" / "build" / name).glob("src/esphome/core/defines.h")), None)
+    text = defines.read_text() if defines is not None else ""
+    has = {d: f"#define {d}\n" in text for d in ("USE_CAPTIVE_PORTAL", "USE_WIFI_AP")}
+    ok = defines is not None and all(v == HOTSPOT[dev] for v in has.values())
+    res.append(dict(id=hid, feature=feat, check=hotspot_check(dev), status="pass" if ok else "fail",
+                    detail=(", ".join(f"{d} {'defined' if v else 'not defined'}" for d, v in has.items())
+                            + f" in {defines.name if defines else 'defines.h (not found)'}")))
     sdk = next((p for p in (yaml_path.parent / ".esphome" / "build" / name).glob("sdkconfig.*") if not p.name.endswith("esphomeinternal")), None)
     if sdk is None:
         res.append(dict(id=sid, feature=feat, check="Built sdkconfig has signed-on-update on", status="fail", detail="no sdkconfig in the build"))

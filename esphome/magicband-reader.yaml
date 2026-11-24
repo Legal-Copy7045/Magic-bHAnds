@@ -23,7 +23,7 @@ substitutions:
   timezone: America/New_York
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.10.32"
+  project_version: "0.10.33"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -154,25 +154,38 @@ api:
   actions:
     # Plays a light show: show = one of the shows in "Show", or "Random".
     # (esphome.<node>_play_show, or the integration's magicband.play_show.)
-    # Any Home Assistant user can call it, so at most 12 shows a minute.
+    # Any Home Assistant user can call it, so at most 12 shows a minute. A show
+    # sent during a tap (a celebration straight after the welcome) is queued:
+    # the play_show script waits for the welcome to finish. The reply says
+    # whether the show was taken (success: false with the reason if not).
     - action: play_show
       variables:
         show: string
       then:
         - if:
             condition:
-              and:
-                - lambda: 'return id(ring_ready);'
-                - not:
-                    script.is_running: band_tapped
-                - lambda: |-
-                    if (id(show_calls).allow(millis(), 60000)) return true;
-                    ESP_LOGW("reader", "play_show ignored: more than 12 shows a minute");
-                    return false;
+              lambda: 'return id(ring_ready);'
             then:
-              - script.execute:
-                  id: play_show
-                  show: !lambda 'return show;'
+              - if:
+                  condition:
+                    lambda: |-
+                      if (id(show_calls).allow(millis(), 60000)) return true;
+                      ESP_LOGW("reader", "play_show ignored: more than 12 shows a minute");
+                      return false;
+                  then:
+                    - script.execute:
+                        id: play_show
+                        show: !lambda 'return show;'
+                    - api.respond:
+                        success: true
+                  else:
+                    - api.respond:
+                        success: false
+                        error_message: "SHOW_RATE_LIMIT: more than 12 shows a minute; try again shortly"
+            else:
+              - api.respond:
+                  success: false
+                  error_message: "SHOW_NOT_READY: the ring isn't ready yet (the reader is starting)"
     # The MagicbHAnds integration pairs with the reader (components/magicband/
     # reader_key.h): afterwards accept, deny, set_known_bands and
     # set_band_colours need its key, so other Home Assistant users can't use
@@ -288,6 +301,7 @@ api:
             std::fill(id(known_list).begin(), id(known_list).end(), 0);
             if (err.empty()) {
               std::copy(out.begin(), out.end(), id(known_list).begin());
+              id(listed_bands).add_list(out);
               ESP_LOGI("reader", "Known bands updated: %u", (unsigned) std::count(out.begin(), out.end(), ',') - 1);
             } else {
               ESP_LOGE("reader", "%s. Known bands cleared: every band is denied until a valid list arrives",
@@ -410,12 +424,12 @@ update:
 
 wifi:
   # No credentials here: they're entered in the web installer (Improv over
-  # USB). There's deliberately no fallback hotspot: ESPHome's captive portal
-  # accepts a firmware upload from anyone who joins it, and an open hotspot
-  # can be forced on by knocking the board off Wi-Fi for 90 seconds. To change
-  # Wi-Fi later, plug the board into a computer and use the web installer.
-  # (Building your own? You can add "ap:" with a strong password and
-  # "captive_portal:" back.)
+  # USB). The official signed builds add a setup hotspot (an open "ap:" that
+  # starts after 2 minutes without Wi-Fi, plus "captive_portal:") in CI's copy
+  # only (.github/scripts/signed_build.py): ESPHome's captive portal accepts a
+  # firmware upload, which only a signed build refuses from strangers. This
+  # file has none, so your own (unsigned) builds don't get one; add both
+  # yourself if you want it (a password on "ap:" is wise there).
 
 improv_serial:
 
@@ -1006,6 +1020,12 @@ globals:
     type: magicband::RateLimit<12>
   - id: unknown_tags      # unknown bands recently reported to Home Assistant (see band_tapped)
     type: magicband::UnknownTagLimit
+  # Bands that have been on the allowed list (the last 128, as hashes; kept
+  # through restarts): their taps always reach Home Assistant, also while
+  # they're off the list (outside their hours, a lockdown). See band_tapped.
+  - id: listed_bands
+    type: magicband::ListedBands<128>
+    restore_value: true
   - id: sync_error        # why the last set_known_bands failed ("" = applied)
     type: std::string
   # Each allowed band's owner's welcome colour: ",UID=Colour,UID=Colour,"
@@ -2443,9 +2463,11 @@ script:
           id: last_band
           state: !lambda 'return uid;'
       # Not for "Test welcome": automations that react to any tag scan would fire.
-      # Bands that aren't on the reader's list are limited (6 new IDs a minute,
-      # 30 an hour; a recent one tapped again always goes), so made-up IDs
-      # can't fill Home Assistant's tag list. Bands on the list always go.
+      # Bands that aren't on the reader's list go through a flood guard only
+      # (60 new IDs a minute, 600 an hour; a recent one tapped again always
+      # goes), so a tag emulator can't fill Home Assistant's tag list but
+      # enrolling a family's bands never hits it. Bands on the list, or on it
+      # at any time before (listed_bands), always go (guards.h).
       - if:
           condition:
             and:
@@ -2457,6 +2479,7 @@ script:
                       key += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
                   std::string list(id(known_list).data());
                   if (!key.empty() && list.find("," + key + ",") != std::string::npos) return true;  // on the list
+                  if (id(listed_bands).contains(key)) return true;  // was on it (outside its hours, lockdown)
                   if (id(unknown_tags).allow(key, millis())) return true;
                   ESP_LOGW("reader", "Unknown band not sent to Home Assistant: too many new bands this minute or hour");
                   return false;
@@ -2646,6 +2669,7 @@ button:
           if (list.size() >= id(known_list).size()) { ESP_LOGW("reader", "Known bands list is full"); return; }
           std::fill(id(known_list).begin(), id(known_list).end(), 0);
           std::copy(list.begin(), list.end(), id(known_list).begin());
+          id(listed_bands).add(key);
           ESP_LOGI("reader", "Allowed the last band");
       - component.update: known_band_count
   - platform: template

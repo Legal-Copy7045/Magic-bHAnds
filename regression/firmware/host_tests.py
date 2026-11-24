@@ -75,12 +75,14 @@ CHECKS = {
     "FW-161": ("Reader pairing", "on_tag confirms a waiting first pairing (does nothing else)"),
     "FW-172": ("Sound at night", "Start-up sound after a power cut (BUG-008): with the time still unknown it plays only with 'Sound at night' Normal; with the time known, Off at night is silent"),
     "FW-174": ("Reader pairing", "Forget last band / Forget all bands do nothing on a paired reader (SEC-006) and work as before on an unpaired one"),
-    "FW-175": ("Unknown-band tag scan limit", "Reader: bands not on its list reach Home Assistant at most 6 new a minute / 30 an hour (SEC-008); listed bands and retaps always do"),
+    "FW-175": ("Unknown-band tag scan limit", "Reader: bands not on its list go through a flood guard only, 60 new a minute / 600 an hour (SEC-008); a family enrolling, listed bands and retaps always go"),
     "FW-176": ("Light shows", "Reader's play_show action: at most 12 shows a minute, sliding, across the millis() wrap (SEC-011)"),
+    "FW-179": ("Unknown-band tag scan limit", "Reader (BUG-020): bands ever on the list (set_known_bands, Allow last band; kept through restarts) always reach Home Assistant, also off the list; one flood guard (60 a minute, 600 an hour) whatever the mode or pairing"),
     # guards.h
     "FW-180": ("Automatic updates", "release_newer: automatic updates only install a strictly newer release (no rollback, SEC-002); malformed versions never install"),
-    "FW-181": ("Unknown-band tag scan limit", "UnknownTagLimit: 6 new IDs a minute, 30 an hour, a reported ID tapped again passes, refused IDs aren't recorded, wrap-safe"),
+    "FW-181": ("Unknown-band tag scan limit", "UnknownTagLimit (flood guard): 60 new IDs a minute, 600 an hour, a family of 20 enrolling all pass, a reported ID tapped again passes, refused IDs aren't recorded, wrap-safe"),
     "FW-182": ("Light shows", "RateLimit: at most N events in any window, sliding"),
+    "FW-183": ("Unknown-band tag scan limit", "ListedBands remembers the last 128 listed IDs (re-adding writes nothing, restorable bytes)"),
     # mocks
     "FW-170": ("Host test harness", "The host mocks still match ESPHome's real color.h / esp_color_correction.cpp formulas"),
 }
@@ -89,8 +91,8 @@ TESTS = {
     "test_shows": ["FW-110", "FW-111", "FW-112", "FW-113", "FW-114"],
     "test_reader_key": ["FW-130", "FW-131", "FW-132", "FW-133", "FW-134", "FW-135", "FW-136"],
     "test_lambdas": ["FW-150", "FW-151", "FW-152", "FW-153", "FW-154", "FW-155", "FW-156", "FW-157", "FW-158", "FW-159", "FW-161",
-                     "FW-172", "FW-174", "FW-175", "FW-176"],
-    "test_guards": ["FW-180", "FW-181", "FW-182"],
+                     "FW-172", "FW-174", "FW-175", "FW-176", "FW-179"],
+    "test_guards": ["FW-180", "FW-181", "FW-182", "FW-183"],
 }
 ZONE_IANA = {"Eastern (New York)": "America/New_York", "Central (Chicago)": "America/Chicago", "Mountain (Denver)": "America/Denver",
              "Arizona (Phoenix)": "America/Phoenix", "Pacific (Los Angeles)": "America/Los_Angeles", "Alaska (Anchorage)": "America/Anchorage",

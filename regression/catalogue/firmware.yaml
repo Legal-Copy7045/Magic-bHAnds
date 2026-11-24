@@ -1,6 +1,9 @@
 # Firmware features (esphome/*.yaml and components/magicband) and the checks that cover them.
 # Automated checks: regression/firmware/run.py (FW-0xx config, FW-1xx host tests, FW-2xx compiles with
 # --compile). FW-3xx are manual checks for a person with the hardware.
+# Retired IDs (features removed or changed in 0.10.33; never reuse them): FW-137, FW-185, FW-190 (pairing key
+# fingerprint), FW-184, FW-191, FW-206, FW-216, FW-226 (on-device image version check), FW-026, FW-046, FW-066,
+# FW-086, FW-311 (no setup hotspot in any build), FW-318 (6-a-minute unknown-band limit, manual).
 - feature: "Device files resolve (bridge, reader, BP2, BP2 standalone; plain and signed)"
   since: 0.6.0
   docs: README.md
@@ -29,10 +32,14 @@
   since: 0.7.1
   docs: docs/screek-bp2-poe.md
   checks: [FW-010]
-- feature: "No setup hotspot / captive portal; Wi-Fi set over USB (Improv)"
+- feature: "Wi-Fi set over USB (Improv); no Wi-Fi credentials in the device files"
   since: 0.10.4
   docs: docs/security.md#devices-and-updates
-  checks: [FW-026, FW-046, FW-066, FW-086, FW-031, FW-051, FW-071, FW-091, FW-311]
+  checks: [FW-031, FW-051, FW-071, FW-091]
+- feature: "Setup hotspot in the official signed bridge and reader builds only: open, after 2 minutes without Wi-Fi, captive portal behind the signature check; none in the device files or the BP2"
+  since: 0.10.33
+  docs: docs/security.md#devices-and-updates
+  checks: [FW-192, FW-193, FW-194, FW-195, FW-207, FW-217, FW-227, FW-319]
 - feature: "Encrypted API with a per-device key"
   since: 0.7.1
   docs: docs/security.md#what-a-tap-does-and-doesnt-prove
@@ -45,6 +52,10 @@
   since: 0.7.1
   docs: docs/security.md#devices-and-updates
   checks: [FW-030, FW-050, FW-070, FW-090, FW-034, FW-054, FW-074, FW-094, FW-312]
+- feature: "Safe mode only after a real boot loop (20 starts each failing within 30 s); restarts from Home Assistant don't count (SEC-018)"
+  since: 0.10.33
+  docs: docs/screek-bp2-poe.md
+  checks: [FW-186, FW-187, FW-188, FW-189]
 - feature: "Reader pairing with MagicbHAnds (key, first pairing by tap and first request wins, unpair, protected actions, Allow/Forget buttons off when paired)"
   since: 0.10.22
   docs: docs/security.md#who-can-change-whos-allowed-in
@@ -81,6 +92,10 @@
   since: 0.10.17
   docs: CHANGELOG.md
   checks: [FW-110, FW-111, FW-112, FW-113, FW-114, FW-160, FW-176, FW-182, FW-306]
+- feature: "A show sent during a tap (celebration, Stamp) is queued behind the welcome, not dropped; play_show answers success: false when it refuses (BUG-013)"
+  since: 0.10.33
+  docs: docs/reader.md#using-it-with-home-assistant
+  checks: [FW-178, FW-176]
 - feature: "Light shows on the page's live ring match the firmware (page.html SHOWS copy)"
   since: 0.10.17
   docs: custom_components/magicband/frontend/page.html
@@ -97,10 +112,14 @@
   since: 0.10.20
   docs: docs/security.md#who-can-change-whos-allowed-in
   checks: [FW-165, FW-310]
-- feature: "Unknown-band tag scan limit (6 new a minute, 30 an hour; listed bands and retaps always sent)"
-  since: 0.10.32
+- feature: "Unknown-band flood guard (60 new a minute, 600 an hour, the same in every mode; a family enrolling, listed bands and retaps always sent)"
+  since: 0.10.33
   docs: docs/reader.md#notes
-  checks: [FW-175, FW-181, FW-318]
+  checks: [FW-175, FW-181, FW-320]
+- feature: "Bands that were ever on the reader's list (last 128) are never limited (BUG-020)"
+  since: 0.10.33
+  docs: docs/reader.md#notes
+  checks: [FW-179, FW-183]
 - feature: "Welcome sounds: the reader's chime plays for a person with their own sound while Home Assistant is down"
   since: 0.10.32
   docs: docs/reader.md#sounds

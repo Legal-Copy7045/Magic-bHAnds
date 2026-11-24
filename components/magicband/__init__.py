@@ -13,7 +13,7 @@ import esphome.config_validation as cv
 from esphome.const import CONF_ID, CONF_TX_POWER
 from esphome.components.esp32 import get_esp32_variant
 from esphome.components.esp32.const import VARIANT_ESP32C3, VARIANT_ESP32S3
-from esphome.core import TimePeriod
+from esphome.core import CORE, TimePeriod
 import esphome.final_validate as fv
 
 CODEOWNERS = []

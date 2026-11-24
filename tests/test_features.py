@@ -451,8 +451,9 @@ async def test_first_pairing_asks_for_a_tap(hass: HomeAssistant, setup_integrati
 async def test_pairing_busy_or_cooling_down_tries_again(
     hass: HomeAssistant, setup_integration, reader_device, reply: str, freezer
 ) -> None:
-    """PAIRING_BUSY (another key's request is waiting: don't tap) and PAIRING_COOLDOWN (ours ran out: tap after
-    the retry) aren't failures: the list still goes, the right repair shows, and the reader is asked again."""
+    """PAIRING_BUSY (another key's request is waiting: don't tap) and PAIRING_COOLDOWN (ours ran out) aren't
+    failures: the list still goes and the reader is asked again. Neither shows "Tap a band" (SEC-005, changed in
+    round 2: during our cooldown any other key may be the one waiting, so a tap then could pair it with them)."""
     import time as _time
 
     from homeassistant.exceptions import HomeAssistantError
@@ -477,7 +478,7 @@ async def test_pairing_busy_or_cooling_down_tries_again(
         assert busy is not None and tap is None  # don't tap: it would pair it with them
         assert busy.translation_placeholders["reader"] == reader_device.name
     else:
-        assert tap is not None and busy is None
+        assert tap is None and busy is None
     n = len(asked)
     data = hass.config_entries.async_entries(DOMAIN)[0].runtime_data
     wait = data.readers._retry_at - _time.monotonic()
@@ -493,6 +494,154 @@ async def test_pairing_busy_or_cooling_down_tries_again(
     assert issues.async_get_issue(DOMAIN, f"reader_pairing_busy_{reader_device.id}") is None
     assert issues.async_get_issue(DOMAIN, f"reader_pairing_{reader_device.id}") is None
     assert not data.readers.retry_due()
+
+
+def _pair_replies(hass: HomeAssistant, replies: list[str]) -> list[ServiceCall]:
+    """The reader's pair action answers with the first reply in `replies` ("" = paired) until it's changed."""
+    from homeassistant.exceptions import HomeAssistantError
+
+    asked: list[ServiceCall] = []
+
+    def pair(call):
+        asked.append(call)
+        if replies[0]:
+            raise HomeAssistantError(replies[0])
+
+    hass.services.async_register("esphome", "lounge_reader_pair", pair)
+    return asked
+
+
+PENDING = "PAIRING_PENDING: tap any band on the reader within 2 minutes to finish pairing"
+ELSEWHERE = ("This reader is paired with another key. Release it from the Home Assistant that paired it "
+             "(magicband.unpair_reader), or erase it over USB with the web installer (Erase device) and add it again")
+
+
+async def _tick(hass: HomeAssistant, freezer, seconds: float) -> None:
+    freezer.tick(timedelta(seconds=seconds))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+
+async def test_tap_a_band_shows_only_while_our_request_waits(
+    hass: HomeAssistant, setup_integration, reader_device, freezer
+) -> None:
+    """BUG-017/SEC-005: "Tap a band" goes when our request's 2 minutes are up (another key may pend after that),
+    asking again inside the window doesn't extend it, and the reader is asked again after its cooldown."""
+    _paired_reader(hass)
+    replies = [PENDING]
+    asked = _pair_replies(hass, replies)
+    issues = ir.async_get(hass)
+    tap = f"reader_pairing_{reader_device.id}"
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    assert issues.async_get_issue(DOMAIN, tap) is not None
+    await _tick(hass, freezer, 90)
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)  # still PENDING
+    assert issues.async_get_issue(DOMAIN, tap) is not None
+    await _tick(hass, freezer, 31)  # 121 s after the reader took our request: its window is over
+    assert issues.async_get_issue(DOMAIN, tap) is None
+    replies[0] = "PAIRING_COOLDOWN: this key's pairing request expired without a tap"
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    assert issues.async_get_issue(DOMAIN, tap) is None  # cooling down: someone else's request may be waiting
+    data = _data(hass)
+    assert data.readers._retry_at is not None  # asked again once the cooldown is over
+    n = len(asked)
+    replies[0] = PENDING
+    data.readers._retry_at -= 1000
+    await _tick(hass, freezer, 60)
+    await _tick(hass, freezer, 60)
+    assert len(asked) > n and issues.async_get_issue(DOMAIN, tap) is not None  # a new request: tap now
+
+
+async def test_tap_a_band_goes_as_soon_as_the_reader_says_paired(
+    hass: HomeAssistant, setup_integration, reader_device, freezer
+) -> None:
+    """BUG-017: the confirming tap turns the reader's Paired sensor on: the repair goes at once (not at the next
+    periodic sync), and the sync that follows clears "another request is waiting" too."""
+    from homeassistant.helpers import entity_registry as er
+
+    paired = er.async_get(hass).async_get_or_create(
+        "binary_sensor", "esphome", "paired1", device_id=reader_device.id, original_name="Paired with MagicbHAnds",
+        suggested_object_id="lounge_paired").entity_id
+    hass.states.async_set(paired, "off")
+    calls = _paired_reader(hass)
+    replies = [PENDING]
+    _pair_replies(hass, replies)
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    issues = ir.async_get(hass)
+    assert issues.async_get_issue(DOMAIN, f"reader_pairing_{reader_device.id}") is not None
+    replies[0] = ""
+    n = len(calls["bands"])
+    hass.states.async_set(paired, "on")
+    await hass.async_block_till_done()
+    assert issues.async_get_issue(DOMAIN, f"reader_pairing_{reader_device.id}") is None  # straight away
+    await _tick(hass, freezer, 5)  # the debounced sync
+    assert len(calls["bands"]) > n
+
+
+async def test_paired_with_another_key_raises_a_repair_and_clears_the_pairing_ones(
+    hass: HomeAssistant, setup_integration, reader_device
+) -> None:
+    """BUG-017/SEC-005: if the confirmed pairing was someone else's, the waiting/busy repairs go (they're wrong
+    now) and a repair says the reader is paired with another key and how to recover it."""
+    _paired_reader(hass)
+    replies = ["PAIRING_BUSY: another pairing request is already waiting on this reader (not from this key)"]
+    _pair_replies(hass, replies)
+    issues = ir.async_get(hass)
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    assert issues.async_get_issue(DOMAIN, f"reader_pairing_busy_{reader_device.id}") is not None
+    replies[0] = ELSEWHERE  # someone tapped while their request waited
+    result = await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    assert result["failed"] == [reader_device.name]
+    assert issues.async_get_issue(DOMAIN, f"reader_pairing_busy_{reader_device.id}") is None
+    assert issues.async_get_issue(DOMAIN, f"reader_pairing_{reader_device.id}") is None
+    elsewhere = issues.async_get_issue(DOMAIN, f"reader_paired_elsewhere_{reader_device.id}")
+    assert elsewhere is not None and elsewhere.severity == ir.IssueSeverity.ERROR
+    strings = Path(__file__).resolve().parents[1] / "custom_components/magicband/strings.json"
+    import json
+
+    text = json.loads(strings.read_text())["issues"]["reader_paired_elsewhere"]["description"]
+    assert "unpair_reader" in text and "Erase device" in text
+    replies[0] = ""  # released and paired with MagicbHAnds again
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    assert issues.async_get_issue(DOMAIN, f"reader_paired_elsewhere_{reader_device.id}") is None
+
+
+async def test_other_pairing_errors_clear_the_pairing_repairs(hass: HomeAssistant, setup_integration, reader_device) -> None:
+    _paired_reader(hass)
+    replies = ["PAIRING_BUSY: another pairing request is already waiting on this reader (not from this key)"]
+    _pair_replies(hass, replies)
+    issues = ir.async_get(hass)
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    replies[0] = "The key must be 32 to 64 hex characters"
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    assert issues.async_get_issue(DOMAIN, f"reader_pairing_busy_{reader_device.id}") is None
+    assert issues.async_get_issue(DOMAIN, f"reader_sync_failed_{reader_device.id}") is not None
+
+
+@pytest.mark.parametrize("how", ["released", "removed"])
+async def test_a_readers_repairs_go_when_it_is_released_or_removed(
+    hass: HomeAssistant, setup_integration, reader_device, how: str, freezer
+) -> None:
+    """BUG-016 (and BUG-017): colours_too_long, sounds_too_long and the pairing repairs don't outlive the reader."""
+    from homeassistant.helpers import device_registry as dr
+
+    _paired_reader(hass)
+    replies = ["PAIRING_BUSY: another pairing request is already waiting on this reader (not from this key)"]
+    _pair_replies(hass, replies)
+    hass.services.async_register("esphome", "lounge_reader_unpair", lambda c: None)
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    readers = _data(hass).readers
+    for key in ("colours_too_long", "sounds_too_long"):
+        readers._issue(f"{key}_{reader_device.id}", True, key, {"reader": "Lounge reader", "kept": "1", "total": "2"})
+    issues = ir.async_get(hass)
+    ids = [f"{k}_{reader_device.id}" for k in ("colours_too_long", "sounds_too_long", "reader_pairing_busy")]
+    assert all(issues.async_get_issue(DOMAIN, i) for i in ids)
+    if how == "released":
+        await hass.services.async_call(DOMAIN, "unpair_reader", {"device_id": reader_device.id}, blocking=True)
+    else:
+        dr.async_get(hass).async_remove_device(reader_device.id)
+        await _tick(hass, freezer, 60)  # the minute check
+    assert not any(issues.async_get_issue(DOMAIN, i) for i in ids)
 
 
 # ---------------------------------------------------------------------------- tap snapshots (optional)

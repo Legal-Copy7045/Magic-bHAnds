@@ -2,6 +2,7 @@
 
 #include "esphome/components/esp32_ble/ble.h"
 #include "esphome/core/component.h"
+#include "esphome/core/defines.h"
 #include "shows.h"
 #include "reader_key.h"
 #include "guards.h"

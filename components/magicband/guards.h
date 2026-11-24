@@ -5,8 +5,9 @@
 //    older signed one (no rollback through the 3 am job);
 //  - RateLimit: at most N events in a sliding window (the reader's play_show
 //    action);
-//  - UnknownTagLimit: how many bands it doesn't know the reader reports to
-//    Home Assistant, so a stream of made-up tag IDs can't flood its tag list.
+//  - UnknownTagLimit: a flood guard on the bands it doesn't know the reader
+//    reports to Home Assistant, so a stream of made-up tag IDs can't flood its
+//    tag list; ListedBands: bands that were on its list, which never count.
 
 #include <array>
 #include <cstddef>
@@ -72,17 +73,19 @@ template<size_t N> struct RateLimit {
 
 // Bands the reader doesn't know (not on its allowed list) reported to Home
 // Assistant as tag scans: each new ID makes a stored tag and a tag entity in
-// Home Assistant, so a stream of made-up IDs (a tag emulator at the door) could
-// grow its tag list without bound. At most UNKNOWN_TAGS_PER_MIN new IDs a
-// minute and UNKNOWN_TAGS_PER_HOUR an hour are reported; one of the last
-// UNKNOWN_TAGS_RECENT reported IDs tapped again always is (a retap, or "Ask
-// Home Assistant" asking again). Bands on the list never go through this.
-static constexpr size_t UNKNOWN_TAGS_PER_MIN = 6;
-static constexpr size_t UNKNOWN_TAGS_PER_HOUR = 30;
+// Home Assistant. This is only a flood guard against a stream of made-up IDs
+// (a tag emulator at the door), set well above anything people do at a door
+// (enrolling a family's bands, a queue of guests with "Ask Home Assistant"):
+// at most PER_MIN new IDs a minute and PER_HOUR an hour are reported; one of
+// the last UNKNOWN_TAGS_RECENT reported IDs tapped again always is (a retap,
+// or "Ask Home Assistant" asking again). Bands on the list, or on it at any
+// time before (ListedBands), never go through this.
+static constexpr size_t UNKNOWN_TAGS_PER_MIN = 60;
+static constexpr size_t UNKNOWN_TAGS_PER_HOUR = 600;
 static constexpr size_t UNKNOWN_TAGS_RECENT = 8;
-struct UnknownTagLimit {
-  RateLimit<UNKNOWN_TAGS_PER_MIN> minute;
-  RateLimit<UNKNOWN_TAGS_PER_HOUR> hour;
+template<size_t PER_MIN, size_t PER_HOUR> struct TagReportLimit {
+  RateLimit<PER_MIN> minute;
+  RateLimit<PER_HOUR> hour;
   std::array<std::string, UNKNOWN_TAGS_RECENT> recent{};
   size_t next = 0;
   bool allow(const std::string &uid, uint32_t now) {
@@ -90,14 +93,58 @@ struct UnknownTagLimit {
     for (const auto &r : recent)
       if (r == uid) return true;
     // Both windows must have room before either records it.
-    RateLimit<UNKNOWN_TAGS_PER_MIN> m = minute;
-    RateLimit<UNKNOWN_TAGS_PER_HOUR> h = hour;
+    RateLimit<PER_MIN> m = minute;
+    RateLimit<PER_HOUR> h = hour;
     if (!m.allow(now, 60000UL) || !h.allow(now, 3600000UL)) return false;
     minute = m;
     hour = h;
     recent[next] = uid;
     next = (next + 1) % UNKNOWN_TAGS_RECENT;
     return true;
+  }
+};
+using UnknownTagLimit = TagReportLimit<UNKNOWN_TAGS_PER_MIN, UNKNOWN_TAGS_PER_HOUR>;
+
+// Bands that have been on the reader's allowed list (kept through restarts):
+// MagicbHAnds sends only the bands allowed right now, so a household band
+// outside its hours or during a lockdown is off the list, but its taps should
+// still reach Home Assistant (history, refusal notifications) without counting
+// against the unknown-band limit. Holds the last N distinct IDs as 32-bit
+// FNV-1a hashes (0 = empty slot); the oldest is replaced when full. A made-up
+// ID matching a hash only skips the limit, it isn't let in.
+template<size_t N> struct ListedBands {
+  std::array<uint32_t, N> slot{};
+  uint16_t next = 0;
+  static uint32_t hash(const std::string &key) {
+    uint32_t x = 2166136261u;
+    for (char c : key) {
+      x ^= static_cast<uint8_t>(c);
+      x *= 16777619u;
+    }
+    return x ? x : 1;
+  }
+  bool contains(const std::string &key) const {
+    if (key.empty()) return false;
+    const uint32_t x = hash(key);
+    for (uint32_t s : slot)
+      if (s == x) return true;
+    return false;
+  }
+  // `key` as on the list: hex digits, uppercase, no separators.
+  void add(const std::string &key) {
+    if (key.empty() || contains(key)) return;
+    slot[next % N] = hash(key);
+    next = static_cast<uint16_t>((next + 1) % N);
+  }
+  // Every entry of a list in the reader's format, ",UID,UID,".
+  void add_list(const std::string &list) {
+    size_t from = 0;
+    while (from < list.size()) {
+      size_t to = list.find(',', from);
+      if (to == std::string::npos) to = list.size();
+      if (to > from) add(list.substr(from, to - from));
+      from = to + 1;
+    }
   }
 };
 

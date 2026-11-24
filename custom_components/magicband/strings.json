@@ -689,7 +689,11 @@
     },
     "reader_pairing": {
       "title": "Tap a band on {reader} to pair it",
-      "description": "MagicbHAnds is pairing with {reader} for the first time. So that no one else can claim it, a reader only finishes pairing when someone taps a band (any band) on it: the ring breathes blue while it waits, for up to 2 minutes, and turns green when paired. That tap does nothing else. If the ring isn't blue, press Sync (or wait a few minutes) and tap then.\n\nIf Repairs says another pairing request is waiting instead, don't tap: someone else asked first. Wait 2 minutes and sync again."
+      "description": "MagicbHAnds is pairing with {reader} for the first time. So that no one else can claim it, a reader only finishes pairing when someone taps a band (any band) on it: tap one now. MagicbHAnds' request waits for up to 2 minutes, and this notice is shown only while it does: it goes when the tap pairs the reader (the ring turns green) or when the 2 minutes are up, and comes back when MagicbHAnds asks again. That tap does nothing else.\n\nOnly tap while this notice is here: the ring also breathes blue when someone else asks to pair the reader, and a tap then would pair it with them. If Repairs says another pairing request is waiting instead, don't tap."
+    },
+    "reader_paired_elsewhere": {
+      "title": "{reader} is paired with someone else's key",
+      "description": "{reader} was paired, but not with MagicbHAnds: it refuses MagicbHAnds' key, so it no longer gets the allowed list, welcome colours or sounds from this Home Assistant (it keeps the last ones it took). Someone else's pairing request was confirmed by a tap on it.\n\nTo recover it: if you know which Home Assistant paired it, release it there (`magicband.unpair_reader`). Otherwise, with the reader in hand, erase it over USB with the web installer (**Erase device**), install the reader firmware again and add it back to ESPHome; MagicbHAnds then asks for a tap to pair it. Only tap while MagicbHAnds' Repairs notice asks you to."
     }
   }
 }
