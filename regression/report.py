@@ -41,16 +41,20 @@ def load():
         if not p.is_file() or s.startswith("findings") or s == "notes":
             continue
         try:
-            stages[s] = json.loads(p.read_text())
+            data = json.loads(p.read_text())
         except json.JSONDecodeError:
             continue
-    findings = []
+        if isinstance(data, dict) and isinstance(data.get("results"), list):  # stage files only
+            stages[s] = data
+    findings, claims = [], []
     for p in sorted(OUT.glob("findings*.json")):
         try:
             data = json.loads(p.read_text())
         except json.JSONDecodeError:
             continue
         findings += data if isinstance(data, list) else data.get("findings", [])
+        if isinstance(data, dict):
+            claims += data.get("claims", [])
     findings.sort(key=lambda f: (SEV.index(f.get("severity", "info")) if f.get("severity") in SEV else 9, f.get("id", "")))
     catalogue = []
     for p in sorted((HERE / "catalogue").glob("*.yaml")):
@@ -58,6 +62,7 @@ def load():
             item["area"] = p.stem
             catalogue.append(item)
     notes = json.loads((OUT / "notes.json").read_text()) if (OUT / "notes.json").is_file() else {}
+    notes["_claims"] = claims
     return stages, findings, catalogue, notes
 
 
@@ -118,6 +123,11 @@ def markdown(stages, findings, cov, unlisted, notes, version, when):
                 f"*Recommendation:* {f.get('recommendation', '')}", ""]
     if notes.get("observations"):
         out += ["## Observations", ""] + [f"- {o}" for o in notes["observations"]] + [""]
+    claims = notes.get("_claims") or []
+    if claims:
+        out += ["## Security claims (docs/security.md)", "", "| Claim | Holds | Note |", "|---|---|---|"]
+        out += [f"| {c.get('claim', '')} | {'yes' if c.get('held') else '**no**'} | {c.get('note', '')} |" for c in claims]
+        out.append("")
     out += ["## Coverage", "", "| Feature | Area | Since | State | Checks |", "|---|---|---|---|---|"]
     for row in cov:
         out.append(f"| {row['feature']} | {row['area']} | {row.get('since', '')} | {row['state']} | "
@@ -270,6 +280,14 @@ def page(stages, findings, cov, unlisted, notes, version, when):
     if notes.get("observations"):
         h.append('<section><h2>Observations</h2><ul class="plain">'
                  + "".join(f"<li>{e(o)}</li>" for o in notes["observations"]) + "</ul></section>")
+    claims = notes.get("_claims") or []
+    if claims:
+        bad = [c for c in claims if not c.get("held")]
+        rows = "".join(f"<tr><td>{e(c.get('claim', ''))}</td><td>{pill('pass' if c.get('held') else 'fail')}</td>"
+                       f"<td class=\"d\">{e(c.get('note', ''))}</td></tr>" for c in sorted(claims, key=lambda c: bool(c.get('held'))))
+        h.append(f'<section><h2>Security claims</h2><p class="meta">Each claim in docs/security.md checked against the code: '
+                 f'{len(claims) - len(bad)} hold, {len(bad)} don\'t.</p><details><summary>All {len(claims)} claims</summary>'
+                 f'<div class="tbl"><table><tr><th>Claim</th><th>Holds</th><th>Note</th></tr>{rows}</table></div></details></section>')
     covrows = "".join(
         f"<tr><td>{e(r['feature'])}</td><td>{e(r['area'])}</td><td class=\"id\">{e(str(r.get('since', '')))}</td>"
         f"<td>{pill(r['state'])}</td><td class=\"id\">{e(', '.join(r.get('checks') or []))}"
