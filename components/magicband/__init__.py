@@ -13,7 +13,7 @@ import esphome.config_validation as cv
 from esphome.const import CONF_ID, CONF_TX_POWER
 from esphome.components.esp32 import get_esp32_variant
 from esphome.components.esp32.const import VARIANT_ESP32C3, VARIANT_ESP32S3
-from esphome.core import TimePeriod
+from esphome.core import CORE, TimePeriod
 import esphome.final_validate as fv
 
 CODEOWNERS = []
@@ -147,3 +147,34 @@ async def to_code(config):
     cg.add(var.set_prefix_mode(PREFIX_MODES[mode]))
 
     request_bluetooth()
+    await _image_version(var)
+
+
+# Update images carry their own release: ESP-IDF builds the project version into
+# every image's app description (esp_app_desc_t.version, inside the signed
+# area), here as "mb-<version>". With an http_request OTA (updates from the
+# published firmware), ImageVersionGuard (magicband.h) keeps booting the running
+# firmware when a downloaded image is older, whatever the manifest says
+# (image_version_ok in guards.h).
+IMAGE_VERSION_PREFIX = "mb-"
+
+
+async def _image_version(var):
+    project = CORE.config.get("esphome", {}).get("project") or {}
+    version = project.get("version")
+    if not version or not CORE.is_esp32:
+        return
+    advanced = (CORE.config.get("esp32", {}).get("framework") or {}).get("advanced") or {}
+    if advanced.get("enable_ota_downgrade_protection"):
+        return  # ESPHome's own check sets and compares the plain version
+    from esphome.components.esp32 import add_idf_sdkconfig_option
+    from esphome.components.ota import request_ota_state_listeners
+
+    add_idf_sdkconfig_option("CONFIG_APP_PROJECT_VER_FROM_CONFIG", True)
+    add_idf_sdkconfig_option("CONFIG_APP_PROJECT_VER", IMAGE_VERSION_PREFIX + str(version))
+    for conf in CORE.config.get("ota") or []:
+        if conf.get("platform") == "http_request":
+            request_ota_state_listeners()
+            cg.add_define("USE_MAGICBAND_IMAGE_VERSION_GUARD")
+            ota = await cg.get_variable(conf[CONF_ID])
+            cg.add(var.set_update_ota(ota))

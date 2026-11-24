@@ -256,12 +256,12 @@ MagicBand+**, for example to turn on the lounge lights.
 | **Sound** | Chimes on/off |
 | **Test welcome** | Plays the welcome sequence without a band |
 | **Play show** | Plays the light show chosen in **Show** (or a random one) |
-| **Show** | Which show **Play show** plays: Random (one of the everyday shows), or Rainbow rush, Fireworks, Comet chase, Colour parade, Twinkle, Heartbeat, Ocean, Fire, Pinwheel, Confetti, Penguins (black and gold), Goal (three red pulses), Aurora, Candy cane, Thunderstorm, Sunrise, Disco; the celebration shows Birthday, New Year, Valentine, St Patrick, Easter, Stars and Stripes, Halloween, Thanksgiving, Hanukkah and Christmas; or Stamp (a new passport badge). The MagicbHAnds integration plays the celebration shows after a welcome on the day (see [integration.md](integration.md#celebrations-and-the-tap-passport)); a show sent during a tap waits for the welcome to finish. The reader plays at most 12 shows a minute from Home Assistant (its play_show action), whoever calls it |
+| **Show** | Which show **Play show** plays: Random (one of the everyday shows), or Rainbow rush, Fireworks, Comet chase, Colour parade, Twinkle, Heartbeat, Ocean, Fire, Pinwheel, Confetti, Penguins (black and gold), Goal (three red pulses), Aurora, Candy cane, Thunderstorm, Sunrise, Disco; the celebration shows Birthday, New Year, Valentine, St Patrick, Easter, Stars and Stripes, Halloween, Thanksgiving, Hanukkah and Christmas; or Stamp (a new passport badge). The MagicbHAnds integration plays the celebration shows after a welcome on the day (see [integration.md](integration.md#celebrations-and-the-tap-passport)); a show sent during a tap waits for the welcome to finish (it's queued, not dropped). The reader plays at most 12 shows a minute from Home Assistant (its play_show action), whoever calls it; the action answers with an error (`SHOW_RATE_LIMIT`, or `SHOW_NOT_READY` while the reader starts) when it doesn't take a show |
 | **Startup show** | The show played when the reader starts: Off, Random or one show (default Rainbow rush) |
 | **Allowed list** (diagnostic) | From the MagicbHAnds integration: whether this reader has the current allowed list (*Up to date*, *Not applied*, *Reader offline* …) |
 | **ESPHome name** (diagnostic) | The reader's ESPHome name; the integration uses it to find the reader's actions |
 | **Firmware** | Update entity: new firmware appears here and installs over Wi-Fi |
-| **Automatic updates** | Off by default. On: the reader installs a new release by itself between 3 and 4 am (local time, by its internet clock), without Home Assistant starting it. Only signed releases install, and only one newer than the reader has: it never goes back to an older release (you can still install any offered release from **Firmware** yourself) |
+| **Automatic updates** | Off by default. On: the reader installs a new release by itself between 3 and 4 am (local time, by its internet clock), without Home Assistant starting it. Only signed releases install, and only one newer than the reader has: it never goes back to an older release. Whichever way an update arrives through **Firmware** (automatically or installed by you), the reader also checks the release recorded inside the signed image itself and keeps running its current firmware if the image is older, whatever version the update site lists; going back to an older release takes the web installer over USB |
 | **Time zone** | Eastern (New York) | The reader's local time zone (night mode, automatic updates). The reader keeps time from an internet time server as well as from Home Assistant, so the schedule works while Home Assistant is down |
 | **Restart** (diagnostic) | Restarts the reader |
 | **Wi-Fi signal**, **Wi-Fi network**, **IP address** (diagnostic) | Its connection; the signal is sent when it changes by 3 dB, or every 5 minutes |
@@ -288,6 +288,11 @@ asking again doesn't extend that. Meanwhile any other key is refused
 (`PAIRING_BUSY`), and after an unconfirmed wait the same key must leave a
 2-minute gap in which another key can ask. Only tap a band when MagicbHAnds
 asks you to in Repairs.
+The **Pairing key fingerprint** sensor (diagnostic) shows the first 8 hex
+characters of the SHA-256 of the key the reader is paired with, or, while a
+first pairing waits for its tap, of the waiting key; otherwise `none`.
+MagicbHAnds compares it with its own key's fingerprint, so it only asks you
+to tap while the waiting request is its own. The key itself is never shown.
 See [security.md](security.md).
 
 ### No waiting on Home Assistant
@@ -401,11 +406,19 @@ reader at night, on the same schedule as **Idle glow at night**.
   nearby, not only the one on the reader. The reader transmits at −12 dBm by
   default (the **Band light-up power** setting) to keep that local.
 - Taps during a sequence are ignored; tap again once the reader is idle.
-- Bands that aren't on the reader's allowed list reach Home Assistant as tag
-  scans at most 6 new bands a minute and 30 an hour (a band tapped again
-  soon after always does), so someone at the door cycling made-up tag IDs
-  can't fill Home Assistant's tag list. The reader still welcomes or denies
-  every tap as usual, and bands on its list are never held back. In *Welcome
-  every band* or *Ask Home Assistant* mode without an allowed list, a crowd
-  of new bands beyond that rate isn't reported (in *Ask Home Assistant* mode,
-  they're denied).
+- Bands the reader doesn't know reach Home Assistant as tag scans at most 6
+  new bands a minute and 30 an hour (a band tapped again soon after always
+  does), so someone at the door cycling made-up tag IDs can't fill Home
+  Assistant's tag list. The reader still welcomes or denies every tap as
+  usual. Never held back: bands on its allowed list, and bands that have been
+  on it since it was set up (the last 128, kept through restarts), so a
+  household band that's off the list for now (outside its hours, during a
+  lockdown) still shows up in MagicbHAnds' history and refusal notices.
+  On a reader that isn't paired with MagicbHAnds and is in *Ask Home
+  Assistant* mode, the limit is 20 new bands a minute and 200 an hour instead:
+  there Home Assistant's own automation answers every tap, and a band that
+  isn't reported is simply denied after 3 seconds, so the lower limit would
+  turn real guests away (20 a minute is about as fast as people can tap one
+  reader in that mode; the hourly cap still bounds the tag list). In
+  *Welcome every band* mode without an allowed list, a crowd of new bands
+  beyond 6 a minute or 30 an hour isn't reported (they're still welcomed).

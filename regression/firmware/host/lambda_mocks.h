@@ -52,7 +52,10 @@ struct BinarySensor {
 };
 struct TextSensor {
   std::string state;
-  void publish_state(const std::string &s) { state = s; }
+  bool has = false;
+  int published = 0;
+  bool has_state() const { return has; }
+  void publish_state(const std::string &s) { state = s, has = true, published++; }
 };
 struct Script {
   bool running = false;

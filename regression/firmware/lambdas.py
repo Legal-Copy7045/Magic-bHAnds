@@ -30,6 +30,10 @@ _Loader.add_multi_constructor("!", _tag)
 
 def load_resolved(text: str) -> dict:
     body = "".join(l for l in text.splitlines(True) if not l.startswith(("INFO", "WARNING", "ERROR")))
+    # `esphome config` wraps text it takes for a secret (anything after "key: ") in terminal
+    # "concealed" codes; they aren't part of the config.
+    for code in ("\x1b[8m", "\x1b[28m", "\\033[8m", "\\033[28m"):
+        body = body.replace(code, "")
     return yaml.load(body, Loader=_Loader)
 
 
@@ -83,7 +87,7 @@ def find(cfg: dict) -> dict[str, tuple[str, str, str]]:
             out[fn] = ("void %s(hosttest::MockRing &it, esphome::Color current_color, bool initial_run)", lam(a["lambda"]),
                        f"light ring effect {a['name']}")
     scripts = {s["id"]: s for s in as_list(cfg.get("script"))}
-    for sid in ("note_refusal", "end_lockout", "apply_quiet", "update_night", "sun_time"):
+    for sid in ("note_refusal", "end_lockout", "apply_quiet", "update_night", "sun_time", "publish_fingerprint"):
         s = scripts[sid]
         params = ", ".join(f"{PARAM_TYPES[t]} {n}" for n, t in (s.get("parameters") or {}).items())
         out["script_" + sid] = ("void %s(" + params + ")", next(walk(s["then"])), f"script {sid}")
@@ -108,6 +112,10 @@ def find(cfg: dict) -> dict[str, tuple[str, str, str]]:
     # band_tapped: whether this tap is sent to Home Assistant as a tag scan (unknown-band limit)
     body = next(b for b in walk(scripts["band_tapped"]["then"]) if "unknown_tags" in b)
     out["tag_report"] = ("bool %s(std::string uid)", body, "script band_tapped (unknown-band limit)")
+    # set_known_bands: applies the list (and remembers its bands in listed_bands)
+    act = next(a for a in as_list((cfg.get("api") or {}).get("actions")) if a.get("action") == "set_known_bands")
+    body = next(b for b in walk(act["then"]) if "known_list" in b)
+    out["set_known_bands"] = ("void %s(std::string bands, std::string key)", body, "api action set_known_bands")
     # the play_show action's rate limit
     act = next(a for a in as_list((cfg.get("api") or {}).get("actions")) if a.get("action") == "play_show")
     body = next(b for b in walk(act["then"]) if "show_calls" in b)

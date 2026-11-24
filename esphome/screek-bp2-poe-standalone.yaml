@@ -190,7 +190,15 @@ dashboard_import:
   package_import_url: github://Legal-Copy7045/Magic-bHAnds/esphome/screek-bp2-poe.yaml@main
   import_full_config: false
 
+# Safe mode after a real boot loop: 20 starts in a row that each fail within
+# 30 seconds. Higher than ESPHome's defaults (10 within a minute) so a run of
+# restarts from Home Assistant ("Reboot Device", which any user can press) or
+# of PoE power cycles can't put the proxy in safe mode, where it has no API
+# and no Bluetooth proxy. A press of Reboot Device restarts cleanly, which
+# also resets the count; a crash early in every start still trips it.
 safe_mode:
+  num_attempts: 20
+  boot_is_good_after: 30s
 
 ethernet:
   type: W5500

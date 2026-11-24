@@ -11,6 +11,11 @@
 #include "esphome/components/esp32_ble_tracker/esp32_ble_tracker.h"
 #endif
 
+#ifdef USE_MAGICBAND_IMAGE_VERSION_GUARD
+#include <esp_app_desc.h>
+#include <esp_ota_ops.h>
+#endif
+
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -46,6 +51,31 @@ static inline uint8_t rgb6(uint8_t v, bool flash) {
   uint8_t six = static_cast<uint8_t>((v * 63 + 127) / 255);
   return (flash ? 0x80 : 0x00) | static_cast<uint8_t>(six << 1);
 }
+
+#ifdef USE_MAGICBAND_IMAGE_VERSION_GUARD
+void ImageVersionGuard::on_ota_global_state(ota::OTAState state, float progress, uint8_t error,
+                                            ota::OTAComponent *component) {
+  if (state != ota::OTA_COMPLETED || component != this->ota_)
+    return;
+  // The update set the new image as the boot partition; it restarts next.
+  const esp_partition_t *boot = esp_ota_get_boot_partition();
+  const esp_partition_t *running = esp_ota_get_running_partition();
+  if (boot == nullptr || running == nullptr || boot == running)
+    return;
+  esp_app_desc_t desc{};
+  std::string image;
+  if (esp_ota_get_partition_description(boot, &desc) == ESP_OK)
+    image.assign(desc.version, strnlen(desc.version, sizeof(desc.version)));
+  const std::string current = ESPHOME_PROJECT_VERSION;
+  if (image_version_ok(image, current))
+    return;
+  ESP_LOGE(TAG, "Update refused: the new image is release '%s', older than this firmware (%s); staying on this one",
+           image.c_str(), current.c_str());
+  const esp_err_t err = esp_ota_set_boot_partition(running);
+  if (err != ESP_OK)
+    ESP_LOGE(TAG, "Couldn't keep booting this firmware (err=0x%X)", err);
+}
+#endif
 
 void MagicBand::setup() {
   this->adv_params_ = {

@@ -317,7 +317,74 @@ def device_invariants(d: str, plain: dict | None, signed: dict | None, tz: list[
         return f"safe-mode button(s) {bad} any Home Assistant user can press (the board then drops its API and proxy until safe mode times out)" if bad else ""
     f = each(safe_btn)
     out.append(r(ids[14], "No factory-reset button", f"{LABEL[d]}: no Safe Mode Boot button open to every Home Assistant user", not f, "; ".join(f) or "none"))
+
+    # SEC-018: a run of restarts from Home Assistant can't put the device in safe mode
+    def safe(c):
+        sm = c.get("safe_mode")
+        if sm is None:
+            return ""
+        if sm.get("disabled"):
+            return "safe_mode disabled (no boot-loop protection)"
+        n = int(sm.get("num_attempts", 10))
+        good = _secs(sm.get("boot_is_good_after", "1min"))
+        bad = []
+        if n < SAFE_MODE_MIN_ATTEMPTS:
+            bad.append(f"num_attempts {n} < {SAFE_MODE_MIN_ATTEMPTS}")
+        if good is None or not 0 < good <= SAFE_MODE_MAX_GOOD_AFTER_S:
+            bad.append(f"boot_is_good_after {sm.get('boot_is_good_after')} not within 0-{SAFE_MODE_MAX_GOOD_AFTER_S} s")
+        return "; ".join(bad)
+    f = each(safe)
+    src = esphome_restart_resets_safe_mode()
+    if src:
+        f.append(src)
+    sm = plain.get("safe_mode")
+    out.append(r(SAFE_IDS[d], "No factory-reset button",
+                 f"{LABEL[d]}: safe mode (if any) needs >= {SAFE_MODE_MIN_ATTEMPTS} starts in a row that each fail within {SAFE_MODE_MAX_GOOD_AFTER_S} s (SEC-018), "
+                 "and ESPHome's restart button restarts cleanly (resets the count)", not f,
+                 "; ".join(f) or (f"num_attempts {sm.get('num_attempts')}, boot_is_good_after {sm.get('boot_is_good_after')}" if sm else "no safe_mode")
+                 + "; restart button -> App.safe_reboot -> SafeModeComponent::on_safe_shutdown clears the count"))
     return out
+
+
+SAFE_IDS = {"bridge": "FW-186", "reader": "FW-187", "bp2": "FW-188", "standalone": "FW-189"}
+SAFE_MODE_MIN_ATTEMPTS = 20
+SAFE_MODE_MAX_GOOD_AFTER_S = 30
+
+
+def _secs(v) -> float | None:
+    m = re.fullmatch(r"\s*([\d.]+)\s*(ms|s|min|h)?\s*", str(v))
+    if not m:
+        return None
+    return float(m.group(1)) * {"ms": 0.001, "s": 1, "min": 60, "h": 3600, None: 1}[m.group(2)]
+
+
+def esphome_src() -> Path | None:
+    try:
+        import esphome
+    except ImportError:
+        return None
+    return Path(esphome.__file__).resolve().parent
+
+
+def esphome_restart_resets_safe_mode() -> str:
+    """'' if the installed ESPHome's restart button restarts cleanly and that clears safe mode's boot count."""
+    base = esphome_src()
+    if base is None:
+        return "installed ESPHome not found"
+    try:
+        btn = next((base / "components/restart/button").glob("*.cpp")).read_text()
+        app = (base / "core/application.cpp").read_text()
+        sm = (base / "components/safe_mode/safe_mode.cpp").read_text()
+    except (StopIteration, OSError) as e:
+        return f"ESPHome sources not readable: {e}"
+    bad = []
+    if "App.safe_reboot()" not in btn:
+        bad.append("restart button no longer calls App.safe_reboot")
+    if not re.search(r"void Application::safe_reboot\(\) \{[^}]*run_safe_shutdown_hooks\(\)", app):
+        bad.append("safe_reboot no longer runs the safe-shutdown hooks")
+    if not re.search(r"void SafeModeComponent::on_safe_shutdown\(\) \{[^}]*clean_rtc\(\)", sm):
+        bad.append("safe_mode's on_safe_shutdown no longer clears the boot count")
+    return ("ESPHome changed: " + "; ".join(bad)) if bad else ""
 
 
 LOG_ARG_SECRETS = re.compile(r"\b(uid|key|last_band|known_list|band_colours|band_sounds|pair_key|pending_key|colours|sounds)\b")
@@ -566,6 +633,96 @@ def reader_checks(c: dict) -> list[dict]:
     ok = "pending_until" in str(pw.get("then")) and "2min" not in str(pw.get("then"))
     out.append(r("FW-177", "Reader pairing", "Reader: pair_wait (blue breathing) lasts until the pairing wait's own deadline, not 2 minutes from the latest request",
                  ok, "delay until pending_until" if ok else "pair_wait waits a fixed 2 minutes from each request"))
+
+    # FW-178 BUG-013: a show requested during a tap is queued (the script waits for the welcome), not dropped; refusals are reported
+    msgs = []
+    act = acts.get("play_show") or {}
+    athen = act.get("then")
+    if not act:
+        msgs.append("play_show action missing")
+    if "band_tapped" in str(athen):
+        msgs.append("the play_show action still checks band_tapped (a celebration sent during the welcome is dropped)")
+    if "'script.execute': {'id': 'play_show'" not in str(athen):
+        msgs.append("the action doesn't run the play_show script")
+    if "show_calls" not in str(athen):
+        msgs.append("the 12-a-minute limit is gone")
+    responds = re.findall(r"'api.respond': \{'success': (True|False)", str(athen))
+    if "True" not in responds or responds.count("False") < 2:
+        msgs.append(f"the action doesn't answer success: true when it plays and success: false (with a message) for the rate limit and a ring not ready (found {responds})")
+    if "error_message" not in str(athen):
+        msgs.append("a refusal has no error_message")
+    ps = scripts.get("play_show") or {}
+    first = (ps.get("then") or [{}])[0]
+    wu = first.get("wait_until") if isinstance(first, dict) else None
+    if not wu or "band_tapped" not in str(wu.get("condition")) or "not" not in str(wu.get("condition")):
+        msgs.append("the play_show script doesn't start by waiting for band_tapped to finish")
+    elif (_secs(wu.get("timeout")) or 0) < 10:
+        msgs.append(f"the script's wait for the welcome times out after {wu.get('timeout')} (a welcome can take several seconds)")
+    if ps.get("mode") not in ("restart", "queued"):
+        msgs.append(f"play_show script mode {ps.get('mode')} would drop a show sent while one waits")
+    out.append(r("FW-178", "Light shows", "Reader: the play_show action takes a show during a tap (BUG-013): no band_tapped guard, the script waits for the welcome; "
+                 "rate limit kept; success: false with a message when refused", not msgs, "; ".join(msgs) or "queued behind the welcome; responds"))
+
+    # FW-190 SEC-005: "Pairing key fingerprint" (diagnostic) is published wherever the paired or waiting key can change
+    msgs = []
+    fp = _find(c.get("text_sensor"), id="pair_fingerprint")
+    if not fp or fp[0].get("name") != "Pairing key fingerprint" or fp[0].get("entity_category") != "diagnostic" or fp[0].get("platform") != "template":
+        msgs.append("no diagnostic template text sensor 'Pairing key fingerprint' (id pair_fingerprint)")
+    if "reader_pairing_fingerprint" not in str(scripts.get("publish_fingerprint")):
+        msgs.append("publish_fingerprint doesn't use reader_pairing_fingerprint")
+    pub = "{'script.execute': {'id': 'publish_fingerprint'}}"
+    where = {"pair action": acts.get("pair"), "unpair action": acts.get("unpair"), "on_tag (confirming tap)": tag,
+             "pair_wait (end of the wait)": scripts.get("pair_wait"), "on_boot": (c.get("esphome") or {}).get("on_boot")}
+    for name, block in where.items():
+        if pub not in str(block):
+            msgs.append(f"not published from {name}")
+    pa = str((acts.get("pair") or {}).get("then"))
+    if pub in pa and pa.index(pub) > pa.find("'api.respond'"):
+        msgs.append("pair publishes the fingerprint after responding (the integration would read the old one)")
+    for b in walk(c):
+        if re.search(r"ESP_LOG\w\([^;]*(pair_fingerprint|reader_pairing_fingerprint|reader_key_fingerprint)", b):
+            msgs.append("a log line prints the fingerprint")
+            break
+    out.append(r("FW-190", "Reader pairing", "Reader: 'Pairing key fingerprint' (diagnostic) shows the paired or waiting key's fingerprint, published by pair, unpair, "
+                 "the confirming tap, the end of the wait and at boot (before the pair action answers)", not msgs, "; ".join(msgs) or "wired"))
+
+    # FW-191 SEC-016: the component embeds mb-<version> and checks it before the device boots a downloaded image
+    msgs = []
+    init = (REPO / "components/magicband/__init__.py").read_text()
+    cpp = (REPO / "components/magicband/magicband.cpp").read_text()
+    for needle, why in (('"CONFIG_APP_PROJECT_VER_FROM_CONFIG", True', "doesn't set CONFIG_APP_PROJECT_VER_FROM_CONFIG"),
+                        ('"CONFIG_APP_PROJECT_VER", IMAGE_VERSION_PREFIX + str(version)', "doesn't set CONFIG_APP_PROJECT_VER to mb-<version>"),
+                        ('IMAGE_VERSION_PREFIX = "mb-"', "Python prefix isn't mb-"),
+                        ("request_ota_state_listeners()", "doesn't ask for OTA state listeners"),
+                        ('"http_request"', "doesn't pick the http_request OTA"),
+                        ("set_update_ota(", "doesn't hand the OTA component to the guard")):
+        if needle not in init:
+            msgs.append(f"__init__.py {why}")
+    for needle in ("ota::OTA_COMPLETED", "component != this->ota_", "esp_ota_get_partition_description(boot", "image_version_ok(image",
+                   "esp_ota_set_boot_partition(running)"):
+        if needle not in cpp:
+            msgs.append(f"magicband.cpp lacks {needle}")
+    if 'IMAGE_VERSION_PREFIX = "mb-"' not in (REPO / "components/magicband/guards.h").read_text():
+        msgs.append("guards.h prefix isn't mb-")
+    base = esphome_src()
+    if base is None:
+        msgs.append("installed ESPHome not found")
+    else:
+        hr = (base / "components/http_request/ota/ota_http_request.cpp").read_text()
+        be = (base / "components/ota/ota_backend_esp_idf.cpp").read_text()
+        m = re.search(r"case ota::OTA_RESPONSE_OK:(.*?)break;", hr, re.S)
+        if not m or "notify_state_(ota::OTA_COMPLETED" not in m.group(1) or "safe_reboot" not in m.group(1) or \
+                m.group(1).index("OTA_COMPLETED") > m.group(1).index("safe_reboot"):
+            msgs.append("ESPHome changed: http_request OTA no longer notifies OTA_COMPLETED before restarting")
+        if "notify_state_deferred_(ota::OTA_COMPLETED" in hr:
+            msgs.append("ESPHome changed: OTA_COMPLETED is deferred (the restart could come first)")
+        e = re.search(r"OTAResponseTypes IDFOTABackend::end\(\) \{(.*?)\n\}", be, re.S)
+        if not e or "esp_ota_end(" not in e.group(1) or "esp_ota_set_boot_partition(this->partition_)" not in e.group(1) or \
+                e.group(1).index("esp_ota_end(") > e.group(1).index("esp_ota_set_boot_partition(this->partition_)"):
+            msgs.append("ESPHome changed: the ESP-IDF OTA backend no longer verifies (esp_ota_end) then sets the boot partition")
+    out.append(r("FW-191", "Automatic updates", "Update images carry mb-<version> in their signed app description and the component keeps booting the running "
+                 "firmware when a downloaded image is older (SEC-016); ESPHome still sets the boot partition after verifying and notifies before restarting",
+                 not msgs, "; ".join(msgs) or "component and ESPHome 2026.10 OTA flow as expected (compiled: FW-206/216/226)"))
 
     # FW-165 airtime budget constants (bridge / add-on component)
     h = (REPO / "components/magicband/magicband.h").read_text()

@@ -21,6 +21,10 @@
   since: 0.10.31
   docs: docs/security.md#devices-and-updates
   checks: [FW-021, FW-041, FW-061, FW-081, FW-023, FW-043, FW-063, FW-083, FW-166, FW-033, FW-053, FW-073, FW-093, FW-180, FW-301]
+- feature: "Update images carry their release (mb-<version>) in the signed app description; an older image never boots, whatever the manifest says (SEC-016)"
+  since: 0.10.33
+  docs: docs/reader.md#using-it-with-home-assistant
+  checks: [FW-184, FW-191, FW-206, FW-216, FW-226]
 - feature: "Time zone setting and internet time (select applied to both clocks)"
   since: 0.10.31
   docs: CHANGELOG.md
@@ -45,10 +49,18 @@
   since: 0.7.1
   docs: docs/security.md#devices-and-updates
   checks: [FW-030, FW-050, FW-070, FW-090, FW-034, FW-054, FW-074, FW-094, FW-312]
+- feature: "Safe mode only after a real boot loop (20 starts each failing within 30 s); restarts from Home Assistant don't count (SEC-018)"
+  since: 0.10.33
+  docs: docs/screek-bp2-poe.md
+  checks: [FW-186, FW-187, FW-188, FW-189]
 - feature: "Reader pairing with MagicbHAnds (key, first pairing by tap and first request wins, unpair, protected actions, Allow/Forget buttons off when paired)"
   since: 0.10.22
   docs: docs/security.md#who-can-change-whos-allowed-in
   checks: [FW-096, FW-130, FW-131, FW-132, FW-133, FW-134, FW-135, FW-136, FW-159, FW-161, FW-174, FW-177, FW-303]
+- feature: "Pairing key fingerprint (diagnostic): first 8 hex of SHA-256 of the paired or waiting key, so MagicbHAnds asks for a tap only for its own request (SEC-005)"
+  since: 0.10.33
+  docs: docs/reader.md#pairing-with-magicbhands
+  checks: [FW-137, FW-185, FW-190]
 - feature: "Test welcome (no tag scan, no refusal counted)"
   since: 0.10.4
   docs: docs/security.md#devices-and-updates
@@ -81,6 +93,10 @@
   since: 0.10.17
   docs: CHANGELOG.md
   checks: [FW-110, FW-111, FW-112, FW-113, FW-114, FW-160, FW-176, FW-182, FW-306]
+- feature: "A show sent during a tap (celebration, Stamp) is queued behind the welcome, not dropped; play_show answers success: false when it refuses (BUG-013)"
+  since: 0.10.33
+  docs: docs/reader.md#using-it-with-home-assistant
+  checks: [FW-178, FW-176]
 - feature: "Light shows on the page's live ring match the firmware (page.html SHOWS copy)"
   since: 0.10.17
   docs: custom_components/magicband/frontend/page.html
@@ -101,6 +117,10 @@
   since: 0.10.32
   docs: docs/reader.md#notes
   checks: [FW-175, FW-181, FW-318]
+- feature: "Bands that were ever on the reader's list (last 128) are never limited; unpaired Ask Home Assistant reader: 20 a minute, 200 an hour (BUG-020)"
+  since: 0.10.33
+  docs: docs/reader.md#notes
+  checks: [FW-179, FW-183]
 - feature: "Welcome sounds: the reader's chime plays for a person with their own sound while Home Assistant is down"
   since: 0.10.32
   docs: docs/reader.md#sounds

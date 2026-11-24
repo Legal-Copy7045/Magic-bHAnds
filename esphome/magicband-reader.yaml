@@ -62,6 +62,7 @@ esphome:
       - binary_sensor.template.publish:
           id: paired
           state: !lambda 'return magicband::reader_paired(id(pair_key));'
+      - script.execute: publish_fingerprint
       # A real state from the start (no lockout after a restart), so Home
       # Assistant shows "off" rather than "unknown" until the first lockout.
       - binary_sensor.template.publish:
@@ -154,25 +155,38 @@ api:
   actions:
     # Plays a light show: show = one of the shows in "Show", or "Random".
     # (esphome.<node>_play_show, or the integration's magicband.play_show.)
-    # Any Home Assistant user can call it, so at most 12 shows a minute.
+    # Any Home Assistant user can call it, so at most 12 shows a minute. A show
+    # sent during a tap (a celebration straight after the welcome) is queued:
+    # the play_show script waits for the welcome to finish. The reply says
+    # whether the show was taken (success: false with the reason if not).
     - action: play_show
       variables:
         show: string
       then:
         - if:
             condition:
-              and:
-                - lambda: 'return id(ring_ready);'
-                - not:
-                    script.is_running: band_tapped
-                - lambda: |-
-                    if (id(show_calls).allow(millis(), 60000)) return true;
-                    ESP_LOGW("reader", "play_show ignored: more than 12 shows a minute");
-                    return false;
+              lambda: 'return id(ring_ready);'
             then:
-              - script.execute:
-                  id: play_show
-                  show: !lambda 'return show;'
+              - if:
+                  condition:
+                    lambda: |-
+                      if (id(show_calls).allow(millis(), 60000)) return true;
+                      ESP_LOGW("reader", "play_show ignored: more than 12 shows a minute");
+                      return false;
+                  then:
+                    - script.execute:
+                        id: play_show
+                        show: !lambda 'return show;'
+                    - api.respond:
+                        success: true
+                  else:
+                    - api.respond:
+                        success: false
+                        error_message: "SHOW_RATE_LIMIT: more than 12 shows a minute; try again shortly"
+            else:
+              - api.respond:
+                  success: false
+                  error_message: "SHOW_NOT_READY: the ring isn't ready yet (the reader is starting)"
     # The MagicbHAnds integration pairs with the reader (components/magicband/
     # reader_key.h): afterwards accept, deny, set_known_bands and
     # set_band_colours need its key, so other Home Assistant users can't use
@@ -197,6 +211,7 @@ api:
         - binary_sensor.template.publish:
             id: paired
             state: !lambda 'return magicband::reader_paired(id(pair_key));'
+        - script.execute: publish_fingerprint
         - api.respond:
             success: !lambda 'return id(sync_error).empty();'
             error_message: !lambda 'return id(sync_error);'
@@ -210,6 +225,7 @@ api:
         - binary_sensor.template.publish:
             id: paired
             state: !lambda 'return magicband::reader_paired(id(pair_key));'
+        - script.execute: publish_fingerprint
         - api.respond:
             success: !lambda 'return id(sync_error).empty();'
             error_message: !lambda 'return id(sync_error);'
@@ -288,6 +304,7 @@ api:
             std::fill(id(known_list).begin(), id(known_list).end(), 0);
             if (err.empty()) {
               std::copy(out.begin(), out.end(), id(known_list).begin());
+              id(listed_bands).add_list(out);
               ESP_LOGI("reader", "Known bands updated: %u", (unsigned) std::count(out.begin(), out.end(), ',') - 1);
             } else {
               ESP_LOGE("reader", "%s. Known bands cleared: every band is denied until a valid list arrives",
@@ -450,6 +467,7 @@ pn532_i2c:
             - binary_sensor.template.publish:
                 id: paired
                 state: true
+            - script.execute: publish_fingerprint
             - script.stop: pair_wait
             - lambda: 'id(rgb) = {0.0f, 1.0f, 0.3f, 0.0f};'
             - script.execute:
@@ -1006,6 +1024,14 @@ globals:
     type: magicband::RateLimit<12>
   - id: unknown_tags      # unknown bands recently reported to Home Assistant (see band_tapped)
     type: magicband::UnknownTagLimit
+  - id: ask_tags          # the same, with "Ask Home Assistant" on a reader not paired with MagicbHAnds
+    type: magicband::AskTagLimit
+  # Bands that have been on the allowed list (the last 128, as hashes; kept
+  # through restarts): their taps always reach Home Assistant, also while
+  # they're off the list (outside their hours, a lockdown). See band_tapped.
+  - id: listed_bands
+    type: magicband::ListedBands<128>
+    restore_value: true
   - id: sync_error        # why the last set_known_bands failed ("" = applied)
     type: std::string
   # Each allowed band's owner's welcome colour: ",UID=Colour,UID=Colour,"
@@ -2015,6 +2041,16 @@ sensor:
       return n;
 
 text_sensor:
+  # The first 8 hex characters of the SHA-256 of the key this reader is paired
+  # with, or of the key whose first pairing is waiting for a tap; "none"
+  # otherwise. MagicbHAnds compares it with its own key's, so it only asks for
+  # a tap while the waiting request is its own. The key itself isn't shown.
+  - platform: template
+    id: pair_fingerprint
+    name: "Pairing key fingerprint"
+    icon: mdi:fingerprint
+    entity_category: diagnostic
+    update_interval: never
   # Sunset and sunrise from Home Assistant's sun, for "Night mode". Reading a
   # state needs no permission to perform actions.
   - platform: homeassistant
@@ -2412,6 +2448,14 @@ script:
                 effect: "None"
                 level: !lambda 'return (id(night) ? id(idle_glow_night).state : id(idle_glow).state) / 100.0f;'
 
+  # "Pairing key fingerprint": which key the reader is paired with, or which
+  # one's first pairing is waiting for its tap (reader_key.h), published when
+  # it changes.
+  - id: publish_fingerprint
+    then:
+      - lambda: |-
+          const std::string f = magicband::reader_pairing_fingerprint(id(pair_key), id(pending_key), id(pending_until), millis());
+          if (!id(pair_fingerprint).has_state() || id(pair_fingerprint).state != f) id(pair_fingerprint).publish_state(f);
   # A first pairing is waiting for a band tap (see the pair action): the ring
   # breathes blue until the wait ends (2 minutes after the first request;
   # asking again doesn't extend it), then goes back to normal.
@@ -2428,6 +2472,7 @@ script:
                 effect: "Offline"
                 level: 0.8
       - delay: !lambda 'return std::max<int32_t>(0, static_cast<int32_t>(id(pending_until) - millis()));'
+      - script.execute: publish_fingerprint   # the wait is over: back to "none"
       - if:
           condition:
             lambda: 'return id(ring_ready);'
@@ -2445,7 +2490,10 @@ script:
       # Not for "Test welcome": automations that react to any tag scan would fire.
       # Bands that aren't on the reader's list are limited (6 new IDs a minute,
       # 30 an hour; a recent one tapped again always goes), so made-up IDs
-      # can't fill Home Assistant's tag list. Bands on the list always go.
+      # can't fill Home Assistant's tag list. Bands on the list, or on it at
+      # any time before (listed_bands), always go. With "Ask Home Assistant" on
+      # a reader that isn't paired with MagicbHAnds, Home Assistant answers
+      # every tap, so the limit is 20 a minute and 200 an hour (guards.h).
       - if:
           condition:
             and:
@@ -2457,7 +2505,12 @@ script:
                       key += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
                   std::string list(id(known_list).data());
                   if (!key.empty() && list.find("," + key + ",") != std::string::npos) return true;  // on the list
-                  if (id(unknown_tags).allow(key, millis())) return true;
+                  if (id(listed_bands).contains(key)) return true;  // was on it (outside its hours, lockdown)
+                  if (!magicband::reader_paired(id(pair_key)) && id(response_mode).current_option() == "Ask Home Assistant") {
+                    if (id(ask_tags).allow(key, millis())) return true;
+                  } else if (id(unknown_tags).allow(key, millis())) {
+                    return true;
+                  }
                   ESP_LOGW("reader", "Unknown band not sent to Home Assistant: too many new bands this minute or hour");
                   return false;
           then:
@@ -2646,6 +2699,7 @@ button:
           if (list.size() >= id(known_list).size()) { ESP_LOGW("reader", "Known bands list is full"); return; }
           std::fill(id(known_list).begin(), id(known_list).end(), 0);
           std::copy(list.begin(), list.end(), id(known_list).begin());
+          id(listed_bands).add(key);
           ESP_LOGI("reader", "Allowed the last band");
       - component.update: known_band_count
   - platform: template

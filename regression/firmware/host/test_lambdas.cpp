@@ -1,5 +1,6 @@
 // The reader's lambdas, extracted from esphome/magicband-reader.yaml by
 // lambdas.py (lambdas_gen.h), run on the host with ASan/UBSan.
+#include <cstring>
 #include <set>
 #include "lambdas_gen.h"
 
@@ -453,6 +454,135 @@ static void fw175_tag_report() {
   result("FW-175", why.empty(), why.empty() ? fmt("unknown bands: 6 new a minute and 30 an hour reach Home Assistant (a 1-hour flood of 1,200 made-up IDs: %d), retaps of a reported band and listed bands always do", sent) : why);
 }
 
+// BUG-020: bands that were on the list always reach Home Assistant; Ask Home Assistant without MagicbHAnds has a higher limit
+static void fw179_listed_and_ask() {
+  using namespace esphome::magicband;
+  std::string why;
+  auto reset = [] {
+    mock::unknown_tags = esphome::magicband::UnknownTagLimit{};
+    mock::ask_tags = esphome::magicband::AskTagLimit{};
+    mock::listed_bands = esphome::magicband::ListedBands<128>{};
+  };
+  reset();
+  mock::pair_key.fill(0);
+  reader_pair(mock::pair_key, std::string(64, 'a'));
+  const std::string key(64, 'a');
+  // MagicbHAnds sends the household's 12 bands, then (outside their hours) none of them
+  std::string all = ",";
+  for (int i = 0; i < 12; i++) all += fmt("04%012X,", 0xA00 + i);
+  gen::set_known_bands(all, key);
+  if (mock::sync_error != "" || std::string(mock::known_list.data()) != all) why += "the list wasn't applied: " + mock::sync_error + "; ";
+  gen::set_known_bands("", key);
+  if (std::string(mock::known_list.data()) != ",") why += fmt("the empty list wasn't applied (%s); ", mock::known_list.data());
+  // a flood of made-up IDs uses up the unknown-band limit ...
+  uint32_t t = 1000;
+  for (int i = 0; i < 40; i++, t += 500) {
+    mock::now_ms = t;
+    gen::tag_report(fmt("0E%012X", i));
+  }
+  // ... but each household band, off the list now, in any spelling, still goes
+  for (int i = 0; i < 12; i++) {
+    mock::now_ms = t += 500;
+    std::string id = fmt("04%012X", 0xA00 + i);
+    if (i % 2) id = fmt("04-%02x-%02x-%02x-%02x-%02x-%02x", 0, 0, 0, 0, (0xA00 + i) >> 8, (0xA00 + i) & 0xFF);
+    if (!gen::tag_report(id)) why += "a band that was on the list was held back by the limit (" + id + "); ";
+  }
+  if (gen::tag_report(fmt("0E%012X", 999))) why += "a new made-up ID went through after the limit was used; ";
+  // a list that can't be applied remembers nothing
+  gen::set_known_bands("0A0B0C0D,XYZ", key);
+  mock::now_ms = t += 500;
+  if (gen::tag_report("0A0B0C0D")) why += "a band from a refused list was remembered; ";
+  // the wrong key on a paired reader adds nothing
+  gen::set_known_bands("0B0B0C0D", std::string(64, 'b'));
+  if (gen::tag_report("0B0B0C0D")) why += "a band from a list with the wrong key was remembered; ";
+  // Allow last band (unpaired reader) remembers the band too
+  mock::pair_key.fill(0);
+  set_list("");
+  mock::last_band.state = "0C-0B-0C-0D";
+  gen::allow_last_band();
+  set_list("");
+  if (!gen::tag_report("0C0B0C0D")) why += "a band added with Allow last band, then forgotten, was held back; ";
+  // remembered through a restart: the stored bytes come back
+  {
+    esphome::magicband::ListedBands<128> stored;
+    memcpy(&stored, &mock::listed_bands, sizeof stored);
+    reset();
+    memcpy(&mock::listed_bands, &stored, sizeof stored);
+    for (int i = 0; i < 40; i++) { mock::now_ms = t += 100; gen::tag_report(fmt("0F%012X", i)); }
+    if (!gen::tag_report(fmt("04%012X", 0xA05))) why += "a remembered band was held back after a restart; ";
+  }
+  // Ask Home Assistant on an unpaired reader: 20 new a minute, 200 an hour
+  reset();
+  mock::pair_key.fill(0);
+  mock::response_mode.opt = "Ask Home Assistant";
+  int ok = 0;
+  for (int i = 0; i < 40; i++) {
+    mock::now_ms = 50000000 + i * 1000;
+    if (gen::tag_report(fmt("04%012X", 0x5000 + i))) ok++;
+  }
+  if (ok != 20) why += fmt("unpaired, Ask HA: %d of 40 guests in 40 s reached Home Assistant (want 20); ", ok);
+  reset();
+  ok = 0;
+  for (int i = 0; i < 1200; i++) {
+    mock::now_ms = 60000000 + i * 3000;
+    if (gen::tag_report(fmt("04%012X", 0x9000 + i))) ok++;
+  }
+  if (ok != 200) why += fmt("unpaired, Ask HA: %d guests an hour (want 200); ", ok);
+  // paired, or another mode: the normal limit
+  reset();
+  reader_pair(mock::pair_key, key);
+  ok = 0;
+  for (int i = 0; i < 20; i++) {
+    mock::now_ms = 70000000 + i * 1000;
+    if (gen::tag_report(fmt("04%012X", 0x7000 + i))) ok++;
+  }
+  if (ok != 6) why += fmt("paired, Ask HA: %d of 20 unknown IDs in 20 s (want 6); ", ok);
+  reset();
+  mock::pair_key.fill(0);
+  mock::response_mode.opt = "Known bands only";
+  ok = 0;
+  for (int i = 0; i < 20; i++) {
+    mock::now_ms = 80000000 + i * 1000;
+    if (gen::tag_report(fmt("04%012X", 0x8000 + i))) ok++;
+  }
+  if (ok != 6) why += fmt("unpaired, Known bands only: %d of 20 unknown IDs in 20 s (want 6); ", ok);
+  mock::response_mode.opt = "";
+  mock::pair_key.fill(0);
+  set_list("");
+  reset();
+  result("FW-179", why.empty(), why.empty() ? "bands that were ever on the list (set_known_bands, Allow last band; kept through a restart) always reach Home Assistant, also off the list and after a flood; refused lists add nothing; unpaired Ask HA: 20 a minute / 200 an hour; otherwise 6 / 30" : why);
+}
+
+// SEC-005: the "Pairing key fingerprint" sensor follows the paired / waiting key and publishes only changes
+static void fw185_fingerprint_script() {
+  using namespace esphome::magicband;
+  std::string why;
+  mock::pair_key.fill(0), mock::pending_key.fill(0);
+  mock::pending_until = 0;
+  mock::pair_fingerprint = mock::TextSensor{};
+  mock::now_ms = 1000;
+  gen::script_publish_fingerprint();
+  if (mock::pair_fingerprint.state != "none" || mock::pair_fingerprint.published != 1) why += "boot: not \"none\" published once; ";
+  gen::script_publish_fingerprint();
+  if (mock::pair_fingerprint.published != 1) why += "republished an unchanged fingerprint; ";
+  const std::string k(32, 'b');
+  reader_request_pair(mock::pair_key, mock::pending_key, mock::pending_until, k, 2000);
+  gen::script_publish_fingerprint();
+  const std::string want = reader_key_fingerprint(mock::pending_key);
+  if (mock::pair_fingerprint.state != want || want.size() != 8) why += "waiting key not shown: " + mock::pair_fingerprint.state + "; ";
+  if (mock::pair_fingerprint.state.find("bbbb") != std::string::npos) why += "shows part of the key; ";
+  mock::now_ms = 2000 + PAIR_CONFIRM_MS;
+  gen::script_publish_fingerprint();
+  if (mock::pair_fingerprint.state != "none") why += "still shown after the wait ended; ";
+  reader_request_pair(mock::pair_key, mock::pending_key, mock::pending_until, k, mock::now_ms + 200000);
+  mock::now_ms += 201000;
+  reader_confirm_pair(mock::pair_key, mock::pending_key, mock::pending_until, mock::now_ms);
+  gen::script_publish_fingerprint();
+  if (mock::pair_fingerprint.state != want) why += "paired key not shown; ";
+  mock::pair_key.fill(0), mock::pending_key.fill(0);
+  result("FW-185", why.empty(), why.empty() ? "publish_fingerprint: \"none\", then the waiting key's fingerprint until its deadline, then \"none\", then the paired key's; unchanged values aren't republished" : why);
+}
+
 // SEC-011: the play_show action plays at most 12 shows a minute
 static void fw176_play_show_limit() {
   std::string why;
@@ -513,5 +643,7 @@ int main() {
   fw174_forget_buttons();
   fw175_tag_report();
   fw176_play_show_limit();
+  fw179_listed_and_ask();
+  fw185_fingerprint_script();
   return 0;
 }
