@@ -3,6 +3,16 @@
 One entry per full run (newest first): version, totals, failing check IDs, finding IDs, report link.
 No real names, hosts or device IDs: this file is public.
 
+## 2026-11-24 — 0.10.37 (clean, after five fix rounds)
+
+- Totals: 684 pass, 0 fail, 19 manual, 3 skip (706 checks; 157 features catalogued).
+- Stages: integration 246/0, ci 57/0, firmware 162/0 (+19 manual, every build compiled), page 185/0,
+  live 34/0 (+3 skip: GitHub Pages not reachable from the sandbox; release files checked instead).
+- Failing checks: none.
+- Findings: none open. Fixed since the first run: SEC-001..023 and BUG-001..030 as reviewed in rounds 1-5
+  (0.10.32 to 0.10.37); round 5's BUG-028, BUG-029, BUG-030 and SEC-023 fixed in 0.10.37.
+- Report: https://claude.ai/artifact/XZLBtezEhawCL1am8XatZY (private, updated in place)
+
 ## 2026-11-24 — 0.10.31 (first run)
 
 - Totals: 558 pass, 13 fail, 13 manual, 4 skip (584 automated checks; 123 features catalogued).
