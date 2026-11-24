@@ -667,6 +667,14 @@
       "title": "Too many allowed bands for the readers",
       "description": "{bands} bands are allowed, but a reader holds about {capacity}. Readers that can't store the whole list deny every band on their own until there are fewer allowed bands."
     },
+    "colours_too_long": {
+      "title": "Not every welcome colour fits in {reader}",
+      "description": "{reader} has room for the welcome colours of {kept} of the {total} allowed bands that have one. The others are welcomed in the reader's own Welcome colour. Fewer people with a personal welcome colour (or fewer allowed bands) makes them fit."
+    },
+    "sounds_too_long": {
+      "title": "Not every welcome sound fits in {reader}",
+      "description": "{reader} has room for {kept} of the {total} allowed bands whose owner has a welcome sound of their own. The others get the reader's tap-in sound instead of their own."
+    },
     "reader_offline": {
       "title": "{reader} is offline",
       "description": "Home Assistant hasn't been able to reach this MagicBand reader since {since}. It keeps welcoming bands from its last allowed list, but changes (such as a band you've revoked) don't reach it until it's back. Check its power and Wi-Fi."
@@ -674,6 +682,10 @@
     "battery_low": {
       "title": "{band} needs charging",
       "description": "Its battery is at {battery}%. This clears itself once the band has been charged. Set the reminder level under MagicbHAnds → Configure → Settings."
+    },
+    "reader_pairing_busy": {
+      "title": "Another pairing request is waiting on {reader}",
+      "description": "Someone else (another Home Assistant, or another user of this one) asked to pair {reader} first, and the reader is waiting for a band tap to confirm their request. Don't tap a band on it now: that tap would pair it with them. Their request runs out after 2 minutes, and MagicbHAnds will try again by itself. If you didn't expect this, check who else can reach the reader."
     },
     "reader_pairing": {
       "title": "Tap a band on {reader} to pair it",

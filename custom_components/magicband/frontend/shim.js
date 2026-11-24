@@ -19,7 +19,23 @@
                           'link_bluetooth', 'unlink_bluetooth', 'forget_bluetooth', 'sync', 'send', 'list', 'list_bluetooth_bands',
                           'set_band_access', 'enrol', 'stop_enrolment', 'history', 'set_reader_camera', 'set_snapshot_days',
                           'set_guest_pass', 'set_settings', 'play_show'] };
-  var NOPRESS = /factory_reset|safe_mode|forget_all/;   // buttons the page may not press
+  var NOPRESS = /factory_reset|safe_mode|forget_all/;   // buttons the page may not press (by entity id)
+  // ...and by name, from the entity registry and the state, so a renamed one (button.porch_wipe) is still refused
+  var NOPRESS_NAME = /factory[\s_-]*reset|safe[\s_-]*mode|forget[\s_-]*all/i;
+  // CTRL only reaches entities on MagicbHAnds devices: the readers' and bridges' own (ESPHome) entities, and the
+  // integration's (platform magicband). Anything else in Home Assistant (another switch, light or button) is refused.
+  var MB_MODELS = /^magicband-(reader|bridge|bp2-poe)$/;
+  function controllable(h, eid) {
+    var e = h.entities && h.entities[eid]; if (!e) return false;
+    if (e.platform === 'magicband') return true;
+    var d = e.device_id && h.devices ? h.devices[e.device_id] : null;
+    return !!(d && MB_MODELS.test(d.model || ''));
+  }
+  function noPress(h, eid) {
+    if (NOPRESS.test(eid)) return true;
+    var e = (h.entities && h.entities[eid]) || {}, st = (h.states && h.states[eid]) || {};
+    return [e.name, e.original_name, e.translation_key, (st.attributes || {}).friendly_name].some(function (n) { return n && NOPRESS_NAME.test(String(n)); });
+  }
   var idxFor = null, idx = {};
   function nameIndex(h) {
     if (idxFor === h.states) return idx;
@@ -43,7 +59,8 @@
     call: function (domain, service, eid, data) {
       var h = getHass(); if (!h || !h.callService) return Promise.reject(new Error('Home Assistant is not connected'));
       if (String(eid).split('.')[0] !== domain || !CTRL[domain] || CTRL[domain].indexOf(service) < 0) return Promise.reject(new Error('not allowed: ' + domain + '.' + service));
-      if (domain === 'button' && NOPRESS.test(eid)) return Promise.reject(new Error('not allowed from this page: ' + eid));
+      if (!controllable(h, eid)) return Promise.reject(new Error('not a MagicbHAnds device: ' + eid));
+      if (domain === 'button' && noPress(h, eid)) return Promise.reject(new Error('not allowed from this page: ' + eid));
       var d = { entity_id: eid }; for (var k in (data || {})) d[k] = data[k];
       return h.callService(domain, service, d);
     },

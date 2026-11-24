@@ -3,6 +3,60 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.32] - 2026-11-24
+
+Fixes from the first full regression run (`regression/RUNS.md`).
+
+### Security
+- **Welcome sounds and tap pictures:** downloads need an administrator or a
+  genuinely signed link. Before, any signed-in user could add a made-up
+  signature to the address and get the file.
+- **First pairing:** the first request wins and can't be kept open by asking
+  again; another key's request gets "busy", and MagicbHAnds says in Repairs not
+  to tap and tries again by itself.
+- **Readers:** Forget all bands and Forget last band do nothing while paired;
+  unknown bands are reported to Home Assistant at most 6 a minute and 30 an
+  hour; the reader's own play_show action is limited to 12 a minute.
+- **SCREEK BP2-POE:** the Safe Mode Boot button (pressable by any user) is gone.
+- **Automatic updates** only install newer releases, never an older one.
+- **The page** can only control entities on MagicbHAnds readers and bridges.
+- **Release pipeline:** the signing job only signs commits on main, installs
+  its tools from hash-pinned requirements, and the build job no longer holds
+  attestation permissions. Release verification pins the workflow and branch.
+- **Privacy guard:** checks every commit in a push, new branches from where
+  they left main, file names, and text inside binaries and zip files.
+- `docs/security.md`: claims corrected, and a new **Accepted risks** section.
+
+### Fixed
+- **An unplugged reader showed as online** on the MagicbHAnds page.
+- **Welcome sound uploads** were saved cut short, and the 2 MB limit never
+  applied.
+- **Removing a person in Configure** left their welcome sound and passport
+  behind; **removing a band** left its Bluetooth band linked to it.
+- **Refused-tap lockout:** the first lockout after a reader restart sent no
+  notification, and a notification could stay up after a restart.
+- **Welcome sounds** were silent after a Home Assistant restart until the next
+  sync, and when Home Assistant was down (the reader now plays its own chime).
+- Welcome-colour and sound lists that don't fit a reader are cut to whole
+  entries with a repair, instead of failing on the reader.
+- Changing LED count, brightness, colour order or idle glow no longer cuts off
+  a tap's welcome or denied sequence.
+- The page's "Tonight" times and live ring use the reader's **Time zone**.
+- Sunset and sunrise times follow a **Time zone** change at once.
+- After a power cut at night, the start-up sound honours **Sound at night**.
+- The **Heartbeat** show ends dark; dim colours keep their mix even at the
+  lowest LED brightness.
+- Hanukkah days that fall in January are celebrated.
+- The automatic-update install message is logged on the reader.
+- Home Assistant deprecation warnings about the device registry.
+- Page: the Time zone selects are labelled, the jump and status chips are full
+  size on touch screens, Assign and Link errors show on their card, and a
+  person's actions line up with the rest of the row.
+
+### Regression suite
+- New checks for every fix; 208 integration tests, 182 page checks, firmware
+  and CI checks extended.
+
 ## [0.10.31] - 2026-11-23
 
 ### Firmware

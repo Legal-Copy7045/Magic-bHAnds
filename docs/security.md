@@ -93,7 +93,7 @@ must leave a 2-minute gap before asking again, so nobody can hold a new
 reader's pairing open indefinitely. Any Home Assistant user can call an
 unpaired reader's own `pair` action, so someone else could ask first; then
 MagicbHAnds' own request is refused and it notices and says so in Repairs:
-**don't tap**, wait 2 minutes and sync again. Only a tap while *MagicbHAnds*
+**don't tap**; MagicbHAnds asks again by itself after 2 minutes. Only a tap while *MagicbHAnds*
 asks you to should finish pairing.
 The **Paired with MagicbHAnds** sensor on the reader shows its state.
 

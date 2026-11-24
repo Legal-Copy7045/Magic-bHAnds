@@ -211,7 +211,9 @@ class MagicBandOptionsFlow(OptionsFlow):
         if not self._registry.people:
             return self.async_abort(reason="no_people")
         if user_input is not None:
-            self._registry.remove_person(user_input["person"])
+            from . import async_remove_person  # noqa: PLC0415 - the package imports this module's neighbours
+
+            await async_remove_person(self.hass, self.config_entry.runtime_data, user_input["person"])
             return self.async_create_entry(data=dict(self.config_entry.options))
         return self.async_show_form(
             step_id="remove_person",
@@ -297,8 +299,9 @@ class MagicBandOptionsFlow(OptionsFlow):
         if not self._registry.bands:
             return self.async_abort(reason="no_bands")
         if user_input is not None:
-            self._registry.remove_band(user_input["band"])
-            persistent_notification.async_dismiss(self.hass, f"{DOMAIN}_unknown_{user_input['band']}")
+            from . import async_remove_band  # noqa: PLC0415
+
+            async_remove_band(self.hass, self.config_entry.runtime_data, user_input["band"])
             return self.async_create_entry(data=dict(self.config_entry.options))
         return self.async_show_form(
             step_id="remove_band",

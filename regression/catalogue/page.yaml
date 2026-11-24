@@ -55,6 +55,10 @@
   since: 0.10.28
   docs: docs/reader.md
   checks: [PAGE-035, PAGE-152, PAGE-158]
+- feature: Night times in the reader's Time zone setting (not the browser's)
+  since: 0.10.32
+  docs: docs/reader.md
+  checks: [PAGE-175, PAGE-176, PAGE-177, PAGE-178]
 - feature: Refused-tap lockout
   since: 0.10.28
   docs: docs/reader.md
@@ -90,7 +94,11 @@
 - feature: Older firmware hides settings gracefully
   checks: [PAGE-146, PAGE-147, PAGE-148]
 - feature: Offline devices
-  checks: [PAGE-166, PAGE-167]
+  checks: [PAGE-166, PAGE-167, PAGE-174]
+- feature: Page controls reach only MagicbHAnds devices
+  since: 0.10.32
+  docs: custom_components/magicband/frontend/shim.js
+  checks: [PAGE-179, PAGE-180, PAGE-181, PAGE-182]
 - feature: Bridge cards
   docs: docs/bridge.md
   checks: [PAGE-107, PAGE-159]

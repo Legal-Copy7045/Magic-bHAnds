@@ -420,7 +420,9 @@ async def test_reader_shows_the_band_name(hass: HomeAssistant, setup_integration
     assert entity.device_id == reader_device.id
     entry = hass.config_entries.async_entries(DOMAIN)[0]
     ours = dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
-    assert [d.id for d in ours if not d.identifiers] == [reader_device.id]   # only the shared reader device
+    # No extra device of ours for it, and the reader's device isn't moved into this integration's config entry
+    # (Home Assistant deprecates add_config_entry_id: a device belongs to one config entry).
+    assert [d.id for d in ours if not d.identifiers] == []
 
 
 async def test_stray_reader_device_is_cleaned_up(hass: HomeAssistant, reader_device) -> None:
@@ -538,3 +540,56 @@ async def test_linked_band_is_a_magicband_plus(hass: HomeAssistant, setup_integr
     await hass.async_block_till_done()
     # linking proves it has Bluetooth, so the wrong "standard" is corrected
     assert hass.states.get(entity_id).state == "plus"
+
+
+@pytest.mark.parametrize("how", ["action", "configure"])
+async def test_removing_the_nfc_band_unlinks_its_bluetooth_band(
+    hass: HomeAssistant, setup_integration, reader_device, how: str
+) -> None:
+    """BUG-003: remove_band (and Configure -> Remove a band) unlink the Bluetooth band, as pruning does."""
+    from homeassistant.data_entry_flow import FlowResultType
+
+    tag = "0453652AC05F80"
+    hass.bus.async_fire("tag_scanned", {"tag_id": tag, "device_id": reader_device.id})
+    band = _beacon(hass, BAND_X)
+    await hass.async_block_till_done()
+    await hass.services.async_call(DOMAIN, "link_bluetooth", {"bluetooth_band": band.id, "band": "last"}, blocking=True)
+    await hass.async_block_till_done()
+    tracker = _tracker(hass)
+    assert tracker.for_nfc(tag) is band
+    if how == "action":
+        await hass.services.async_call(DOMAIN, "remove_band", {"band": "04-53-65-2a-c0-5f-80"}, blocking=True)
+    else:
+        entry = hass.config_entries.async_entries(DOMAIN)[0]
+        result = await hass.config_entries.options.async_init(entry.entry_id)
+        result = await hass.config_entries.options.async_configure(result["flow_id"], {"next_step_id": "remove_band"})
+        result = await hass.config_entries.options.async_configure(result["flow_id"], {"band": tag})
+        assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    assert band.band_uid is None
+    assert band in tracker._unlinked()  # free to be paired by a tap again
+    # The same tag scanned again is a new, unknown band, not the old Bluetooth band's.
+    hass.bus.async_fire("tag_scanned", {"tag_id": tag, "device_id": reader_device.id})
+    await hass.async_block_till_done()
+    assert tracker.for_nfc(tag) is None
+
+
+async def test_reader_device_stays_esphomes_and_no_deprecated_device_registry_use(
+    hass: HomeAssistant, setup_integration, reader_device, caplog
+) -> None:
+    """Home Assistant deprecates reading device_registry.devices as a mapping and moving devices between config
+    entries (add_/remove_config_entry_id): the reader's sensors go on its device, which stays ESPHome's alone."""
+    import re
+    from pathlib import Path
+
+    from homeassistant.helpers import entity_registry as er
+
+    hass.bus.async_fire("tag_scanned", {"tag_id": "04C1D2E3F40590", "device_id": reader_device.id})
+    await hass.async_block_till_done()
+    ours = [e for e in er.async_entries_for_device(er.async_get(hass), reader_device.id) if e.platform == DOMAIN]
+    assert {e.unique_id for e in ours} == {f"reader_{reader_device.id}_last_band", f"reader_{reader_device.id}_allowed_list"}
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    assert entry.entry_id not in dr.async_get(hass).async_get(reader_device.id).config_entries
+    assert "deprecat" not in caplog.text.lower()
+    source = "\n".join(p.read_text() for p in Path(__file__).resolve().parents[1].glob("custom_components/magicband/*.py"))
+    assert not re.search(r"\.devices\b|add_config_entry_id|remove_config_entry_id", source)

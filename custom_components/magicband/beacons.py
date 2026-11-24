@@ -125,18 +125,13 @@ def find_device(
     identifiers: set[tuple[str, str]] | None = None,
     connections: set[tuple[str, str]] | None = None,
 ) -> dr.DeviceEntry | None:
-    """A device with any of these identifiers or connections.
-
-    Searches the device registry's entries directly rather than calling
-    DeviceRegistry.async_get_device, which Home Assistant has deprecated.
-    """
-    want_ids = set(identifiers or ())
-    want_conn = {(t, v.lower()) for t, v in (connections or ())}
-    for device in dr.async_get(hass).devices.values():
-        if want_ids & device.identifiers:
-            return device
-        if want_conn and want_conn & {(t, v.lower()) for t, v in device.connections}:
-            return device
+    """A device with any of these identifiers or connections (the registry's own lookup, by keyword)."""
+    dev_reg = dr.async_get(hass)
+    if identifiers and (device := dev_reg.async_get_device(identifiers=set(identifiers))) is not None:
+        return device
+    if connections:
+        # Wi-Fi MACs are normalised by the registry; Bluetooth addresses are stored as given (either case).
+        return dev_reg.async_get_device(connections={(t, f(v)) for t, v in connections for f in (str.upper, str.lower)})
     return None
 
 
