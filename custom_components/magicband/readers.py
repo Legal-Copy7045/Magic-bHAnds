@@ -136,13 +136,51 @@ def node_name(hass: HomeAssistant, device: dr.DeviceEntry) -> str | None:
     return None
 
 
-def _no_reply(err: Exception) -> bool:
-    """Whether a failed reader action only got no reply (a timeout, or the reader not connected yet), rather
-    than an answer refusing it."""
+try:  # ESPHome's connection errors (aioesphomeapi comes with Home Assistant's ESPHome integration)
+    from aioesphomeapi import APIConnectionError as _APIConnectionError
+except ImportError:  # pragma: no cover - ESPHome's library isn't installed
+    _APIConnectionError = None
+
+# Texts of failures that are only "no reply": the reader isn't connected (yet), or the connection dropped. Among them
+# ESPHome's own while it (re)connects to a reader (BUG-025). The reader's refusals contain none of them.
+_NO_REPLY_TEXTS = ("timeout", "timed out", "not connected", "unavailable", "no response",
+                   "connection not ready", "isn't established", "connection closed")
+
+
+def _no_reply(err: BaseException) -> bool:
+    """Whether a failed reader action only got no reply (a timeout, or the reader not connected yet or any more),
+    rather than an answer refusing it. HA's ESPHome wraps connection errors in its own exception, so the cause
+    chain is checked too; the reader's own refusals have no ESPHome connection error behind them."""
+    seen: set[int] = set()
+    link: BaseException | None = err
+    while link is not None and id(link) not in seen:
+        seen.add(id(link))
+        if isinstance(link, TimeoutError) or (
+            _APIConnectionError is not None and isinstance(link, _APIConnectionError)
+        ):
+            return True
+        link = link.__cause__ or link.__context__
     text = str(err).lower()
-    return isinstance(err, TimeoutError) or any(
-        word in text for word in ("timeout", "timed out", "not connected", "unavailable", "no response")
-    )
+    return any(word in text for word in _NO_REPLY_TEXTS)
+
+
+def _entities_available(hass: HomeAssistant, device_id: str) -> bool | None:
+    """Whether the reader's ESPHome connection is up, judged by its entities: False when every one that has a state
+    is unavailable, None when none has a state yet (nothing to judge by). HA's ESPHome keeps a reader's actions
+    registered while it's disconnected, so they don't tell (BUG-026)."""
+    states = [s for e in _esphome_entities(hass, device_id) if (s := hass.states.get(e.entity_id)) is not None]
+    if not states:
+        return None
+    return any(s.state != "unavailable" for s in states)
+
+
+def reader_online(hass: HomeAssistant, device: dr.DeviceEntry, node: str | None = None) -> bool:
+    """Whether a reader is connected: its set_known_bands action is registered and its entities aren't all
+    unavailable."""
+    node = node if node is not None else node_name(hass, device)
+    if node is None or not hass.services.has_service("esphome", _service_for(node, READER_SET_SERVICE_SUFFIX)):
+        return False
+    return _entities_available(hass, device.id) is not False
 
 
 def _service_for(node: str, suffix: str) -> str:
@@ -200,7 +238,8 @@ async def async_play_show(
         name = device.name_by_user or device.name or "MagicBand reader"
         node = node_name(hass, device)
         service = _service_for(node, SHOW_SERVICE_SUFFIX) if node else None
-        if service is None or not hass.services.has_service("esphome", service):
+        if (service is None or not hass.services.has_service("esphome", service)
+                or _entities_available(hass, device.id) is False):  # disconnected: ESPHome keeps its actions
             skipped.append(name)
             continue
         recent = times.setdefault(device.id, deque())
@@ -264,10 +303,13 @@ class ReaderManager:
         """The ends of pairing windows saved before a restart or reload (ones already over are dropped)."""
         stored = await self._pair_store.async_load() or {}
         now = dt_util.utcnow()
+        latest = now + timedelta(seconds=PAIRING_WINDOW)
         for device_id, end in (stored.get("ends") or {}).items():
             when = dt_util.parse_datetime(end) if isinstance(end, str) else None
             if when is not None and when > now:
-                self._pair_ends[device_id] = end
+                # No request waits longer than PAIRING_WINDOW from now: an end further off was saved by a clock
+                # that was behind, and mustn't stretch "Tap a band" (BUG-024).
+                self._pair_ends[device_id] = min(when, latest).isoformat()
 
     @callback
     def _save_pair_end(self, device_id: str, end: datetime | None) -> None:
@@ -326,7 +368,9 @@ class ReaderManager:
                 continue
             node = node_name(self.hass, device)
             service = _service_for(node, READER_SET_SERVICE_SUFFIX) if node else None
-            if service is None or not self.hass.services.has_service("esphome", service):
+            if service is None or not reader_online(self.hass, device, node):
+                # Not connected (its entities unavailable, or no action): it gets the lists when it's back, and
+                # check_health gives it the "offline" repair if it stays away (BUG-026).
                 status.state, status.error = OFFLINE, None
                 continue
             sent += 1
@@ -342,8 +386,9 @@ class ReaderManager:
                 failed_names.append(status.name)
                 status.state, status.error = FAILED, str(err) or type(err).__name__
                 if _no_reply(err):
-                    self._no_reply[device.id] = self._no_reply.get(device.id, 0) + 1
-                    self._schedule_retry(NO_REPLY_RETRY)
+                    self._no_reply[device.id] = count = self._no_reply.get(device.id, 0) + 1
+                    if count < NO_REPLY_REPAIR:  # then only the regular sync: no resync of every reader each 30 s
+                        self._schedule_retry(NO_REPLY_RETRY)
                 else:
                     self._no_reply.pop(device.id, None)
                 _LOGGER.warning("Reader %s didn't take the allowed list: %s", status.name, status.error)
@@ -425,7 +470,7 @@ class ReaderManager:
                     if end is not None and end > now:
                         # Our request from before a restart or reload is the one waiting: its window keeps its end
                         # (SEC-021/BUG-024), so "Tap a band" never outlasts the reader's own wait.
-                        left = max(1.0, (end - now).total_seconds())
+                        left = min(PAIRING_WINDOW, max(1.0, (end - now).total_seconds()))
                     else:
                         left = max(1.0, PAIRING_WINDOW - (time.monotonic() - asked))
                         self._save_pair_end(device.id, now + timedelta(seconds=left))
@@ -544,7 +589,7 @@ class ReaderManager:
 
     @callback
     def check_health(self, now: datetime | None = None) -> None:
-        """Readers that have been offline (no actions in Home Assistant) for a while get a repair."""
+        """Readers that have been offline (entities all unavailable, or no actions) for a while get a repair."""
         now = now or dt_util.utcnow()
         devices = {d.id: d for d in reader_devices(self.hass)}
         for device_id, device in devices.items():
@@ -553,10 +598,7 @@ class ReaderManager:
                 self._offline_since.pop(device_id, None)
                 ir.async_delete_issue(self.hass, DOMAIN, f"reader_offline_{device_id}")
                 continue
-            node = node_name(self.hass, device)
-            online = node is not None and self.hass.services.has_service(
-                "esphome", _service_for(node, READER_SET_SERVICE_SUFFIX)
-            )
+            online = reader_online(self.hass, device)
             if online:
                 self._offline_since.pop(device_id, None)
                 if status.state == OFFLINE:

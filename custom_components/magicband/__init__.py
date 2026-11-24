@@ -430,7 +430,13 @@ def _handle_scan(hass: HomeAssistant, data: MagicBandData, tag_id: str, device_i
         # restart, or a failed sync, the reader still skips its own tap-in sound for the bands it last heard of.
         if (data.readers.takes_sounds(device_id) and band.uid not in data.readers.sounds_left_out
                 and person.id not in data.readers.sounds_failing):
-            data.pending_sounds[device_id] = (person.id, time.monotonic())
+            if _reader_entity_id(hass, device_id, "event", "Band scan"):
+                data.pending_sounds[device_id] = (person.id, time.monotonic())
+            else:
+                # Its "Band scan" is disabled (BUG-027): nothing will say the reader welcomed them, and the reader
+                # stays silent for this band, so the sound plays at once (as for a reader without the event).
+                hass.async_create_background_task(_play_welcome_sound(hass, data, person, device_id),
+                                                  f"{DOMAIN}_welcome_sound")
 
     hass.bus.async_fire(
         EVENT_TAP,
@@ -517,9 +523,13 @@ def _welcome_extras(hass: HomeAssistant, data: MagicBandData, person, device_id:
 
 
 def _reader_entity_id(hass: HomeAssistant, device_id: str, domain: str, name: str) -> str | None:
-    """The reader's own (ESPHome) entity with this name, if it has one."""
+    """The reader's own (ESPHome) entity with this name, if it has one that's enabled.
+
+    A disabled entity never changes state, so one waiting for it would wait for nothing (BUG-027): callers then
+    behave as for older firmware without it."""
     for ent in er.async_entries_for_device(er.async_get(hass), device_id):
-        if ent.platform == "esphome" and ent.domain == domain and ent.original_name == name:
+        if (ent.platform == "esphome" and ent.domain == domain and ent.original_name == name
+                and ent.disabled_by is None):
             return ent.entity_id
     return None
 

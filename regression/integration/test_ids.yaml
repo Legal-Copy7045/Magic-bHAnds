@@ -1,6 +1,6 @@
 # Stable IDs for the integration tests (regression/integration/run.py). Append-only: never renumber or
 # reuse an ID. Renamed a test? Edit its line here to keep its ID.
-# highest issued: INT-232
+# highest issued: INT-244
 INT-001: "tests/test_beacons.py::test_parse"
 INT-002: "tests/test_beacons.py::test_real_beacons_make_two_bands"
 INT-003: "tests/test_beacons.py::test_nearby_goes_off_after_missed_beacons"
@@ -233,3 +233,15 @@ INT-229: "tests/test_celebrations.py::test_a_show_waits_for_the_reader_to_welcom
 INT-230: "tests/test_features.py::test_tap_a_band_keeps_its_end_over_a_reload"
 INT-231: "tests/test_features.py::test_tap_a_band_goes_when_magicbhands_is_unloaded"
 INT-232: "tests/test_security.py::test_a_reader_that_doesnt_reply_gets_the_repair_only_after_three_tries"
+INT-233: "tests/test_beacons.py::test_find_device_on_home_assistant_before_2026_11"
+INT-234: "tests/test_beacons.py::test_find_device_uses_async_get_devices"
+INT-235: "tests/test_celebrations.py::test_a_show_plays_at_once_with_band_scan_disabled"
+INT-236: "tests/test_features.py::test_no_reply_retries_stop_after_the_repair"
+INT-237: "tests/test_features.py::test_esphome_reconnect_errors_are_no_reply[not-ready]"
+INT-238: "tests/test_features.py::test_esphome_reconnect_errors_are_no_reply[not-established]"
+INT-239: "tests/test_features.py::test_esphome_reconnect_errors_are_no_reply[closed]"
+INT-240: "tests/test_features.py::test_esphome_reconnect_errors_are_no_reply[not-connected]"
+INT-241: "tests/test_features.py::test_esphome_reconnect_errors_are_no_reply[timeout]"
+INT-242: "tests/test_features.py::test_no_reply_follows_the_cause_and_keeps_refusals"
+INT-243: "tests/test_features.py::test_saved_pairing_ends_are_capped_at_two_minutes"
+INT-244: "tests/test_sounds_lockout.py::test_own_sound_plays_at_once_with_band_scan_disabled"

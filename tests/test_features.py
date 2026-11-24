@@ -247,7 +247,18 @@ async def test_charge_me_blueprint_ships(hass: HomeAssistant, setup_integration)
 async def test_reader_status_and_offline_repair(
     hass: HomeAssistant, setup_integration, reader_device, freezer: FrozenDateTimeFactory
 ) -> None:
+    """BUG-026: a reader is offline when its ESPHome entities are unavailable, even though Home Assistant's ESPHome
+    keeps its actions registered while it's disconnected. It isn't synced while offline (no warning every 1.5
+    minutes, no resync of the others) and gets the "offline" repair after 15 minutes. A reader whose actions are
+    gone altogether is offline too."""
+    from homeassistant.helpers import device_registry as dr, entity_registry as er
+
     calls = _reader_calls(hass)
+    # A reader on its default name (magicband-reader-<end of MAC>): its actions still answer to that name while its
+    # "ESPHome name" sensor is unavailable, so only the entities show it's gone.
+    mac = next(v for k, v in reader_device.connections if k == dr.CONNECTION_NETWORK_MAC).replace(":", "")[-6:]
+    default_calls = _reader_calls(hass, f"magicband-reader-{mac}")
+    entities = [e.entity_id for e in er.async_entries_for_device(er.async_get(hass), reader_device.id)]
     await _person_with_band(hass)
     await hass.services.async_call(DOMAIN, "sync", {}, blocking=True)
     await hass.async_block_till_done()
@@ -256,20 +267,129 @@ async def test_reader_status_and_offline_repair(
     )
     assert sensor.state == "up_to_date" and sensor.attributes["bands"] == 1 and sensor.attributes["welcome_colours"]
     assert calls["bands"]
+    issues = ir.async_get(hass)
 
-    hass.services.async_remove("esphome", "lounge_reader_set_known_bands")  # the reader went offline
+    for entity_id in entities:  # unplugged: ESPHome marks its entities unavailable and keeps its actions
+        hass.states.async_set(entity_id, "unavailable")
+    sent = len(calls["bands"]) + len(default_calls["bands"])
     for _ in range(16):
         freezer.tick(timedelta(minutes=1))
         async_fire_time_changed(hass)
         await hass.async_block_till_done()
     assert hass.states.get(sensor.entity_id).state == "offline"
-    assert ir.async_get(hass).async_get_issue(DOMAIN, f"reader_offline_{reader_device.id}") is not None
+    assert issues.async_get_issue(DOMAIN, f"reader_offline_{reader_device.id}") is not None
+    assert issues.async_get_issue(DOMAIN, f"reader_sync_failed_{reader_device.id}") is None
+    assert len(calls["bands"]) + len(default_calls["bands"]) == sent  # the periodic sync left it alone
+    result = await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    assert result["readers"] == 0 and result["failed"] == []
+
+    hass.states.async_set(entities[0], "lounge-reader")  # back
+    freezer.tick(timedelta(minutes=1))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert issues.async_get_issue(DOMAIN, f"reader_offline_{reader_device.id}") is None
+
+    hass.services.async_remove("esphome", "lounge_reader_set_known_bands")  # no actions at all: offline as well
+    for _ in range(16):
+        freezer.tick(timedelta(minutes=1))
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done()
+    assert hass.states.get(sensor.entity_id).state == "offline"
+    assert issues.async_get_issue(DOMAIN, f"reader_offline_{reader_device.id}") is not None
 
     hass.services.async_register("esphome", "lounge_reader_set_known_bands", lambda c: None)
     freezer.tick(timedelta(minutes=1))
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
-    assert ir.async_get(hass).async_get_issue(DOMAIN, f"reader_offline_{reader_device.id}") is None
+    assert issues.async_get_issue(DOMAIN, f"reader_offline_{reader_device.id}") is None
+
+
+async def test_no_reply_retries_stop_after_the_repair(hass: HomeAssistant, setup_integration, reader_device) -> None:
+    """BUG-026: a reader that doesn't answer is tried again after 30 s, but only until the "didn't take the allowed
+    list" repair shows (NO_REPLY_REPAIR no-replies in a row); then the regular sync carries on alone."""
+    from homeassistant.exceptions import HomeAssistantError
+
+    from custom_components.magicband import readers as readers_mod
+
+    def no_reply(call: ServiceCall) -> None:
+        raise HomeAssistantError("Failed to execute the action call set_known_bands on lounge-reader: "
+                                 "Not connected to lounge-reader!")
+
+    hass.services.async_register("esphome", "lounge_reader_set_known_bands", no_reply)
+    await _person_with_band(hass)
+    manager = _data(hass).readers
+    issues = ir.async_get(hass)
+    for attempt in range(1, readers_mod.NO_REPLY_REPAIR + 2):
+        manager._retry_at = None
+        await manager.async_sync()
+        repair = issues.async_get_issue(DOMAIN, f"reader_sync_failed_{reader_device.id}")
+        if attempt < readers_mod.NO_REPLY_REPAIR:
+            assert manager._retry_at is not None and repair is None
+        else:
+            assert manager._retry_at is None and repair is not None
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        ("Failed to execute the action call set_known_bands on lounge-reader: Authenticated connection not ready yet "
+         "for lounge-reader; current state is ConnectionState.SOCKET_OPENED!"),
+        ("Failed to execute the action call set_known_bands on lounge-reader: Connection isn't established yet "
+         "(ConnectionState.CONNECTING)"),
+        "Failed to execute the action call set_known_bands on lounge-reader: Connection closed",
+        "Failed to execute the action call set_known_bands on lounge-reader: Not connected to lounge-reader!",
+        "Timeout waiting for response from action call set_known_bands on lounge-reader",
+    ],
+    ids=["not-ready", "not-established", "closed", "not-connected", "timeout"],
+)
+async def test_esphome_reconnect_errors_are_no_reply(
+    hass: HomeAssistant, setup_integration, reader_device, message: str
+) -> None:
+    """BUG-025: ESPHome's errors while it (re)connects to a reader are no-replies, not refusals: no repair at once."""
+    from homeassistant.exceptions import HomeAssistantError
+
+    from custom_components.magicband.readers import _no_reply
+
+    assert _no_reply(HomeAssistantError(message))
+
+    def fail(call: ServiceCall) -> None:
+        raise HomeAssistantError(message)
+
+    hass.services.async_register("esphome", "lounge_reader_set_known_bands", fail)
+    await _person_with_band(hass)
+    result = await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    assert result["failed"] == ["Lounge reader"]
+    assert ir.async_get(hass).async_get_issue(DOMAIN, f"reader_sync_failed_{reader_device.id}") is None
+
+
+def test_no_reply_follows_the_cause_and_keeps_refusals(monkeypatch: pytest.MonkeyPatch) -> None:
+    """BUG-025: HA's ESPHome wraps aioesphomeapi's APIConnectionError (and timeouts) in its own error: a failure
+    caused by one is a no-reply whatever its text. Any answer from the reader is still a refusal."""
+    from homeassistant.exceptions import HomeAssistantError
+
+    from custom_components.magicband import readers as readers_mod
+
+    class APIConnectionError(Exception):
+        """Stands in for aioesphomeapi's (not installed in the test environment)."""
+
+    monkeypatch.setattr(readers_mod, "_APIConnectionError", APIConnectionError)
+
+    def wrapped(cause: BaseException) -> HomeAssistantError:
+        try:
+            raise HomeAssistantError("Failed to execute the action call set_known_bands on lounge-reader") from cause
+        except HomeAssistantError as err:
+            return err
+
+    assert readers_mod._no_reply(wrapped(APIConnectionError("socket gone")))
+    assert readers_mod._no_reply(wrapped(TimeoutError()))
+    assert not readers_mod._no_reply(wrapped(ValueError("bad")))
+    for refusal in ("Too many bands", "This reader is paired with another key", "Wrong key",
+                    "PAIRING_BUSY: another pairing request is already waiting on this reader (not from this key)",
+                    "PAIRING_COOLDOWN: this key's pairing request expired without a tap", "Show refused"):
+        assert not readers_mod._no_reply(HomeAssistantError(refusal)), refusal
+    monkeypatch.setattr(readers_mod, "_APIConnectionError", None)  # ESPHome's library missing: the texts still count
+    assert readers_mod._no_reply(HomeAssistantError("Connection closed"))
+    assert not readers_mod._no_reply(wrapped(ValueError("bad")))
 
 
 async def test_older_reader_firmware_is_unconfirmed(hass: HomeAssistant, setup_integration) -> None:
@@ -581,6 +701,44 @@ async def test_tap_a_band_keeps_its_end_over_a_reload(hass: HomeAssistant, setup
     assert issues.async_get_issue(DOMAIN, tap) is not None
     await _tick(hass, freezer, 11)
     assert issues.async_get_issue(DOMAIN, tap) is None
+
+
+async def test_saved_pairing_ends_are_capped_at_two_minutes(
+    hass: HomeAssistant, hass_storage, reader_device, freezer
+) -> None:
+    """BUG-024 residual: an end saved by a clock that was behind (an HA start before NTP after a power cut) is capped
+    at now + 2 minutes when loaded, so it can't stretch "Tap a band"; ends already past are dropped."""
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.magicband import readers as readers_mod
+
+    now = dt_util.utcnow()
+    hass_storage[readers_mod.PAIRING_STORE_KEY] = {"version": 1, "key": readers_mod.PAIRING_STORE_KEY, "data": {"ends": {
+        reader_device.id: (now + timedelta(hours=3)).isoformat(),
+        "gone": (now - timedelta(seconds=5)).isoformat(),
+        "soon": (now + timedelta(seconds=30)).isoformat(),
+    }}}
+    entry = MockConfigEntry(domain=DOMAIN, title="MagicBand", data={})
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    ends = {k: dt_util.parse_datetime(v) for k, v in _data(hass).readers._pair_ends.items()}
+    assert set(ends) == {reader_device.id, "soon"}
+    assert ends[reader_device.id] <= now + timedelta(seconds=readers_mod.PAIRING_WINDOW + 1)
+    assert ends["soon"] == now + timedelta(seconds=30)
+
+    _paired_reader(hass)
+    replies = [PENDING]
+    _pair_replies(hass, replies)
+    issues = ir.async_get(hass)
+    tap = f"reader_pairing_{reader_device.id}"
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    assert issues.async_get_issue(DOMAIN, tap) is not None
+    await _tick(hass, freezer, readers_mod.PAIRING_WINDOW - 5)
+    assert issues.async_get_issue(DOMAIN, tap) is not None
+    replies[0] = "PAIRING_COOLDOWN: this key's pairing request expired without a tap"  # the request is over
+    await _tick(hass, freezer, 6)
+    assert issues.async_get_issue(DOMAIN, tap) is None  # not three hours
 
 
 async def test_tap_a_band_goes_when_magicbhands_is_unloaded(

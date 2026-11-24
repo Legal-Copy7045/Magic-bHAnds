@@ -110,6 +110,29 @@ async def test_own_sound_plays_when_the_reader_welcomes(
     assert len(played) == 1
 
 
+async def test_own_sound_plays_at_once_with_band_scan_disabled(
+    hass: HomeAssistant, setup_integration, reader_device, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """BUG-027: the reader skips its tap-in sound for a band with its own sound, and waits for Home Assistant. With
+    its "Band scan" disabled nothing says it welcomed the band, so the person's sound plays at once (not never)."""
+    _reader_services(hass)
+    person_id = await _person_with_band(hass)
+    _give_sound(hass, person_id)
+    _reader_entity(hass, reader_device, "media_player", "Speaker", "mp1")
+    scan = _reader_entity(hass, reader_device, "event", "Band scan", "ev1")
+    er.async_get(hass).async_update_entity(scan, disabled_by=er.RegistryEntryDisabler.USER)
+    played: list[ServiceCall] = []
+    hass.services.async_register("media_player", "play_media", lambda c: played.append(c))
+    monkeypatch.setattr(sounds, "async_sign_path", lambda hass, path, *a, **k: path + "?authSig=abc")
+    monkeypatch.setattr(sounds, "_base_url", lambda hass: "http://ha.local:8123")
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True)
+
+    hass.bus.async_fire("tag_scanned", {"tag_id": TAG, "device_id": reader_device.id})
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert len(played) == 1
+    assert reader_device.id not in _data(hass).pending_sounds
+
+
 async def test_upload_play_and_remove_a_sound(hass: HomeAssistant, setup_integration, hass_client) -> None:
     person_id = await _person_with_band(hass)
     client = await hass_client()

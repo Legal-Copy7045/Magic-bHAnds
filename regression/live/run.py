@@ -221,7 +221,10 @@ def ha_checks(ha: str) -> None:
             # Two update entities can share the name "Firmware": the firmware's own (project versions,
             # 0.x.y) and the ESPHome Device Builder's (ESPHome versions, 20xx.y.z) when the device is
             # also adopted there. Keep ours as "Firmware" and note the other.
-            if e[0] == "Firmware" and str(e[3] or "").startswith("20"):
+            # An unavailable "Firmware" entity with no versions next to the firmware's own is the Device
+            # Builder's (it drops out when the Device Builder add-on isn't running): not ours either.
+            if e[0] == "Firmware" and (str(e[3] or "").startswith("20") or (
+                    e[3] is None and any(x[0] == "Firmware" and x[3] for x in d["entities"] if x is not e))):
                 builder.append(item)
                 continue
             ents[e[0]] = item
