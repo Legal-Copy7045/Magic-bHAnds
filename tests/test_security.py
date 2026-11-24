@@ -754,3 +754,41 @@ async def test_sync_is_rate_limited(hass: HomeAssistant, setup_integration) -> N
         await hass.services.async_call(DOMAIN, "sync", {}, blocking=True)
     with pytest.raises(ServiceValidationError):
         await hass.services.async_call(DOMAIN, "sync", {}, blocking=True)
+
+
+async def test_a_reader_that_doesnt_reply_gets_the_repair_only_after_three_tries(
+    hass: HomeAssistant, setup_integration
+) -> None:
+    """A reader that doesn't answer (a timeout just after it restarts, say) usually takes the list on the next try:
+    the "didn't take the allowed list" repair waits for three no-replies in a row. A refusal shows at once."""
+    await hass.services.async_call(DOMAIN, "add_person", {"name": "Casey"}, blocking=True)
+    await hass.services.async_call(DOMAIN, "assign_band", {"band": TAG, "person": "Casey"}, blocking=True)
+    timeout = HomeAssistantError("Timeout waiting for response from action call set_known_bands on lakeview-reader")
+    errors = {"lakeview": timeout}
+    sent: list = []
+    _esphome_device(hass, "lakeview", "magicband-reader")
+
+    async def handler(call: ServiceCall) -> None:
+        sent.append(call.data["bands"])
+        if errors["lakeview"] is not None:
+            raise errors["lakeview"]
+
+    hass.services.async_register("esphome", "lakeview_set_known_bands", handler)
+
+    def repair() -> bool:
+        return any(d == DOMAIN and i.startswith("reader_sync_failed") for (d, i) in ir.async_get(hass).issues)
+
+    for _ in range(2):
+        result = await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+        assert result["failed"] == ["lakeview"]
+        assert not repair()
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    assert repair()  # still no reply after three tries: worth telling the owner
+
+    errors["lakeview"] = None  # it answers again
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    assert not repair()
+
+    errors["lakeview"] = HomeAssistantError("Too many bands")  # an answer refusing the list: shown at once
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    assert repair()

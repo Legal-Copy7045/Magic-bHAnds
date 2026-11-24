@@ -67,6 +67,8 @@ PAIR_SERVICE_SUFFIX = "_pair"
 PAIRING_BUSY = "PAIRING_BUSY"  # another key's pairing request is waiting on the reader (someone else is pairing it)
 PAIRING_COOLDOWN = "PAIRING_COOLDOWN"  # our own request expired without a tap: it may ask again 2 minutes later
 PAIRING_RETRY = 120  # seconds before a busy or cooling-down reader is asked again
+NO_REPLY_RETRY = 30  # seconds before a reader that didn't reply (e.g. still starting) is synced again
+NO_REPLY_REPAIR = 3  # failed syncs in a row with no reply before the "didn't take the list" repair shows
 PAIRING_PENDING = "PAIRING_PENDING"  # the reader's reply while a first pairing waits for its tap  # readers from 0.10.20: the protected actions then need the key
 PAIRING_WINDOW = 120  # seconds the reader waits for the tap that confirms a pairing request (PAIR_CONFIRM_MS)
 PAIRING_STORE_KEY = f"{DOMAIN}.pairing"  # when our waiting pairing requests end, kept over a restart or reload
@@ -132,6 +134,15 @@ def node_name(hass: HomeAssistant, device: dr.DeviceEntry) -> str | None:
         if kind == dr.CONNECTION_NETWORK_MAC:
             return f"magicband-reader-{value.replace(':', '').lower()[-6:]}"
     return None
+
+
+def _no_reply(err: Exception) -> bool:
+    """Whether a failed reader action only got no reply (a timeout, or the reader not connected yet), rather
+    than an answer refusing it."""
+    text = str(err).lower()
+    return isinstance(err, TimeoutError) or any(
+        word in text for word in ("timeout", "timed out", "not connected", "unavailable", "no response")
+    )
 
 
 def _service_for(node: str, suffix: str) -> str:
@@ -233,6 +244,10 @@ class ReaderManager:
         self._last_sent: tuple | None = None
         self.sounds_left_out: set[str] = set()  # bands with a sound that didn't fit in the readers' list
         self._retry_at: float | None = None  # when a reader that couldn't pair yet is asked again (monotonic)
+        # Failed syncs in a row per reader that were only "no reply" (a timeout, or the reader not connected
+        # yet, e.g. just after it restarted). Those usually sort themselves out, so the error repair waits for
+        # NO_REPLY_REPAIR of them in a row; a reader that answers and refuses gets the repair at once.
+        self._no_reply: dict[str, int] = {}
         # Readers on which MagicbHAnds' own pairing request is waiting for its tap: device -> cancels the
         # scheduled end of that request's 2-minute window. "Tap a band" shows only while one is here.
         self._pair_windows: dict[str, CALLBACK_TYPE] = {}
@@ -326,11 +341,17 @@ class ReaderManager:
                 failed += 1
                 failed_names.append(status.name)
                 status.state, status.error = FAILED, str(err) or type(err).__name__
+                if _no_reply(err):
+                    self._no_reply[device.id] = self._no_reply.get(device.id, 0) + 1
+                    self._schedule_retry(NO_REPLY_RETRY)
+                else:
+                    self._no_reply.pop(device.id, None)
                 _LOGGER.warning("Reader %s didn't take the allowed list: %s", status.name, status.error)
             else:
                 version = firmware_version(device)
                 status.state = UP_TO_DATE if version is None or version >= CONFIRMING_FIRMWARE else UNCONFIRMED
                 status.error, status.bands = None, len(uids)
+                self._no_reply.pop(device.id, None)
                 status.last_sync = dt_util.utcnow().isoformat()
             colour_service = _service_for(node, COLOURS_SERVICE_SUFFIX)
             status.colours = self.hass.services.has_service("esphome", colour_service)
@@ -363,7 +384,7 @@ class ReaderManager:
                                             "total": str(len(all_sounds))})
             self._issue(
                 f"reader_sync_failed_{device.id}",
-                status.state == FAILED,
+                status.state == FAILED and not 0 < self._no_reply.get(device.id, 0) < NO_REPLY_REPAIR,
                 "reader_sync_failed",
                 {"reader": status.name, "error": status.error or ""},
                 severity=ir.IssueSeverity.ERROR,
@@ -458,8 +479,13 @@ class ReaderManager:
         self._end_pair_window(device_id)
 
     def _retry_later(self) -> None:
-        if self._retry_at is None:
-            self._retry_at = time.monotonic() + PAIRING_RETRY
+        self._schedule_retry(PAIRING_RETRY)
+
+    def _schedule_retry(self, seconds: float) -> None:
+        """Sync again after `seconds` (checked every minute), keeping an earlier retry if one is due sooner."""
+        at = time.monotonic() + seconds
+        if self._retry_at is None or at < self._retry_at:
+            self._retry_at = at
 
     def retry_due(self) -> bool:
         """Whether a reader that was busy pairing (or cooling down) should be asked again now (checked every minute)."""

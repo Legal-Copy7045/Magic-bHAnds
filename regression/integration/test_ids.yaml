@@ -1,6 +1,6 @@
 # Stable IDs for the integration tests (regression/integration/run.py). Append-only: never renumber or
 # reuse an ID. Renamed a test? Edit its line here to keep its ID.
-# highest issued: INT-231
+# highest issued: INT-232
 INT-001: "tests/test_beacons.py::test_parse"
 INT-002: "tests/test_beacons.py::test_real_beacons_make_two_bands"
 INT-003: "tests/test_beacons.py::test_nearby_goes_off_after_missed_beacons"
@@ -232,3 +232,4 @@ INT-228: "tests/test_beacons.py::test_an_old_installs_reader_deleted_from_esphom
 INT-229: "tests/test_celebrations.py::test_a_show_waits_for_the_reader_to_welcome_the_band"
 INT-230: "tests/test_features.py::test_tap_a_band_keeps_its_end_over_a_reload"
 INT-231: "tests/test_features.py::test_tap_a_band_goes_when_magicbhands_is_unloaded"
+INT-232: "tests/test_security.py::test_a_reader_that_doesnt_reply_gets_the_repair_only_after_three_tries"

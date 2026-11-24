@@ -215,3 +215,7 @@
   since: 0.10.34
   docs: docs/reader.md#pairing-with-magicbhands
   checks: [INT-230, INT-231]
+- feature: "A reader that doesn't reply is retried quietly; the list repair shows after three no-replies in a row (a refusal at once)"
+  since: 0.10.35
+  docs: docs/integration.md
+  checks: [INT-232]
