@@ -758,3 +758,26 @@ async def test_find_device_uses_async_get_devices(hass: HomeAssistant, monkeypat
     assert adapter_name(hass, address) == "Hillcrest bridge"
     matches.clear()
     assert find_device(hass, identifiers={(DOMAIN, "band_x")}) is None
+
+
+def test_device_config_entries_uses_the_single_entry_field_when_there_is_one() -> None:
+    """HA 2026.11 gives a device one config entry (`config_entry_id`) and warns when the old `config_entries`
+    is read; older Home Assistant only has `config_entries`."""
+    from custom_components.magicband.beacons import device_config_entries
+
+    class NewDevice:
+        config_entry_id = "entry-lakeview"
+
+        @property
+        def config_entries(self):  # reading this on HA 2026.11 logs a deprecation warning
+            raise AssertionError("the old config_entries was read")
+
+    class OldDevice:
+        config_entries = {"entry-lakeview", "entry-hillcrest"}
+
+    class Unowned:
+        config_entry_id = None
+
+    assert device_config_entries(NewDevice()) == {"entry-lakeview"}
+    assert device_config_entries(OldDevice()) == {"entry-lakeview", "entry-hillcrest"}
+    assert device_config_entries(Unowned()) == set()

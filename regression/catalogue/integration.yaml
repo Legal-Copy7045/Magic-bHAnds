@@ -239,3 +239,11 @@
   since: 0.10.36
   docs: docs/reader.md#pairing-with-magicbhands
   checks: [INT-243]
+- feature: "A device's owning config entries are read from DeviceEntry.config_entry_id on Home Assistant 2026.11+ (config_entries is deprecated there), from config_entries before"
+  since: 0.10.37
+  docs: custom_components/magicband/beacons.py
+  checks: [INT-245]
+- feature: "A reader that reconnects (its 'Paired with MagicbHAnds' sensor back from unavailable) is sent the current allowed list at once, not at the next 10-minute sync"
+  since: 0.10.37
+  docs: docs/security.md
+  checks: [INT-246]

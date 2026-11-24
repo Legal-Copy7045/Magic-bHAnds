@@ -17,7 +17,7 @@ from homeassistant.util import dt as dt_util, slugify
 from . import MagicBandConfigEntry, is_reader_device
 from .const import DOMAIN, SIGNAL_BEACON, SIGNAL_HEARD, SIGNAL_READER_TAP, SIGNAL_UPDATED
 from .band_entity import BluetoothBandEntity, NfcBandEntity, async_setup_band_entities
-from .beacons import CLOSEST_WINDOW, BeaconTracker, adapter_name
+from .beacons import CLOSEST_WINDOW, BeaconTracker, adapter_name, device_config_entries
 from .readers import SIGNAL_READER_STATUS, reader_devices
 from .registry import MagicBandRegistry
 
@@ -505,7 +505,7 @@ def _remove_stray_reader_devices(hass: HomeAssistant, entry: MagicBandConfigEntr
             if dev_reg.async_get(reader_id) is not None and reader_id != device.id:
                 ent_reg.async_update_entity(ent.entity_id, device_id=reader_id)
         # Only ever this integration's (a device belongs to one config entry): removed outright, not re-parented.
-        if device.config_entries == {entry.entry_id} and not er.async_entries_for_device(
+        if device_config_entries(device) == {entry.entry_id} and not er.async_entries_for_device(
             ent_reg, device.id, include_disabled_entities=True
         ):
             dev_reg.async_remove_device(device.id)
@@ -527,7 +527,7 @@ def _unlink_old_reader_devices(hass: HomeAssistant, entry: MagicBandConfigEntry)
                 if ent.platform == DOMAIN and ent.unique_id.startswith(f"reader_{device.id}_")]
         if not ours:
             continue  # not a reader (MagicbHAnds' own device, a band)
-        if device.config_entries == {entry.entry_id}:
+        if device_config_entries(device) == {entry.entry_id}:
             _remove_reader_sensors(hass, device.id)
             dev_reg.async_remove_device(device.id)
             continue

@@ -356,7 +356,9 @@ class ReaderManager:
         known_services = {_service_for(n, READER_SET_SERVICE_SUFFIX) for d in reader_devices(self.hass) if (n := node_name(self.hass, d))}
         for name in sorted(self.hass.services.async_services_for_domain("esphome")):
             if name.endswith(READER_SET_SERVICE_SUFFIX) and name not in known_services:
-                _LOGGER.warning("Not sending the allowed list to esphome.%s: not a MagicBand reader", name)
+                # Debug, not a warning: an unplugged reader with its own node name shows up here every sync
+                # (its "ESPHome name" sensor is unavailable), which pointed at the wrong cause (BUG-029).
+                _LOGGER.debug("Not sending the allowed list to esphome.%s: not a MagicBand reader", name)
 
         for device in reader_devices(self.hass):
             status = self._status(device)
