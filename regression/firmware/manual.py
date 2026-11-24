@@ -64,10 +64,16 @@ MANUAL = [
      "1. Send a 60 s always-on command, then 30 more commands quickly (magicband.send from a script). 2. The bridge log "
      "warns 'Broadcasting too much: waiting for airtime'. 3. Its Bluetooth proxy keeps reporting advertisements (other "
      "BLE sensors keep updating) and the queued commands play out over the next minutes."),
-    ("FW-311", "No setup hotspot",
-     "No fallback hotspot when Wi-Fi is lost",
-     "1. Turn the Wi-Fi access point off (or move the bridge/reader out of range) for 3 minutes. 2. Scan for Wi-Fi "
-     "networks: no network named after the device appears. 3. Restore Wi-Fi: it reconnects by itself."),
+    # FW-311 (no hotspot when Wi-Fi is lost) is retired: the official Wi-Fi builds have a setup hotspot since 0.10.33.
+    ("FW-319", "Setup hotspot",
+     "Official bridge/reader: the setup hotspot starts only after 2 minutes without Wi-Fi, changes Wi-Fi, and refuses unsigned firmware",
+     "1. Official (signed) bridge or reader on Wi-Fi: scan for networks; no '<name> Setup' network while its Wi-Fi works. "
+     "2. Turn the Wi-Fi access point off (or change its password) for 3 minutes: about 2 minutes later an open network "
+     "'MagicBand Reader Setup' / 'MagicBand Bridge Setup' appears. 3. Join it from a phone: the setup page opens (or "
+     "http://192.168.4.1); pick the network and enter its password; the device reconnects and the hotspot disappears. "
+     "4. Repeat 2-3, but on the setup page upload an unsigned firmware.ota.bin you built yourself: the upload fails "
+     "(the device log says the OTA validation / signature check failed) and the device keeps running its firmware. "
+     "5. A SCREEK BP2-POE never shows a hotspot."),
     ("FW-313", "Sound at night",
      "After a power cut at night the start-up sound respects 'Sound at night'",
      "1. Reader with 'Sound at night' Off and Night from/until around the current time. 2. Unplug it for 10 s and plug "
@@ -92,11 +98,14 @@ MANUAL = [
      "1. Night mode 'Sunset to sunrise', Time zone your own. 2. Set Time zone to one where it's currently between sunset "
      "and sunrise at Home Assistant's location (e.g. 8 hours away). 3. 'Night now' changes within a minute, without "
      "waiting for sun.sun to update; set it back and it returns."),
-    ("FW-318", "Unknown-band tag scan limit",
-     "A burst of unknown tags reaches Home Assistant only at the documented rate",
-     "1. Reader in 'Known bands only'. 2. Tap 10 different tags that aren't on its list within a minute (cards, fobs). "
-     "3. Home Assistant gets 6 tag scans (Settings, Tags; or the tag_scanned events); the reader log warns 'Unknown band "
-     "not sent to Home Assistant' for the rest; every tap still gets the denied sequence. 4. An allowed band tapped in "
+    # FW-318 (10 new tags in a minute: only 6 reach Home Assistant) is retired: since 0.10.33 the limit is a flood
+    # guard (60 a minute) that people tapping a reader can't reach.
+    ("FW-320", "Unknown-band tag scan limit",
+     "Enrolling a family's bands: every new band tapped in quick succession reaches Home Assistant",
+     "1. Reader in 'Known bands only' (or 'Ask Home Assistant' on a reader not paired with MagicbHAnds). 2. Tap 10-15 "
+     "different tags that aren't on its list within a minute (cards, fobs, a family's new bands). 3. Home Assistant gets "
+     "a tag scan for every one (Settings, Tags; or the tag_scanned events); the reader log has no 'Unknown band not sent "
+     "to Home Assistant' warning; every tap still gets the usual welcome or denied sequence. 4. An allowed band tapped in "
      "between is always sent and welcomed."),
     ("FW-312", "No factory-reset button",
      "BP2-POE in Home Assistant has no Factory Reset entity",

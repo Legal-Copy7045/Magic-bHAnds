@@ -5,10 +5,9 @@
 //    older signed one (no rollback through the 3 am job);
 //  - RateLimit: at most N events in a sliding window (the reader's play_show
 //    action);
-//  - UnknownTagLimit / AskTagLimit: how many bands it doesn't know the reader
+//  - UnknownTagLimit: a flood guard on the bands it doesn't know the reader
 //    reports to Home Assistant, so a stream of made-up tag IDs can't flood its
-//    tag list; ListedBands: bands that were on its list, which never count;
-//  - image_version_ok: an update image's own version (signed) isn't older.
+//    tag list; ListedBands: bands that were on its list, which never count.
 
 #include <array>
 #include <cstddef>
@@ -55,29 +54,6 @@ inline bool release_newer(const std::string &latest, const std::string &current)
   return false;
 }
 
-// Update images carry their own release in the app description ESP-IDF builds
-// into every image (esp_app_desc_t.version, set by this component from the
-// project version as "mb-<version>"). The official images are signed and the
-// signature covers that description, so unlike the manifest's "version" it
-// can't be changed by whoever serves the files. After an update is written and
-// its signature checked, the device keeps booting the running firmware unless
-// image_version_ok: the image is a release ("mb-" + dotted numbers) that isn't
-// older than the running one. An image without the prefix was built before
-// images carried their version, so it's older. A running build without a
-// release version (someone's own build) has nothing to compare: allowed.
-static constexpr const char *IMAGE_VERSION_PREFIX = "mb-";
-inline bool image_version_ok(const std::string &image, const std::string &running) {
-  if (release_parts(running).empty())
-    return true;
-  const std::string p(IMAGE_VERSION_PREFIX);
-  if (image.size() <= p.size() || image.compare(0, p.size(), p) != 0)
-    return false;
-  const std::string v = image.substr(p.size());
-  if (release_parts(v).empty())
-    return false;
-  return !release_newer(running, v);  // the same release (a reinstall) or newer
-}
-
 // At most N events in any window_ms (millis(), wrap-safe). allow() records the
 // event when it's allowed.
 template<size_t N> struct RateLimit {
@@ -97,23 +73,16 @@ template<size_t N> struct RateLimit {
 
 // Bands the reader doesn't know (not on its allowed list) reported to Home
 // Assistant as tag scans: each new ID makes a stored tag and a tag entity in
-// Home Assistant, so a stream of made-up IDs (a tag emulator at the door) could
-// grow its tag list without bound. At most PER_MIN new IDs a minute and
-// PER_HOUR an hour are reported; one of the last UNKNOWN_TAGS_RECENT reported
-// IDs tapped again always is (a retap, or "Ask Home Assistant" asking again).
-// Bands on the list, or on it at any time before (ListedBands), never go
-// through this.
-static constexpr size_t UNKNOWN_TAGS_PER_MIN = 6;
-static constexpr size_t UNKNOWN_TAGS_PER_HOUR = 30;
+// Home Assistant. This is only a flood guard against a stream of made-up IDs
+// (a tag emulator at the door), set well above anything people do at a door
+// (enrolling a family's bands, a queue of guests with "Ask Home Assistant"):
+// at most PER_MIN new IDs a minute and PER_HOUR an hour are reported; one of
+// the last UNKNOWN_TAGS_RECENT reported IDs tapped again always is (a retap,
+// or "Ask Home Assistant" asking again). Bands on the list, or on it at any
+// time before (ListedBands), never go through this.
+static constexpr size_t UNKNOWN_TAGS_PER_MIN = 60;
+static constexpr size_t UNKNOWN_TAGS_PER_HOUR = 600;
 static constexpr size_t UNKNOWN_TAGS_RECENT = 8;
-// "Ask Home Assistant" on a reader that isn't paired with MagicbHAnds: Home
-// Assistant's own automations answer every tap, and a band that isn't reported
-// is simply denied after 3 seconds, so the limit would turn real guests away.
-// It's raised to about what one reader can physically take (each such tap
-// takes several seconds: checking circles, the answer, the welcome) while still
-// bounding how fast made-up IDs can grow Home Assistant's tag list.
-static constexpr size_t ASK_TAGS_PER_MIN = 20;
-static constexpr size_t ASK_TAGS_PER_HOUR = 200;
 template<size_t PER_MIN, size_t PER_HOUR> struct TagReportLimit {
   RateLimit<PER_MIN> minute;
   RateLimit<PER_HOUR> hour;
@@ -135,7 +104,6 @@ template<size_t PER_MIN, size_t PER_HOUR> struct TagReportLimit {
   }
 };
 using UnknownTagLimit = TagReportLimit<UNKNOWN_TAGS_PER_MIN, UNKNOWN_TAGS_PER_HOUR>;
-using AskTagLimit = TagReportLimit<ASK_TAGS_PER_MIN, ASK_TAGS_PER_HOUR>;
 
 // Bands that have been on the reader's allowed list (kept through restarts):
 // MagicbHAnds sends only the bands allowed right now, so a household band

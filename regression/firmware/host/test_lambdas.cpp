@@ -420,47 +420,54 @@ static void fw174_forget_buttons() {
   result("FW-174", why.empty(), why.empty() ? "Forget last band and Forget all bands leave a paired reader's list alone and work as before on an unpaired one" : why);
 }
 
-// SEC-008: unknown bands reach Home Assistant at most 6 new a minute / 30 an hour; listed bands always
+// SEC-008: unknown bands go through a flood guard only (60 new a minute / 600 an hour); listed bands always
 static void fw175_tag_report() {
   std::string why;
   mock::unknown_tags = esphome::magicband::UnknownTagLimit{};
   set_list(",04A1B2C3D4E5F6,");
   uint32_t t = 5000;
   int sent = 0;
-  // a flood of made-up 7-byte IDs, one every 3 s for an hour
-  for (int i = 0; i < 1200; i++, t += 3000) {
+  // a flood of made-up 7-byte IDs, one a second for an hour
+  for (int i = 0; i < 3600; i++, t += 1000) {
     mock::now_ms = t;
     if (gen::tag_report(fmt("04%012X", 0x100000 + i))) sent++;
     // the household's listed band in between, in any spelling, is always sent
     if (i % 50 == 0 && !gen::tag_report("04-a1-b2-c3-d4-e5-f6")) why += fmt("a listed band was held back at t=%u; ", t);
   }
-  if (sent > 30) why += fmt("%d made-up IDs reported in an hour (limit 30); ", sent);
-  if (sent < 30) why += fmt("only %d made-up IDs reported in an hour (expected 30: the limit shouldn't be stricter than documented); ", sent);
-  // within a minute: no more than 6 new ones, and a reported one tapped again still goes
+  if (sent > 600) why += fmt("%d made-up IDs reported in an hour (limit 600); ", sent);
+  if (sent < 600) why += fmt("only %d made-up IDs reported in an hour (expected 600: the guard shouldn't be stricter than documented); ", sent);
+  // a family of 15 enrolling their bands, one every 2 s: all of them reach Home Assistant
+  mock::unknown_tags = esphome::magicband::UnknownTagLimit{};
+  int family = 0;
+  for (int i = 0; i < 15; i++) {
+    mock::now_ms = 9000000 + i * 2000;
+    if (gen::tag_report(fmt("04%012X", 0xFA0 + i))) family++;
+  }
+  if (family != 15) why += fmt("a family of 15 enrolling: %d reported (want 15); ", family);
+  // within a minute: no more than 60 new ones, and a reported one tapped again still goes
   mock::unknown_tags = esphome::magicband::UnknownTagLimit{};
   int minute = 0;
-  for (int i = 0; i < 20; i++) {
-    mock::now_ms = 10000000 + i * 1000;
+  for (int i = 0; i < 100; i++) {
+    mock::now_ms = 10000000 + i * 500;
     if (gen::tag_report(fmt("0A0B%04X", i))) minute++;
   }
-  if (minute != 6) why += fmt("%d new IDs in 20 s (want 6); ", minute);
-  mock::now_ms += 1000;
-  if (!gen::tag_report("0A0B0003")) why += "a band reported a moment ago, tapped again, was held back; ";
+  if (minute != 60) why += fmt("%d new IDs in 50 s (want 60); ", minute);
+  mock::now_ms += 500;
+  if (!gen::tag_report("0A0B003B")) why += "a band reported a moment ago, tapped again, was held back; ";
   // after the minute, new ones go again
   mock::now_ms += 61000;
   if (!gen::tag_report("0A0BFFFF")) why += "no new ID reported a minute later; ";
   set_list("");
   mock::unknown_tags = esphome::magicband::UnknownTagLimit{};
-  result("FW-175", why.empty(), why.empty() ? fmt("unknown bands: 6 new a minute and 30 an hour reach Home Assistant (a 1-hour flood of 1,200 made-up IDs: %d), retaps of a reported band and listed bands always do", sent) : why);
+  result("FW-175", why.empty(), why.empty() ? fmt("unknown bands: a flood guard of 60 new a minute and 600 an hour (a 1-hour flood of 3,600 made-up IDs: %d reported); a family of 15 enrolling all reported; retaps of a reported band and listed bands always go", sent) : why);
 }
 
-// BUG-020: bands that were on the list always reach Home Assistant; Ask Home Assistant without MagicbHAnds has a higher limit
+// BUG-020: bands that were on the list always reach Home Assistant; one flood guard for every mode
 static void fw179_listed_and_ask() {
   using namespace esphome::magicband;
   std::string why;
   auto reset = [] {
     mock::unknown_tags = esphome::magicband::UnknownTagLimit{};
-    mock::ask_tags = esphome::magicband::AskTagLimit{};
     mock::listed_bands = esphome::magicband::ListedBands<128>{};
   };
   reset();
@@ -476,7 +483,7 @@ static void fw179_listed_and_ask() {
   if (std::string(mock::known_list.data()) != ",") why += fmt("the empty list wasn't applied (%s); ", mock::known_list.data());
   // a flood of made-up IDs uses up the unknown-band limit ...
   uint32_t t = 1000;
-  for (int i = 0; i < 40; i++, t += 500) {
+  for (int i = 0; i < 70; i++, t += 500) {
     mock::now_ms = t;
     gen::tag_report(fmt("0E%012X", i));
   }
@@ -508,79 +515,25 @@ static void fw179_listed_and_ask() {
     memcpy(&stored, &mock::listed_bands, sizeof stored);
     reset();
     memcpy(&mock::listed_bands, &stored, sizeof stored);
-    for (int i = 0; i < 40; i++) { mock::now_ms = t += 100; gen::tag_report(fmt("0F%012X", i)); }
+    for (int i = 0; i < 70; i++) { mock::now_ms = t += 100; gen::tag_report(fmt("0F%012X", i)); }
     if (!gen::tag_report(fmt("04%012X", 0xA05))) why += "a remembered band was held back after a restart; ";
   }
-  // Ask Home Assistant on an unpaired reader: 20 new a minute, 200 an hour
-  reset();
-  mock::pair_key.fill(0);
-  mock::response_mode.opt = "Ask Home Assistant";
-  int ok = 0;
-  for (int i = 0; i < 40; i++) {
-    mock::now_ms = 50000000 + i * 1000;
-    if (gen::tag_report(fmt("04%012X", 0x5000 + i))) ok++;
+  // the same flood guard paired or not (the report lambda doesn't read the response mode at all): 60 new a minute
+  for (int paired = 0; paired < 2; paired++) {
+    reset();
+    mock::pair_key.fill(0);
+    if (paired) reader_pair(mock::pair_key, key);
+    int ok = 0;
+    for (int i = 0; i < 100; i++) {
+      mock::now_ms = 50000000 + paired * 1000000 + i * 500;
+      if (gen::tag_report(fmt("04%012X", 0x5000 + paired * 1000 + i))) ok++;
+    }
+    if (ok != 60) why += fmt("%s: %d of 100 unknown IDs in 50 s (want 60); ", paired ? "paired" : "unpaired", ok);
   }
-  if (ok != 20) why += fmt("unpaired, Ask HA: %d of 40 guests in 40 s reached Home Assistant (want 20); ", ok);
-  reset();
-  ok = 0;
-  for (int i = 0; i < 1200; i++) {
-    mock::now_ms = 60000000 + i * 3000;
-    if (gen::tag_report(fmt("04%012X", 0x9000 + i))) ok++;
-  }
-  if (ok != 200) why += fmt("unpaired, Ask HA: %d guests an hour (want 200); ", ok);
-  // paired, or another mode: the normal limit
-  reset();
-  reader_pair(mock::pair_key, key);
-  ok = 0;
-  for (int i = 0; i < 20; i++) {
-    mock::now_ms = 70000000 + i * 1000;
-    if (gen::tag_report(fmt("04%012X", 0x7000 + i))) ok++;
-  }
-  if (ok != 6) why += fmt("paired, Ask HA: %d of 20 unknown IDs in 20 s (want 6); ", ok);
-  reset();
-  mock::pair_key.fill(0);
-  mock::response_mode.opt = "Known bands only";
-  ok = 0;
-  for (int i = 0; i < 20; i++) {
-    mock::now_ms = 80000000 + i * 1000;
-    if (gen::tag_report(fmt("04%012X", 0x8000 + i))) ok++;
-  }
-  if (ok != 6) why += fmt("unpaired, Known bands only: %d of 20 unknown IDs in 20 s (want 6); ", ok);
-  mock::response_mode.opt = "";
   mock::pair_key.fill(0);
   set_list("");
   reset();
-  result("FW-179", why.empty(), why.empty() ? "bands that were ever on the list (set_known_bands, Allow last band; kept through a restart) always reach Home Assistant, also off the list and after a flood; refused lists add nothing; unpaired Ask HA: 20 a minute / 200 an hour; otherwise 6 / 30" : why);
-}
-
-// SEC-005: the "Pairing key fingerprint" sensor follows the paired / waiting key and publishes only changes
-static void fw185_fingerprint_script() {
-  using namespace esphome::magicband;
-  std::string why;
-  mock::pair_key.fill(0), mock::pending_key.fill(0);
-  mock::pending_until = 0;
-  mock::pair_fingerprint = mock::TextSensor{};
-  mock::now_ms = 1000;
-  gen::script_publish_fingerprint();
-  if (mock::pair_fingerprint.state != "none" || mock::pair_fingerprint.published != 1) why += "boot: not \"none\" published once; ";
-  gen::script_publish_fingerprint();
-  if (mock::pair_fingerprint.published != 1) why += "republished an unchanged fingerprint; ";
-  const std::string k(32, 'b');
-  reader_request_pair(mock::pair_key, mock::pending_key, mock::pending_until, k, 2000);
-  gen::script_publish_fingerprint();
-  const std::string want = reader_key_fingerprint(mock::pending_key);
-  if (mock::pair_fingerprint.state != want || want.size() != 8) why += "waiting key not shown: " + mock::pair_fingerprint.state + "; ";
-  if (mock::pair_fingerprint.state.find("bbbb") != std::string::npos) why += "shows part of the key; ";
-  mock::now_ms = 2000 + PAIR_CONFIRM_MS;
-  gen::script_publish_fingerprint();
-  if (mock::pair_fingerprint.state != "none") why += "still shown after the wait ended; ";
-  reader_request_pair(mock::pair_key, mock::pending_key, mock::pending_until, k, mock::now_ms + 200000);
-  mock::now_ms += 201000;
-  reader_confirm_pair(mock::pair_key, mock::pending_key, mock::pending_until, mock::now_ms);
-  gen::script_publish_fingerprint();
-  if (mock::pair_fingerprint.state != want) why += "paired key not shown; ";
-  mock::pair_key.fill(0), mock::pending_key.fill(0);
-  result("FW-185", why.empty(), why.empty() ? "publish_fingerprint: \"none\", then the waiting key's fingerprint until its deadline, then \"none\", then the paired key's; unchanged values aren't republished" : why);
+  result("FW-179", why.empty(), why.empty() ? "bands that were ever on the list (set_known_bands, Allow last band; kept through a restart) always reach Home Assistant, also off the list and after a flood; refused lists add nothing; one flood guard (60 a minute) paired or not, whatever the mode (not read)" : why);
 }
 
 // SEC-011: the play_show action plays at most 12 shows a minute
@@ -644,6 +597,5 @@ int main() {
   fw175_tag_report();
   fw176_play_show_limit();
   fw179_listed_and_ask();
-  fw185_fingerprint_script();
   return 0;
 }

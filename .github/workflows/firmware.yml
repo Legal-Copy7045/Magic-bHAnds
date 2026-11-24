@@ -75,9 +75,11 @@ jobs:
       - name: Install ESPHome
         run: pip install "esphome==${ESPHOME_VERSION}"
 
-      # The official builds only install updates signed with the project's key
-      # (signed_build.py; the sign job signs them). The device files themselves
-      # stay unlocked for people who build their own.
+      # The official builds only install updates signed with the project's key,
+      # and the Wi-Fi ones (bridge, reader) get the setup hotspot, whose upload
+      # page that signature check covers (signed_build.py; the sign job signs
+      # them). The device files themselves stay unlocked, without a hotspot,
+      # for people who build their own.
       - name: Compile MagicBand Bridge
         working-directory: esphome
         # Build against this checkout's component, not the copy on main.
@@ -128,9 +130,10 @@ jobs:
   # OTA_SIGNING_KEY allows only main (deployment branches: main, no tag rule),
   # so pull requests, other branches and pushed tags never reach the key: that
   # environment rule, not this file, is the real gate. The commit must also be
-  # on main before anything else runs. Give the release-signing environment a
-  # required reviewer (Settings -> Environments) so every signed build waits
-  # for approval (see docs/security.md).
+  # on main before anything else runs. Every push to main is signed, so the
+  # account that can push to main is what protects releases: it should use
+  # two-factor authentication, and the environment stays limited to main
+  # (see docs/security.md).
   sign:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build

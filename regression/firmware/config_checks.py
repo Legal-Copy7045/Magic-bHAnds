@@ -106,9 +106,12 @@ def _find(items, **kw):
 def device_invariants(d: str, plain: dict | None, signed: dict | None, tz: list[str]) -> list[dict]:
     feat = f"Device file: {LABEL[d]}"
     b = BASE[d]
+    # k = 6 (FW-026/046/066/086, "no setup hotspot" in any build) is retired: the official signed builds of the
+    # Wi-Fi devices have one since 0.10.33, checked by HOTSPOT_IDS. Never reuse it.
     ids = [f"FW-{b + k:03d}" for k in range(15)]
     if plain is None or signed is None:
-        return [dict(id=i, feature=feat, check="invariants", status="skip", detail="config did not resolve (see FW-001..008)") for i in ids]
+        return [dict(id=i, feature=feat, check="invariants", status="skip", detail="config did not resolve (see FW-001..008)")
+                for i in [*ids[:6], *ids[7:], HOTSPOT_IDS[d]]]
     out = []
     both = (("plain", plain), ("signed", signed))
 
@@ -213,23 +216,54 @@ def device_invariants(d: str, plain: dict | None, signed: dict | None, tz: list[
     out.append(r(ids[5], "Signed official builds", f"{LABEL[d]}: signed variant has the four CONFIG_SECURE_* options, the device file itself none", ok,
                  f"plain {sec_plain or 'none'}; signed {ss}"))
 
-    # g no fallback AP / captive portal
-    def ap(c):
-        msgs = []
-        if "captive_portal" in c:
-            msgs.append("captive_portal present")
-        if isinstance(c.get("wifi"), dict) and c["wifi"].get("ap"):
-            msgs.append("wifi.ap present")
-        return ", ".join(msgs)
-    f = each(ap)
-    out.append(r(ids[6], "No setup hotspot", f"{LABEL[d]}: no fallback Wi-Fi hotspot and no captive portal", not f, "; ".join(f) or ("Wi-Fi without ap" if "wifi" in plain else "Ethernet device, no Wi-Fi")))
+    # g setup hotspot: only in the signed builds of the Wi-Fi devices, open, after 2 minutes without Wi-Fi
+    def hotspot(c):
+        w = c.get("wifi") if isinstance(c.get("wifi"), dict) else {}
+        return w.get("ap"), "captive_portal" in c
+    msgs = []
+    ap, portal = hotspot(plain)
+    if ap or portal:
+        msgs.append(f"plain device file: {'wifi.ap ' if ap else ''}{'captive_portal' if portal else ''} (own builds aren't signed: "
+                    "anyone who joined could upload firmware)")
+    ap, portal = hotspot(signed)
+    wifi_dev = "wifi" in plain
+    if wifi_dev:
+        if not ap or not portal:
+            msgs.append(f"signed: wifi.ap {'present' if ap else 'missing'}, captive_portal {'present' if portal else 'missing'}")
+        else:
+            if str(ap.get("ap_timeout")) not in ("2min", "120s", "120000ms"):
+                msgs.append(f"signed: ap_timeout {ap.get('ap_timeout')} (want 2min)")
+            if ap.get("password"):
+                msgs.append("signed: the hotspot has a password (published in the repo, so it protects nothing)")
+            if not str(ap.get("ssid", "")).endswith(" Setup"):
+                msgs.append(f"signed: hotspot name {ap.get('ssid')!r} doesn't end in ' Setup'")
+        ss = (signed.get("esp32", {}).get("framework", {}) or {}).get("sdkconfig_options") or {}
+        if {k: str(v) for k, v in ss.items() if k.startswith("CONFIG_SECURE")} != SECURE:
+            msgs.append("signed: hotspot without signed updates on (its upload page would install anything)")
+    elif ap or portal or "wifi" in signed:
+        msgs.append("Ethernet device got Wi-Fi, an ap or a captive portal in its signed build")
+    detail = (f"plain: none; signed: open ap {ap.get('ssid')!r} after {ap.get('ap_timeout')} + captive_portal, signing on"
+              if wifi_dev and not msgs else "Ethernet device: no Wi-Fi, no hotspot in either build")
+    out.append(r(HOTSPOT_IDS[d], "Setup hotspot",
+                 f"{LABEL[d]}: " + ("the device file has no hotspot; the signed build has an open ap (2 min without Wi-Fi) and "
+                                    "captive_portal, with signed updates on" if wifi_dev else "no hotspot in the plain or signed build (Ethernet)"),
+                 not msgs, "; ".join(msgs) or detail))
 
-    # h ota http_request only
-    def ota(c):
+    # h ota http_request only; the signed Wi-Fi builds add only the setup hotspot's upload page (captive_portal
+    # auto-loads ota.web_server), which signing covers and which only listens while the hotspot is up
+    def ota(c, name):
         plats = [o.get("platform") for o in as_list(c.get("ota"))]
-        return "" if plats == ["http_request"] else f"ota platforms {plats}"
-    f = each(ota)
-    out.append(r(ids[7], "Signed official builds", f"{LABEL[d]}: the only OTA platform is http_request (no ESPHome upload port in the official file)", not f, "; ".join(f) or "http_request only"))
+        want = ["http_request"]
+        if name == "signed" and "captive_portal" in c:
+            want = ["http_request", "web_server"]
+            if "web_server" in c:
+                return "web_server: in the config (its HTTP server, with the upload page, would listen on the home network too)"
+        return "" if sorted(plats) == sorted(want) else f"ota platforms {plats} (want {want})"
+    f = [f"{name}: {m}" for name, c in both if (m := ota(c, name))]
+    sig_plats = [o.get("platform") for o in as_list(signed.get("ota"))]
+    out.append(r(ids[7], "Signed official builds", f"{LABEL[d]}: no ESPHome upload port: the only OTA platform is http_request, plus (signed "
+                 "Wi-Fi builds only) the setup hotspot's captive-portal upload, with no web_server component", not f,
+                 "; ".join(f) or f"plain: http_request; signed: {', '.join(sig_plats)}"))
 
     # i api encryption, no fixed key
     def api(c):
@@ -346,6 +380,7 @@ def device_invariants(d: str, plain: dict | None, signed: dict | None, tz: list[
     return out
 
 
+HOTSPOT_IDS = {"bridge": "FW-192", "reader": "FW-193", "bp2": "FW-194", "standalone": "FW-195"}
 SAFE_IDS = {"bridge": "FW-186", "reader": "FW-187", "bp2": "FW-188", "standalone": "FW-189"}
 SAFE_MODE_MIN_ATTEMPTS = 20
 SAFE_MODE_MAX_GOOD_AFTER_S = 30
@@ -662,67 +697,6 @@ def reader_checks(c: dict) -> list[dict]:
         msgs.append(f"play_show script mode {ps.get('mode')} would drop a show sent while one waits")
     out.append(r("FW-178", "Light shows", "Reader: the play_show action takes a show during a tap (BUG-013): no band_tapped guard, the script waits for the welcome; "
                  "rate limit kept; success: false with a message when refused", not msgs, "; ".join(msgs) or "queued behind the welcome; responds"))
-
-    # FW-190 SEC-005: "Pairing key fingerprint" (diagnostic) is published wherever the paired or waiting key can change
-    msgs = []
-    fp = _find(c.get("text_sensor"), id="pair_fingerprint")
-    if not fp or fp[0].get("name") != "Pairing key fingerprint" or fp[0].get("entity_category") != "diagnostic" or fp[0].get("platform") != "template":
-        msgs.append("no diagnostic template text sensor 'Pairing key fingerprint' (id pair_fingerprint)")
-    if "reader_pairing_fingerprint" not in str(scripts.get("publish_fingerprint")):
-        msgs.append("publish_fingerprint doesn't use reader_pairing_fingerprint")
-    pub = "{'script.execute': {'id': 'publish_fingerprint'}}"
-    where = {"pair action": acts.get("pair"), "unpair action": acts.get("unpair"), "on_tag (confirming tap)": tag,
-             "pair_wait (end of the wait)": scripts.get("pair_wait"), "on_boot": (c.get("esphome") or {}).get("on_boot")}
-    for name, block in where.items():
-        if pub not in str(block):
-            msgs.append(f"not published from {name}")
-    pa = str((acts.get("pair") or {}).get("then"))
-    if pub in pa and pa.index(pub) > pa.find("'api.respond'"):
-        msgs.append("pair publishes the fingerprint after responding (the integration would read the old one)")
-    for b in walk(c):
-        if re.search(r"ESP_LOG\w\([^;]*(pair_fingerprint|reader_pairing_fingerprint|reader_key_fingerprint)", b):
-            msgs.append("a log line prints the fingerprint")
-            break
-    out.append(r("FW-190", "Reader pairing", "Reader: 'Pairing key fingerprint' (diagnostic) shows the paired or waiting key's fingerprint, published by pair, unpair, "
-                 "the confirming tap, the end of the wait and at boot (before the pair action answers)", not msgs, "; ".join(msgs) or "wired"))
-
-    # FW-191 SEC-016: the component embeds mb-<version> and checks it before the device boots a downloaded image
-    msgs = []
-    init = (REPO / "components/magicband/__init__.py").read_text()
-    cpp = (REPO / "components/magicband/magicband.cpp").read_text()
-    for needle, why in (('"CONFIG_APP_PROJECT_VER_FROM_CONFIG", True', "doesn't set CONFIG_APP_PROJECT_VER_FROM_CONFIG"),
-                        ('"CONFIG_APP_PROJECT_VER", IMAGE_VERSION_PREFIX + str(version)', "doesn't set CONFIG_APP_PROJECT_VER to mb-<version>"),
-                        ('IMAGE_VERSION_PREFIX = "mb-"', "Python prefix isn't mb-"),
-                        ("request_ota_state_listeners()", "doesn't ask for OTA state listeners"),
-                        ('"http_request"', "doesn't pick the http_request OTA"),
-                        ("set_update_ota(", "doesn't hand the OTA component to the guard")):
-        if needle not in init:
-            msgs.append(f"__init__.py {why}")
-    for needle in ("ota::OTA_COMPLETED", "component != this->ota_", "esp_ota_get_partition_description(boot", "image_version_ok(image",
-                   "esp_ota_set_boot_partition(running)"):
-        if needle not in cpp:
-            msgs.append(f"magicband.cpp lacks {needle}")
-    if 'IMAGE_VERSION_PREFIX = "mb-"' not in (REPO / "components/magicband/guards.h").read_text():
-        msgs.append("guards.h prefix isn't mb-")
-    base = esphome_src()
-    if base is None:
-        msgs.append("installed ESPHome not found")
-    else:
-        hr = (base / "components/http_request/ota/ota_http_request.cpp").read_text()
-        be = (base / "components/ota/ota_backend_esp_idf.cpp").read_text()
-        m = re.search(r"case ota::OTA_RESPONSE_OK:(.*?)break;", hr, re.S)
-        if not m or "notify_state_(ota::OTA_COMPLETED" not in m.group(1) or "safe_reboot" not in m.group(1) or \
-                m.group(1).index("OTA_COMPLETED") > m.group(1).index("safe_reboot"):
-            msgs.append("ESPHome changed: http_request OTA no longer notifies OTA_COMPLETED before restarting")
-        if "notify_state_deferred_(ota::OTA_COMPLETED" in hr:
-            msgs.append("ESPHome changed: OTA_COMPLETED is deferred (the restart could come first)")
-        e = re.search(r"OTAResponseTypes IDFOTABackend::end\(\) \{(.*?)\n\}", be, re.S)
-        if not e or "esp_ota_end(" not in e.group(1) or "esp_ota_set_boot_partition(this->partition_)" not in e.group(1) or \
-                e.group(1).index("esp_ota_end(") > e.group(1).index("esp_ota_set_boot_partition(this->partition_)"):
-            msgs.append("ESPHome changed: the ESP-IDF OTA backend no longer verifies (esp_ota_end) then sets the boot partition")
-    out.append(r("FW-191", "Automatic updates", "Update images carry mb-<version> in their signed app description and the component keeps booting the running "
-                 "firmware when a downloaded image is older (SEC-016); ESPHome still sets the boot partition after verifying and notifies before restarting",
-                 not msgs, "; ".join(msgs) or "component and ESPHome 2026.10 OTA flow as expected (compiled: FW-206/216/226)"))
 
     # FW-165 airtime budget constants (bridge / add-on component)
     h = (REPO / "components/magicband/magicband.h").read_text()

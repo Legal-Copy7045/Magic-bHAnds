@@ -122,9 +122,14 @@ Install the firmware **before wiring anything else to the ESP32**, as step
    bands.
 
 Firmware updates then appear in Home Assistant as an update on the reader,
-and install over Wi-Fi: no USB needed. USB is only needed again to **change
-its Wi-Fi** (there's no setup hotspot: use the web installer's *Change
-Wi-Fi*) or to see its start-up log. Before plugging USB into the built
+and install over Wi-Fi: no USB needed. To **change its Wi-Fi** (a new router,
+a new password) you don't need USB either: when the reader can't reach its
+Wi-Fi for 2 minutes it starts its own open hotspot, **MagicBand Reader
+Setup**. Join it from a phone, pick the new network on the page that opens
+and enter its password; the hotspot goes away once the reader is back on
+Wi-Fi (see [Changing Wi-Fi](#changing-wi-fi)). USB is only needed again to
+see its start-up log, or if you'd rather use the web installer's *Change
+Wi-Fi*. Before plugging USB into the built
 reader, **first disconnect the ESP32's 5 V wire** from the 5 V rail or hub;
 the rest can stay powered.
 
@@ -230,6 +235,28 @@ reader shows up with **Take control**, which imports
 `esphome/magicband-reader.yaml` as a package; change its substitutions
 there. The official firmware only accepts signed updates, so install your
 first own build over USB (see [security.md](security.md), "Signed updates").
+Your own builds don't have the setup hotspot below: add `ap:` (under
+`wifi:`) and `captive_portal:` yourself if you want it, knowing that anyone
+who joins it could then upload firmware to an unsigned build.
+
+### Changing Wi-Fi
+
+The official firmware starts a setup hotspot when it can't use its Wi-Fi:
+
+1. When the reader can't reach its Wi-Fi for **2 minutes** (a new router, a
+   changed password), or has no Wi-Fi set yet, it starts an open hotspot
+   called **MagicBand Reader Setup** (your `friendly_name` + " Setup").
+2. Join it from a phone or laptop. A page opens by itself (or browse to
+   `http://192.168.4.1`): pick the new network and enter its password.
+3. The reader connects and the hotspot goes away. While its Wi-Fi works, the
+   hotspot never starts.
+
+Over USB, the web installer's *Change Wi-Fi* (Improv) still works too. The
+hotspot is open, so someone nearby during a Wi-Fi outage could join it and
+set a different network, taking the reader offline until you set it back;
+they can't install firmware through it, since the official firmware only
+accepts updates signed with the project's key (see
+[security.md](security.md), "Setup hotspot").
 
 ## Using it with Home Assistant
 
@@ -261,7 +288,7 @@ MagicBand+**, for example to turn on the lounge lights.
 | **Allowed list** (diagnostic) | From the MagicbHAnds integration: whether this reader has the current allowed list (*Up to date*, *Not applied*, *Reader offline* …) |
 | **ESPHome name** (diagnostic) | The reader's ESPHome name; the integration uses it to find the reader's actions |
 | **Firmware** | Update entity: new firmware appears here and installs over Wi-Fi |
-| **Automatic updates** | Off by default. On: the reader installs a new release by itself between 3 and 4 am (local time, by its internet clock), without Home Assistant starting it. Only signed releases install, and only one newer than the reader has: it never goes back to an older release. Whichever way an update arrives through **Firmware** (automatically or installed by you), the reader also checks the release recorded inside the signed image itself and keeps running its current firmware if the image is older, whatever version the update site lists; going back to an older release takes the web installer over USB |
+| **Automatic updates** | Off by default. On: the reader installs a new release by itself between 3 and 4 am (local time, by its internet clock), without Home Assistant starting it. Only signed releases install, and only one newer than the reader has: it never goes back to an older release by itself. An update you start from **Firmware** installs whichever signed release the site offers |
 | **Time zone** | Eastern (New York) | The reader's local time zone (night mode, automatic updates). The reader keeps time from an internet time server as well as from Home Assistant, so the schedule works while Home Assistant is down |
 | **Restart** (diagnostic) | Restarts the reader |
 | **Wi-Fi signal**, **Wi-Fi network**, **IP address** (diagnostic) | Its connection; the signal is sent when it changes by 3 dB, or every 5 minutes |
@@ -287,12 +314,8 @@ Any Home Assistant user can call a reader's pair action, so on a new
 asking again doesn't extend that. Meanwhile any other key is refused
 (`PAIRING_BUSY`), and after an unconfirmed wait the same key must leave a
 2-minute gap in which another key can ask. Only tap a band when MagicbHAnds
-asks you to in Repairs.
-The **Pairing key fingerprint** sensor (diagnostic) shows the first 8 hex
-characters of the SHA-256 of the key the reader is paired with, or, while a
-first pairing waits for its tap, of the waiting key; otherwise `none`.
-MagicbHAnds compares it with its own key's fingerprint, so it only asks you
-to tap while the waiting request is its own. The key itself is never shown.
+asks you to in Repairs: it asks only while the reader tells it its own
+request is the one waiting (another key's request is answered `PAIRING_BUSY`).
 See [security.md](security.md).
 
 ### No waiting on Home Assistant
@@ -406,19 +429,14 @@ reader at night, on the same schedule as **Idle glow at night**.
   nearby, not only the one on the reader. The reader transmits at −12 dBm by
   default (the **Band light-up power** setting) to keep that local.
 - Taps during a sequence are ignored; tap again once the reader is idle.
-- Bands the reader doesn't know reach Home Assistant as tag scans at most 6
-  new bands a minute and 30 an hour (a band tapped again soon after always
-  does), so someone at the door cycling made-up tag IDs can't fill Home
-  Assistant's tag list. The reader still welcomes or denies every tap as
-  usual. Never held back: bands on its allowed list, and bands that have been
-  on it since it was set up (the last 128, kept through restarts), so a
-  household band that's off the list for now (outside its hours, during a
-  lockdown) still shows up in MagicbHAnds' history and refusal notices.
-  On a reader that isn't paired with MagicbHAnds and is in *Ask Home
-  Assistant* mode, the limit is 20 new bands a minute and 200 an hour instead:
-  there Home Assistant's own automation answers every tap, and a band that
-  isn't reported is simply denied after 3 seconds, so the lower limit would
-  turn real guests away (20 a minute is about as fast as people can tap one
-  reader in that mode; the hourly cap still bounds the tag list). In
-  *Welcome every band* mode without an allowed list, a crowd of new bands
-  beyond 6 a minute or 30 an hour isn't reported (they're still welcomed).
+- Bands the reader doesn't know reach Home Assistant as tag scans, with only
+  a flood guard: at most 60 new bands a minute and 600 an hour, in every mode
+  (a band tapped again soon after always goes). That's far more than people
+  can tap one reader, so enrolling a family's bands or a queue of guests in
+  *Ask Home Assistant* mode never hits it; it only stops a tag emulator
+  cycling made-up IDs from filling Home Assistant's tag list without bound.
+  The reader still welcomes or denies every tap as usual. Never held back:
+  bands on its allowed list, and bands that have been on it since it was set
+  up (the last 128, kept through restarts), so a household band that's off
+  the list for now (outside its hours, during a lockdown) still shows up in
+  MagicbHAnds' history and refusal notices.

@@ -14,9 +14,6 @@
 #include <esp_bt.h>
 #endif
 #include <esp_gap_ble_api.h>
-#ifdef USE_MAGICBAND_IMAGE_VERSION_GUARD
-#include "esphome/components/ota/ota_backend.h"
-#endif
 
 #include <deque>
 #include <string>
@@ -88,24 +85,6 @@ static constexpr uint8_t TIMING_DUAL_DEFAULT = 0x22;    // ~9.5s on, 2s fade
 static constexpr uint8_t TIMING_FIVE_DEFAULT = 0x2E;
 static constexpr uint8_t TIMING_ALWAYS_ON = 0x80;
 
-#ifdef USE_MAGICBAND_IMAGE_VERSION_GUARD
-/// Updates from the published firmware (the http_request OTA): once an image
-/// is written and its signature checked, and before the device restarts into
-/// it, compares the image's own version (its app description, inside the
-/// signed area) with the running firmware's and keeps booting the running one
-/// when the image is older (image_version_ok in guards.h). So a site that
-/// lists an older signed release under a higher manifest version can't roll
-/// devices back.
-class ImageVersionGuard : public ota::OTAGlobalStateListener {
- public:
-  explicit ImageVersionGuard(ota::OTAComponent *ota) : ota_(ota) {}
-  void on_ota_global_state(ota::OTAState state, float progress, uint8_t error, ota::OTAComponent *component) override;
-
- protected:
-  ota::OTAComponent *ota_;
-};
-#endif
-
 class MagicBand : public Component {
  public:
   void setup() override;
@@ -117,12 +96,6 @@ class MagicBand : public Component {
   void set_min_interval(uint32_t ms) { this->min_interval_ms_ = ms; }
   void set_max_interval(uint32_t ms) { this->max_interval_ms_ = ms; }
   void set_queue_size(uint8_t n) { this->queue_size_ = n; }
-#ifdef USE_MAGICBAND_IMAGE_VERSION_GUARD
-  /// Checks the version inside every image this OTA component installs (see ImageVersionGuard).
-  void set_update_ota(ota::OTAComponent *ota) {
-    ota::get_global_ota_callback()->add_global_state_listener(new ImageVersionGuard(ota));  // NOLINT: lives forever
-  }
-#endif
 #ifndef CONFIG_BT_CONTROLLER_DISABLED
   void set_tx_power(esp_power_level_t p, int dbm) {
     this->tx_power_ = p;

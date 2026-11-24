@@ -12,7 +12,7 @@ substitutions:
   timezone: America/New_York
   name: magicband-bridge
   friendly_name: MagicBand Bridge
-  project_version: "0.10.32"
+  project_version: "0.10.33"
   # (The magicband component's source is the add-on's `component_source`
   # substitution; CI and local builds override it with
   # `-s component_source ../components`.)
@@ -81,12 +81,12 @@ update:
 
 wifi:
   # No credentials here: they're entered in the web installer (Improv over
-  # USB). There's deliberately no fallback hotspot: ESPHome's captive portal
-  # accepts a firmware upload from anyone who joins it, and an open hotspot
-  # can be forced on by knocking the board off Wi-Fi for 90 seconds. To change
-  # Wi-Fi later, plug the board into a computer and use the web installer.
-  # (Building your own? You can add "ap:" with a strong password and
-  # "captive_portal:" back.)
+  # USB). The official signed builds add a setup hotspot (an open "ap:" that
+  # starts after 2 minutes without Wi-Fi, plus "captive_portal:") in CI's copy
+  # only (.github/scripts/signed_build.py): ESPHome's captive portal accepts a
+  # firmware upload, which only a signed build refuses from strangers. This
+  # file has none, so your own (unsigned) builds don't get one; add both
+  # yourself if you want it (a password on "ap:" is wise there).
 
 improv_serial:
 

@@ -3,6 +3,45 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.33] - 2026-11-24
+
+Second and third rounds of regression fixes, and security set for a home
+device: convenience first, as long as nothing can put code on the devices.
+
+### Easier
+- **Wi-Fi setup hotspot is back** (reader and bridge, official builds): if a
+  device can't reach Wi-Fi for 2 minutes it opens a "<name> Setup" hotspot where
+  you pick the new network, no USB needed. Firmware uploaded through it must
+  still be signed, so it can't install anyone else's code.
+- **Unknown-band limit is only a flood guard now** (60 new bands a minute, 600
+  an hour), so enrolling a family's bands at once always works; bands that have
+  ever been on the reader's list are never held back.
+- **No extra pairing fingerprint or on-device downgrade check**: you can still
+  go back to an older release from Home Assistant if you need to. Automatic
+  updates still only install newer releases.
+- `docs/security.md` starts with a short threat model: a home reader, not a
+  vault. Two-factor login on the GitHub account replaces the advice to add a
+  required reviewer to releases.
+
+### Fixed
+- **Celebration and stamp shows after a welcome** now play (they were dropped
+  since 0.10.24 because the reader refused them while it was still welcoming).
+- Pairing prompts show only while MagicbHAnds' own request is waiting, go away
+  as soon as the reader is paired, and say so if a reader paired with another
+  key.
+- A lockout that starts while a reader is briefly offline is announced when
+  it comes back.
+- Removing a reader removes its MagicbHAnds sensors and repairs.
+- Bands with their own welcome sound get the reader's chime again when their
+  sound is missing or fails, or when MagicbHAnds is unloaded or the reader is
+  released.
+- Assign and Link messages stay under the right band; Hanukkah is listed once
+  when it runs into January.
+- SCREEK BP2-POE: rebooting it several times no longer drops it into safe mode.
+- Privacy guard: robust against unusual file names and bytes, checks force
+  pushes from where histories meet, and never prints a matching file name.
+- Releases are signed only from `main` (a pushed tag can't reach the key).
+
 ## [0.10.32] - 2026-11-24
 
 Fixes from the first full regression run (`regression/RUNS.md`).

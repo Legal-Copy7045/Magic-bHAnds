@@ -23,7 +23,7 @@ substitutions:
   timezone: America/New_York
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.10.32"
+  project_version: "0.10.33"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -62,7 +62,6 @@ esphome:
       - binary_sensor.template.publish:
           id: paired
           state: !lambda 'return magicband::reader_paired(id(pair_key));'
-      - script.execute: publish_fingerprint
       # A real state from the start (no lockout after a restart), so Home
       # Assistant shows "off" rather than "unknown" until the first lockout.
       - binary_sensor.template.publish:
@@ -211,7 +210,6 @@ api:
         - binary_sensor.template.publish:
             id: paired
             state: !lambda 'return magicband::reader_paired(id(pair_key));'
-        - script.execute: publish_fingerprint
         - api.respond:
             success: !lambda 'return id(sync_error).empty();'
             error_message: !lambda 'return id(sync_error);'
@@ -225,7 +223,6 @@ api:
         - binary_sensor.template.publish:
             id: paired
             state: !lambda 'return magicband::reader_paired(id(pair_key));'
-        - script.execute: publish_fingerprint
         - api.respond:
             success: !lambda 'return id(sync_error).empty();'
             error_message: !lambda 'return id(sync_error);'
@@ -427,12 +424,12 @@ update:
 
 wifi:
   # No credentials here: they're entered in the web installer (Improv over
-  # USB). There's deliberately no fallback hotspot: ESPHome's captive portal
-  # accepts a firmware upload from anyone who joins it, and an open hotspot
-  # can be forced on by knocking the board off Wi-Fi for 90 seconds. To change
-  # Wi-Fi later, plug the board into a computer and use the web installer.
-  # (Building your own? You can add "ap:" with a strong password and
-  # "captive_portal:" back.)
+  # USB). The official signed builds add a setup hotspot (an open "ap:" that
+  # starts after 2 minutes without Wi-Fi, plus "captive_portal:") in CI's copy
+  # only (.github/scripts/signed_build.py): ESPHome's captive portal accepts a
+  # firmware upload, which only a signed build refuses from strangers. This
+  # file has none, so your own (unsigned) builds don't get one; add both
+  # yourself if you want it (a password on "ap:" is wise there).
 
 improv_serial:
 
@@ -467,7 +464,6 @@ pn532_i2c:
             - binary_sensor.template.publish:
                 id: paired
                 state: true
-            - script.execute: publish_fingerprint
             - script.stop: pair_wait
             - lambda: 'id(rgb) = {0.0f, 1.0f, 0.3f, 0.0f};'
             - script.execute:
@@ -1024,8 +1020,6 @@ globals:
     type: magicband::RateLimit<12>
   - id: unknown_tags      # unknown bands recently reported to Home Assistant (see band_tapped)
     type: magicband::UnknownTagLimit
-  - id: ask_tags          # the same, with "Ask Home Assistant" on a reader not paired with MagicbHAnds
-    type: magicband::AskTagLimit
   # Bands that have been on the allowed list (the last 128, as hashes; kept
   # through restarts): their taps always reach Home Assistant, also while
   # they're off the list (outside their hours, a lockdown). See band_tapped.
@@ -2041,16 +2035,6 @@ sensor:
       return n;
 
 text_sensor:
-  # The first 8 hex characters of the SHA-256 of the key this reader is paired
-  # with, or of the key whose first pairing is waiting for a tap; "none"
-  # otherwise. MagicbHAnds compares it with its own key's, so it only asks for
-  # a tap while the waiting request is its own. The key itself isn't shown.
-  - platform: template
-    id: pair_fingerprint
-    name: "Pairing key fingerprint"
-    icon: mdi:fingerprint
-    entity_category: diagnostic
-    update_interval: never
   # Sunset and sunrise from Home Assistant's sun, for "Night mode". Reading a
   # state needs no permission to perform actions.
   - platform: homeassistant
@@ -2448,14 +2432,6 @@ script:
                 effect: "None"
                 level: !lambda 'return (id(night) ? id(idle_glow_night).state : id(idle_glow).state) / 100.0f;'
 
-  # "Pairing key fingerprint": which key the reader is paired with, or which
-  # one's first pairing is waiting for its tap (reader_key.h), published when
-  # it changes.
-  - id: publish_fingerprint
-    then:
-      - lambda: |-
-          const std::string f = magicband::reader_pairing_fingerprint(id(pair_key), id(pending_key), id(pending_until), millis());
-          if (!id(pair_fingerprint).has_state() || id(pair_fingerprint).state != f) id(pair_fingerprint).publish_state(f);
   # A first pairing is waiting for a band tap (see the pair action): the ring
   # breathes blue until the wait ends (2 minutes after the first request;
   # asking again doesn't extend it), then goes back to normal.
@@ -2472,7 +2448,6 @@ script:
                 effect: "Offline"
                 level: 0.8
       - delay: !lambda 'return std::max<int32_t>(0, static_cast<int32_t>(id(pending_until) - millis()));'
-      - script.execute: publish_fingerprint   # the wait is over: back to "none"
       - if:
           condition:
             lambda: 'return id(ring_ready);'
@@ -2488,12 +2463,11 @@ script:
           id: last_band
           state: !lambda 'return uid;'
       # Not for "Test welcome": automations that react to any tag scan would fire.
-      # Bands that aren't on the reader's list are limited (6 new IDs a minute,
-      # 30 an hour; a recent one tapped again always goes), so made-up IDs
-      # can't fill Home Assistant's tag list. Bands on the list, or on it at
-      # any time before (listed_bands), always go. With "Ask Home Assistant" on
-      # a reader that isn't paired with MagicbHAnds, Home Assistant answers
-      # every tap, so the limit is 20 a minute and 200 an hour (guards.h).
+      # Bands that aren't on the reader's list go through a flood guard only
+      # (60 new IDs a minute, 600 an hour; a recent one tapped again always
+      # goes), so a tag emulator can't fill Home Assistant's tag list but
+      # enrolling a family's bands never hits it. Bands on the list, or on it
+      # at any time before (listed_bands), always go (guards.h).
       - if:
           condition:
             and:
@@ -2506,11 +2480,7 @@ script:
                   std::string list(id(known_list).data());
                   if (!key.empty() && list.find("," + key + ",") != std::string::npos) return true;  // on the list
                   if (id(listed_bands).contains(key)) return true;  // was on it (outside its hours, lockdown)
-                  if (!magicband::reader_paired(id(pair_key)) && id(response_mode).current_option() == "Ask Home Assistant") {
-                    if (id(ask_tags).allow(key, millis())) return true;
-                  } else if (id(unknown_tags).allow(key, millis())) {
-                    return true;
-                  }
+                  if (id(unknown_tags).allow(key, millis())) return true;
                   ESP_LOGW("reader", "Unknown band not sent to Home Assistant: too many new bands this minute or hour");
                   return false;
           then:

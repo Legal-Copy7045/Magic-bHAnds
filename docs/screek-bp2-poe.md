@@ -112,10 +112,9 @@ over it must be over USB.
   and installs over Ethernet. You don't need the Device Builder again. Turn on
   **Automatic updates** to have it install new releases by itself between 3
   and 4 am, local time in its **Time zone** setting (default Eastern, New York),
-  by its internet clock. It only ever installs a newer release, never an older
-  one, and whichever way an update arrives through **Firmware** it checks the
-  release recorded inside the signed image itself, so an older image listed
-  under a higher version doesn't boot.
+  by its internet clock. It only ever installs a newer release by itself,
+  never an older one; an update you start from **Firmware** installs whichever
+  signed release the site offers.
 - The Scan Interval and Scan Window entities use SCREEK's names, so they
   attach to your existing ones. The old **Scan Active Mode** entity shows as
   unavailable after the update: delete it from the device page.

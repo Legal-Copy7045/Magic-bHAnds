@@ -154,55 +154,6 @@ int main() {
     if (r != PAIRING_PENDING || until2 != t0 + 3 * PAIR_CONFIRM_MS) why += "the same key couldn't ask again after the cool-down: " + ok(r) + "; ";
     result("FW-136", why.empty(), why.empty() ? "first request wins for 2 minutes without being extended; a competitor gets PAIRING_BUSY; the expired key waits 2 minutes (PAIRING_COOLDOWN) while any other key may ask" : why);
   }
-  // FW-137 SEC-005: "Pairing key fingerprint" = first 8 hex of SHA-256 of the paired key, else of the waiting key while it waits
-  {
-    std::string why;
-    struct V { std::string msg, hex; };
-    const V vec[] = {
-        {"", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},
-        {"abc", "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"},
-        {"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq", "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1"},
-        {std::string(55, 'a'), "9f4390f8d30c2dd92ec9f095b65e2b9ae9b0a925a5258e241c9f1e910f734318"},
-        {std::string(56, 'a'), "b35439a4ac6f0948b6d6f9e3c6af0f5f590ce20f1bde7090ef7970686ec6738a"},
-        {std::string(64, 'a'), "ffe054fe7ae0cb6dc65c3af9b61d5209f439851db43d0ba5997337df154668eb"},
-        {std::string(1000, 'a'), "41edece42d63e8d9bf515a9ba6932e1c20cbc9f5a5d134645adb5db1b9737ea3"},
-    };
-    for (const auto &v : vec) {
-      const auto d = sha256(v.msg);
-      std::string hex;
-      for (uint8_t b : d) hex += fmt("%02x", b);
-      if (hex != v.hex) why += fmt("sha256 of %zu bytes wrong; ", v.msg.size());
-    }
-    // the same as Python's hashlib.sha256(key.encode()).hexdigest()[:8], which the integration computes
-    const std::string FP1 = "a8ae6e6e", FP2 = "4ba68aa8";
-    ReaderKey st{}, pend{};
-    uint32_t until = 0;
-    const uint32_t t0 = 70000;
-    if (reader_pairing_fingerprint(st, pend, until, t0) != NO_FINGERPRINT) why += "unpaired, nothing waiting: not \"none\"; ";
-    reader_request_pair(st, pend, until, K1, t0);
-    if (reader_pairing_fingerprint(st, pend, until, t0 + 1000) != FP1) why += "waiting key's fingerprint wrong: " + reader_pairing_fingerprint(st, pend, until, t0 + 1000) + "; ";
-    if (reader_pairing_fingerprint(st, pend, until, t0 + PAIR_CONFIRM_MS) != NO_FINGERPRINT) why += "an expired wait still shows its key; ";
-    // another key takes the slot after expiry: the fingerprint changes, so the integration sees the waiting request isn't its own
-    reader_request_pair(st, pend, until, K2, t0 + PAIR_CONFIRM_MS + 10);
-    if (reader_pairing_fingerprint(st, pend, until, t0 + PAIR_CONFIRM_MS + 20) != FP2) why += "the other waiting key's fingerprint wrong; ";
-    reader_confirm_pair(st, pend, until, t0 + PAIR_CONFIRM_MS + 30);
-    if (reader_pairing_fingerprint(st, pend, until, t0 + 10 * PAIR_CONFIRM_MS) != FP2 || reader_key_fingerprint(st) != FP2) why += "paired key's fingerprint wrong; ";
-    ReaderKey other{};
-    reader_pair(other, K1);
-    if (reader_key_fingerprint(other) != FP1) why += "K1 fingerprint wrong; ";
-    // a paired key takes precedence over anything left pending
-    ReaderKey p2{};
-    reader_pair(p2, K2);
-    if (reader_pairing_fingerprint(other, p2, t0 + PAIR_CONFIRM_MS, t0) != FP1) why += "pending shown over the paired key; ";
-    // millis() wrap: a wait across the wrap still shows
-    ReaderKey st3{}, pend3{};
-    uint32_t until3 = 0;
-    reader_request_pair(st3, pend3, until3, K1, 0xFFFFFFFFu - 1000);
-    if (reader_pairing_fingerprint(st3, pend3, until3, 5000) != FP1) why += "wait across the millis() wrap not shown; ";
-    // never the key itself
-    if (reader_key_fingerprint(other).size() != 8 || K1.find(reader_key_fingerprint(other)) != std::string::npos) why += "fingerprint not 8 chars or part of the key; ";
-    result("FW-137", why.empty(), why.empty() ? "SHA-256 matches FIPS vectors (0-1000 bytes, padding edges); fingerprint = hashlib.sha256(key).hexdigest()[:8] of the paired key, else the waiting key until its deadline (wrap-safe), else \"none\"" : why);
-  }
   // FW-135 unpair needs the key
   {
     std::string why;

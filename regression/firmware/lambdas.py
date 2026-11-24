@@ -87,7 +87,7 @@ def find(cfg: dict) -> dict[str, tuple[str, str, str]]:
             out[fn] = ("void %s(hosttest::MockRing &it, esphome::Color current_color, bool initial_run)", lam(a["lambda"]),
                        f"light ring effect {a['name']}")
     scripts = {s["id"]: s for s in as_list(cfg.get("script"))}
-    for sid in ("note_refusal", "end_lockout", "apply_quiet", "update_night", "sun_time", "publish_fingerprint"):
+    for sid in ("note_refusal", "end_lockout", "apply_quiet", "update_night", "sun_time"):
         s = scripts[sid]
         params = ", ".join(f"{PARAM_TYPES[t]} {n}" for n, t in (s.get("parameters") or {}).items())
         out["script_" + sid] = ("void %s(" + params + ")", next(walk(s["then"])), f"script {sid}")

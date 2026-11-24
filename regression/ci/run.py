@@ -321,6 +321,9 @@ def signing_checks(tmp: Path, env: dict, have_espsecure: bool, real_build: Path 
 # ---------------------------------------------------------------------------- signed_build.py
 
 F_SB = "Signed firmware updates: official builds switch them on (signed_build.py)"
+F_AP = "Setup hotspot: official signed builds of the Wi-Fi devices only (signed_build.py)"
+WIFI_DEVICES = ("magicband-bridge.yaml", "magicband-reader.yaml")
+HOTSPOT_AP = {"ssid": "${friendly_name} Setup", "ap_timeout": "2min"}
 OPTIONS = {
     "CONFIG_SECURE_SIGNED_APPS_NO_SECURE_BOOT": "y",
     "CONFIG_SECURE_SIGNED_APPS_RSA_SCHEME": "y",
@@ -348,8 +351,9 @@ def signed_build_checks(tmp: Path) -> None:
     folder.mkdir()
     devices = ["magicband-bridge.yaml", "magicband-reader.yaml", "screek-bp2-poe.yaml"]
 
-    @check("CI-012", F_SB, "Adds exactly the four sdkconfig options under esp32 framework esp-idf, nothing else changes "
-           "(bridge, reader, BP2)")
+    @check("CI-012", F_SB, "Adds exactly the four sdkconfig options under esp32 framework esp-idf and, for the Wi-Fi "
+           "devices only (bridge, reader), the setup hotspot (an open wifi ap '${friendly_name} Setup' with ap_timeout "
+           "2min, and captive_portal); nothing else changes, and the BP2 (Ethernet) gets no hotspot")
     def _():
         notes = []
         for name in devices:
@@ -358,14 +362,33 @@ def signed_build_checks(tmp: Path) -> None:
             proc = script("signed_build.py", src, out)
             assert proc.returncode == 0, f"{name}: {out_of(proc)}"
             before, after = src.read_text().splitlines(), out.read_text().splitlines()
-            added = [line for line in after if line not in before]
-            assert len(after) == len(before) + 5, f"{name}: {len(after) - len(before)} lines added"
-            assert added[0].strip() == "sdkconfig_options:", f"{name}: {added}"
-            assert {a.strip().split(":")[0]: a.split(":")[1].strip() for a in added[1:]} == OPTIONS, f"{name}: {added}"
-            assert _framework(_yaml_load(out.read_text())).get("sdkconfig_options") == OPTIONS, f"{name}: YAML"
-            rest = [line for line in after if line not in added]
-            assert rest == before, f"{name}: other lines changed"
-            notes.append(name)
+            wifi = name in WIFI_DEVICES
+            import difflib  # noqa: PLC0415
+            ops = difflib.SequenceMatcher(a=before, b=after, autojunk=False).get_opcodes()
+            assert all(op in ("equal", "insert") for op, *_ in ops), f"{name}: lines changed or removed: {ops}"
+            added = [line for op, _, _, j1, j2 in ops if op == "insert" for line in after[j1:j2]]
+            # 5 sdkconfig lines; Wi-Fi devices also 3 ap lines and blank + comment + captive_portal at the end
+            want = 5 + (6 if wifi else 0)
+            assert len(after) == len(before) + want, f"{name}: {len(after) - len(before)} lines added (want {want})"
+            opts = [line for line in added if line.startswith("    sdkconfig_options:") or line.startswith("      CONFIG_")]
+            assert len(opts) == 5 and opts[0].strip() == "sdkconfig_options:", f"{name}: {added}"
+            assert {a.strip().split(":")[0]: a.split(":")[1].strip() for a in opts[1:]} == OPTIONS, f"{name}: {opts}"
+            doc = _yaml_load(out.read_text())
+            assert _framework(doc).get("sdkconfig_options") == OPTIONS, f"{name}: YAML"
+            if wifi:
+                ap = (doc.get("wifi") or {}).get("ap")
+                assert ap == HOTSPOT_AP, f"{name}: wifi ap {ap}"
+                assert "password" not in ap, f"{name}: the hotspot has a password (published, so it protects nothing)"
+                assert "captive_portal" in doc and doc["captive_portal"] is None, f"{name}: captive_portal {doc.get('captive_portal')!r}"
+                assert set((doc.get("wifi") or {})) == {"ap"}, f"{name}: wifi keys {set(doc['wifi'])} (credentials added?)"
+                i = after.index("wifi:")
+                assert after[i + 1:i + 4] == ["  ap:", '    ssid: "${friendly_name} Setup"', "    ap_timeout: 2min"], after[i:i + 4]
+                assert after[-1] == "captive_portal:" and after[-2].startswith("# "), after[-3:]
+            else:
+                assert "captive_portal" not in doc and not isinstance(doc.get("wifi"), dict) and "wifi" not in doc, \
+                    f"{name}: Ethernet device got a hotspot"
+            assert len(added) == want, f"{name}: inserted {added}"
+            notes.append(name + (" (signing + hotspot)" if wifi else " (signing only)"))
         return ", ".join(notes)
 
     @check("CI-013", F_SB, "Refuses a file that already has sdkconfig_options")
@@ -394,6 +417,28 @@ def signed_build_checks(tmp: Path) -> None:
         assert proc.returncode != 0, "accepted a file with no esp-idf block"
         for name in [*devices, "screek-bp2-poe-standalone.yaml"]:
             assert "CONFIG_SECURE_SIGNED" not in (REPO / "esphome" / name).read_text(), f"{name} is locked to the key"
+
+    @check("CI-056", F_AP, "The device files in the repo have no hotspot (own builds aren't signed, so anyone who joined "
+           "one could upload any firmware); signed_build.py refuses a Wi-Fi file that already has an ap or "
+           "captive_portal, and the output for a Wi-Fi file parses with wifi.ap and captive_portal")
+    def _():
+        for name in [*devices, "screek-bp2-poe-standalone.yaml"]:
+            doc = _yaml_load((REPO / "esphome" / name).read_text())
+            assert "captive_portal" not in doc, f"{name} has captive_portal"
+            assert not (isinstance(doc.get("wifi"), dict) and doc["wifi"].get("ap")), f"{name} has a wifi ap"
+        src = (REPO / "esphome" / "magicband-bridge.yaml").read_text()
+        for label, text in (("captive_portal", src + "\ncaptive_portal:\n"),
+                            ("wifi ap", src.replace("\nwifi:\n", "\nwifi:\n  ap:\n    password: hunter22\n", 1))):
+            bad = folder / f"has-{label.replace(' ', '-')}.yaml"
+            bad.write_text(text)
+            proc = script("signed_build.py", bad, folder / "has-out.yaml")
+            assert proc.returncode != 0, f"accepted a file that already has a {label}"
+            assert not (folder / "has-out.yaml").exists()
+        # in place, as the workflow runs it for the reader
+        copy = folder / "inplace.yaml"
+        if copy.is_file():
+            doc = _yaml_load(copy.read_text())
+            assert (doc.get("wifi") or {}).get("ap") == HOTSPOT_AP and "captive_portal" in doc, "in-place reader lacks the hotspot"
 
 
 # ---------------------------------------------------------------------------- check_versions.py
@@ -1047,17 +1092,40 @@ def workflow_checks() -> None:
             assert stale not in doc, f"docs/security.md still says: {stale}"
         assert "only `main` (no tag rule)" in doc, "docs/security.md doesn't say the environment allows only main"
 
+    @check("CI-055", F_WF, "The account that can push to main is what protects releases: README, docs/security.md "
+           "(Signed updates and the accepted risk) and the sign job's comment in firmware.yml say it should use "
+           "two-factor authentication and keep the release-signing environment limited to main, and none of them "
+           "recommends a required reviewer")
+    def _():
+        readme = re.sub(r"\s+", " ", (REPO / "README.md").read_text())
+        doc = re.sub(r"\s+", " ", (REPO / "docs" / "security.md").read_text())
+        wf = re.sub(r"\s*\n\s*#\s*", " ", fw_text)
+        for label, text in (("README.md", readme), ("docs/security.md", doc), ("firmware.yml", wf)):
+            assert "reviewer" not in text.lower(), f"{label} still mentions a required reviewer"
+            assert "two-factor authentication" in text, f"{label} doesn't ask for two-factor authentication"
+            assert "push to `main`" in text or "push to main" in text, f"{label} doesn't name the account that can push to main"
+        assert "limited to `main`" in readme, "README doesn't say to keep release-signing limited to main"
+        assert "limited to main" in wf, "firmware.yml doesn't say the environment stays limited to main"
+        risk = doc.split("**Anyone who can push to `main` can ship signed firmware.**", 1)
+        assert len(risk) == 2, "the accepted risk 'Anyone who can push to main' is missing"
+        risk = risk[1].split("- **", 1)[0]
+        assert "two-factor authentication" in risk and "only `main` (no tag rule)" in risk, risk
+        signed = doc.split("**Signed updates.**", 1)[1].split("- The key is RSA-3072", 1)[0]
+        assert "two-factor authentication" in signed, "Signed updates doesn't say the pushing account needs 2FA"
+
     @check("CI-054", F_WF, "docs/security.md makes no claim the round-2 review found false, and lists the accepted "
            "risks it added (pairing race on a new reader, rollback via the unsigned manifest version, lockout "
-           "settings any user can change, safe-mode reboots, unpinned build toolchain, unknown-band limit in Ask "
-           "Home Assistant mode)")
+           "settings any user can change, safe-mode reboots, unpinned build toolchain, the unknown-band flood guard, "
+           "a stranger taking a Wi-Fi device offline through its setup hotspot)")
     def _():
         doc = re.sub(r"\s+", " ", (REPO / "docs" / "security.md").read_text())
         for stale in ("nobody can hold a new reader's pairing open indefinitely",
                       "a site serving an older signed release can't roll devices back",
                       "Automatic updates never install an older release",
                       "signing still stops anyone who controls only the site, Home Assistant or another branch",
-                      "*Why acceptable:* it is opt-in,"):
+                      "*Why acceptable:* it is opt-in,",
+                      "No setup hotspot", "Pairing key fingerprint", "6 bands it doesn't know a minute",
+                      "required reviewer"):
             assert stale not in doc, f"still claims: {stale}"
         risks = doc.split("## Accepted risks", 1)[1]
         for want in ("**Someone with Home Assistant access can block or race the first pairing of a new reader.**",
@@ -1065,7 +1133,8 @@ def workflow_checks() -> None:
                      "ordinary entities any Home Assistant user can change",
                      "**Rebooting a device over and over.**",
                      "**The signed firmware is only as clean as its build toolchain.**",
-                     "**Unknown-band limit in Ask Home Assistant mode.**"):
+                     "**Unknown-band flood guard.**",
+                     "**A stranger nearby can take a Wi-Fi device offline through its setup hotspot.**"):
             assert want in risks, f"accepted risks miss: {want}"
 
 
