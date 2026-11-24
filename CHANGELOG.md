@@ -3,6 +3,15 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.35] - 2026-11-24
+
+### Fixed
+- **"MagicBand Reader didn't take the allowed list" no longer cries wolf.** A
+  reader that doesn't reply (typically for a few seconds after it restarts, for
+  example into new firmware) is synced again 30 seconds later, and the repair
+  only shows after three no-replies in a row. A reader that answers and refuses
+  the list still gets the repair at once.
+
 ## [0.10.34] - 2026-11-24
 
 Fourth round of regression fixes (small).
