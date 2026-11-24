@@ -696,3 +696,65 @@ async def test_an_old_installs_reader_deleted_from_esphome_goes_at_setup(
     assert dev_reg.async_get(reader_device.id) is None
     assert not ent_reg.async_get_entity_id("sensor", DOMAIN, f"reader_{reader_device.id}_last_band")
     assert not ent_reg.async_get_entity_id("sensor", DOMAIN, f"reader_{reader_device.id}_allowed_list")
+
+
+async def test_find_device_on_home_assistant_before_2026_11(hass: HomeAssistant) -> None:
+    """Older Home Assistant (no async_get_devices): the registry's async_get_device, by identifier or connection
+    (Bluetooth addresses in either case)."""
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.magicband.beacons import find_device
+
+    entry = MockConfigEntry(domain="bluetooth", title="Adapter")
+    entry.add_to_hass(hass)
+    dev_reg = dr.async_get(hass)
+    band = dev_reg.async_get_or_create(config_entry_id=entry.entry_id, identifiers={(DOMAIN, "band_x")}, name="Band")
+    adapter = dev_reg.async_get_or_create(
+        config_entry_id=entry.entry_id, connections={(dr.CONNECTION_BLUETOOTH, "aa:bb:cc:00:11:22")}, name="Adapter")
+    if hasattr(dev_reg, "async_get_devices"):  # pragma: no cover - this test is about the older registry
+        pytest.skip("this Home Assistant has async_get_devices")
+    assert find_device(hass, identifiers={(DOMAIN, "band_x")}) == band
+    assert find_device(hass, connections={(dr.CONNECTION_BLUETOOTH, "AA:BB:CC:00:11:22")}) == adapter
+    assert find_device(hass, identifiers={(DOMAIN, "band_y")}) is None
+    assert find_device(hass) is None
+
+
+async def test_find_device_uses_async_get_devices(hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch) -> None:
+    """HA 2026.11 deprecated async_get_device (it stops working in 2027.8): where the registry has async_get_devices
+    it's used instead, preferring the device owned by the expected domain (the identifier's own, or the one given),
+    otherwise the first match."""
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.magicband.beacons import adapter_name, find_device
+
+    other_entry = MockConfigEntry(domain="esphome", title="Bridge")
+    other_entry.add_to_hass(hass)
+    our_entry = MockConfigEntry(domain=DOMAIN, title="MagicBand")
+    our_entry.add_to_hass(hass)
+    dev_reg = dr.async_get(hass)
+    other = dev_reg.async_get_or_create(config_entry_id=other_entry.entry_id, identifiers={("esphome", "o")},
+                                        name="Hillcrest bridge")
+    ours = dev_reg.async_get_or_create(config_entry_id=our_entry.entry_id, identifiers={(DOMAIN, "band_x")},
+                                       name="Band")
+    asked: list[dict] = []
+    matches = [other, ours]
+
+    def async_get_devices(*, identifiers=None, connections=None, config_entry_id=None):
+        asked.append({"identifiers": identifiers, "connections": connections})
+        return list(matches)
+
+    def deprecated(*args, **kwargs):
+        raise AssertionError("async_get_device is deprecated from HA 2026.11")
+
+    monkeypatch.setattr(dev_reg, "async_get_devices", async_get_devices, raising=False)
+    monkeypatch.setattr(dev_reg, "async_get_device", deprecated)
+
+    assert find_device(hass, identifiers={(DOMAIN, "band_x")}) == ours  # the identifier's domain wins
+    assert asked[-1] == {"identifiers": {(DOMAIN, "band_x")}, "connections": None}
+    address = "AA:BB:CC:00:11:22"
+    assert find_device(hass, connections={(dr.CONNECTION_BLUETOOTH, address)}) == other  # no domain: the first
+    assert asked[-1]["connections"] == {(dr.CONNECTION_BLUETOOTH, address), (dr.CONNECTION_BLUETOOTH, address.lower())}
+    assert find_device(hass, connections={(dr.CONNECTION_BLUETOOTH, address)}, domain=DOMAIN) == ours
+    assert adapter_name(hass, address) == "Hillcrest bridge"
+    matches.clear()
+    assert find_device(hass, identifiers={(DOMAIN, "band_x")}) is None

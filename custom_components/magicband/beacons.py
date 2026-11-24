@@ -120,18 +120,62 @@ def parse(payload: bytes) -> Beacon | None:
 _MAC_IN_NAME = re.compile(r"\s*\(([0-9A-Fa-f:]{17})\)\s*$")
 
 
+def _entry_domains(hass: HomeAssistant, device: dr.DeviceEntry) -> set[str]:
+    """The domains of the config entries that own a device (one entry from HA 2026.11, a set before)."""
+    ids = set(getattr(device, "config_entries", None) or ())
+    if (single := getattr(device, "config_entry_id", None)) is not None:
+        ids.add(single)
+    return {entry.domain for eid in ids if (entry := hass.config_entries.async_get_entry(eid)) is not None}
+
+
+def _lookup(
+    hass: HomeAssistant,
+    dev_reg: dr.DeviceRegistry,
+    domains: set[str],
+    *,
+    identifiers: set[tuple[str, str]] | None = None,
+    connections: set[tuple[str, str]] | None = None,
+) -> dr.DeviceEntry | None:
+    """One registry device matching any identifier/connection, preferring one owned by `domains`.
+
+    HA 2026.11 deprecated async_get_device (identifiers and connections are no longer unique across
+    config entries; it stops working in 2027.8): use async_get_devices where the registry has it, and
+    the old lookup on older HA.
+    """
+    get_devices = getattr(dev_reg, "async_get_devices", None)
+    if get_devices is None:
+        return dev_reg.async_get_device(identifiers=identifiers, connections=connections)
+    devices = list(get_devices(identifiers=identifiers, connections=connections))
+    if not devices:
+        return None
+    if domains:
+        for device in devices:
+            if _entry_domains(hass, device) & domains:
+                return device
+    return devices[0]
+
+
 def find_device(
     hass: HomeAssistant,
     identifiers: set[tuple[str, str]] | None = None,
     connections: set[tuple[str, str]] | None = None,
+    domain: str | None = None,
 ) -> dr.DeviceEntry | None:
-    """A device with any of these identifiers or connections (the registry's own lookup, by keyword)."""
+    """A device with any of these identifiers or connections.
+
+    With several matches (other integrations may share an identifier or connection) the one owned by
+    `domain`, or else by an identifier's own domain, wins; otherwise the first.
+    """
     dev_reg = dr.async_get(hass)
-    if identifiers and (device := dev_reg.async_get_device(identifiers=set(identifiers))) is not None:
-        return device
+    domains = {domain} if domain else set()
+    if identifiers:
+        device = _lookup(hass, dev_reg, domains or {i[0] for i in identifiers}, identifiers=set(identifiers))
+        if device is not None:
+            return device
     if connections:
         # Wi-Fi MACs are normalised by the registry; Bluetooth addresses are stored as given (either case).
-        return dev_reg.async_get_device(connections={(t, f(v)) for t, v in connections for f in (str.upper, str.lower)})
+        both = {(t, f(v)) for t, v in connections for f in (str.upper, str.lower)}
+        return _lookup(hass, dev_reg, domains, connections=both)
     return None
 
 

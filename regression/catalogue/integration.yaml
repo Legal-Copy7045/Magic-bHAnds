@@ -219,3 +219,23 @@
   since: 0.10.35
   docs: docs/integration.md
   checks: [INT-232]
+- feature: "Device lookups use the registry's async_get_devices where it has it (HA 2026.11+; async_get_device is deprecated there and stops in 2027.8), preferring the expected domain's device; async_get_device on older Home Assistant"
+  since: 0.10.36
+  docs: custom_components/magicband/beacons.py
+  checks: [INT-233, INT-234]
+- feature: "ESPHome's reconnect errors (connection not ready, isn't established, connection closed, or an APIConnectionError/timeout behind the error) count as no reply, not as a refusal"
+  since: 0.10.36
+  docs: docs/integration.md
+  checks: [INT-237, INT-238, INT-239, INT-240, INT-241, INT-242]
+- feature: "A reader is offline when its ESPHome entities are all unavailable (ESPHome keeps its actions): skipped by the sync, 'offline' repair after 15 minutes; the 30 s no-reply retry stops once the list repair shows"
+  since: 0.10.36
+  docs: docs/integration.md
+  checks: [INT-048, INT-236]
+- feature: "A reader's disabled 'Band scan' is ignored: celebration/Stamp shows and people's own sounds play at once, as with firmware without it"
+  since: 0.10.36
+  docs: docs/integration.md#celebrations-and-the-tap-passport
+  checks: [INT-235, INT-244]
+- feature: "Pairing: a saved 'Tap a band' end is capped at now + 2 minutes when loaded (ends already past are dropped)"
+  since: 0.10.36
+  docs: docs/reader.md#pairing-with-magicbhands
+  checks: [INT-243]

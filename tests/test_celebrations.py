@@ -316,3 +316,21 @@ async def test_a_show_waits_for_the_reader_to_welcome_the_band(
     hass.states.async_set(scan, "2026-10-31T15:00:30", {"event_type": "welcomed"})
     await hass.async_block_till_done(wait_background_tasks=True)
     assert len(shows) == 1
+
+
+async def test_a_show_plays_at_once_with_band_scan_disabled(
+    hass: HomeAssistant, setup_integration, reader_device, freezer: FrozenDateTimeFactory
+) -> None:
+    """BUG-027: with the reader's "Band scan" disabled nothing will say it welcomed the band, so the show isn't kept
+    waiting for it (it would lapse unseen): it plays at once, as with firmware that has no "Band scan"."""
+    from homeassistant.helpers import entity_registry as er
+
+    er.async_get(hass).async_get_or_create(
+        "event", "esphome", "scan1", device_id=reader_device.id, original_name="Band scan",
+        suggested_object_id="lounge_band_scan", disabled_by=er.RegistryEntryDisabler.USER)
+    shows = _shows(hass)
+    freezer.move_to(datetime(2026, 10, 31, 15, 0, tzinfo=dt_util.get_default_time_zone()))  # Halloween
+    await _person_with_band(hass, "Alice")
+    await _tap(hass, TAG, reader_device.id)  # first tap: Stamp
+    assert [c.data["show"] for c in shows] == ["Stamp"]
+    assert reader_device.id not in _data(hass).pending_shows

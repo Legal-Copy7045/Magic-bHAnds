@@ -3,6 +3,21 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.36] - 2026-11-24
+
+### Fixed
+- **A reader that's unplugged or reconnecting is recognised as offline**: it's
+  skipped when lists are sent (no repeated warnings, no resending to every
+  reader), the "reader is offline" repair shows after 15 minutes as designed,
+  and the "didn't take the allowed list" repair no longer appears for
+  ESPHome's "connection not ready" errors.
+- **Home Assistant 2026.11 deprecation warning**: device lookups use the new
+  device-registry calls (with the old one kept for older Home Assistant).
+- Disabling a reader's "Band scan" entity no longer stops celebration shows
+  or people's welcome sounds (they play straight away instead).
+- A saved "Tap a band" window can't run longer than the reader's 2 minutes,
+  even if Home Assistant's clock was behind when it started.
+
 ## [0.10.35] - 2026-11-24
 
 ### Fixed
