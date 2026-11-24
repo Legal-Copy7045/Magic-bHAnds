@@ -1,0 +1,177 @@
+# MagicbHAnds Home Assistant integration (custom_components/magicband): every feature and the checks that
+# cover it. INT- IDs are the integration tests (regression/integration/test_ids.yaml); other stages add their
+# PAGE-/FW-/CI-/LIVE-/MAN- IDs to the same features. Built from docs/integration.md, docs/security.md,
+# CHANGELOG.md and custom_components/magicband/*.py.
+
+- feature: "Set-up: one MagicbHAnds entry (config flow)"
+  since: 0.7.0
+  docs: docs/integration.md#install
+  checks: [INT-073]
+- feature: "People with and without Home Assistant users, any number of bands"
+  since: 0.7.0
+  docs: docs/integration.md#adding-people-and-bands
+  checks: [INT-076, INT-090]
+- feature: "People and bands survive a restart (.storage registry, damaged entries skipped)"
+  since: 0.7.0
+  docs: docs/integration.md#how-it-fits-with-the-reader
+  checks: [INT-081, INT-120, INT-032]
+- feature: "Removing a person: bands kept but unassigned; their sound, passport and sensor go"
+  since: 0.10.26
+  docs: docs/integration.md#adding-people-and-bands
+  checks: [INT-082, INT-097, INT-098]
+- feature: "Assigning, unassigning and removing bands (band: last)"
+  since: 0.7.0
+  docs: docs/integration.md#actions
+  checks: [INT-078, INT-119]
+- feature: "Unknown bands: denied, notified, counted; assign then let in"
+  since: 0.7.0
+  docs: docs/integration.md#adding-people-and-bands
+  checks: [INT-074, INT-099, INT-100]
+- feature: "Only real NFC IDs (4, 7 or 10 bytes); Test welcome ignored"
+  since: 0.10.4
+  docs: docs/security.md#limits-on-what-nearby-radios-can-do
+  checks: [INT-117, INT-118]
+- feature: "At most 100 unassigned NFC bands kept"
+  since: 0.10.4
+  docs: docs/security.md#limits-on-what-nearby-radios-can-do
+  checks: [INT-121, INT-169]
+- feature: "Only ESPHome MagicBand readers count for taps and get the allowed list"
+  since: 0.10.4
+  docs: docs/security.md#using-it-with-locks-alarms-and-presence
+  checks: [INT-075, INT-164, INT-165, INT-050]
+- feature: "Allowed list sync to readers (on change, connect, every 10 min, schedule edges)"
+  since: 0.7.0
+  docs: docs/integration.md#how-it-fits-with-the-reader
+  checks: [INT-077, INT-038, INT-182]
+- feature: "Reader replies whether it applied the list; Allowed list sensor; Repairs (rejected, too long, offline)"
+  since: 0.10.4
+  docs: docs/security.md#readers-allowed-list
+  checks: [INT-150, INT-151, INT-048, INT-049]
+- feature: "Reader firmware list handling (valid list, revoked band, malformed list, colours) as the integration expects"
+  since: 0.10.4
+  docs: docs/security.md#readers-allowed-list
+  checks: [INT-155, INT-156, INT-160, INT-161, INT-162, INT-163, INT-174, INT-175, INT-176, INT-177, INT-178, INT-179, INT-180]
+- feature: "Reader pairing key: paired readers get the key; first pairing needs a tap; unpair/pair_reader; answer"
+  since: 0.10.20
+  docs: docs/security.md#who-can-change-whos-allowed-in
+  checks: [INT-056, INT-057, INT-058, INT-059, INT-060, INT-061, INT-157, INT-158, INT-159, INT-111]
+- feature: "Access schedules per band (window, overnight, days, expiry, clear)"
+  since: 0.10.4
+  docs: docs/integration.md#management-page
+  checks: [INT-037, INT-038, INT-039, INT-086]
+- feature: "Guest passes (dates, uses, daily window, guest off removes the pass)"
+  since: 0.10.24
+  docs: docs/integration.md#guests
+  checks: [INT-027, INT-028, INT-085]
+- feature: "Guest pass + band hours + lockdown combined"
+  since: 0.10.24
+  docs: docs/integration.md#guests
+  checks: [INT-083, INT-084]
+- feature: "Lockdown (by hand, nobody home, night hours, alarm armed/triggered; exempt people; sensor and reasons)"
+  since: 0.10.24
+  docs: docs/integration.md#lockdown
+  checks: [INT-029, INT-030, INT-031, INT-087, INT-088, INT-089]
+- feature: "Enrolment (next unowned bands to one person, one reader, limit, stop; enrolling tap never allowed)"
+  since: 0.10.4
+  docs: docs/security.md#who-can-change-whos-allowed-in
+  checks: [INT-040, INT-041, INT-042, INT-043, INT-101, INT-102]
+- feature: "Welcome colours per person to readers"
+  since: 0.10.4
+  docs: docs/integration.md#management-page
+  checks: [INT-044]
+- feature: "magicband_tap event, last-tap sensors, logbook and tap history (300, survives restart)"
+  since: 0.10.4
+  docs: docs/integration.md#reacting-to-taps
+  checks: [INT-045, INT-115]
+- feature: "Reader's Last band name sensor (joins the reader's device; stray device cleaned)"
+  since: 0.9.10
+  docs: docs/integration.md#entities
+  checks: [INT-015, INT-016, INT-017]
+- feature: "Celebrations: holiday and birthday shows after a welcome"
+  since: 0.10.24
+  docs: docs/integration.md#celebrations-and-the-tap-passport
+  checks: [INT-021, INT-022, INT-023, INT-024, INT-025, INT-026, INT-033, INT-116]
+- feature: "Tap passport (taps, streaks, 16 stamps, magicband_badge; not guests)"
+  since: 0.10.24
+  docs: docs/integration.md#celebrations-and-the-tap-passport
+  checks: [INT-034, INT-033, INT-036]
+- feature: "Light shows on readers (play_show, Random, Today, per-reader limit)"
+  since: 0.10.17
+  docs: docs/integration.md#management-page
+  checks: [INT-053, INT-054, INT-055, INT-035]
+- feature: "Welcome sounds: upload, play, remove, serve (admin or 5-minute signed link), 2 MB limit"
+  since: 0.10.26
+  docs: docs/integration.md#welcome-sounds
+  checks: [INT-193, INT-196, INT-103, INT-104, INT-105, INT-106]
+- feature: "Welcome sounds at the reader (sound list, played on welcome, Sound switch, Sound at night, try-out)"
+  since: 0.10.26
+  docs: docs/integration.md#welcome-sounds
+  checks: [INT-194, INT-195, INT-093, INT-094, INT-095, INT-096]
+- feature: "Refused-tap lockout: notification and magicband_lockout event"
+  since: 0.10.26
+  docs: docs/integration.md#reacting-to-taps
+  checks: [INT-197, INT-091, INT-092]
+- feature: "Tap snapshots from a reader's camera (signed links, admin-only, pruning, days setting)"
+  since: 0.10.23
+  docs: docs/security.md#privacy
+  checks: [INT-062, INT-063, INT-064, INT-065, INT-107]
+- feature: "Bluetooth beacons: bands recognised, nearby, battery, heard by / closest"
+  since: 0.9.0
+  docs: docs/integration.md#bands-over-bluetooth
+  checks: [INT-001, INT-002, INT-003, INT-010, INT-011]
+- feature: "Bluetooth linking (automatic by tap, by hand, owner passes across, one device, unlink/forget, rename kept)"
+  since: 0.9.0
+  docs: docs/integration.md#bands-over-bluetooth
+  checks: [INT-004, INT-005, INT-006, INT-007, INT-008, INT-009, INT-012, INT-013, INT-014, INT-122, INT-123]
+- feature: "Band type (MagicBand+ / standard); standard bands never paired over Bluetooth"
+  since: 0.10.1
+  docs: docs/integration.md#bands-over-bluetooth
+  checks: [INT-019, INT-020]
+- feature: "Limits on made-up radio traffic (25 unclaimed Bluetooth bands, beacon rate, 60 heard events a minute)"
+  since: 0.10.4
+  docs: docs/security.md#limits-on-what-nearby-radios-can-do
+  checks: [INT-152, INT-153, INT-154, INT-166, INT-167, INT-168]
+- feature: "Charge reminders (Repairs, magicband_battery_low, reminder level setting, blueprint)"
+  since: 0.10.4
+  docs: docs/integration.md#charge-reminders
+  checks: [INT-046, INT-051, INT-047]
+- feature: "Hearing bands respond (listener, magicband_heard, list_heard)"
+  since: 0.8.0
+  docs: docs/integration.md#hearing-bands-respond
+  checks: [INT-069, INT-070, INT-071, INT-072]
+- feature: "Bridge send, effects and scenes (magicband.send, list_bridges)"
+  since: 0.7.0
+  docs: docs/integration.md#sending-effects-from-automations
+  checks: [INT-183, INT-184, INT-185, INT-186, INT-187, INT-188, INT-148, INT-149, INT-170, INT-171, INT-172, INT-173]
+- feature: "Blueprints installed and kept up to date"
+  since: 0.7.0
+  docs: docs/integration.md#the-blueprints
+  checks: [INT-189, INT-190, INT-191, INT-192]
+- feature: "Services: admin-only checks (only send, sync, play_show, list_bridges open to every user)"
+  since: 0.10.4
+  docs: docs/security.md#who-can-change-whos-allowed-in
+  checks: [INT-124, INT-125, INT-126, INT-127, INT-128, INT-129, INT-130, INT-131, INT-132, INT-133, INT-134, INT-135, INT-136, INT-137, INT-138, INT-139, INT-140, INT-141, INT-142, INT-143, INT-144, INT-145, INT-146, INT-147, INT-181, INT-110]
+- feature: "Configure (options flow): add/edit/remove people, assign/remove bands, link Bluetooth, settings"
+  since: 0.7.0
+  docs: docs/integration.md#adding-people-and-bands
+  checks: [INT-079, INT-080, INT-112, INT-113, INT-114]
+- feature: "Diagnostics download (IDs shortened, names replaced, no key)"
+  since: 0.10.4
+  docs: docs/integration.md#how-it-fits-with-the-reader
+  checks: [INT-052, INT-111]
+- feature: "magicband.list (people, bands, readers, settings, lockdown, holidays)"
+  since: 0.7.0
+  docs: docs/integration.md#actions
+  checks: [INT-078, INT-036]
+- feature: "Management page: sidebar panel (admin-only), page view needs a login, sidebar toggle"
+  since: 0.10.0
+  docs: docs/integration.md#management-page
+  checks: [INT-018, INT-108]
+- feature: "Page shim allowlist (entity controls, integration actions, sound path, history/logbook reads)"
+  since: 0.10.0
+  docs: custom_components/magicband/frontend/shim.js
+  checks: [INT-109]
+- feature: "Waltograph font widths (page wordmark)"
+  since: 0.10.17
+  docs: CHANGELOG.md
+  checks: [INT-066, INT-067, INT-068]
