@@ -19,15 +19,24 @@ Runs on every push and pull request (.github/workflows/privacy.yml) and fails if
    printable ASCII and UTF-16 runs (6 characters or more), and .zip files by
    their members' names and contents.
 
-The new commits are BASE..HEAD (the workflow passes them). For a new branch or
-tag (BASE all zeros or missing, e.g. after a force push) they are the commits
-since the merge base with origin/main, or the whole history without one.
+Each commit's files are listed with `git diff-tree -r -z` (NUL-separated, so a
+name is never quoted) and every added or changed file is read on its own (the
+blob itself, and for a changed text file `git diff` of its two blobs), so no
+byte inside a file (a control character, invalid UTF-8) can hide anything else.
+
+The new commits are BASE..HEAD (the workflow passes them). When BASE isn't an
+ancestor of HEAD (a force push) they are the commits since the merge base of
+the two, or the whole history without one; when BASE isn't in the clone (and
+can't be fetched by its SHA) the whole history. For a new branch or tag (BASE
+all zeros) they are the commits since the merge base with origin/main, or the
+whole history without one.
 
 The private terms exist only in the secret, never in the repository, and a
 match is reported only by commit, file, line and rule number, never by the text
-that matched (and a path that itself matches is shown by its position in a git
-listing, not by name). Without the secret (e.g. a pull request from a fork)
-check 3 is skipped with a warning.
+that matched. Every path goes through shown_path(): one that itself matches a
+private term is never printed (not in annotations, messages or the summary),
+only its position in a git listing. Without the secret (e.g. a pull request
+from a fork) check 3 is skipped with a warning.
 
 Run it locally: PRIVACY_DENYLIST="$(cat my-terms.txt)" python3 .github/scripts/privacy_guard.py
 """
@@ -63,6 +72,7 @@ UTF16BE_RUN = re.compile(rb"(?:\x00[\x20-\x7e]){6,}")
 ZERO = "0" * 40
 
 problems = 0
+RULES: list[re.Pattern] = []  # the private terms, for shown_path()
 
 
 def git(*args: str) -> str:
@@ -70,8 +80,26 @@ def git(*args: str) -> str:
                           capture_output=True, text=True, check=True, errors="replace").stdout
 
 
+def git_bytes(*args: str) -> bytes:
+    return subprocess.run(["git", "-c", "core.quotePath=false", *args], capture_output=True, check=True).stdout
+
+
+def shown_path(path: str | None) -> str | None:
+    """The one door for a path into the output: None when it matches a private term (then only its position,
+    given in the message, locates it), else the path escaped as a GitHub annotation property."""
+    if not path or matches(RULES, path):
+        return None
+    for ch, esc in (("%", "%25"), ("\r", "%0D"), ("\n", "%0A"), (":", "%3A"), (",", "%2C")):
+        path = path.replace(ch, esc)
+    return path
+
+
 def error(msg: str, path: str | None = None, line: int | None = None) -> None:
     global problems
+    hidden = path is not None and shown_path(path) is None
+    path = shown_path(path)
+    if hidden and line:
+        msg += f" (line {line})"  # the annotation can't carry it without the path
     loc = f" file={path}" + (f",line={line}" if line else "") if path else ""
     print(f"::error{loc}::{msg}")
     problems += 1
@@ -96,16 +124,38 @@ def matches(rules: list[re.Pattern], text: str) -> list[int]:
     return [i for i, rule in enumerate(rules, 1) if rule.search(text)]
 
 
+def _has_commit(sha: str) -> bool:
+    try:
+        git("cat-file", "-e", sha + "^{commit}")
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+
 def commit_range() -> tuple[str, list[str]]:
-    """(git revision range, commits) of what this push or pull request adds."""
+    """(description, commits) of what this push or pull request adds."""
     base, head = os.environ.get("BASE", "").strip(), os.environ.get("HEAD", "").strip() or "HEAD"
     head = git("rev-parse", head).strip()
     if base and set(base) != {"0"}:
-        try:
-            git("cat-file", "-e", base + "^{commit}")
-            return f"{base}..{head}", git("rev-list", f"{base}..{head}").split()
-        except subprocess.CalledProcessError:
-            pass  # e.g. after a force push the old base isn't in the clone
+        if not _has_commit(base) and re.fullmatch(r"[0-9a-f]{40}", base):
+            # After a force push the old tip isn't in the clone; GitHub usually still serves it by SHA.
+            subprocess.run(["git", "fetch", "--quiet", "--no-tags", "origin", base],
+                           capture_output=True, check=False, timeout=120)
+        if _has_commit(base):
+            try:
+                git("merge-base", "--is-ancestor", base, head)
+                return f"{base[:8]}..{head[:8]}", git("rev-list", f"{base}..{head}").split()
+            except subprocess.CalledProcessError:
+                pass
+            # A force push (or a pull request whose base moved on): from where the old and new tips meet.
+            try:
+                mb = git("merge-base", base, head).strip()
+                return f"{mb[:8]}..{head[:8]}", git("rev-list", f"{mb}..{head}").split()
+            except subprocess.CalledProcessError:
+                return f"all of {head[:8]}", git("rev-list", head).split()
+        # The old tip can't be found: the merge base with main would be the new tip itself on a force push
+        # to main, so check the whole history instead.
+        return f"all of {head[:8]}", git("rev-list", head).split()
     # A new branch or tag: everything not already on main, or the whole history.
     for main in ("origin/main", "main"):
         try:
@@ -113,8 +163,8 @@ def commit_range() -> tuple[str, list[str]]:
         except subprocess.CalledProcessError:
             continue
         commits = git("rev-list", f"{mb}..{head}").split()
-        return (f"{mb}..{head}", commits) if commits else (head, [head])
-    return head, git("rev-list", head).split()
+        return (f"{mb[:8]}..{head[:8]}", commits) if commits else (head[:8], [head])
+    return f"all of {head[:8]}", git("rev-list", head).split()
 
 
 def is_binary(data: bytes) -> bool:
@@ -136,7 +186,7 @@ def label(where: str, msg: str) -> str:
 def scan_blob(rules: list[re.Pattern], data: bytes, where: str, path: str | None, credentials: bool,
               depth: int = 0) -> None:
     """Check one file's content. `where` prefixes the messages ("" for a tracked file shown by its path);
-    `path` is the annotation (None hides a path that itself matches a private term)."""
+    `path` is the annotation (error() withholds a path that itself matches a private term)."""
     if data[:4] == b"PK\x03\x04" and depth < 3:
         scan_zip(rules, data, where, path, depth)
         return
@@ -187,12 +237,79 @@ def path_ref(rules: list[re.Pattern], path: str, ref: str) -> str | None:
     return None if hits else path
 
 
+class Blobs:
+    """Reads blobs through one `git cat-file --batch` process (bytes in, bytes out: nothing is parsed)."""
+
+    def __init__(self) -> None:
+        self.proc = subprocess.Popen(["git", "cat-file", "--batch"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+
+    def read(self, blob: str) -> bytes | None:
+        """The blob's content, or None when it is missing or larger than MAX_BYTES."""
+        self.proc.stdin.write(blob.encode() + b"\n")
+        self.proc.stdin.flush()
+        header = self.proc.stdout.readline().split()
+        if len(header) != 3:
+            return None  # "<blob> missing"
+        size = int(header[2])
+        data = self.proc.stdout.read(size)
+        self.proc.stdout.read(1)  # newline after the content
+        return data if size <= MAX_BYTES else None
+
+    def close(self) -> None:
+        self.proc.stdin.close()
+        self.proc.wait()
+
+
+def changes(sha: str) -> tuple[str, list[tuple[str, str, str, str, str]]]:
+    """(listing command, [(status, old mode, old blob, new blob, path)]) of one commit against its first parent,
+    from NUL-separated `git diff-tree -z` output: paths are never quoted and no byte in a file can split it."""
+    parents = git("rev-list", "--parents", "-n", "1", sha).split()[1:]
+    rng = [parents[0], sha] if parents else ["--root", sha]
+    listing = "`git diff-tree -r --no-renames --name-only " + " ".join(r[:8] if r != "--root" else r for r in rng) + "`"
+    fields = git_bytes("diff-tree", "-r", "-z", "--no-renames", "--no-abbrev", "--no-commit-id", *rng).split(b"\0")
+    out = []
+    i = 0
+    while i + 1 < len(fields):
+        meta, name = fields[i], fields[i + 1]
+        i += 2
+        parts = meta.lstrip(b":").split()
+        if len(parts) < 5:
+            continue
+        out.append((parts[4].decode()[:1], parts[1].decode(), parts[2].decode(), parts[3].decode(),
+                    name.decode("utf-8", "replace")))
+    return listing, out
+
+
+def added_lines(old_blob: str, new_blob: str, new: bytes) -> list[tuple[int, bytes]] | None:
+    """(line number, text) of the lines `new` adds to the old blob, from `git diff` of the two blobs alone
+    (one file, no path, so nothing to quote and no other file's bytes in the stream). None when git treats
+    the pair as binary: then the caller scans the whole new file."""
+    if set(old_blob) == {"0"}:
+        return list(enumerate(new.split(b"\n"), 1))
+    out = git_bytes("diff", "--no-color", "--no-ext-diff", "--no-textconv", "--unified=0", old_blob, new_blob)
+    lines, n, in_hunk = [], 0, False
+    for raw in out.split(b"\n"):
+        if raw.startswith(b"@@"):
+            in_hunk = True
+            m = re.match(rb"@@ -\S+ \+(\d+)", raw)
+            n = int(m.group(1)) if m else 0
+        elif not in_hunk:
+            if raw.startswith(b"Binary files ") or raw.startswith(b"GIT binary patch"):
+                return None
+        elif raw.startswith(b"+"):
+            lines.append((n, raw[1:]))
+            n += 1
+    return lines
+
+
 def check_commits(rules: list[re.Pattern]) -> int:
-    rev, commits = commit_range()
+    rng, commits = commit_range()
+    print(f"privacy guard: checking {len(commits)} commit(s) ({rng})")
     # 1, and 2/3 on commit messages and names
     for sha in commits:
         fields = git("show", "-s", "--format=%an%x00%ae%x00%cn%x00%ce%x00%B", sha).split("\x00")
-        an, ae, cn, ce, body = fields[0], fields[1], fields[2], fields[3], fields[4]
+        fields += [""] * (5 - len(fields))
+        an, ae, cn, ce, body = fields[0], fields[1], fields[2], fields[3], "\x00".join(fields[4:])
         for who, email in (("author", ae), ("committer", ce)):
             if not ALLOWED_EMAIL.match(email.strip()):
                 error(f"Commit {sha[:8]}: {who} email isn't a no-reply address. Use "
@@ -204,80 +321,43 @@ def check_commits(rules: list[re.Pattern]) -> int:
         for i in matches(rules, text):
             error(f"Commit {sha[:8]}: the commit message or name matches private term #{i}")
 
-    # 2 and 3 on what each commit adds: file names, added lines, added binary files
-    log_args = ["show", commits[0]] if ".." not in rev and len(commits) == 1 else ["log", rev]
-    out = subprocess.run(
-        ["git", "-c", "core.quotePath=false", *log_args, "--format=%x01%H", "--no-renames", "--diff-merges=first-parent",
-         "--raw", "--no-abbrev", "-p", "--unified=0", "--no-color", "--no-ext-diff", "--no-textconv"],
-        capture_output=True, check=True).stdout
-    binaries: list[tuple[str, str, str]] = []  # (commit, path, blob)
-    for chunk in out.split(b"\x01")[1:]:
-        lines = chunk.split(b"\n")
-        sha = lines[0].decode().strip()
-        listing = f"`git show --no-renames --diff-merges=first-parent --name-only --format= {sha[:8]}`"
-        blobs, refs, order = {}, {}, 0
-        path, new_line, in_hunk = None, 0, False
-        for raw in lines[1:]:
-            if raw.startswith(b":") and not in_hunk and b"\t" in raw:
-                meta, name = raw.split(b"\t", 1)
-                parts = meta.split()
-                name_s = name.decode("utf-8", "replace")
-                order += 1
-                if parts[4].startswith(b"D"):
+    # 2 and 3 on what each commit adds: file names, added lines, added or changed binary files. Each commit's
+    # file list and each file's content are read separately (never one combined patch stream to split).
+    blobs = Blobs()
+    seen_binary: set[str] = set()
+    try:
+        for sha in commits:
+            listing, files = changes(sha)
+            for order, (status, _old_mode, old_blob, new_blob, path) in enumerate(files, 1):
+                if status == "D":
                     continue
-                blobs[name_s] = parts[3].decode()
-                shown = path_ref(rules, name_s, f"Commit {sha[:8]}, path #{order} in {listing}")
-                refs[name_s] = shown
-                if SECRET_FILES.search(name_s):
-                    error(f"Commit {sha[:8]} adds a secrets file: remove it from the history and add it to "
-                          ".gitignore", shown)
-                continue
-            if raw.startswith(b"diff --git "):
-                path, in_hunk = None, False
-                continue
-            if raw.startswith(b"+++ ") and not in_hunk:
-                p = raw[4:].decode("utf-8", "replace")
-                path = None if p == "/dev/null" else (p[2:] if p.startswith("b/") else p)
-                continue
-            if raw.startswith(b"Binary files ") and not in_hunk:
-                m = re.search(rb" and (?:b/)?(.*) differ$", raw)
-                p = m.group(1).decode("utf-8", "replace") if m else None
-                if p and p in blobs:
-                    binaries.append((sha, p, blobs[p]))
-                continue
-            if raw.startswith(b"@@"):
-                in_hunk = True
-                m = re.match(rb"@@ -\S+ \+(\d+)", raw)
-                new_line = int(m.group(1)) if m else 0
-                continue
-            if in_hunk and raw.startswith(b"+") and path:
-                text = raw[1:].decode("utf-8", "replace")
-                shown = refs.get(path, path)
-                if path != SELF and CREDENTIALS.search(text):
-                    error(f"Commit {sha[:8]} adds a line that looks like a credential", shown, new_line)
-                for i in matches(rules, text):
-                    error(f"Commit {sha[:8]} adds a line matching private term #{i}: remove it from the history "
-                          "(not only from the latest version)", shown, new_line)
-                new_line += 1
-    if rules and binaries:
-        cat = subprocess.Popen(["git", "cat-file", "--batch"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-        seen = set()
-        for sha, p, blob in binaries:
-            if blob in seen:
-                continue
-            seen.add(blob)
-            cat.stdin.write(blob.encode() + b"\n")
-            cat.stdin.flush()
-            header = cat.stdout.readline().split()
-            size = int(header[2]) if len(header) == 3 else 0
-            data = cat.stdout.read(size) if size else b""
-            cat.stdout.read(1)  # newline after the content
-            if size > MAX_BYTES:
-                continue
-            shown = None if matches(rules, p) else p
-            scan_blob(rules, data, f"Commit {sha[:8]}, an added binary file", shown, credentials=False)
-        cat.stdin.close()
-        cat.wait()
+                ref = f"Commit {sha[:8]}, path #{order} in {listing}"
+                who = f"Commit {sha[:8]}" if path_ref(rules, path, ref) else f"Commit {sha[:8]} (path #{order})"
+                if SECRET_FILES.search(path):
+                    error(f"{who} adds a secrets file: remove it from the history and add it to "
+                          ".gitignore", path)
+                if new_blob == "0" * len(new_blob) or len(new_blob) not in (40, 64):
+                    continue
+                data = blobs.read(new_blob)  # a submodule (gitlink) or an oversized file reads as None
+                if data is None:
+                    continue
+                if data[:4] == b"PK\x03\x04" or is_binary(data):
+                    if rules and new_blob not in seen_binary:
+                        seen_binary.add(new_blob)
+                        scan_blob(rules, data, f"{who}, an added binary file", path, credentials=False)
+                    continue
+                added = added_lines(old_blob, new_blob, data)
+                if added is None:  # git saw the old version as binary: the whole new file is new text
+                    added = list(enumerate(data.split(b"\n"), 1))
+                for n, raw in added:
+                    line = raw.decode("utf-8", "replace")
+                    if path != SELF and CREDENTIALS.search(line):
+                        error(f"{who} adds a line that looks like a credential", path, n)
+                    for i in matches(rules, line):
+                        error(f"{who} adds a line matching private term #{i}: remove it from the "
+                              "history (not only from the latest version)", path, n)
+    finally:
+        blobs.close()
     return len(commits)
 
 
@@ -287,22 +367,23 @@ def check_tree(rules: list[re.Pattern]) -> None:
             continue
         shown = path_ref(rules, path, f"Tracked file #{n} (`git ls-files | sed -n {n}p`)")
         if SECRET_FILES.search(path):
-            error("A secrets file is tracked: remove it and add it to .gitignore", shown)
+            error("A secrets file is tracked: remove it and add it to .gitignore", path)
             continue
         if os.path.getsize(path) > MAX_BYTES:
             continue
         with open(path, "rb") as fh:
             data = fh.read()
-        scan_blob(rules, data, "" if shown else f"Tracked file #{n}", shown, credentials=path != SELF)
+        scan_blob(rules, data, "" if shown else f"Tracked file #{n}", path, credentials=path != SELF)
 
 
 def main() -> int:
     rules = denylist()
+    RULES[:] = rules
     if not rules:
         print("::warning::PRIVACY_DENYLIST secret isn't set (or a fork PR): private terms not checked")
     count = check_commits(rules)
     check_tree(rules)
-    print(f"privacy guard: {count} commit(s) and {len(git('ls-files').splitlines())} file(s) checked, "
+    print(f"privacy guard: {count} commit(s) and {len([p for p in git('ls-files', '-z').split(chr(0)) if p])} file(s) checked, "
           f"{problems} problem(s)")
     return 1 if problems else 0
 

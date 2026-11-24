@@ -638,6 +638,79 @@ def privacy_checks(tmp: Path) -> None:
                                    "|| github.sha }}"), env.get("HEAD")
         assert env.get("PRIVACY_DENYLIST") == "${{ secrets.PRIVACY_DENYLIST }}", "denylist not from the secret"
 
+    @check("CI-049", F_PG, "A control byte (\\x01) and non-UTF-8 bytes in an added line don't hide the rest of the "
+           "commit: a term later in the same file, in another file and in a binary of that commit are all caught, "
+           "and the guard doesn't crash")
+    def _():
+        root = _history(tmp, "controlbyte")
+        base = _commit(root, {"a.txt": "clean\n"})
+        mid = _commit(root, {
+            "export/log.txt": b"first\nweird \x01\xff\xfe\x80 bytes\nsecond\nmeet at " + term.encode() + b"\n",
+            "export/z-later.txt": f"also {term}\n",
+            "export/z-photo.png": _png_with_text("Comment", f"taken at {term}"),
+        })
+        head = _commit(root, {"export/log.txt": None, "export/z-later.txt": None, "export/z-photo.png": None})
+        proc = _guard(root, denylist=rule, base=base, head=head)
+        assert "Traceback" not in proc.stderr, f"crashed: {out_of(proc)}"
+        assert proc.returncode != 0, out_of(proc)
+        assert f"file=export/log.txt,line=4::Commit {mid[:8]} adds a line matching private term #1" in proc.stdout, \
+            out_of(proc)
+        assert f"file=export/z-later.txt,line=1::Commit {mid[:8]} adds a line" in proc.stdout, out_of(proc)
+        assert f"file=export/z-photo.png::Commit {mid[:8]}, an added binary file" in proc.stdout, out_of(proc)
+        _assert_not_echoed(proc, term)
+
+    @check("CI-050", F_PG, "Binaries whose names contain a double quote, a backslash or ' and ' are scanned "
+           "(added, and modified), even when removed again in the same push")
+    def _():
+        root = _history(tmp, "oddnames")
+        names = ['img "q".bin', "back\\slash.bin", "this and that.bin"]
+        base = _commit(root, {"this and that.bin": b"\x00\x01clean binary\x00"})
+        mid = _commit(root, {n: b"\x00\x01" + f"{k} near {term}".encode() + b"\x00" for k, n in enumerate(names)})
+        head = _commit(root, {n: None for n in names})
+        proc = _guard(root, denylist=rule, base=base, head=head)
+        assert "Traceback" not in proc.stderr, f"crashed: {out_of(proc)}"
+        hits = [ln for ln in proc.stdout.splitlines()
+                if f"Commit {mid[:8]}, an added binary file: binary content" in ln]
+        assert len(hits) == 3, f"expected 3 binaries caught, got {len(hits)}: {out_of(proc)}"
+        assert proc.returncode != 0
+        _assert_not_echoed(proc, term)
+
+    @check("CI-051", F_PG, "A force push is checked from the merge base of the old and new tips (BASE not an "
+           "ancestor of HEAD), or the whole history when the old tip isn't in the clone; not only the tip")
+    def _():
+        root = _history(tmp, "forcepush")
+        start = _commit(root, {"a.txt": "clean\n"})
+        old_tip = _commit(root, {"a.txt": "old main\n"})
+        run(["git", "reset", "-q", "--hard", start], cwd=root, env=_guard_env())
+        bad = _commit(root, {"b.txt": f"{term}\n"})
+        head = _commit(root, {"b.txt": "fixed\n"})
+        run(["git", "update-ref", "refs/remotes/origin/main", head], cwd=root, env=_guard_env())
+        proc = _guard(root, denylist=rule, base=old_tip, head=head)
+        assert proc.returncode != 0 and f"file=b.txt,line=1::Commit {bad[:8]} adds a line" in proc.stdout, \
+            f"BASE not an ancestor: {out_of(proc)}"
+        missing = "1234567" * 5 + "89abc"  # an old tip that isn't in this clone
+        proc = _guard(root, denylist=rule, base=missing, head=head)
+        assert proc.returncode != 0 and f"file=b.txt,line=1::Commit {bad[:8]} adds a line" in proc.stdout, \
+            f"BASE missing from the clone: only the tip checked: {out_of(proc)}"
+        _assert_not_echoed(proc, term)
+
+    @check("CI-052", F_PG, "A path that matches a private term is never printed, even when git would quote it "
+           "(quotes, backslash) and its content also matches or looks like a credential: only its position is")
+    def _():
+        root = _history(tmp, "quotedpath")
+        base = _commit(root, {"a.txt": "clean\n"})
+        head = _commit(root, {
+            f'notes "{term}".txt': f"meet at {term}\ntoken: {FAKE_GITHUB_TOKEN}\n",
+            f"dir\\{term}\\x.bin": b"\x00\x01" + f"near {term}".encode() + b"\x00",
+        })
+        proc = _guard(root, denylist=rule, base=base, head=head)
+        assert proc.returncode != 0, out_of(proc)
+        assert f"Commit {head[:8]}, path #" in proc.stdout and "Tracked file #" in proc.stdout, out_of(proc)
+        for line in (proc.stdout + proc.stderr).splitlines():
+            assert term.lower() not in line.lower(), "a path or the matched text was printed"
+            assert "hillcrest" not in line.lower(), "a path was printed"
+        assert sum("file=" in ln for ln in proc.stdout.splitlines() if "hillcrest" in ln.lower()) == 0
+
 
 def _history(tmp: Path, name: str) -> Path:
     root = tmp / "privacy-history" / name
@@ -804,14 +877,14 @@ def workflow_checks() -> None:
         assert not uncommented, f"no tag comment: {uncommented}"
         return f"{len(_uses(fw)) + len(_uses(pv))} uses, all pinned"
 
-    @check("CI-033", F_WF, "The sign job only runs for main or v* tags, never for pull_request, after build")
+    @check("CI-033", F_WF, "The sign job only runs for main (never a tag or a pull_request), after build")
     def _():
         sign = jobs["sign"]
         cond = sign.get("if", "")
         assert "github.event_name != 'pull_request'" in cond, cond
-        assert "github.ref == 'refs/heads/main'" in cond and "startsWith(github.ref, 'refs/tags/v')" in cond, cond
-        assert re.fullmatch(r"github\.event_name != 'pull_request' && \(github\.ref == 'refs/heads/main' \|\| "
-                            r"startsWith\(github\.ref, 'refs/tags/v'\)\)", cond.strip()), f"unexpected condition: {cond}"
+        assert "github.ref == 'refs/heads/main'" in cond and "refs/tags" not in cond, cond
+        assert re.fullmatch(r"github\.event_name != 'pull_request' && github\.ref == 'refs/heads/main'",
+                            cond.strip()), f"unexpected condition: {cond}"
         assert sign.get("needs") in ("build", ["build"]), sign.get("needs")
 
     @check("CI-034", F_WF, "The sign job uses the release-signing environment (which holds OTA_SIGNING_KEY)")
@@ -951,6 +1024,49 @@ def workflow_checks() -> None:
         assert any(all(w in c for w in want) for c in cmds), cmds
         rel = re.sub(r"\s*\\\n\s*#\s*", " ", fw_text)
         assert all(w in rel for w in want), "release job comment shows an unpinned verify command"
+
+
+    @check("CI-053", F_WF, "Releases only from Run workflow on main: sign (the release job's dependency) runs only "
+           "for refs/heads/main, and the workflow header, README and docs/security.md say a pushed tag can't reach "
+           "the key (the release-signing environment allows main only) and isn't released")
+    def _():
+        cond = jobs["sign"].get("if", "")
+        assert "refs/tags" not in cond and "refs/heads/main" in cond, f"sign runs for tags: {cond}"
+        rel_needs = jobs["release"].get("needs")
+        assert "sign" in ([rel_needs] if isinstance(rel_needs, str) else rel_needs), rel_needs
+        header = re.sub(r"\s*\n#\s*", " ", fw_text.split("\non:", 1)[0])
+        for want in ("Run workflow on main", "pushed v* tag only builds and tests", "release-signing",
+                     "allow main only"):
+            assert want in header, f"workflow header doesn't say: {want}"
+        readme = re.sub(r"\s+", " ", (REPO / "README.md").read_text())
+        assert "pushing a `v*` tag yourself doesn't release" in readme.lower(), \
+            "README doesn't say a pushed tag isn't released"
+        doc = re.sub(r"\s+", " ", (REPO / "docs" / "security.md").read_text())
+        for stale in ("A release made by pushing a tag yourself", "release tags whose commit is on `main`",
+                      "tags whose commit isn't on `main` are never signed", "signing job checks that a tag's commit"):
+            assert stale not in doc, f"docs/security.md still says: {stale}"
+        assert "only `main` (no tag rule)" in doc, "docs/security.md doesn't say the environment allows only main"
+
+    @check("CI-054", F_WF, "docs/security.md makes no claim the round-2 review found false, and lists the accepted "
+           "risks it added (pairing race on a new reader, rollback via the unsigned manifest version, lockout "
+           "settings any user can change, safe-mode reboots, unpinned build toolchain, unknown-band limit in Ask "
+           "Home Assistant mode)")
+    def _():
+        doc = re.sub(r"\s+", " ", (REPO / "docs" / "security.md").read_text())
+        for stale in ("nobody can hold a new reader's pairing open indefinitely",
+                      "a site serving an older signed release can't roll devices back",
+                      "Automatic updates never install an older release",
+                      "signing still stops anyone who controls only the site, Home Assistant or another branch",
+                      "*Why acceptable:* it is opt-in,"):
+            assert stale not in doc, f"still claims: {stale}"
+        risks = doc.split("## Accepted risks", 1)[1]
+        for want in ("**Someone with Home Assistant access can block or race the first pairing of a new reader.**",
+                     "**Automatic updates trust the manifest's version number.**",
+                     "ordinary entities any Home Assistant user can change",
+                     "**Rebooting a device over and over.**",
+                     "**The signed firmware is only as clean as its build toolchain.**",
+                     "**Unknown-band limit in Ask Home Assistant mode.**"):
+            assert want in risks, f"accepted risks miss: {want}"
 
 
 if __name__ == "__main__":

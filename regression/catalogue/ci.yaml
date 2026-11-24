@@ -20,6 +20,10 @@
   since: 0.10.32
   docs: docs/security.md#the-privacy-guard-this-repository
   checks: [CI-041, CI-042, CI-043, CI-044, CI-045]
+- feature: "Privacy guard: NUL-separated parsing (control bytes, odd file names), force pushes from the merge base, paths matching a term never printed"
+  since: 0.10.32
+  docs: docs/security.md#the-privacy-guard-this-repository
+  checks: [CI-049, CI-050, CI-051, CI-052]
 - feature: "Web installer site and update manifests (make_site.py, vendored ESP Web Tools)"
   since: 0.10.4
   docs: docs/security.md#devices-and-updates
@@ -36,3 +40,11 @@
   since: 0.10.32
   docs: docs/security.md#devices-and-updates
   checks: [CI-037, CI-046, CI-047, CI-048]
+- feature: "Releases only from Run workflow on main: sign runs only for main; a pushed tag can't reach the key (release-signing allows main only)"
+  since: 0.10.32
+  docs: docs/security.md#devices-and-updates
+  checks: [CI-033, CI-053]
+- feature: "docs/security.md: no claim a review found false; accepted risks listed"
+  since: 0.10.32
+  docs: docs/security.md#accepted-risks
+  checks: [CI-054]

@@ -133,8 +133,10 @@ integration attached.
 To make a release: bump `VERSION` and the versions it lists (CI checks they
 match), add a `CHANGELOG.md` section, and merge to `main`. Then go to
 **Actions → Build, test & release → Run workflow**, tick **release**, and run
-it on `main`. It tags `v<VERSION>` and publishes the GitHub Release. Every
-push to `main` signs the firmware and publishes it to the update site; with a
+it on `main`. It tags `v<VERSION>` and publishes the GitHub Release. This is
+the only way to release: pushing a `v*` tag yourself doesn't release (that run
+only builds and tests, and the `release-signing` environment gives its key to
+`main` only). Every push to `main` signs the firmware and publishes it to the update site; with a
 required reviewer on the `release-signing` environment (recommended, see
 [docs/security.md](docs/security.md#accepted-risks)), approve the **sign** job
 in the run first.
