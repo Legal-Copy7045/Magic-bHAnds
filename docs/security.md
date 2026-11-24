@@ -199,14 +199,23 @@ is welcomed in, not whether it's let in.
   no password (a password published in this repository would protect
   nothing), so a stranger nearby during a Wi-Fi outage can join it and set a
   different network, taking the device offline until you set it back (see
-  Accepted risks). It's added to the official signed builds only
+  Accepted risks). Until a board has been added to Home Assistant, whoever
+  joins its hotspot first could also claim it (see First connection): give it
+  Wi-Fi and add it straight after flashing. It's added to the official signed builds only
   (`.github/scripts/signed_build.py`): the device files in `esphome/` and
   your own builds, which aren't signed, don't have it, since there anyone who
   joined could upload any firmware. The BP2-POE uses Ethernet and has none.
   Wi-Fi can still be set over USB with the web installer (Improv).
 - **First connection.** A freshly flashed board accepts the first client that
   gives it an encryption key, normally Home Assistant when you add it. Add new
-  boards promptly, on a network you trust.
+  boards promptly, on a network you trust. A brand-new bridge or reader with no
+  Wi-Fi set starts its open setup hotspot straight away, and the API listens
+  there too, so until the board has been added to Home Assistant whoever
+  connects first could claim it with their own key. That can't be used to
+  install code (updates must still be signed), but Home Assistant then can't
+  add the board until you erase it and flash it again over USB. So give a new
+  board its Wi-Fi in the web installer and add it to Home Assistant straight
+  after flashing.
 - **Updates** come over HTTPS from this project's GitHub Pages site and are
   checked against the MD5 in the same manifest, which catches corruption.
   Releases, and the firmware the update entities download from the site, also
@@ -454,16 +463,17 @@ wrong or its limits no longer hold.
   sounds. *Limits:* only readers that have never been paired (or were erased)
   are exposed; pair new readers promptly and tap only when Repairs asks you
   to; a reader paired with another key is erased over USB and added again.
-- **Rebooting a device over and over.** Any Home Assistant user can press a
-  device's restart button (**Restart**, or **Reboot Device** on the BP2), and
-  ESPHome counts quick reboots as failed boots: enough of them in a row put
-  the device in safe mode (no Home Assistant API, no Bluetooth proxy) for a
-  few minutes. The firmware raises the number of attempts before safe mode,
-  but a determined user can still reboot a device repeatedly. *Why
-  acceptable:* it's an availability nuisance only: it changes no setting and
-  lets no one in, and restarting a device is something any user can do
-  anyway. *Limits:* it needs a Home Assistant account and someone pressing
-  the button for as long as it lasts; the device recovers by itself.
+- **Restarting a device.** Any Home Assistant user can press a device's
+  restart button (**Restart**, or **Reboot Device** on the BP2); each press
+  takes it offline for a few seconds while it starts again. Pressing it over
+  and over never puts a device in safe mode: the button restarts cleanly
+  (ESPHome's safe reboot clears its boot-loop counter first), and only
+  unclean resets (a crash, the watchdog, a power cut) count towards safe mode.
+  The BP2's raised safe-mode thresholds (20 failed starts within 30 seconds
+  each) are only for real boot loops. *Why acceptable:* it's an availability
+  nuisance only: it changes no setting and lets no one in, and restarting a
+  device is something any user can do anyway. *Limits:* it needs a Home
+  Assistant account and someone pressing the button for as long as it lasts.
 - **Unknown-band flood guard.** A reader reports at most 60 bands it doesn't
   know a minute and 600 an hour to Home Assistant, the same in every mode
   (bands on its list, or that it has had on its list, aren't held back). On a

@@ -577,8 +577,9 @@ async def test_removing_the_nfc_band_unlinks_its_bluetooth_band(
 async def test_reader_device_stays_esphomes_and_no_deprecated_device_registry_use(
     hass: HomeAssistant, setup_integration, reader_device, caplog
 ) -> None:
-    """Home Assistant deprecates reading device_registry.devices as a mapping and moving devices between config
-    entries (add_/remove_config_entry_id): the reader's sensors go on its device, which stays ESPHome's alone."""
+    """Home Assistant deprecates reading device_registry.devices as a mapping, and the reader's device stays
+    ESPHome's alone: MagicbHAnds never adds its config entry to it (add_config_entry_id). The only
+    remove_config_entry_id is the one-off undo of older installs' link (BUG-022, _unlink_old_reader_devices)."""
     import re
     from pathlib import Path
 
@@ -592,7 +593,11 @@ async def test_reader_device_stays_esphomes_and_no_deprecated_device_registry_us
     assert entry.entry_id not in dr.async_get(hass).async_get(reader_device.id).config_entries
     assert "deprecat" not in caplog.text.lower()
     source = "\n".join(p.read_text() for p in Path(__file__).resolve().parents[1].glob("custom_components/magicband/*.py"))
-    assert not re.search(r"\.devices\b|add_config_entry_id|remove_config_entry_id", source)
+    assert not re.search(r"\.devices\b|add_config_entry_id", source)
+    sensor_py = (Path(__file__).resolve().parents[1] / "custom_components/magicband/sensor.py").read_text()
+    assert source.count("remove_config_entry_id") == sensor_py.count("remove_config_entry_id") == 1
+    undo = sensor_py.split("def _unlink_old_reader_devices", 1)[1].split("\nclass ", 1)[0]
+    assert "remove_config_entry_id" in undo
 
 
 async def test_removing_a_reader_removes_its_magicbhands_sensors(hass: HomeAssistant, setup_integration, reader_device) -> None:
@@ -625,5 +630,69 @@ async def test_reader_sensors_left_from_a_reader_removed_while_unloaded_go_at_se
     assert ent_reg.async_get_entity_id("sensor", DOMAIN, f"reader_{reader_device.id}_last_band")  # still there
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
+    assert not ent_reg.async_get_entity_id("sensor", DOMAIN, f"reader_{reader_device.id}_last_band")
+    assert not ent_reg.async_get_entity_id("sensor", DOMAIN, f"reader_{reader_device.id}_allowed_list")
+
+
+def _link_like_an_old_install(hass: HomeAssistant, reader_device) -> str:
+    """Up to 0.10.31 the reader sensors put MagicbHAnds' config entry on the reader's device too. Returns
+    ESPHome's config entry id."""
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    esphome = next(iter(reader_device.config_entries))
+    dr.async_get(hass).async_update_device(reader_device.id, add_config_entry_id=entry.entry_id)
+    assert dr.async_get(hass).async_get(reader_device.id).config_entries == {esphome, entry.entry_id}
+    return esphome
+
+
+async def test_an_old_installs_link_to_the_reader_device_comes_off(
+    hass: HomeAssistant, setup_integration, reader_device
+) -> None:
+    """BUG-022: readers set up before 0.10.32 still had MagicbHAnds' config entry on their device, so deleting the
+    reader from ESPHome left the device and our sensors for good. At setup MagicbHAnds takes its entry off (the
+    sensors stay, with their settings); then removing the reader removes the device and our sensors."""
+    from homeassistant.helpers import entity_registry as er
+
+    ent_reg, dev_reg = er.async_get(hass), dr.async_get(hass)
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    hass.bus.async_fire("tag_scanned", {"tag_id": "04C1D2E3F40590", "device_id": reader_device.id})
+    await hass.async_block_till_done()
+    esphome = _link_like_an_old_install(hass, reader_device)
+    last = ent_reg.async_get_entity_id("sensor", DOMAIN, f"reader_{reader_device.id}_last_band")
+    ent_reg.async_update_entity(last, name="Lounge last band")  # the owner's own name for it is kept
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert dev_reg.async_get(reader_device.id).config_entries == {esphome}
+    kept = ent_reg.async_get(last)
+    assert kept is not None and kept.device_id == reader_device.id and kept.name == "Lounge last band"
+    assert ent_reg.async_get_entity_id("sensor", DOMAIN, f"reader_{reader_device.id}_allowed_list")
+
+    dev_reg.async_clear_config_entry(esphome)  # the reader deleted from ESPHome
+    ent_reg.async_clear_config_entry(esphome)
+    await hass.async_block_till_done()
+    assert dev_reg.async_get(reader_device.id) is None
+    assert not ent_reg.async_get_entity_id("sensor", DOMAIN, f"reader_{reader_device.id}_last_band")
+    assert not ent_reg.async_get_entity_id("sensor", DOMAIN, f"reader_{reader_device.id}_allowed_list")
+
+
+async def test_an_old_installs_reader_deleted_from_esphome_goes_at_setup(
+    hass: HomeAssistant, setup_integration, reader_device
+) -> None:
+    """BUG-022: an old install's reader already deleted from ESPHome (its device left with only MagicbHAnds'
+    entry): at setup the device and our two sensors go."""
+    from homeassistant.helpers import entity_registry as er
+
+    ent_reg, dev_reg = er.async_get(hass), dr.async_get(hass)
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    hass.bus.async_fire("tag_scanned", {"tag_id": "04C1D2E3F40590", "device_id": reader_device.id})
+    await hass.async_block_till_done()
+    esphome = _link_like_an_old_install(hass, reader_device)
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    dev_reg.async_clear_config_entry(esphome)
+    ent_reg.async_clear_config_entry(esphome)
+    await hass.async_block_till_done()
+    assert dev_reg.async_get(reader_device.id).config_entries == {entry.entry_id}  # left behind
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert dev_reg.async_get(reader_device.id) is None
     assert not ent_reg.async_get_entity_id("sensor", DOMAIN, f"reader_{reader_device.id}_last_band")
     assert not ent_reg.async_get_entity_id("sensor", DOMAIN, f"reader_{reader_device.id}_allowed_list")

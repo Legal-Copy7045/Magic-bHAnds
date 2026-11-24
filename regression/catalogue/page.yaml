@@ -73,7 +73,7 @@
 - feature: Paired with MagicbHAnds
   since: 0.10.28
   docs: docs/reader.md#pairing-with-magicbhands
-  checks: [PAGE-059, PAGE-184]
+  checks: [PAGE-059, PAGE-184, PAGE-185]
 - feature: Band light-up power
   since: 0.10.28
   docs: docs/reader.md

@@ -1,8 +1,10 @@
 #pragma once
 // Small guards the device files use against misuse from Home Assistant or at
 // the reader, kept here so the host tests (regression/firmware) can run them:
-//  - release_newer: automatic updates install only a newer release, never an
-//    older signed one (no rollback through the 3 am job);
+//  - release_newer: automatic updates install only a release whose version in
+//    the site's manifest is newer than the one running (that version number
+//    isn't signed: docs/security.md, "Automatic updates trust the manifest's
+//    version number");
 //  - RateLimit: at most N events in a sliding window (the reader's play_show
 //    action);
 //  - UnknownTagLimit: a flood guard on the bands it doesn't know the reader

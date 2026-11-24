@@ -65,6 +65,7 @@ async def async_setup_entry(
     # "Last band name" on every reader's own device page.
     readers: dict[str, ReaderLastBandSensor] = {}
     _remove_stray_reader_devices(hass, entry)
+    _unlink_old_reader_devices(hass, entry)
 
     @callback
     def _add_reader(device_id: str) -> None:
@@ -508,6 +509,33 @@ def _remove_stray_reader_devices(hass: HomeAssistant, entry: MagicBandConfigEntr
             ent_reg, device.id, include_disabled_entities=True
         ):
             dev_reg.async_remove_device(device.id)
+
+
+@callback
+def _unlink_old_reader_devices(hass: HomeAssistant, entry: MagicBandConfigEntry) -> None:
+    """Undo up to 0.10.31: the reader sensors put MagicbHAnds' config entry on the reader's (ESPHome's) device.
+
+    Such a device outlives the reader: deleting it from ESPHome only takes ESPHome's entry off, so the device and
+    its two MagicbHAnds sensors stayed for good, and it couldn't be deleted (BUG-022). MagicbHAnds' entry comes
+    off now; the sensors stay on the device (moved off for the moment, or Home Assistant would remove them with
+    the entry) as for readers added since 0.10.32. A device left with only MagicbHAnds' entry is a reader already
+    deleted from ESPHome: it goes, with its sensors.
+    """
+    dev_reg, ent_reg = dr.async_get(hass), er.async_get(hass)
+    for device in dr.async_entries_for_config_entry(dev_reg, entry.entry_id):
+        ours = [ent for ent in er.async_entries_for_device(ent_reg, device.id, include_disabled_entities=True)
+                if ent.platform == DOMAIN and ent.unique_id.startswith(f"reader_{device.id}_")]
+        if not ours:
+            continue  # not a reader (MagicbHAnds' own device, a band)
+        if device.config_entries == {entry.entry_id}:
+            _remove_reader_sensors(hass, device.id)
+            dev_reg.async_remove_device(device.id)
+            continue
+        for ent in ours:
+            ent_reg.async_update_entity(ent.entity_id, device_id=None)
+        dev_reg.async_update_device(device.id, remove_config_entry_id=entry.entry_id)
+        for ent in ours:
+            ent_reg.async_update_entity(ent.entity_id, device_id=device.id)
 
 
 class ReaderLastBandSensor(RestoreSensor):

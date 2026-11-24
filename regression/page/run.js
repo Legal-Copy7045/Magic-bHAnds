@@ -175,6 +175,9 @@ scenario('desk-structure', { width: 1400 }, async ({ p, f, errs }) => {
   await chk('PAGE-184', F.pair, 'Not paired: the attention hint says to tap only while MagicbHAnds’ Repairs notice asks (the ring also breathes blue for someone else’s request), not “tap any band while its ring breathes blue”', async () => {
     const t = await f.evaluate(() => $('probs').textContent);
     return [/isn’t paired/.test(t) && /only while MagicbHAnds’ notice in Settings → Repairs asks you to/.test(t) && /someone else asks to pair it/.test(t) && !/Tap any band on it while its ring breathes blue/.test(t), t.slice(0, 600)]; });
+  await chk('PAGE-185', F.pair, 'Not paired: the reader card’s tag tooltip says to tap only while MagicbHAnds’ Repairs notice asks, not “while its ring breathes blue” (SEC-021)', async () => {
+    const t = await f.evaluate(() => [...document.querySelectorAll('.tag.no')].filter(x => /Not paired/.test(x.textContent)).map(x => x.title));
+    return [t.length > 0 && t.every(x => /only while MagicbHAnds’ notice in Settings → Repairs asks you to/.test(x) && !/tapped on this reader while its ring breathes blue/.test(x)), t]; });
   await chk('PAGE-006', F.status, 'Status strip: problems first (list not applied, locked out, not paired, battery 15%)', async () => [/list not applied/.test(st.st[0]) && st.st.some(t => /locked out/.test(t)) && st.st.some(t => /paired/.test(t)) && st.st.some(t => /battery 15%/.test(t)), st.st]);
   await chk('PAGE-007', F.status, 'Needs attention shows reader problems (with End lockout now) and the low battery', async () => [!st.hidden && /End lockout now/.test(st.pr) && /battery 15%/.test(st.pr), st.pr.slice(0, 200)]);
   await chk('PAGE-008', F.status, 'Attention cards fill the row (no empty grid column)', async () => [st.cols.length >= 3 && Math.abs(st.cols.slice(0, 3).reduce((a, c) => a + c, 0) + 28 - st.W) < 4, { cols: st.cols, W: st.W }]);
