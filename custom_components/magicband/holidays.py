@@ -111,8 +111,8 @@ def holidays_on(day: date) -> list[Holiday]:
         found.append(LABOR)
     if day == _nth_weekday(y, 11, 3, 4):
         found.append(THANKSGIVING)
-    first = hanukkah(y)
-    if first <= day < first + timedelta(days=8):
+    # Hanukkah lasts eight days and can run into January (the one that started the previous December).
+    if any(first <= day < first + timedelta(days=8) for first in (hanukkah(y), hanukkah(y - 1))):
         found.append(HANUKKAH)
     return found
 
