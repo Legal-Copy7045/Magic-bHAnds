@@ -1,6 +1,6 @@
 # Stable IDs for the integration tests (regression/integration/run.py). Append-only: never renumber or
 # reuse an ID. Renamed a test? Edit its line here to keep its ID.
-# highest issued: INT-208
+# highest issued: INT-231
 INT-001: "tests/test_beacons.py::test_parse"
 INT-002: "tests/test_beacons.py::test_real_beacons_make_two_bands"
 INT-003: "tests/test_beacons.py::test_nearby_goes_off_after_missed_beacons"
@@ -225,3 +225,10 @@ INT-221: "tests/test_sounds_lockout.py::test_releasing_a_reader_clears_its_sound
 INT-222: "tests/test_sounds_lockout.py::test_a_sound_that_cant_play_goes_back_to_the_readers_chime[missing]"
 INT-223: "tests/test_sounds_lockout.py::test_a_sound_that_cant_play_goes_back_to_the_readers_chime[failed]"
 INT-224: "tests/test_celebrations.py::test_a_show_the_reader_refuses_isnt_counted_as_played"
+INT-225: "tests/test_sounds_lockout.py::test_lockout_while_offline_after_a_start_is_announced"
+INT-226: "tests/test_sounds_lockout.py::test_lockout_state_is_seeded_at_setup"
+INT-227: "tests/test_beacons.py::test_an_old_installs_link_to_the_reader_device_comes_off"
+INT-228: "tests/test_beacons.py::test_an_old_installs_reader_deleted_from_esphome_goes_at_setup"
+INT-229: "tests/test_celebrations.py::test_a_show_waits_for_the_reader_to_welcome_the_band"
+INT-230: "tests/test_features.py::test_tap_a_band_keeps_its_end_over_a_reload"
+INT-231: "tests/test_features.py::test_tap_a_band_goes_when_magicbhands_is_unloaded"

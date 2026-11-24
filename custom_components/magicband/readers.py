@@ -28,6 +28,7 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import device_registry as dr, entity_registry as er, issue_registry as ir
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_call_later
+from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, READER_MODEL, READER_SET_SERVICE_SUFFIX
@@ -68,6 +69,7 @@ PAIRING_COOLDOWN = "PAIRING_COOLDOWN"  # our own request expired without a tap: 
 PAIRING_RETRY = 120  # seconds before a busy or cooling-down reader is asked again
 PAIRING_PENDING = "PAIRING_PENDING"  # the reader's reply while a first pairing waits for its tap  # readers from 0.10.20: the protected actions then need the key
 PAIRING_WINDOW = 120  # seconds the reader waits for the tap that confirms a pairing request (PAIR_CONFIRM_MS)
+PAIRING_STORE_KEY = f"{DOMAIN}.pairing"  # when our waiting pairing requests end, kept over a restart or reload
 PAIRED_ELSEWHERE = "paired with another key"  # the reader's refusal once another key has been confirmed
 # A reader's repairs, removed with the reader (or when it is released).
 READER_ISSUES = ("reader_offline", "reader_sync_failed", "reader_pairing", "reader_pairing_busy",
@@ -234,9 +236,32 @@ class ReaderManager:
         # Readers on which MagicbHAnds' own pairing request is waiting for its tap: device -> cancels the
         # scheduled end of that request's 2-minute window. "Tap a band" shows only while one is here.
         self._pair_windows: dict[str, CALLBACK_TYPE] = {}
+        # When each of those requests' windows ends (UTC, ISO), saved: the reader answers PAIRING_PENDING to the
+        # same key while an older request waits and doesn't say how long is left, so after a restart or reload in
+        # the middle of a wait "Tap a band" keeps that request's end instead of starting a fresh 2 minutes.
+        self._pair_ends: dict[str, str] = {}
+        self._pair_store: Store[dict] = Store(hass, 1, PAIRING_STORE_KEY)
         # People whose own welcome sound couldn't be played (file missing, playback failed): their bands are left
         # out of the readers' own-sound list, so the readers chime for them, until the sound is uploaded again.
         self.sounds_failing: set[str] = set()
+
+    async def async_load(self) -> None:
+        """The ends of pairing windows saved before a restart or reload (ones already over are dropped)."""
+        stored = await self._pair_store.async_load() or {}
+        now = dt_util.utcnow()
+        for device_id, end in (stored.get("ends") or {}).items():
+            when = dt_util.parse_datetime(end) if isinstance(end, str) else None
+            if when is not None and when > now:
+                self._pair_ends[device_id] = end
+
+    @callback
+    def _save_pair_end(self, device_id: str, end: datetime | None) -> None:
+        if end is None:
+            if self._pair_ends.pop(device_id, None) is None:
+                return
+        else:
+            self._pair_ends[device_id] = end.isoformat()
+        self.hass.async_create_task(self._pair_store.async_save({"ends": dict(self._pair_ends)}))
 
     # ------------------------------------------------------------------ sync
 
@@ -374,7 +399,15 @@ class ReaderManager:
             if PAIRING_PENDING in text:  # ours is the request waiting (asking again doesn't extend it)
                 self._issue(busy, False, "reader_pairing_busy", {"reader": name})
                 if device.id not in self._pair_windows:
-                    left = max(1.0, PAIRING_WINDOW - (time.monotonic() - asked))
+                    now = dt_util.utcnow()
+                    end = dt_util.parse_datetime(self._pair_ends.get(device.id) or "")
+                    if end is not None and end > now:
+                        # Our request from before a restart or reload is the one waiting: its window keeps its end
+                        # (SEC-021/BUG-024), so "Tap a band" never outlasts the reader's own wait.
+                        left = max(1.0, (end - now).total_seconds())
+                    else:
+                        left = max(1.0, PAIRING_WINDOW - (time.monotonic() - asked))
+                        self._save_pair_end(device.id, now + timedelta(seconds=left))
                     self._pair_windows[device.id] = async_call_later(
                         self.hass, left, callback(lambda _now, d=device.id: self._pair_window_ended(d)))
                     self._issue(tap, True, "reader_pairing", {"reader": name})
@@ -407,12 +440,14 @@ class ReaderManager:
         """Our pairing request on this reader is no longer waiting: "Tap a band" goes."""
         if (cancel := self._pair_windows.pop(device_id, None)) is not None:
             cancel()
+        self._save_pair_end(device_id, None)
         ir.async_delete_issue(self.hass, DOMAIN, f"reader_pairing_{device_id}")
 
     @callback
     def _pair_window_ended(self, device_id: str) -> None:
         """Our request's 2 minutes are up without a tap: stop asking for one, and ask the reader again later."""
         self._pair_windows.pop(device_id, None)
+        self._save_pair_end(device_id, None)
         ir.async_delete_issue(self.hass, DOMAIN, f"reader_pairing_{device_id}")
         self._retry_later()
 
@@ -582,13 +617,17 @@ class ReaderManager:
         """A reader removed or released: none of its repairs stays."""
         if (cancel := self._pair_windows.pop(device_id, None)) is not None:
             cancel()
+        self._save_pair_end(device_id, None)
         for issue in READER_ISSUES:
             ir.async_delete_issue(self.hass, DOMAIN, f"{issue}_{device_id}")
 
     @callback
     def async_shutdown(self) -> None:
-        for cancel in self._pair_windows.values():
+        """Unloaded (reload, disable, remove, Home Assistant stopping): nobody ends the pairing windows now, so
+        "Tap a band" goes with them (BUG-024). Their saved ends stay for the next start."""
+        for device_id, cancel in self._pair_windows.items():
             cancel()
+            ir.async_delete_issue(self.hass, DOMAIN, f"reader_pairing_{device_id}")
         self._pair_windows.clear()
 
     def _status(self, device: dr.DeviceEntry) -> ReaderStatus:

@@ -199,3 +199,19 @@
   since: 0.10.17
   docs: CHANGELOG.md
   checks: [INT-066, INT-067, INT-068]
+- feature: "Refused-tap lockout: the first state after Home Assistant starts or MagicbHAnds reloads is kept (and seeded from current states), so a lockout that starts while a reader is offline is announced; one first seen at the start isn't"
+  since: 0.10.34
+  docs: docs/integration.md#reacting-to-taps
+  checks: [INT-225, INT-226, INT-092]
+- feature: "Readers set up before 0.10.32: MagicbHAnds' config entry comes off the reader's device at setup (sensors kept), so removing the reader removes the device and its MagicbHAnds sensors"
+  since: 0.10.34
+  docs: docs/integration.md#entities
+  checks: [INT-227, INT-228, INT-204]
+- feature: "Celebration and Stamp shows play only after the reader's Band scan says welcomed (within 15 s)"
+  since: 0.10.34
+  docs: docs/integration.md#celebrations-and-the-tap-passport
+  checks: [INT-229]
+- feature: "Pairing: 'Tap a band' keeps its request's end over a reload or restart and goes when MagicbHAnds is unloaded"
+  since: 0.10.34
+  docs: docs/reader.md#pairing-with-magicbhands
+  checks: [INT-230, INT-231]

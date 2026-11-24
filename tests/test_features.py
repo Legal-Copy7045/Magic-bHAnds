@@ -552,6 +552,56 @@ async def test_tap_a_band_shows_only_while_our_request_waits(
     assert len(asked) > n and issues.async_get_issue(DOMAIN, tap) is not None  # a new request: tap now
 
 
+async def test_tap_a_band_keeps_its_end_over_a_reload(hass: HomeAssistant, setup_integration, reader_device, freezer) -> None:
+    """SEC-021/BUG-024: the reader answers PAIRING_PENDING to our key while our older request waits, without saying
+    how long is left. After a reload (or restart) 90 s into the wait, "Tap a band" ends when that request does
+    (120 s), not a fresh 2 minutes later; a request made after it has run out gets its full 2 minutes."""
+    _paired_reader(hass)
+    replies = [PENDING]
+    _pair_replies(hass, replies)
+    issues = ir.async_get(hass)
+    tap = f"reader_pairing_{reader_device.id}"
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    assert issues.async_get_issue(DOMAIN, tap) is not None
+    await _tick(hass, freezer, 90)
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    await _tick(hass, freezer, 3)  # the sync after the reload: still PENDING (the same request)
+    assert issues.async_get_issue(DOMAIN, tap) is not None
+    await _tick(hass, freezer, 28)  # 121 s after the reader took our request: its wait is over
+    assert issues.async_get_issue(DOMAIN, tap) is None
+    replies[0] = "PAIRING_COOLDOWN: this key's pairing request expired without a tap"
+    await _tick(hass, freezer, 200)
+    # The window's end is forgotten once it's over: a later, fresh request gets the full 2 minutes.
+    replies[0] = PENDING
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    assert issues.async_get_issue(DOMAIN, tap) is not None
+    await _tick(hass, freezer, 110)
+    assert issues.async_get_issue(DOMAIN, tap) is not None
+    await _tick(hass, freezer, 11)
+    assert issues.async_get_issue(DOMAIN, tap) is None
+
+
+async def test_tap_a_band_goes_when_magicbhands_is_unloaded(
+    hass: HomeAssistant, setup_integration, reader_device, freezer
+) -> None:
+    """BUG-024: unloading (reload, disable, Home Assistant stopping) cancels the window's timer, so the repair goes
+    with it instead of staying until MagicbHAnds is loaded again."""
+    _paired_reader(hass)
+    _pair_replies(hass, [PENDING])
+    issues = ir.async_get(hass)
+    tap = f"reader_pairing_{reader_device.id}"
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    await hass.services.async_call(DOMAIN, "sync", {}, blocking=True, return_response=True)
+    assert issues.async_get_issue(DOMAIN, tap) is not None
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert issues.async_get_issue(DOMAIN, tap) is None
+    await _tick(hass, freezer, 600)
+    assert issues.async_get_issue(DOMAIN, tap) is None
+
+
 async def test_tap_a_band_goes_as_soon_as_the_reader_says_paired(
     hass: HomeAssistant, setup_integration, reader_device, freezer
 ) -> None:

@@ -284,3 +284,35 @@ async def test_a_show_the_reader_refuses_isnt_counted_as_played(
     await _person_with_band(hass, "Alice")
     await _tap(hass, TAG, reader_device.id)  # the Stamp show after the welcome
     assert "didn't play the light show: Show refused" in caplog.text
+
+
+async def test_a_show_waits_for_the_reader_to_welcome_the_band(
+    hass: HomeAssistant, setup_integration, reader_device, freezer: FrozenDateTimeFactory
+) -> None:
+    """BUG-023: a celebration or Stamp show plays only once the reader's own "Band scan" says it welcomed the band
+    (within 15 s), like a person's own sound: a tap Home Assistant allows but the reader turns away gets no show."""
+    from homeassistant.helpers import entity_registry as er
+
+    scan = er.async_get(hass).async_get_or_create(
+        "event", "esphome", "scan1", device_id=reader_device.id, original_name="Band scan",
+        suggested_object_id="lounge_band_scan").entity_id
+    shows = _shows(hass)
+    freezer.move_to(datetime(2026, 10, 31, 15, 0, tzinfo=dt_util.get_default_time_zone()))  # Halloween
+    await _person_with_band(hass, "Alice")
+
+    await _tap(hass, TAG, reader_device.id)  # first tap: Stamp
+    assert shows == []  # not before the reader has answered
+    hass.states.async_set(scan, "2026-10-31T15:00:01", {"event_type": "denied"})
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert shows == []  # the reader turned it away: no show
+
+    await _tap(hass, TAG, reader_device.id)
+    hass.states.async_set(scan, "2026-10-31T15:00:05", {"event_type": "welcomed"})
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert [c.data["show"] for c in shows] == ["Halloween"]
+
+    await _tap(hass, TAG, reader_device.id)
+    freezer.tick(timedelta(seconds=20))  # the reader's answer came too late to belong to this tap
+    hass.states.async_set(scan, "2026-10-31T15:00:30", {"event_type": "welcomed"})
+    await hass.async_block_till_done(wait_background_tasks=True)
+    assert len(shows) == 1

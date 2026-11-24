@@ -16,7 +16,7 @@ substitutions:
   timezone: America/New_York
   name: screek-bp2-poe-849a4c
   friendly_name: SCREEK BP2-POE 849a4c
-  project_version: "0.10.33"
+  project_version: "0.10.34"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/bp2/manifest.json
 
 esphome:
@@ -254,8 +254,8 @@ time:
       # between 03:00 and 04:00 local time, by the internet clock so it doesn't
       # need Home Assistant (tried every 10 minutes, so a failed
       # download gets another go). Only signed releases install (see
-      # docs/security.md, "Signed updates"), and only a newer one: the job
-      # never goes back to an older signed release. Installing from Home
+      # docs/security.md, "Signed updates"), and only one the site lists as newer
+      # (that listed version number isn't signed). Installing from Home
       # Assistant's Firmware entity is up to you.
       - seconds: 0
         minutes: 55

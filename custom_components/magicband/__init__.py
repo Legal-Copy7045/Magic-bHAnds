@@ -106,6 +106,9 @@ class MagicBandData:
     # reader device id -> (person id, when): a welcomed tap whose owner has their own sound, played when
     # the reader's "Band scan" event says it welcomed them (sounds.py)
     pending_sounds: dict = field(default_factory=dict)
+    # reader device id -> (show, when): a celebration or Stamp show, played when the reader's "Band scan" event
+    # says it welcomed the band (not on Home Assistant's own decision: the reader may have turned the tap away)
+    pending_shows: dict = field(default_factory=dict)
     unsubs: list = field(default_factory=list)
 
 
@@ -127,6 +130,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
         # which only administrators can read.
         hass.config_entries.async_update_entry(entry, data={**entry.data, CONF_READER_KEY: secrets.token_hex(32)})
     readers = ReaderManager(hass, registry, entry.data[CONF_READER_KEY])
+    await readers.async_load()
     history = TapHistory(hass)
     await history.async_load()
     passport = Passport(hass)
@@ -233,6 +237,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
             "Band scan", "Tap lockout", PAIRED_SENSOR)
 
     locked_readers: dict[str, bool] = {}  # reader device -> locked out, as last reported
+    # Readers whose current lockout was first seen straight after Home Assistant or MagicbHAnds started (it may
+    # have been announced before): it isn't announced, and neither is its end.
+    unannounced: set[str] = set()
+    for ent in list(ent_reg.entities.values()):
+        # Seeded from the current states: a reader seen "off" now has a lockout that starts while it's offline
+        # announced when it comes back (BUG-014). One "on" now may have been announced already, so it isn't seeded.
+        if ent.domain == "binary_sensor" and ent.original_name == "Tap lockout" and ent.platform == "esphome":
+            state = hass.states.get(ent.entity_id)
+            if state is not None and state.state == "off" and is_reader_device(hass, ent.device_id):
+                locked_readers[ent.device_id] = False
 
     @callback
     def _reader_signal(event: Event) -> None:
@@ -241,11 +255,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
         if new is None or device_id is None:
             return
         if name == "Band scan":
+            welcomed = new.attributes.get("event_type") == "welcomed"
             pending = data.pending_sounds.pop(device_id, None)
-            if pending and new.attributes.get("event_type") == "welcomed" and time.monotonic() - pending[1] < 15:
+            if pending and welcomed and time.monotonic() - pending[1] < 15:
                 if person := registry.get_person(pending[0]):
                     hass.async_create_background_task(_play_welcome_sound(hass, data, person, device_id),
                                                       f"{DOMAIN}_welcome_sound")
+            show = data.pending_shows.pop(device_id, None)
+            if show and welcomed and time.monotonic() - show[1] < 15:
+                from .readers import async_play_show
+
+                hass.async_create_background_task(async_play_show(hass, show[0], [device_id]),
+                                                  f"{DOMAIN}_celebration")
         elif name == PAIRED_SENSOR:
             if new.state == "on" and (old is None or old.state != "on"):
                 # A tap confirmed a pairing: "Tap a band" goes now, and a sync checks it was MagicbHAnds' key.
@@ -258,18 +279,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: MagicBandConfigEntry) ->
             # goes unavailable -> on/off directly) is compared with the last state seen before it dropped: a
             # lockout that began, or ended, while the reader was cut off is announced; one that was already
             # announced isn't announced again. With nothing seen before (Home Assistant or the integration has
-            # just started) there is nothing to compare with, so nothing is announced. "off" always takes the
-            # notification down, so none is left up after a restart.
+            # just started, so the entity goes unavailable -> on/off) there is nothing to compare with: nothing is
+            # announced, but the state is kept, so a lockout that starts later while the reader is offline is
+            # (BUG-014). A lockout first seen like that may have been announced before the start, so neither it
+            # nor its end is announced. "off" always takes the notification down, so none is left up.
             locked = new.state == "on"
             if old is not None and old.state == "unavailable" and device_id not in locked_readers:
-                if not locked:
+                locked_readers[device_id] = locked
+                if locked:
+                    unannounced.add(device_id)
+                else:
                     persistent_notification.async_dismiss(hass, f"{DOMAIN}_lockout_{device_id}")
                 return
             was = locked_readers.get(device_id, old is not None and old.state == "on")
             locked_readers[device_id] = locked
-            if locked == was:
+            quiet = device_id in unannounced
+            unannounced.discard(device_id)
+            if locked == was or (quiet and not locked):
                 if not locked:  # e.g. back "off" after a restart: no notification is left up
                     persistent_notification.async_dismiss(hass, f"{DOMAIN}_lockout_{device_id}")
+                if quiet and locked:
+                    unannounced.add(device_id)  # still the same, unannounced lockout
                 return
             reader = _reader_name(hass, device_id)
             hass.bus.async_fire(EVENT_LOCKOUT, {"reader": reader, "reader_device_id": device_id, "locked": locked})
@@ -474,10 +504,24 @@ def _welcome_extras(hass: HomeAssistant, data: MagicBandData, person, device_id:
     elif cfg["holiday_shows"] and (today := holidays.holidays_on(now.date())):
         show = today[0].show
     if show and device_id:
-        from .readers import async_play_show
+        if _reader_entity_id(hass, device_id, "event", "Band scan"):
+            # Played once the reader's "Band scan" says it welcomed the band (the listener in async_setup_entry),
+            # within 15 s; a tap the reader turned away gets no show (BUG-023).
+            data.pending_shows[device_id] = (show, time.monotonic())
+        else:
+            # Older reader firmware without a "Band scan" event: nothing to wait for, so as before.
+            from .readers import async_play_show
 
-        hass.async_create_background_task(async_play_show(hass, show, [device_id]), f"{DOMAIN}_celebration")
+            hass.async_create_background_task(async_play_show(hass, show, [device_id]), f"{DOMAIN}_celebration")
     return badges, show
+
+
+def _reader_entity_id(hass: HomeAssistant, device_id: str, domain: str, name: str) -> str | None:
+    """The reader's own (ESPHome) entity with this name, if it has one."""
+    for ent in er.async_entries_for_device(er.async_get(hass), device_id):
+        if ent.platform == "esphome" and ent.domain == domain and ent.original_name == name:
+            return ent.entity_id
+    return None
 
 
 # ---------------------------------------------------------------------------

@@ -1115,7 +1115,7 @@ def workflow_checks() -> None:
 
     @check("CI-054", F_WF, "docs/security.md makes no claim the round-2 review found false, and lists the accepted "
            "risks it added (pairing race on a new reader, rollback via the unsigned manifest version, lockout "
-           "settings any user can change, safe-mode reboots, unpinned build toolchain, the unknown-band flood guard, "
+           "settings any user can change, restarting a device, unpinned build toolchain, the unknown-band flood guard, "
            "a stranger taking a Wi-Fi device offline through its setup hotspot)")
     def _():
         doc = re.sub(r"\s+", " ", (REPO / "docs" / "security.md").read_text())
@@ -1131,11 +1131,38 @@ def workflow_checks() -> None:
         for want in ("**Someone with Home Assistant access can block or race the first pairing of a new reader.**",
                      "**Automatic updates trust the manifest's version number.**",
                      "ordinary entities any Home Assistant user can change",
-                     "**Rebooting a device over and over.**",
+                     "**Restarting a device.**",
                      "**The signed firmware is only as clean as its build toolchain.**",
                      "**Unknown-band flood guard.**",
                      "**A stranger nearby can take a Wi-Fi device offline through its setup hotspot.**"):
             assert want in risks, f"accepted risks miss: {want}"
+
+    @check("CI-057", F_WF, "Round-3 review (SEC-020, SEC-022): restarting a device is a few seconds offline per press "
+           "and never leads to safe mode (no claim that quick reboots count as failed boots); the firmware's guard "
+           "comment says the manifest version, not a signed one, decides 'newer'; a brand-new board's setup "
+           "hotspot lets whoever connects first claim it until it's added to Home Assistant (security.md First "
+           "connection, reader.md and bridge.md setup steps)")
+    def _():
+        flat = lambda path: re.sub(r"\s+", " ", (REPO / path).read_text())
+        doc = flat("docs/security.md")
+        for stale in ("counts quick reboots as failed boots", "The firmware raises the number of attempts",
+                      "Rebooting a device over and over"):
+            assert stale not in doc, f"docs/security.md still claims: {stale}"
+        risk = doc.split("**Restarting a device.**", 1)[1].split("- **", 1)[0]
+        assert "a few seconds" in risk and "never puts a device in safe mode" in risk, risk
+        assert "only for real boot loops" in risk, "the BP2's raised thresholds aren't said to be for boot loops only"
+        bp2 = flat("docs/screek-bp2-poe.md")
+        assert "can't put the board in safe mode" in bp2 and "real boot loop" in bp2, "screek-bp2-poe.md on safe mode"
+        guards = re.sub(r"\s*\n\s*//\s*", " ", (REPO / "components" / "magicband" / "guards.h").read_text())
+        assert "never an older signed one" not in guards and "version in the site's manifest" in guards, \
+            "guards.h claims more than the manifest version check"
+        first = doc.split("**First connection.**", 1)[1].split("- **", 1)[0]
+        assert "no Wi-Fi set" in first and "whoever connects first could claim it" in first, first
+        assert "erase it and flash it again" in first and "straight after flashing" in first, first
+        for name in ("docs/reader.md", "docs/bridge.md"):
+            install = flat(name).split("## Install", 1)[1].split(" ## ", 1)[0]
+            assert "whoever connects first could claim it" in install and "First connection" in install, \
+                f"{name}'s setup steps don't warn about the open hotspot of a board not yet added"
 
 
 if __name__ == "__main__":

@@ -56,3 +56,7 @@
   since: 0.10.33
   docs: docs/security.md#accepted-risks
   checks: [CI-055]
+- feature: "Round-3 docs: restarting a device never leads to safe mode; firmware guard comment matches the manifest-version check; a new board's setup hotspot can be claimed until it's added to Home Assistant"
+  since: 0.10.34
+  docs: docs/security.md#accepted-risks
+  checks: [CI-057]

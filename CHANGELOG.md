@@ -3,6 +3,24 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.34] - 2026-11-24
+
+Fourth round of regression fixes (small).
+
+### Fixed
+- Readers added before 0.10.32 are unlinked from MagicbHAnds at start-up, so
+  removing one removes its device and sensors.
+- Celebration and Stamp shows play only when the reader itself welcomed the
+  band (not after a tap it refused).
+- A lockout that starts while a reader is offline is announced after a Home
+  Assistant restart too.
+- "Tap a band" never outlasts the reader's wait after a restart or reload, and
+  goes when MagicbHAnds is unloaded; the reader card's hint says to tap only
+  when Repairs asks.
+- Docs: restarting a device never leads to safe mode; a brand-new board should
+  get its Wi-Fi and be added to Home Assistant straight after flashing (its
+  setup hotspot is open until then).
+
 ## [0.10.33] - 2026-11-24
 
 Second and third rounds of regression fixes, and security set for a home
@@ -31,13 +49,15 @@ device: convenience first, as long as nothing can put code on the devices.
   key.
 - A lockout that starts while a reader is briefly offline is announced when
   it comes back.
-- Removing a reader removes its MagicbHAnds sensors and repairs.
+- Removing a reader added since 0.10.32 removes its MagicbHAnds sensors and
+  repairs (older readers: 0.10.34).
 - Bands with their own welcome sound get the reader's chime again when their
   sound is missing or fails, or when MagicbHAnds is unloaded or the reader is
   released.
 - Assign and Link messages stay under the right band; Hanukkah is listed once
   when it runs into January.
-- SCREEK BP2-POE: rebooting it several times no longer drops it into safe mode.
+- SCREEK BP2-POE: safe mode starts only after a real boot loop (20 failed starts
+  in a row); restarting it from Home Assistant never counts towards it.
 - Privacy guard: robust against unusual file names and bytes, checks force
   pushes from where histories meet, and never prints a matching file name.
 - Releases are signed only from `main` (a pushed tag can't reach the key).

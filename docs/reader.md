@@ -113,6 +113,12 @@ Install the firmware **before wiring anything else to the ESP32**, as step
    labelled **UART**.
 2. Open the web installer in Chrome or Edge, click **Install the reader**,
    then enter your Wi-Fi details when asked. Unplug it, then build the rest.
+   Don't skip the Wi-Fi step, and add the reader to Home Assistant (next
+   step) as soon as it's built and powered: a brand-new reader with no Wi-Fi
+   set starts its open setup hotspot right away, and until it's added to Home
+   Assistant whoever connects first could claim it. They can't install code
+   on it, but you'd have to erase it and flash it again over USB
+   ([security.md](security.md), "First connection").
 3. Add it in Home Assistant when it's discovered (ESPHome). Leave **Allow
    the device to perform Home Assistant actions** (ESPHome → the reader →
    Configure) **off**: tag scans reach Home Assistant without it, and turning

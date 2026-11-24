@@ -201,6 +201,43 @@ async def test_lockout_across_a_reconnect_is_announced(hass: HomeAssistant, setu
     assert events == [True, False, True]
 
 
+async def test_lockout_while_offline_after_a_start_is_announced(
+    hass: HomeAssistant, setup_integration, reader_device
+) -> None:
+    """BUG-014: after Home Assistant starts (or MagicbHAnds reloads) the reader's Tap lockout goes unavailable -> off.
+    That first state is kept, so a lockout that starts while the reader is offline later is announced; a lockout
+    first seen at the start (it may have been announced before) isn't, and nor is its end (INT-092)."""
+    lockout = _reader_entity(hass, reader_device, "binary_sensor", "Tap lockout", "bs1")
+    events = []
+    hass.bus.async_listen("magicband_lockout", lambda e: events.append(e.data["locked"]))
+
+    async def to(*states):
+        for state in states:
+            hass.states.async_set(lockout, state)
+            await hass.async_block_till_done()
+
+    await to("unavailable", "off", "unavailable", "on")
+    assert events == [True]
+    await to("unavailable", "off")
+    assert events == [True, False]
+
+
+async def test_lockout_state_is_seeded_at_setup(hass: HomeAssistant, setup_integration, reader_device) -> None:
+    """BUG-014: a reload while the reader shows "off": a lockout that starts while it's offline afterwards is announced."""
+    lockout = _reader_entity(hass, reader_device, "binary_sensor", "Tap lockout", "bs1")
+    hass.states.async_set(lockout, "off")
+    await hass.async_block_till_done()
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    events = []
+    hass.bus.async_listen("magicband_lockout", lambda e: events.append(e.data["locked"]))
+    for state in ("unavailable", "on"):
+        hass.states.async_set(lockout, state)
+        await hass.async_block_till_done()
+    assert events == [True]
+
+
 # ---------------------------------------------------------------------------- BUG-021: own sounds the integration can't play
 
 

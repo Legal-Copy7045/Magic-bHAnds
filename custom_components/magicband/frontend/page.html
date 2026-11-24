@@ -714,7 +714,7 @@ function readerCards(I,RD,B){ $('readers').innerHTML=RD.map(d=>{ const p=l=>pick
     const tags=(on?'<span class="tag yes">Online</span>':'<span class="tag no">Offline</span>')
       +(R.locked?'<span class="tag no" title="Too many turned-away taps: the reader ignores taps until the lockout time is up">Locked out</span>':'')
       +(R.night?'<span class="tag" title="Night glow and night sound are on">Night</span>':'')
-      +(R.unpaired?'<span class="tag no" title="Pairing finishes when a band (any band) is tapped on this reader while its ring breathes blue">Not paired</span>':'')
+      +(R.unpaired?'<span class="tag no" title="Tap a band on it only while MagicbHAnds’ notice in Settings → Repairs asks you to: the ring also breathes blue when someone else asks to pair it">Not paired</span>':'')
       +(R.every?'<span class="tag no" title="Response mode is Welcome every band: any band gets in, even ones nobody owns">Lets every band in</span>':'');
     const cams=Object.keys(H().all()||{}).filter(e=>e.startsWith('camera.')).sort(), cur=CAMS?CAMS[d.id]||'':'';
     return `<section class="tc" id="${mk}" data-mk="${mk}"><h3><span><span class="dot2 ${on?'':'off'}"></span>${esc(dname(d))}<span class="tags">${tags}</span></span><small>${esc(d.area||'no area')}${firmware(I,d)?' · firmware '+esc(firmware(I,d)):''}</small></h3>

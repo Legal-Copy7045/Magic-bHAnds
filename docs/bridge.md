@@ -17,6 +17,12 @@ effect. Use more bridges for more coverage.
    your computer through the USB-C port labelled **UART**, using a data cable.
 2. **Flash it.** Open the web installer in Chrome or Edge, click **Install the bridge**,
    then enter your Wi-Fi details when asked. You don't compile or edit YAML.
+   Give it Wi-Fi and add it to Home Assistant (next step) straight after
+   flashing: a brand-new board with no Wi-Fi set starts its open setup hotspot
+   right away, and until it's added to Home Assistant whoever connects first
+   could claim it. They can't install code on it, but you'd have to erase it
+   and flash it again over USB ([security.md](security.md), "First
+   connection").
 3. **Add it to Home Assistant.** HA shows a *Discovered* notification for
    "MagicBand Bridge 3fa2c1" through the ESPHome integration (the last six
    characters are unique to each board). Click **Add**, and leave **Allow the

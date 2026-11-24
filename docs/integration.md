@@ -316,7 +316,8 @@ refreshes them and reloads automations, so you never need to re-import them.
 ## Celebrations and the tap passport
 
 After a welcome, the reader plays one show (reader firmware 0.10.24 or
-later):
+later). MagicbHAnds sends it once the reader's own **Band scan** event says
+it welcomed the band, so a tap the reader turned away never gets a show:
 
 1. **Stamp**, if the tap earned a passport badge;
 2. **Birthday**, on the person's birthday (set it under their name, in **Welcome
