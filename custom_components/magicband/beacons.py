@@ -120,11 +120,17 @@ def parse(payload: bytes) -> Beacon | None:
 _MAC_IN_NAME = re.compile(r"\s*\(([0-9A-Fa-f:]{17})\)\s*$")
 
 
+def device_config_entries(device: dr.DeviceEntry) -> set[str]:
+    """The config entries that own a device: one from HA 2026.11 (`config_entry_id`; reading the old
+    `config_entries` there logs a deprecation warning), a set before."""
+    if hasattr(device, "config_entry_id"):
+        return {device.config_entry_id} if device.config_entry_id else set()
+    return set(device.config_entries)
+
+
 def _entry_domains(hass: HomeAssistant, device: dr.DeviceEntry) -> set[str]:
     """The domains of the config entries that own a device (one entry from HA 2026.11, a set before)."""
-    ids = set(getattr(device, "config_entries", None) or ())
-    if (single := getattr(device, "config_entry_id", None)) is not None:
-        ids.add(single)
+    ids = device_config_entries(device)
     return {entry.domain for eid in ids if (entry := hass.config_entries.async_get_entry(eid)) is not None}
 
 
