@@ -79,8 +79,8 @@ int main() {
                                               : why.substr(0, 1500));
     // FW-107: the documented "a fifth or more never drops out" where the ring has under 2 steps for the whole colour.
     result("FW-107", deg.empty(), deg.empty() ? fmt("%d near-off combinations, none drop a major channel", degenerate)
-                                              : "Documented guarantee not met at extreme dimming (design limit: the colour has 1 step, "
-                                                "so put_dimmed keeps it red rather than exceed its brightness): " + deg);
+                                              : "Documented guarantee not met at extreme dimming (the colour has under 2 steps and a "
+                                                "channel with a fifth or more of the share dropped out): " + deg);
   }
   // FW-101: RGB ring, colour carrying w=255 (an RGB light still hands effects a white value) takes the mix path.
   {

@@ -55,6 +55,7 @@ CHECKS = {
     "FW-133": ("Reader pairing", "First pairing waits for a tap: PAIRING_PENDING, confirmed by a tap within 2 minutes"),
     "FW-134": ("Reader pairing", "Rejection paths: expired wait, second requester, tap with nothing pending, millis() wrap"),
     "FW-135": ("Reader pairing", "Unpair needs the current key and clears it"),
+    "FW-136": ("Reader pairing", "First-pairing hijack (SEC-005): asking again doesn't extend a wait, a competing key gets PAIRING_BUSY, an expired key has a 2-minute cool-down in which other keys may ask"),
     # JS copy
     "FW-140": ("Light shows on the page", "page.html SHOW_NAMES and SHOW_MS equal shows.h NAMES and DURATION_MS"),
     "FW-141": ("Light shows on the page", "page.html showHash equals shows::hash"),
@@ -72,14 +73,24 @@ CHECKS = {
     "FW-158": ("Known bands only", "Reader's own decision: 4/7/10-byte IDs, whole-entry match, case/separators ignored"),
     "FW-159": ("Reader pairing", "Allow last band: adds once, ignores TEST, refuses on a paired reader and when full"),
     "FW-161": ("Reader pairing", "on_tag confirms a waiting first pairing (does nothing else)"),
+    "FW-172": ("Sound at night", "Start-up sound after a power cut (BUG-008): with the time still unknown it plays only with 'Sound at night' Normal; with the time known, Off at night is silent"),
+    "FW-174": ("Reader pairing", "Forget last band / Forget all bands do nothing on a paired reader (SEC-006) and work as before on an unpaired one"),
+    "FW-175": ("Unknown-band tag scan limit", "Reader: bands not on its list reach Home Assistant at most 6 new a minute / 30 an hour (SEC-008); listed bands and retaps always do"),
+    "FW-176": ("Light shows", "Reader's play_show action: at most 12 shows a minute, sliding, across the millis() wrap (SEC-011)"),
+    # guards.h
+    "FW-180": ("Automatic updates", "release_newer: automatic updates only install a strictly newer release (no rollback, SEC-002); malformed versions never install"),
+    "FW-181": ("Unknown-band tag scan limit", "UnknownTagLimit: 6 new IDs a minute, 30 an hour, a reported ID tapped again passes, refused IDs aren't recorded, wrap-safe"),
+    "FW-182": ("Light shows", "RateLimit: at most N events in any window, sliding"),
     # mocks
     "FW-170": ("Host test harness", "The host mocks still match ESPHome's real color.h / esp_color_correction.cpp formulas"),
 }
 TESTS = {
     "test_put_dimmed": ["FW-100", "FW-101", "FW-102", "FW-103", "FW-104", "FW-105", "FW-106", "FW-107"],
     "test_shows": ["FW-110", "FW-111", "FW-112", "FW-113", "FW-114"],
-    "test_reader_key": ["FW-130", "FW-131", "FW-132", "FW-133", "FW-134", "FW-135"],
-    "test_lambdas": ["FW-150", "FW-151", "FW-152", "FW-153", "FW-154", "FW-155", "FW-156", "FW-157", "FW-158", "FW-159", "FW-161"],
+    "test_reader_key": ["FW-130", "FW-131", "FW-132", "FW-133", "FW-134", "FW-135", "FW-136"],
+    "test_lambdas": ["FW-150", "FW-151", "FW-152", "FW-153", "FW-154", "FW-155", "FW-156", "FW-157", "FW-158", "FW-159", "FW-161",
+                     "FW-172", "FW-174", "FW-175", "FW-176"],
+    "test_guards": ["FW-180", "FW-181", "FW-182"],
 }
 ZONE_IANA = {"Eastern (New York)": "America/New_York", "Central (Chicago)": "America/Chicago", "Mountain (Denver)": "America/Denver",
              "Arizona (Phoenix)": "America/Phoenix", "Pacific (Los Angeles)": "America/Los_Angeles", "Alaska (Anchorage)": "America/Anchorage",
@@ -357,6 +368,7 @@ def run() -> list[dict]:
     results += run_cpp("test_put_dimmed")
     results += run_cpp("test_shows")
     results += run_cpp("test_reader_key")
+    results += run_cpp("test_guards")
     results += time_zone_checks()
     results += js_checks()
     # lambdas: from the resolved reader config written by config_checks (or resolve it now)

@@ -85,7 +85,7 @@ installer: the Wi-Fi setup step and logs run on that port.
 | **Command** (text, under Configuration) | Takes JSON commands so HA can send to one, several or all bridges. See [docs/commands.md](commands.md). |
 | **Bluetooth proxy** (switch, under Configuration) | Off by default. Turn it on to also use this board as a Home Assistant Bluetooth proxy. |
 | **Firmware** (update) | Installs new releases over Wi-Fi. |
-| **Automatic updates** | Off by default. On: the bridge installs a new release by itself between 3 and 4 am (local time), without Home Assistant starting it. Only signed releases install. |
+| **Automatic updates** | Off by default. On: the bridge installs a new release by itself between 3 and 4 am (local time, by its internet clock), without Home Assistant starting it. Only signed releases install, and only one newer than the bridge has: it never goes back to an older release (you can still install any offered release from **Firmware** yourself). |
 | **Time zone** | The bridge's local time zone for the automatic-update window (default Eastern, New York). It keeps time from an internet time server as well as from Home Assistant. |
 | **Wi-Fi signal**, **Wi-Fi network**, **IP address**, **CPU temperature**, **Last restart**, **Reset reason**, **Free memory**, **Largest free block**, **Loop time** (diagnostic) | Its health, shown as tiles on the MagicbHAnds page. Sent sparingly (on a real change or every 5 minutes). |
 

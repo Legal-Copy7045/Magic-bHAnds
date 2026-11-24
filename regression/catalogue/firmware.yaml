@@ -17,10 +17,10 @@
   since: 0.10.4
   docs: docs/security.md#devices-and-updates
   checks: [FW-020, FW-040, FW-060, FW-080, FW-032, FW-052, FW-072, FW-092]
-- feature: "Automatic updates (02:55 check, 03:00-03:50 install by the internet clock, off by default)"
+- feature: "Automatic updates (02:55 check, 03:00-03:50 install by the internet clock, off by default, newer releases only)"
   since: 0.10.31
   docs: docs/security.md#devices-and-updates
-  checks: [FW-021, FW-041, FW-061, FW-081, FW-023, FW-043, FW-063, FW-083, FW-166, FW-301]
+  checks: [FW-021, FW-041, FW-061, FW-081, FW-023, FW-043, FW-063, FW-083, FW-166, FW-033, FW-053, FW-073, FW-093, FW-180, FW-301]
 - feature: "Time zone setting and internet time (select applied to both clocks)"
   since: 0.10.31
   docs: CHANGELOG.md
@@ -41,14 +41,14 @@
   since: 0.10.4
   docs: docs/security.md#using-it-with-locks-alarms-and-presence
   checks: [FW-029, FW-049, FW-069, FW-089, FW-095, FW-308]
-- feature: "No factory-reset button"
+- feature: "No factory-reset or safe-mode button any Home Assistant user can press"
   since: 0.7.1
   docs: docs/security.md#devices-and-updates
-  checks: [FW-030, FW-050, FW-070, FW-090, FW-312]
-- feature: "Reader pairing with MagicbHAnds (key, first pairing by tap, unpair, protected actions, Allow last band)"
+  checks: [FW-030, FW-050, FW-070, FW-090, FW-034, FW-054, FW-074, FW-094, FW-312]
+- feature: "Reader pairing with MagicbHAnds (key, first pairing by tap and first request wins, unpair, protected actions, Allow/Forget buttons off when paired)"
   since: 0.10.22
   docs: docs/security.md#who-can-change-whos-allowed-in
-  checks: [FW-096, FW-130, FW-131, FW-132, FW-133, FW-134, FW-135, FW-159, FW-161, FW-303]
+  checks: [FW-096, FW-130, FW-131, FW-132, FW-133, FW-134, FW-135, FW-136, FW-159, FW-161, FW-174, FW-177, FW-303]
 - feature: "Test welcome (no tag scan, no refusal counted)"
   since: 0.10.4
   docs: docs/security.md#devices-and-updates
@@ -60,7 +60,7 @@
 - feature: "Refused-tap lockout"
   since: 0.10.26
   docs: CHANGELOG.md
-  checks: [FW-098, FW-153, FW-154, FW-162, FW-163, FW-302]
+  checks: [FW-098, FW-153, FW-154, FW-162, FW-163, FW-167, FW-302, FW-315]
 - feature: "Ring colours keep their hue when dim (put_dimmed)"
   since: 0.10.27
   docs: CHANGELOG.md
@@ -76,11 +76,11 @@
 - feature: "Ring effects: Chase, Pulse (denied), Welcome, Spin, Breathe"
   since: 0.6.0
   docs: docs/reader.md
-  checks: [FW-151]
-- feature: "Light shows (shows.h, 28 shows, Startup show / Play show / play_show)"
+  checks: [FW-151, FW-169, FW-316]
+- feature: "Light shows (shows.h, 28 shows, Startup show / Play show / play_show, 12 a minute from Home Assistant)"
   since: 0.10.17
   docs: CHANGELOG.md
-  checks: [FW-110, FW-111, FW-112, FW-113, FW-114, FW-160, FW-306]
+  checks: [FW-110, FW-111, FW-112, FW-113, FW-114, FW-160, FW-176, FW-182, FW-306]
 - feature: "Light shows on the page's live ring match the firmware (page.html SHOWS copy)"
   since: 0.10.17
   docs: custom_components/magicband/frontend/page.html
@@ -88,12 +88,20 @@
 - feature: "Night mode (fixed hours or sunset to sunrise)"
   since: 0.10.14
   docs: CHANGELOG.md
-  checks: [FW-156, FW-157]
+  checks: [FW-156, FW-157, FW-171, FW-317]
 - feature: "Sound at night (Quieter)"
   since: 0.10.26
   docs: CHANGELOG.md
-  checks: [FW-155, FW-164, FW-307]
+  checks: [FW-155, FW-164, FW-172, FW-173, FW-307, FW-313]
 - feature: "Bridge airtime budget and 60 s command limit"
   since: 0.10.20
   docs: docs/security.md#who-can-change-whos-allowed-in
   checks: [FW-165, FW-310]
+- feature: "Unknown-band tag scan limit (6 new a minute, 30 an hour; listed bands and retaps always sent)"
+  since: 0.10.32
+  docs: docs/reader.md#notes
+  checks: [FW-175, FW-181, FW-318]
+- feature: "Welcome sounds: the reader's chime plays for a person with their own sound while Home Assistant is down"
+  since: 0.10.32
+  docs: docs/reader.md#sounds
+  checks: [FW-168, FW-314]

@@ -10,7 +10,13 @@ What changes compared with the factory firmware:
 
 - **Kept:** Ethernet, the Bluetooth proxy (active, 4 connections,
   1100 ms continuous scanning), the Identify LED, the diagnostic sensors, and
-  the Reboot, Safe Mode Boot and Factory Reset buttons.
+  the Reboot button.
+- **Removed:** the Factory Reset and Safe Mode Boot buttons. Any Home
+  Assistant user could press them: a reset board accepts the first client
+  that brings a new encryption key, and safe mode (with only signed network
+  updates there's nothing to upload in it) just took the board's API and
+  Bluetooth proxy offline until it timed out. Safe mode still starts by
+  itself after repeated failed boots.
 - **Added:** a **Bluetooth proxy** switch (under Configuration), the same as
   the MagicBand Bridge's. It's on by default, so the board stays a proxy unless
   you turn it off.
@@ -102,7 +108,9 @@ over it must be over USB.
 - From now on, new firmware appears as a **Firmware** update on the device,
   and installs over Ethernet. You don't need the Device Builder again. Turn on
   **Automatic updates** to have it install new releases by itself between 3
-  and 4 am, local time in its **Time zone** setting (default Eastern, New York).
+  and 4 am, local time in its **Time zone** setting (default Eastern, New York),
+  by its internet clock. It only ever installs a newer release, never an older
+  one.
 - The Scan Interval and Scan Window entities use SCREEK's names, so they
   attach to your existing ones. The old **Scan Active Mode** entity shows as
   unavailable after the update: delete it from the device page.

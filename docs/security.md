@@ -52,7 +52,8 @@ minute; it sends the same list), play a light show on the readers
 (`magicband.play_show`, at most 12 a minute per reader; a tap takes over the
 ring), and list the bridges. A test checks no other action is open. Each
 reader's own `play_show` action, which any user can also call directly, is
-rate-limited on the reader as well.
+limited on the reader as well (12 shows a minute, so MagicbHAnds' own calls
+are never dropped).
 
 **Enrolment** (giving the next unknown bands tapped to one person) never lets
 the tap that enrols a band in: that tap is reported as not allowed
@@ -100,8 +101,8 @@ Home Assistant users who aren't administrators can still use the readers'
 and bridges' own controls: a reader's **Response mode** (e.g. *Welcome every
 band*), the bridges' Command entity and actions, and (on readers that aren't
 paired) the readers' ESPHome actions. On a paired reader, **Forget all
-bands** is ignored (the allowed list only changes through MagicbHAnds), so
-nobody can empty it between syncs. The reader's own decision only drives
+bands** and **Forget last band** are ignored (the allowed list only changes
+through MagicbHAnds), so nobody can empty it between syncs. The reader's own decision only drives
 its lights, sound and its "Band scan" event entity, so **don't open a lock
 from the reader's event entity**; use the `magicband_tap` event, whose
 `allowed` comes from Home Assistant.
@@ -151,9 +152,9 @@ is welcomed in, not whether it's let in.
 - **No factory-reset button.** The SCREEK BP2-POE firmware leaves out
   ESPHome's "Factory Reset" button: any Home Assistant user could press it,
   and a reset board accepts the next client that brings a new encryption key.
-  Its **Safe Mode Boot** button is disabled by default too (any user could
-  press it, and the board then sits without its API and Bluetooth proxy until
-  safe mode times out); enable it in Home Assistant only when you need it.
+  Its **Safe Mode Boot** button is left out too (any user could press it, and
+  the board would then sit without its API and Bluetooth proxy until safe mode
+  times out); ESPHome's automatic safe mode after repeated boot failures stays.
 - **Unknown bands are rate-limited.** A reader reports at most 6 bands it
   doesn't know a minute and 30 an hour to Home Assistant (a band tapped again
   soon after is always reported), so a tag emulator cycling made-up IDs at the

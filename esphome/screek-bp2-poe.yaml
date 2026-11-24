@@ -125,7 +125,9 @@ time:
       # between 03:00 and 04:00 local time, by the internet clock so it doesn't
       # need Home Assistant (tried every 10 minutes, so a failed
       # download gets another go). Only signed releases install (see
-      # docs/security.md, "Signed updates").
+      # docs/security.md, "Signed updates"), and only a newer one: the job
+      # never goes back to an older signed release. Installing from Home
+      # Assistant's Firmware entity is up to you.
       - seconds: 0
         minutes: 55
         hours: 2
@@ -144,8 +146,16 @@ time:
                 and:
                   - switch.is_on: auto_update
                   - update.is_available: firmware_update
+                  - lambda: |-
+                      const auto &info = id(firmware_update).update_info;
+                      if (magicband::release_newer(info.latest_version, info.current_version)) return true;
+                      ESP_LOGW("update", "Automatic update: %s is not newer than %s, not installing",
+                               info.latest_version.c_str(), info.current_version.c_str());
+                      return false;
               then:
-                - logger.log: "Automatic update: installing the new release"
+                - logger.log:
+                    format: "Automatic update: installing the new release"
+                    level: INFO
                 - update.perform: firmware_update
 
 debug:
@@ -227,8 +237,8 @@ number:
       - script.execute: apply_scan_settings
 
 switch:
-  # Installs new releases by itself between 03:00 and 04:00 (local time, from
-  # Home Assistant's clock), without Home Assistant having to start it.
+  # Installs new releases by itself between 03:00 and 04:00 (local time in the
+  # "Time zone" setting, by the internet clock), without Home Assistant.
   - platform: template
     id: auto_update
     name: "Automatic updates"
@@ -280,11 +290,12 @@ button:
   - platform: restart
     name: "Reboot Device"
     entity_category: diagnostic
-  - platform: safe_mode
-    name: "Safe Mode Boot"
-    entity_category: diagnostic
   # No "Factory Reset" button: any Home Assistant user could press it, and a
   # reset board accepts the first client that brings a new encryption key.
+  # No "Safe Mode Boot" button either: any user could press it, and with only
+  # signed network updates (no upload port) safe mode just leaves the board
+  # without its API and Bluetooth proxy until it times out. Safe mode itself
+  # still starts by itself after repeated failed boots.
 
 select:
   # The local time zone for every clock on the device (automatic updates, and

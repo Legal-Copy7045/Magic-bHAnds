@@ -99,11 +99,12 @@ int main() {
     std::string r = reader_request_pair(st2, pend2, until2, K2, 2000);
     if (r == PAIRING_PENDING || r.empty()) why += "a second key replaced a waiting request; ";
     if (!reader_key_ok(pend2, K1)) why += "the waiting key changed; ";
-    // the same key again renews
+    if (r.rfind(PAIRING_BUSY, 0) != 0) why += "a second requester's refusal doesn't start with PAIRING_BUSY: " + ok(r) + "; ";
+    // the same key again: still pending, same deadline (SEC-005: no indefinite refresh)
     r = reader_request_pair(st2, pend2, until2, K1, 3000);
-    if (r != PAIRING_PENDING || until2 != 3000 + PAIR_CONFIRM_MS) why += "same key didn't renew the wait; ";
+    if (r != PAIRING_PENDING || until2 != 1000 + PAIR_CONFIRM_MS) why += "same key asking again didn't keep the first deadline; ";
     // after the wait expires another key may ask
-    r = reader_request_pair(st2, pend2, until2, K2, 3000 + PAIR_CONFIRM_MS);
+    r = reader_request_pair(st2, pend2, until2, K2, 1000 + PAIR_CONFIRM_MS);
     if (r != PAIRING_PENDING || !reader_key_ok(pend2, K2)) why += "after expiry another key couldn't ask; ";
     // a tap with nothing pending does nothing
     ReaderKey st3{}, pend3{};
@@ -119,6 +120,39 @@ int main() {
     reader_request_pair(st5, pend5, until5, K1, near);
     if (reader_confirm_pair(st5, pend5, until5, near + PAIR_CONFIRM_MS + 5)) why += "wrap-around: tap after the deadline accepted; ";
     result("FW-134", why.empty(), why.empty() ? "expired waits, a second requester, taps with nothing pending and millis() wrap-around are all handled" : why);
+  }
+  // FW-136 SEC-005: a requester that keeps asking can't hold a new reader's pairing open
+  {
+    std::string why;
+    ReaderKey st{}, pend{};
+    uint32_t until = 0;
+    const uint32_t t0 = 50000;
+    reader_request_pair(st, pend, until, K2, t0);  // the attacker asks first
+    // ... and keeps asking every 30 s: the wait still ends 2 minutes after the first request
+    for (uint32_t t = t0 + 30000; t < t0 + PAIR_CONFIRM_MS; t += 30000)
+      if (reader_request_pair(st, pend, until, K2, t) != PAIRING_PENDING) why += "the waiting key asking again wasn't PAIRING_PENDING; ";
+    if (until != t0 + PAIR_CONFIRM_MS) why += fmt("re-asking moved the deadline by %d ms; ", (int) (until - (t0 + PAIR_CONFIRM_MS)));
+    // the integration meanwhile is told it lost
+    std::string r = reader_request_pair(st, pend, until, K1, t0 + 60000);
+    if (r.rfind(PAIRING_BUSY, 0) != 0 || !reader_key_ok(pend, K2)) why += "the competing request wasn't PAIRING_BUSY or replaced the waiting key; ";
+    // right after expiry the same key is held off ...
+    r = reader_request_pair(st, pend, until, K2, t0 + PAIR_CONFIRM_MS);
+    if (r.rfind(PAIRING_COOLDOWN, 0) != 0) why += "the expired key asked again straight away: " + ok(r) + "; ";
+    r = reader_request_pair(st, pend, until, K2, t0 + 2 * PAIR_CONFIRM_MS - 1);
+    if (r.rfind(PAIRING_COOLDOWN, 0) != 0) why += "the expired key asked again within the cool-down: " + ok(r) + "; ";
+    if (reader_confirm_pair(st, pend, until, t0 + PAIR_CONFIRM_MS + 10)) why += "a tap during the cool-down paired; ";
+    // ... while another key may ask in the gap, and then wins
+    r = reader_request_pair(st, pend, until, K1, t0 + PAIR_CONFIRM_MS + 5000);
+    if (r != PAIRING_PENDING || !reader_key_ok(pend, K1)) why += "another key couldn't ask during the cool-down: " + ok(r) + "; ";
+    if (reader_request_pair(st, pend, until, K2, t0 + 2 * PAIR_CONFIRM_MS + 10).rfind(PAIRING_BUSY, 0) != 0) why += "the old key replaced the new wait; ";
+    if (!reader_confirm_pair(st, pend, until, t0 + PAIR_CONFIRM_MS + 6000) || !reader_key_ok(st, K1) || reader_key_ok(st, K2)) why += "the tap didn't pair with the new key; ";
+    // after the cool-down the same key may ask again (the integration retrying its own expired request)
+    ReaderKey st2{}, pend2{};
+    uint32_t until2 = 0;
+    reader_request_pair(st2, pend2, until2, K1, t0);
+    r = reader_request_pair(st2, pend2, until2, K1, t0 + 2 * PAIR_CONFIRM_MS);
+    if (r != PAIRING_PENDING || until2 != t0 + 3 * PAIR_CONFIRM_MS) why += "the same key couldn't ask again after the cool-down: " + ok(r) + "; ";
+    result("FW-136", why.empty(), why.empty() ? "first request wins for 2 minutes without being extended; a competitor gets PAIRING_BUSY; the expired key waits 2 minutes (PAIRING_COOLDOWN) while any other key may ask" : why);
   }
   // FW-135 unpair needs the key
   {

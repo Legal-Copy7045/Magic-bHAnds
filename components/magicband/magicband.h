@@ -4,6 +4,7 @@
 #include "esphome/core/component.h"
 #include "shows.h"
 #include "reader_key.h"
+#include "guards.h"
 #include "time_zone.h"
 
 #ifdef USE_ESP32
