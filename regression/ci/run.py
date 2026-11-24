@@ -486,8 +486,10 @@ def _repo(tmp: Path, name: str, files: dict[str, str], email: str = NOREPLY) -> 
     return root
 
 
-def _guard(root: Path, denylist: str = ""):
-    return run([sys.executable, str(SCRIPTS / "privacy_guard.py")], cwd=root, env=_guard_env(denylist))
+def _guard(root: Path, denylist: str = "", base: str | None = None, head: str | None = None):
+    env = _guard_env(denylist)
+    env.update({k: v for k, v in (("BASE", base), ("HEAD", head)) if v is not None})
+    return run([sys.executable, str(SCRIPTS / "privacy_guard.py")], cwd=root, env=env)
 
 
 def _public_pem() -> str:
@@ -544,6 +546,148 @@ def privacy_checks(tmp: Path) -> None:
         assert term.lower() not in (proc.stdout + proc.stderr).lower(), "the matched text was printed"
         proc = _guard(root)
         assert proc.returncode == 0 and "PRIVACY_DENYLIST secret isn't set" in proc.stdout, out_of(proc)
+
+    # Made-up private terms for the history, path and binary checks below (never the real denylist).
+    term, rule = "Hillcrest Close 42", "hillcrest close \\d+"
+
+    @check("CI-041", F_PG, "A private term added in one commit and removed in the next of the same push (BASE..HEAD) "
+           "is caught, by commit and rule number, without echoing it")
+    def _():
+        root = _history(tmp, "addremove")
+        base = _commit(root, {"a.txt": "clean\n"})
+        _commit(root, {"notes.md": f"line one\nmeet at {term}\n"})
+        head = _commit(root, {"notes.md": None})
+        proc = _guard(root, denylist=rule, base=base, head=head)
+        assert proc.returncode != 0 and "adds a line matching private term #1" in proc.stdout, out_of(proc)
+        assert "file=notes.md,line=2" in proc.stdout, out_of(proc)
+        _assert_not_echoed(proc, term)
+        proc = _guard(root, denylist=rule, base=head, head=head)
+        assert proc.returncode == 0, f"only the pushed range counts: {out_of(proc)}"
+
+    @check("CI-042", F_PG, "A new branch or tag (BASE all zeros) is checked from its merge base with origin/main: "
+           "an earlier commit's removed term and author address are caught, main's own history is not re-checked")
+    def _():
+        root = _history(tmp, "newbranch")
+        _commit(root, {"old.txt": f"before the branch: {term}\n"})  # on main already: not this push's business
+        main = _commit(root, {"old.txt": "cleaned\n"})
+        run(["git", "update-ref", "refs/remotes/origin/main", main], cwd=root, env=_guard_env())
+        run(["git", "checkout", "-q", "-b", "feature"], cwd=root, env=_guard_env())
+        _commit(root, {"b.txt": f"{term}\n"}, email="morgan@example.com")
+        _commit(root, {"b.txt": "fixed\n"})
+        proc = _guard(root, denylist=rule, base="0" * 40, head="HEAD")
+        assert proc.returncode != 0 and "file=b.txt,line=1" in proc.stdout, out_of(proc)
+        assert "author email isn't a no-reply address" in proc.stdout, out_of(proc)
+        assert "old.txt" not in proc.stdout, f"re-checked main's history: {out_of(proc)}"
+        _assert_not_echoed(proc, term)
+
+    @check("CI-043", F_PG, "A private term in a file name or path is caught (tracked tree and the commit adding it) "
+           "and the path isn't printed")
+    def _():
+        root = _history(tmp, "pathname")
+        base = _commit(root, {"a.txt": "clean\n"})
+        head = _commit(root, {"photos/hillcrest-close-42.txt": "nothing private inside\n"})
+        proc = _guard(root, denylist=rule.replace(" ", "[ -]"), base=base, head=head)
+        assert proc.returncode != 0, out_of(proc)
+        assert "Tracked file #" in proc.stdout and "path matches private term #1" in proc.stdout, out_of(proc)
+        assert f"Commit {head[:8]}, path #" in proc.stdout, out_of(proc)
+        assert "hillcrest" not in (proc.stdout + proc.stderr).lower(), "the path was printed"
+
+    @check("CI-044", F_PG, "Binary files: a private term in a PNG text chunk, in a UTF-16 string, and in a .zip "
+           "member's name or content is caught (tree and history) without echoing it; credentials rules don't "
+           "apply to binary runs")
+    def _():
+        root = _history(tmp, "binary")
+        base = _commit(root, {"a.txt": "clean\n"})
+        head = _commit(root, {
+            "docs/images/photo.png": _png_with_text("Comment", f"taken at {term}"),
+            "docs/notes.bin": b"\x00\x01" + f"near {term}".encode("utf-16-le") + b"\x00\x00",
+            "hardware/gerbers.zip": _zip({"readme.txt": f"ship to {term}\n"}),
+            "hardware/named.zip": _zip({f"{term}.txt": "plain\n"}),
+            "docs/token.bin": b"\x00" + FAKE_GITHUB_TOKEN.encode() + b"\x00",
+        })
+        proc = _guard(root, denylist=rule, base=base, head=head)
+        out = proc.stdout
+        assert proc.returncode != 0, out_of(proc)
+        for path in ("docs/images/photo.png", "docs/notes.bin", "hardware/gerbers.zip"):
+            assert f"file={path}::Binary content" in out or f"file={path}::Zip member #1" in out, (path, out_of(proc))
+        assert "file=hardware/named.zip::Zip member #1 (list them with unzip -Z1): its name matches private term #1" \
+            in out, out_of(proc)
+        assert f"Commit {head[:8]}, an added binary file" in out, f"history not scanned: {out_of(proc)}"
+        assert "docs/token.bin" not in out, f"credential rules applied to a binary: {out_of(proc)}"
+        _assert_not_echoed(proc, term)
+        # Removed again in the same push: still caught from the history.
+        head2 = _commit(root, {"docs/images/photo.png": None, "docs/notes.bin": None, "hardware/gerbers.zip": None,
+                               "hardware/named.zip": None})
+        proc = _guard(root, denylist=rule, base=base, head=head2)
+        assert proc.returncode != 0 and f"Commit {head[:8]}, an added binary file" in proc.stdout, out_of(proc)
+        assert "Tracked file" not in proc.stdout and "::Binary content" not in proc.stdout.replace(
+            "an added binary file: binary content", ""), out_of(proc)
+
+    @check("CI-045", F_PG, "privacy.yml gives the guard the pushed range: full history checkout, BASE = the push's "
+           "before (or the PR base), HEAD = the pushed commit (or the PR head)")
+    def _():
+        pv, _ = _workflow("privacy.yml")
+        assert set(pv["on"]) >= {"push", "pull_request"}, pv["on"]
+        steps = _steps(pv["jobs"]["privacy"])
+        co = next(s for s in steps if str(s.get("uses", "")).startswith("actions/checkout@"))
+        assert (co.get("with") or {}).get("fetch-depth") == 0, "the guard needs the full history (merge base, BASE)"
+        env = next(s for s in steps if "privacy_guard.py" in (s.get("run") or "")).get("env") or {}
+        assert env.get("BASE") == ("${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha "
+                                   "|| github.event.before }}"), env.get("BASE")
+        assert env.get("HEAD") == ("${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha "
+                                   "|| github.sha }}"), env.get("HEAD")
+        assert env.get("PRIVACY_DENYLIST") == "${{ secrets.PRIVACY_DENYLIST }}", "denylist not from the secret"
+
+
+def _history(tmp: Path, name: str) -> Path:
+    root = tmp / "privacy-history" / name
+    root.mkdir(parents=True)
+    run(["git", "init", "-q", "-b", "main"], cwd=root, env=_guard_env())
+    return root
+
+
+def _commit(root: Path, files: dict, email: str = NOREPLY) -> str:
+    """Write (str/bytes) or delete (None) files, commit, and return the new commit's SHA."""
+    env = _guard_env()
+    for rel, body in files.items():
+        f = root / rel
+        if body is None:
+            f.unlink()
+            continue
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_bytes(body if isinstance(body, bytes) else body.encode())
+    run(["git", "add", "-A"], cwd=root, env=env)
+    proc = run(["git", "-c", f"user.email={email}", "-c", "user.name=Morgan", "-c", "commit.gpgsign=false",
+                "commit", "-q", "-m", "test"], cwd=root, env=env)
+    assert proc.returncode == 0, out_of(proc)
+    return run(["git", "rev-parse", "HEAD"], cwd=root, env=env).stdout.strip()
+
+
+def _assert_not_echoed(proc, term: str) -> None:
+    assert term.lower() not in (proc.stdout + proc.stderr).lower(), "the matched text was printed"
+
+
+def _png_with_text(key: str, text: str) -> bytes:
+    import struct  # noqa: PLC0415
+    import zlib  # noqa: PLC0415
+
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 0, 0, 0, 0))
+            + chunk(b"tEXt", key.encode() + b"\x00" + text.encode("latin-1"))
+            + chunk(b"IDAT", zlib.compress(b"\x00\x00")) + chunk(b"IEND", b""))
+
+
+def _zip(members: dict[str, str]) -> bytes:
+    import io  # noqa: PLC0415
+    import zipfile  # noqa: PLC0415
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for name, body in members.items():
+            zf.writestr(name, body)
+    return buf.getvalue()
 
 
 # ---------------------------------------------------------------------------- make_site.py
@@ -751,6 +895,62 @@ def workflow_checks() -> None:
         assert dl and (dl[0].get("with") or {}).get("name") == "firmware", dl
         build_uploads = [s for s in _steps(jobs["build"]) if "upload-pages-artifact" in str(s.get("uses"))]
         assert not build_uploads, "build (unsigned) uploads a Pages artifact"
+
+    @check("CI-046", F_WF, "The sign job checks the commit is on main (as release does) before it installs anything or "
+           "touches the key, with the full history checked out")
+    def _():
+        steps = _steps(jobs["sign"])
+        on_main = [i for i, s in enumerate(steps) if "merge-base --is-ancestor \"$GITHUB_SHA\" origin/main"
+                   in (s.get("run") or "") and "git fetch --no-tags origin main" in (s.get("run") or "")]
+        assert on_main, "sign doesn't check the commit is on main"
+        first_other = min(i for i, s in enumerate(steps)
+                          if "OTA_SIGNING_KEY" in json.dumps(s) or "pip install" in (s.get("run") or ""))
+        assert on_main[0] < first_other, "the main check runs after the install or the key"
+        co = next(s for s in steps if str(s.get("uses", "")).startswith("actions/checkout@"))
+        assert (co.get("with") or {}).get("fetch-depth") == 0, "sign checkout needs fetch-depth: 0 for merge-base"
+
+    @check("CI-047", F_WF, "The sign job (holds OTA_SIGNING_KEY) installs only hash-pinned packages: pip "
+           "--require-hashes --no-deps from .github/requirements-signing*.txt, every package pinned with == and a "
+           "sha256 hash, esptool at the version the CI tooling expects")
+    def _():
+        installs = [line.strip() for s in _steps(jobs["sign"]) for line in (s.get("run") or "").splitlines()
+                    if re.search(r"\bpip3? install\b", line)]
+        assert installs, "sign installs nothing (where does espsecure come from?)"
+        files = set()
+        for line in installs:
+            assert "--require-hashes" in line and "--no-deps" in line, f"not hash-pinned: {line}"
+            m = re.search(r"-r\s+(\S+)", line)
+            assert m and re.fullmatch(r"\.github/requirements-signing[\w-]*\.txt", m.group(1)), f"no pinned file: {line}"
+            files.add(m.group(1))
+        names = set()
+        for rel in sorted(files):
+            text = (REPO / rel).read_text()
+            reqs = re.split(r"\n(?=[A-Za-z0-9])", "\n".join(ln for ln in text.splitlines()
+                                                          if not ln.lstrip().startswith("#") and ln.strip()))
+            for req in reqs:
+                head = req.split("\\")[0].strip()
+                assert re.fullmatch(r"[A-Za-z0-9._-]+==[\w.]+", head), f"{rel}: not pinned with ==: {head}"
+                hashes = re.findall(r"--hash=sha256:([0-9a-f]{64})\b", req)
+                assert hashes, f"{rel}: {head} has no sha256 hash"
+                assert len(hashes) == req.count("--hash="), f"{rel}: {head} has a hash that isn't sha256"
+                names.add(head.split("==")[0].lower())
+        assert "esptool" in names and "esptool==5.4.0" in (REPO / ".github/requirements-signing.txt").read_text()
+        return f"{len(names)} packages pinned by hash"
+
+    @check("CI-048", F_WF, "The attestation check in docs/security.md and the release job pins the signer workflow "
+           "and the main branch, not only the repository")
+    def _():
+        repo = "Legal-Copy7045/Magic-bHAnds"
+        want = (f"--signer-workflow {repo}/.github/workflows/firmware.yml", "--source-ref refs/heads/main")
+        doc = re.sub(r"\s+", " ", (REPO / "docs" / "security.md").read_text())
+        cmds = re.findall(r"gh attestation verify [^`]*", doc)
+        assert cmds, "docs/security.md has no gh attestation verify command"
+        for cmd in cmds:
+            assert f"--repo {repo}" in cmd and want[0] in cmd, f"signer workflow not pinned: {cmd}"
+            assert re.search(r"--source-ref refs/(heads/main|tags/v)", cmd), f"ref not pinned: {cmd}"
+        assert any(all(w in c for w in want) for c in cmds), cmds
+        rel = re.sub(r"\s*\\\n\s*#\s*", " ", fw_text)
+        assert all(w in rel for w in want), "release job comment shows an unpinned verify command"
 
 
 if __name__ == "__main__":

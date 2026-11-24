@@ -12,7 +12,7 @@
 - feature: Signed updates (published files signed with the project key; devices on signed firmware)
   since: 0.10.30
   docs: docs/security.md#signed-updates
-  checks: [LIVE-015, LIVE-025, LIVE-035, LIVE-028, LIVE-100, LIVE-101, LIVE-103, LIVE-104, LIVE-106, LIVE-107]
+  checks: [LIVE-015, LIVE-025, LIVE-035, LIVE-018, LIVE-028, LIVE-038, LIVE-100, LIVE-101, LIVE-103, LIVE-104, LIVE-106, LIVE-107]
 - feature: Time zone setting
   since: 0.10.31
   docs: docs/reader.md

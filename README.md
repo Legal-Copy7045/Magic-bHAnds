@@ -125,7 +125,7 @@ integration attached.
   and reader, and install over Wi-Fi. Each device downloads its firmware itself
   from this project's site and only installs releases signed with the project's
   key. Turn on **Automatic updates** on a device to have it install new releases
-  by itself between 3 and 4 am in the device's **Time zone** (default
+  (only ever newer than the one it runs) by itself between 3 and 4 am in the device's **Time zone** (default
   Eastern). Devices keep time from an internet time server, so this works
   without Home Assistant.
 - **Integration updates** appear in HACS.
@@ -133,7 +133,11 @@ integration attached.
 To make a release: bump `VERSION` and the versions it lists (CI checks they
 match), add a `CHANGELOG.md` section, and merge to `main`. Then go to
 **Actions → Build, test & release → Run workflow**, tick **release**, and run
-it on `main`. It tags `v<VERSION>` and publishes the GitHub Release.
+it on `main`. It tags `v<VERSION>` and publishes the GitHub Release. Every
+push to `main` signs the firmware and publishes it to the update site; with a
+required reviewer on the `release-signing` environment (recommended, see
+[docs/security.md](docs/security.md#accepted-risks)), approve the **sign** job
+in the run first.
 
 ## Repo layout
 

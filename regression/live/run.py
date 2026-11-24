@@ -3,9 +3,10 @@
 
 Usage: HA_URL=https://homeassistant.local:8123 [HA_TOKEN=...] python3 regression/live/run.py
 
-Reads only: GET requests and Home Assistant's template API, which evaluates a
-template and changes nothing. It never calls a service, presses a button or
-installs anything. Without HA_URL the Home Assistant checks are skipped; the
+Reads only: GET requests, Home Assistant's template API (evaluates a template
+and changes nothing) and, for the log, the websocket command system_log/list
+(admin, read-only) or the Supervisor's core log (GET). It never calls a
+service, presses a button or installs anything. Without HA_URL the Home Assistant checks are skipped; the
 release signature checks still run. HA_TOKEN is a long-lived token for a
 non-admin user, or leave it unset where a proxy adds the credentials.
 
@@ -19,6 +20,7 @@ import datetime as dt
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -56,10 +58,13 @@ def add(rid: str, feature: str, check: str, status: str, detail: str = "") -> No
     results.append({"id": rid, "feature": feature, "check": check, "status": status, "detail": detail})
 
 
-def curl(url: str, *, data: str | None = None, out: Path | None = None, auth: bool = False) -> tuple[int, str]:
+def curl(url: str, *, data: str | None = None, out: Path | None = None, auth: bool = False,
+         headers: dict | None = None) -> tuple[int, str]:
     cmd = ["curl", "-sS", "-L", "-m", "120", "-w", "\n%{http_code}"]
     if auth and os.environ.get("HA_TOKEN"):
         cmd += ["-H", f"Authorization: Bearer {os.environ['HA_TOKEN']}"]
+    for k, v in (headers or {}).items():
+        cmd += ["-H", f"{k}: {v}"]
     if data is not None:
         cmd += ["-X", "POST", "-H", "Content-Type: application/json", "--data-binary", data]
     if out is not None:
@@ -84,7 +89,8 @@ DEVICES_TEMPLATE = """
       {%- set s = states[x] -%}
       {%- if s -%}
         {%- set ents.x = ents.x + [[s.name | replace(dn, '') | trim, s.state, s.attributes.get('options'),
-              s.attributes.get('installed_version'), s.attributes.get('latest_version')]] -%}
+              s.attributes.get('installed_version'), s.attributes.get('latest_version'),
+              s.attributes.get('skipped_version')]] -%}
       {%- endif -%}
     {%- endfor -%}
     {%- set ns.out = ns.out + [{'name': dn, 'model': device_attr(d, 'model'), 'sw': device_attr(d, 'sw_version'),
@@ -93,6 +99,80 @@ DEVICES_TEMPLATE = """
 {%- endfor -%}
 {{ ns.out | tojson }}
 """
+
+
+def builder_status(builder: list[dict]) -> tuple[str, str]:
+    """LIVE-x8: an ESPHome Device Builder update on a device running the signed firmware.
+
+    Passes when there's none (not adopted there, or its entity is disabled: a disabled entity has no state),
+    when it offers nothing new, or when that version has been skipped; fails on a new version nobody skipped.
+    """
+    if not builder:
+        return "pass", "no Device Builder update entity reporting (not adopted there, or the entity is disabled)"
+    a = builder[0]["attributes"]
+    latest, installed, skipped = a.get("latest_version"), a.get("installed_version"), a.get("skipped_version")
+    if latest == installed:
+        return "pass", f"Device Builder offers nothing new (ESPHome {installed})"
+    if skipped is not None and skipped == latest:
+        return "pass", f"Device Builder's ESPHome {latest} is skipped (installed {installed})"
+    return "fail", (f"the Device Builder also offers ESPHome {latest} (installed {installed}, skipped {skipped}). "
+                    "Its builds are unsigned, so the device refuses them over the air; skip that update (or disable "
+                    "the Device Builder's update entity) and update through the Firmware entity")
+
+
+ANSI = re.compile(r"\x1b\[[0-9;]*m")
+# Home Assistant logs this for every custom integration at start-up: not a MagicbHAnds problem.
+LOG_IGNORE = ("which has not been tested by Home Assistant",)
+
+
+def ws_system_log(ha: str) -> tuple[list[dict] | None, str]:
+    """system_log/list over the websocket API (admin; read-only). Needs HA_TOKEN: the websocket API
+    authenticates in the stream, so a proxy that adds credentials to HTTP requests can't log it in."""
+    token = os.environ.get("HA_TOKEN")
+    if not token:
+        return None, "websocket: no HA_TOKEN"
+    try:
+        from websockets.sync.client import connect  # noqa: PLC0415 - optional
+    except ImportError:
+        return None, "websocket: the websockets package isn't installed"
+    url = re.sub(r"^http", "ws", ha) + "/api/websocket"
+    try:
+        with connect(url, open_timeout=20, close_timeout=5) as ws:
+            first = json.loads(ws.recv(timeout=20))
+            if first.get("type") == "auth_required":
+                ws.send(json.dumps({"type": "auth", "access_token": token}))
+                auth = json.loads(ws.recv(timeout=20))
+                if auth.get("type") != "auth_ok":
+                    return None, f"websocket: {auth.get('type')}"
+            ws.send(json.dumps({"id": 1, "type": "system_log/list"}))
+            reply = json.loads(ws.recv(timeout=30))
+    except Exception as err:  # noqa: BLE001 - unreachable, refused by a proxy, ...
+        return None, f"websocket: {type(err).__name__}: {str(err)[:120]}"
+    if not reply.get("success"):
+        return None, f"websocket: system_log/list refused ({(reply.get('error') or {}).get('code')}; needs an admin)"
+    return reply.get("result") or [], "system_log/list"
+
+
+def magicband_log_problems(ha: str) -> tuple[list[str] | None, str]:
+    """MagicbHAnds errors and warnings in Home Assistant's log, read-only, or (None, why not)."""
+    entries, why_ws = ws_system_log(ha)
+    if entries is not None:
+        out = []
+        for e in entries:
+            text = " ".join(e.get("message") or [])
+            if (e.get("level") in ("WARNING", "ERROR", "CRITICAL")
+                    and ("magicband" in (e.get("name") or "").lower() or "magicband" in text.lower())
+                    and not any(x in text for x in LOG_IGNORE)):
+                out.append(f"{e.get('level')} [{e.get('name')}] (x{e.get('count', 1)}) {text}")
+        return out, "system_log/list"
+    # Fallback (Home Assistant OS / Supervised): the Supervisor's core log since the last start, a plain GET.
+    code, log = curl(f"{ha}/api/hassio/core/logs/latest", auth=True, headers={"Accept": "text/plain"})
+    if code == 200:
+        out = [ln for ln in (ANSI.sub("", x) for x in log.splitlines())
+               if "magicband" in ln.lower() and re.search(r" (ERROR|WARNING|CRITICAL) ", ln)
+               and not any(x in ln for x in LOG_IGNORE)]
+        return out, "Supervisor core log since the last start"
+    return None, f"{why_ws}; Supervisor core log: HTTP {code} (needs an admin, and Home Assistant OS)"
 
 
 def ha_checks(ha: str) -> None:
@@ -136,7 +216,8 @@ def ha_checks(ha: str) -> None:
         used.add(n)
         ents, builder = {}, []
         for e in d["entities"]:
-            item = {"state": e[1], "attributes": {"options": e[2], "installed_version": e[3], "latest_version": e[4]}}
+            item = {"state": e[1], "attributes": {"options": e[2], "installed_version": e[3], "latest_version": e[4],
+                                                  "skipped_version": e[5] if len(e) > 5 else None}}
             # Two update entities can share the name "Firmware": the firmware's own (project versions,
             # 0.x.y) and the ESPHome Device Builder's (ESPHome versions, 20xx.y.z) when the device is
             # also adopted there. Keep ours as "Firmware" and note the other.
@@ -171,14 +252,8 @@ def ha_checks(ha: str) -> None:
             add(f"LIVE-{n + 5:03d}", "Signed updates", f"{tag}: update entity sees the published release",
                 "pass" if a.get("latest_version") == VERSION else "fail",
                 f"installed {a.get('installed_version')}, latest {a.get('latest_version')}")
-        if builder:
-            b = builder[0]["attributes"]
-            add(f"LIVE-{n + 8:03d}", "Signed updates",
-                f"{tag}: no ESPHome Device Builder update competing with the signed releases",
-                "fail" if b.get("latest_version") != b.get("installed_version") else "pass",
-                f"the Device Builder also offers ESPHome {b.get('latest_version')} (installed "
-                f"{b.get('installed_version')}). Its builds are unsigned, so the device refuses them over the "
-                "air; update through the Firmware entity, or remove the device from the Device Builder")
+        add(f"LIVE-{n + 8:03d}", "Signed updates",
+            f"{tag}: no ESPHome Device Builder update competing with the signed releases", *builder_status(builder))
         if model == "magicband-reader":
             paired = ents.get("Paired with MagicbHAnds", {}).get("state")
             add(f"LIVE-{n + 6:03d}", "Reader pairing", f"{tag}: paired with MagicbHAnds",
@@ -199,13 +274,16 @@ def ha_checks(ha: str) -> None:
         add("LIVE-005", "MagicbHAnds page", "Embedded copy of the page is current", "pass" if not missing else "fail",
             f"HTTP {code}" + (f", missing {missing}" if missing else ""))
 
-    code, log = curl(f"{ha}/api/error_log", auth=True)
-    if code == 200:
-        lines = [ln for ln in log.splitlines() if "magicband" in ln.lower() and (" ERROR " in ln or " WARNING " in ln)]
+    # /api/error_log is gone from Home Assistant (404): read the log the current way.
+    lines, source = magicband_log_problems(ha)
+    if lines is not None:
         add("LIVE-006", "Integration", "No MagicbHAnds errors or warnings in Home Assistant's log",
-            "pass" if not lines else "fail", f"{len(lines)} lines" + (f"; first: {lines[0][:200]}" if lines else ""))
+            "pass" if not lines else "fail", f"{source}: {len(lines)} entries"
+            + ("; " + " | ".join(dict.fromkeys(re.sub(r"^\d{4}-\d\d-\d\d \S+ ", "", ln)[:240]
+                                                for ln in lines))[:1500] if lines else ""))
     else:
-        add("LIVE-006", "Integration", "Home Assistant log readable", "skip", f"HTTP {code} (needs an admin token)")
+        add("LIVE-006", "Integration", "No MagicbHAnds errors or warnings in Home Assistant's log", "skip",
+            f"log not readable: {source}")
 
 
 def signature_checks() -> None:
