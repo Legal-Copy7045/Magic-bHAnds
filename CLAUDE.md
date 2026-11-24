@@ -12,6 +12,24 @@ hostnames from the real Home Assistant, email addresses, Wi-Fi names, or credent
   addresses, no credentials, and nothing matching the private terms in the `PRIVACY_DENYLIST` Actions secret. If it fails,
   replace the value with a made-up one. Never put the real value back to make a test pass, and never print or copy the secret.
 
+## What this is, and how much security it needs
+
+MagicbHAnds is a **home** MagicBand reader for a family's front door and a few Bluetooth bridges, not an access-control
+system for a bank vault. Nobody is likely to target it to get into the house: a burglar breaks a window. Weigh every
+protection against what it costs in convenience, and prefer the convenient option when the risk it guards is unlikely
+or only an annoyance.
+
+- **Must hold (the device must never be a way in for malicious code, "Patient Zero"):** no unsigned firmware installs
+  on official builds; the encrypted device-to-Home Assistant link; admin-only actions for anything that changes who
+  gets in; no injected script in the page; uploads and inputs validated; the signing key out of reach of anything but
+  `main`; nothing private in the public repo.
+- **Fine to accept and document instead of engineering around:** denial-of-service or nuisance by someone standing at
+  the door or already on the Wi-Fi or in Home Assistant (household members), clutter in Home Assistant, races that need
+  an insider plus the owner acting against a clear prompt, and anything that needs physical access to the electronics.
+- **Before adding a protection** that adds a step, a prompt, a limit a family could hit, a USB-only path or new code in
+  the update path, ask whether it stops a realistic attack on a home device. If not, don't add it, or ask the owner.
+  Record accepted trade-offs in `docs/security.md` "Accepted risks".
+
 ## Regression suite
 
 `regression/` is the full regression suite, run on demand with the `/regression` skill
