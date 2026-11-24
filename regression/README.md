@@ -50,8 +50,9 @@ Each stage writes `out/<stage>.json`:
 
 `status` is `pass`, `fail`, `skip` (could not run here, with the reason in
 `detail`) or `manual` (needs a person and real hardware; the check says what to
-do). IDs are stable: `INT-`, `PAGE-`, `FW-`, `CI-`, `LIVE-`, `MAN-` plus a
-number. Never reuse an ID for a different check.
+do). IDs are stable: `INT-`, `PAGE-`, `FW-`, `CI-`, `LIVE-` plus a number
+(firmware manual checks are `FW-3xx` with status `manual`). Never reuse an ID
+for a different check.
 
 ## Catalogue format (`catalogue/<area>.yaml`)
 
@@ -59,7 +60,7 @@ number. Never reuse an ID for a different check.
 - feature: Refused-tap lockout
   since: 0.10.26
   docs: docs/reader.md#refused-tap-lockout
-  checks: [FW-031, INT-044, PAGE-012, MAN-007]
+  checks: [FW-031, INT-044, PAGE-012, FW-302]
 ```
 
 The report marks a feature **uncovered** if none of its checks ran and passed,

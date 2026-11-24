@@ -20,7 +20,7 @@ Before running, check that every feature is catalogued:
   automatically where that is possible (a pytest in `tests/`, a page check in
   `regression/page/`, a host test or config invariant in `regression/firmware/`,
   a CI check in `regression/ci/`, a read-only live check in `regression/live/`)
-  and a `MAN-` manual check where it needs hardware.
+  and a manual check (status `manual`, with steps) where it needs hardware.
 - Add the missing entries and checks first, in their own commit.
 
 ## 2. Run the stages
