@@ -11,3 +11,16 @@ hostnames from the real Home Assistant, email addresses, Wi-Fi names, or credent
 - The **Privacy guard** workflow (`.github/scripts/privacy_guard.py`) checks every push and pull request: no-reply commit
   addresses, no credentials, and nothing matching the private terms in the `PRIVACY_DENYLIST` Actions secret. If it fails,
   replace the value with a made-up one. Never put the real value back to make a test pass, and never print or copy the secret.
+
+## Regression suite
+
+`regression/` is the full regression suite, run on demand with the `/regression` skill
+(`.claude/skills/regression/SKILL.md`) every few releases or after a big feature set.
+
+- **Every PR that adds or changes a feature also updates the suite:** an entry in
+  `regression/catalogue/<area>.yaml` and the checks that cover it (a test in `tests/`, a page check in
+  `regression/page/`, a firmware host test or config invariant in `regression/firmware/`, a CI check in
+  `regression/ci/`, a read-only check in `regression/live/`, or a `MAN-` manual check where it needs hardware).
+- Checks never touch real hardware or change Home Assistant; anything that would is a manual check.
+- `regression/out/` is git-ignored (results can name real devices). `regression/RUNS.md` keeps one public-safe
+  line per run.
