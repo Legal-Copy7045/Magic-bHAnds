@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 
 from custom_components.magicband.bridges import build_command
 from custom_components.magicband.const import DOMAIN, EVENT_HEARD
@@ -29,7 +29,7 @@ async def test_heard_band_is_reported_after_send(hass: HomeAssistant, setup_inte
     entry = hass.config_entries.async_entries(DOMAIN)[0]
     listener = entry.runtime_data.listener
     events = []
-    hass.bus.async_listen(EVENT_HEARD, events.append)
+    hass.bus.async_listen(EVENT_HEARD, callback(lambda e: events.append(e)))  # on the loop, in order
 
     listener.note_send()
     listener.async_heard("AA:BB:CC:DD:EE:FF", None, -61, "proxy", bytes.fromhex("CC 03 00 00 00 12 34"))

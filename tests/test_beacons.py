@@ -8,7 +8,7 @@ from freezegun.api import FrozenDateTimeFactory
 import pytest
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 
 from custom_components.magicband.beacons import SIGNATURE_MASK, battery_from_level, parse
@@ -193,7 +193,7 @@ async def test_tap_with_two_bands_heard_asks(
     )
     assert y.band_uid == "0453652AC05F80"
     events = []
-    hass.bus.async_listen(EVENT_BEACON, events.append)
+    hass.bus.async_listen(EVENT_BEACON, callback(lambda e: events.append(e)))  # on the loop, in order
     _beacon(hass, BAND_Y)
     await hass.async_block_till_done()
     assert events[0].data["band"] == "04-53-65-2A-C0-5F-80"

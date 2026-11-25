@@ -14,7 +14,7 @@ from freezegun.api import FrozenDateTimeFactory
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry, MockUser, async_fire_time_changed
 
-from homeassistant.core import Context, HomeAssistant, ServiceCall
+from homeassistant.core import Context, HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError, Unauthorized
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
@@ -64,7 +64,7 @@ def test_parse_uid_accepts_only_real_nfc_ids() -> None:
 
 async def test_non_band_tags_from_a_reader_are_ignored(hass: HomeAssistant, setup_integration, reader_device) -> None:
     taps = []
-    hass.bus.async_listen("magicband_tap", lambda e: taps.append(e.data))
+    hass.bus.async_listen("magicband_tap", callback(lambda e: taps.append(e.data)))
     for tag in ("TEST", "!!!", "04-É3-65-2A", "０４５３６５２Ａ", 1234, None):
         hass.bus.async_fire("tag_scanned", {"tag_id": tag, "device_id": reader_device.id})
     hass.bus.async_fire("tag_scanned", {"device_id": reader_device.id})  # no tag_id at all
@@ -371,7 +371,7 @@ async def test_unclaimed_bands_that_went_away_make_room(
 
 async def test_heard_events_are_rate_limited(hass: HomeAssistant, setup_integration) -> None:
     events = []
-    hass.bus.async_listen("magicband_heard", lambda e: events.append(e))
+    hass.bus.async_listen("magicband_heard", callback(lambda e: events.append(e)))
     listener = _data(hass).listener
     for i in range(EVENTS_PER_MINUTE * 3):
         listener.async_heard(f"{i:012x}", None, -70, "hci0", bytes([0xC0, i % 256]))
@@ -532,7 +532,7 @@ async def test_only_esphome_readers_count(hass: HomeAssistant, setup_integration
     """A device from another integration (e.g. a phone registered with the mobile app, where any user
     picks the model and name) can't pose as a reader."""
     taps = []
-    hass.bus.async_listen("magicband_tap", lambda e: taps.append(e.data))
+    hass.bus.async_listen("magicband_tap", callback(lambda e: taps.append(e.data)))
     await hass.services.async_call(DOMAIN, "add_person", {"name": "Alice"}, blocking=True)
     await hass.services.async_call(DOMAIN, "assign_band", {"band": TAG, "person": "Alice"}, blocking=True)
     phone_entry = MockConfigEntry(domain="mobile_app", title="Phone")
@@ -575,7 +575,7 @@ async def test_allowed_list_only_goes_to_readers(hass: HomeAssistant, setup_inte
 
 async def test_replayed_beacons_are_rate_limited(hass: HomeAssistant, setup_integration) -> None:
     seen = []
-    hass.bus.async_listen("magicband_band_seen", lambda e: seen.append(e))
+    hass.bus.async_listen("magicband_band_seen", callback(lambda e: seen.append(e)))
     for i in range(500):
         p = bytearray(bytes.fromhex(BAND_X))
         p[4] = 50 + i % 50  # a replaying attacker can change the level byte too

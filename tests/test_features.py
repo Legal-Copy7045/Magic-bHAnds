@@ -10,7 +10,7 @@ from freezegun.api import FrozenDateTimeFactory
 import pytest
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.util import dt as dt_util
@@ -84,7 +84,7 @@ async def test_expired_band_is_denied_and_leaves_the_readers_list(
     assert calls["bands"][-1].data["bands"] == ""
 
     taps = []
-    hass.bus.async_listen("magicband_tap", lambda e: taps.append(e.data["allowed"]))
+    hass.bus.async_listen("magicband_tap", callback(lambda e: taps.append(e.data["allowed"])))
     _tap(hass, TAG, reader_device.id)
     await hass.async_block_till_done()
     assert taps == [False]
@@ -134,7 +134,7 @@ async def test_the_enrolling_tap_never_counts_as_allowed(
     hass: HomeAssistant, setup_integration, reader_device
 ) -> None:
     taps = []
-    hass.bus.async_listen("magicband_tap", lambda e: taps.append(e.data))
+    hass.bus.async_listen("magicband_tap", callback(lambda e: taps.append(e.data)))
     await hass.services.async_call(DOMAIN, "add_person", {"name": "Alice"}, blocking=True)
     await hass.services.async_call(DOMAIN, "enrol", {"person": "Alice"}, blocking=True)
     _tap(hass, "04AABBCCDD0001", reader_device.id)
@@ -214,7 +214,7 @@ async def test_tap_history_and_logbook(hass: HomeAssistant, setup_integration, r
 
 async def test_low_battery_repair_and_event(hass: HomeAssistant, setup_integration) -> None:
     events = []
-    hass.bus.async_listen("magicband_battery_low", lambda e: events.append(e.data))
+    hass.bus.async_listen("magicband_battery_low", callback(lambda e: events.append(e.data)))
     beacons = _data(hass).beacons
 
     def beacon(level: int, source: str) -> None:

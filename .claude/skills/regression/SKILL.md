@@ -6,8 +6,19 @@ description: Run the MagicbHAnds full regression suite (every stage in regressio
 # Full regression run
 
 The suite lives in `regression/` (read `regression/README.md` first). A run has
-five steps. Work through them in order; the owner usually reads the report the
-next morning, so finish every step and leave nothing waiting on them.
+five steps; the owner usually reads the report the next morning, so finish
+every step and leave nothing waiting on them.
+
+**Keep it quick.** Steps 2 and 3 are independent: start the two reviews
+(subagents, in the background) as soon as step 1 is committed, and run the
+stages while they work. Install any missing tool venvs in the background at the
+very start. The stages themselves run side by side (`run.py` does this), so the
+checks take as long as the slowest stage: about 2-3 minutes with a warm
+firmware build, about 20 minutes on a fresh machine (the first ESP-IDF compile).
+Note how long the run took in `RUNS.md`.
+
+Arguments: `/regression` is a normal run (review scoped to what changed);
+`/regression full` reviews the whole repository.
 
 ## 1. Bring the suite up to date
 
@@ -51,7 +62,15 @@ installs): those are `manual` checks for the owner.
 
 ## 3. Review for bugs and vulnerabilities
 
-Run two independent reviews of the whole repository in parallel (subagents),
+**Scope.** A normal run reviews what changed since the last run: the diff from
+the last run's version tag (`git diff v<last>..HEAD`, the version is in the
+newest `RUNS.md` entry) plus the code those changes call into, and every claim
+in `docs/security.md` that the diff touches. Do a **full** review of the whole
+repository when the owner asks (`/regression full`), when `RUNS.md` shows no
+full review in the last three runs, or when there is no earlier run. Record the
+scope in `RUNS.md` ("review: full" or "review: changes since vX").
+
+Run two independent reviews in parallel (subagents),
 each told: read-only, use made-up names only, never read the privacy denylist,
 verify every finding by tracing the code end to end, drop what can't be
 substantiated. Give them the areas below and point them at the previous run's
@@ -105,6 +124,14 @@ file, line, description, scenario, recommendation, verified}`.
 - Append a dated entry to `regression/RUNS.md`: version, totals, the IDs of
   failures and findings, and the report link. No real names, hosts or IDs: the
   repository is public.
+
+## Fixing findings (when the owner asks)
+
+Fix, release and install as usual, then re-run only the stages the fixes touch
+(`python3 regression/run.py integration page`, for example; `live` after the
+install) and have one reviewer confirm each fixed finding is gone, rather than
+repeating the whole review. Do a final full set of stages before the clean
+report.
 
 ## 5. Commit the suite changes
 

@@ -15,7 +15,7 @@ from freezegun.api import FrozenDateTimeFactory
 import pytest
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
@@ -54,7 +54,7 @@ async def _tap(hass: HomeAssistant, uid: str, device_id: str) -> None:
 
 def _taps(hass: HomeAssistant) -> list[dict]:
     taps: list[dict] = []
-    hass.bus.async_listen("magicband_tap", lambda e: taps.append(e.data))
+    hass.bus.async_listen("magicband_tap", callback(lambda e: taps.append(e.data)))
     return taps
 
 
@@ -233,7 +233,7 @@ async def test_lockout_while_in_lockdown(hass: HomeAssistant, setup_integration,
     lockout = _reader_entity(hass, reader_device, "binary_sensor", "Tap lockout", "lo1")
     await _call(hass, "set_settings", {"lockdown": True})
     events: list[dict] = []
-    hass.bus.async_listen("magicband_lockout", lambda e: events.append(e.data))
+    hass.bus.async_listen("magicband_lockout", callback(lambda e: events.append(e.data)))
     hass.states.async_set(lockout, "off")
     await hass.async_block_till_done()
     hass.states.async_set(lockout, "on")
@@ -253,7 +253,7 @@ async def test_lockout_ignores_unavailable_and_non_readers(hass: HomeAssistant, 
     other = make_esphome_device(hass, "garage-gadget", "some-other-project", "Garage gadget")
     fake = _reader_entity(hass, other, "binary_sensor", "Tap lockout", "lo3")
     events: list[dict] = []
-    hass.bus.async_listen("magicband_lockout", lambda e: events.append(e.data))
+    hass.bus.async_listen("magicband_lockout", callback(lambda e: events.append(e.data)))
     for state in ("unavailable", "on", "unavailable", "off"):
         hass.states.async_set(lockout, state)
         await hass.async_block_till_done()

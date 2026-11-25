@@ -20,7 +20,7 @@ stage. A feature without an entry is a gap the report lists.
 | `firmware/` | firmware | Config validation of every device file (plain and signed), host C++ unit tests of `components/magicband` (ring dimming, shows, time zones, reader key), optional full compiles |
 | `ci/` | ci | The release tooling: signing and verification with a throwaway key, `signed_build.py`, `check_versions.py`, the privacy guard's own rules, the BP2 consistency check |
 | `live/` | live | Read-only checks against a running Home Assistant (versions, entities, published firmware signatures). Never changes anything. Needs `HA_URL` and a token or an authenticating proxy; skipped otherwise |
-| `run.py` | — | Runs the stages and writes `out/<stage>.json` |
+| `run.py` | — | Runs the stages side by side (`--serial` for one at a time) and writes `out/<stage>.json` |
 | `report.py` | — | Combines `out/*.json`, the catalogue and `out/findings.json` (the review) into `out/report.md` and `out/report.html` |
 
 `out/` is git-ignored: results can name real devices.
