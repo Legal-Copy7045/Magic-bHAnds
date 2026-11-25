@@ -228,8 +228,9 @@ is welcomed in, not whether it's let in.
   gh attestation verify <file> --repo Legal-Copy7045/Magic-bHAnds --signer-workflow Legal-Copy7045/Magic-bHAnds/.github/workflows/firmware.yml --source-ref refs/heads/main
   ```
 
-  Releases are made only with **Run workflow** on `main`, and only commits on
-  `main` are signed or released. The `sign` job runs only for `main` and
+  Releases come only from `main`: a merge that raises `VERSION` releases it
+  from the same signed build (or **Run workflow** on `main`, to retry), and
+  only commits on `main` are signed or released. The `sign` job runs only for `main` and
   checks the commit is on `main` before it touches the key, but what really
   guards the key is the `release-signing` environment that holds it: its
   deployment branches allow only `main` (no tag rule), so GitHub refuses the

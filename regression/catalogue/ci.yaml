@@ -44,7 +44,7 @@
   since: 0.10.32
   docs: docs/security.md#devices-and-updates
   checks: [CI-037, CI-046, CI-047, CI-048]
-- feature: "Releases only from Run workflow on main: sign runs only for main; a pushed tag can't reach the key (release-signing allows main only)"
+- feature: "Releases only from main (a merged version bump, or Run workflow): sign runs only for main; a pushed tag can't reach the key (release-signing allows main only)"
   since: 0.10.32
   docs: docs/security.md#devices-and-updates
   checks: [CI-033, CI-053]
@@ -60,3 +60,7 @@
   since: 0.10.34
   docs: docs/security.md#accepted-risks
   checks: [CI-057]
+- feature: "Faster cycle: a merge to main with a new VERSION releases from the same signed build; the three firmwares build in parallel from main's cached build files; pull requests that change nothing the firmware is built from skip the build; other branches build only through their pull request"
+  since: 0.10.38
+  docs: README.md
+  checks: [CI-058, CI-059, CI-060]
