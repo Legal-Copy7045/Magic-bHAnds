@@ -201,7 +201,10 @@ trigger module. Both ask for 5 V; the 1000 µF sits behind either.
 2. Turn on **PCB Assembly**, top side, and upload **`fab/bom.csv`** and
    **`fab/cpl.csv`**. They list only the small surface-mount parts.
    `cpl.csv` already has JLCPCB's angles for U1, U2 and U3 (its models of those
-   parts sit at a different angle from KiCad's). For any other assembler
+   parts sit at a different angle from KiCad's), and moves J1 (USB-C) 1.3 mm
+   into the board, because JLCPCB's model of that socket is drawn 1.3 mm too far
+   out past the edge. In the preview the socket's shell should stick out about
+   0.5 mm past the board edge, with the yellow pin tails on the grey pads. For any other assembler
    (PCBWay and so on) upload **`fab/cpl-kicad.csv`** instead: KiCad's own angles.
    For PCBWay, upload **`fab/bom-pcbway.csv`** as the BOM: their columns, with
    quantity per board, manufacturer, package and notes (polarity, and the
