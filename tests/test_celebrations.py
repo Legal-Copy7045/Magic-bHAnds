@@ -8,7 +8,7 @@ from freezegun.api import FrozenDateTimeFactory
 import pytest
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.util import dt as dt_util
 
@@ -85,7 +85,7 @@ async def test_guest_pass_dates_and_uses(
     freezer.tick(timedelta(hours=2))
     assert registry.band_allowed(TAG)
     taps = []
-    hass.bus.async_listen("magicband_tap", lambda e: taps.append(e.data))
+    hass.bus.async_listen("magicband_tap", callback(lambda e: taps.append(e.data)))
     await _tap(hass, TAG, reader_device.id)
     await _tap(hass, TAG, reader_device.id)
     assert [t["allowed"] for t in taps] == [True, True]
@@ -192,7 +192,7 @@ async def test_birthday_holiday_and_badge_shows(
 ) -> None:
     shows = _shows(hass)
     badges = []
-    hass.bus.async_listen("magicband_badge", lambda e: badges.append(e.data))
+    hass.bus.async_listen("magicband_badge", callback(lambda e: badges.append(e.data)))
     freezer.move_to(datetime(2026, 10, 31, 15, 0, tzinfo=dt_util.get_default_time_zone()))  # Halloween
     await _person_with_band(hass, "Alice")
     await hass.services.async_call(DOMAIN, "update_person", {"person": "Alice", "birthday": "07-14"}, blocking=True)

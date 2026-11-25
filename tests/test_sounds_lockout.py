@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.helpers import entity_registry as er
 
 from custom_components.magicband import sounds
@@ -156,7 +156,7 @@ async def test_upload_play_and_remove_a_sound(hass: HomeAssistant, setup_integra
 async def test_lockout_notifies_and_fires_an_event(hass: HomeAssistant, setup_integration, reader_device) -> None:
     lockout = _reader_entity(hass, reader_device, "binary_sensor", "Tap lockout", "bs1")
     events = []
-    hass.bus.async_listen("magicband_lockout", lambda e: events.append(e.data))
+    hass.bus.async_listen("magicband_lockout", callback(lambda e: events.append(e.data)))
     hass.states.async_set(lockout, "off")
     await hass.async_block_till_done()
     assert events == []  # its first state isn't a change
@@ -178,7 +178,7 @@ async def test_lockout_after_a_reader_restart(hass: HomeAssistant, setup_integra
 
     lockout = _reader_entity(hass, reader_device, "binary_sensor", "Tap lockout", "bs1")
     events = []
-    hass.bus.async_listen("magicband_lockout", lambda e: events.append(e.data["locked"]))
+    hass.bus.async_listen("magicband_lockout", callback(lambda e: events.append(e.data["locked"])))
     hass.states.async_set(lockout, "unknown")  # a reader that hasn't published the sensor since it started
     await hass.async_block_till_done()
     hass.states.async_set(lockout, "on")
@@ -205,7 +205,7 @@ async def test_lockout_across_a_reconnect_is_announced(hass: HomeAssistant, setu
 
     lockout = _reader_entity(hass, reader_device, "binary_sensor", "Tap lockout", "bs1")
     events = []
-    hass.bus.async_listen("magicband_lockout", lambda e: events.append(e.data["locked"]))
+    hass.bus.async_listen("magicband_lockout", callback(lambda e: events.append(e.data["locked"])))
 
     async def to(*states):
         for state in states:
@@ -232,7 +232,7 @@ async def test_lockout_while_offline_after_a_start_is_announced(
     first seen at the start (it may have been announced before) isn't, and nor is its end (INT-092)."""
     lockout = _reader_entity(hass, reader_device, "binary_sensor", "Tap lockout", "bs1")
     events = []
-    hass.bus.async_listen("magicband_lockout", lambda e: events.append(e.data["locked"]))
+    hass.bus.async_listen("magicband_lockout", callback(lambda e: events.append(e.data["locked"])))
 
     async def to(*states):
         for state in states:
@@ -254,7 +254,7 @@ async def test_lockout_state_is_seeded_at_setup(hass: HomeAssistant, setup_integ
     assert await hass.config_entries.async_reload(entry.entry_id)
     await hass.async_block_till_done()
     events = []
-    hass.bus.async_listen("magicband_lockout", lambda e: events.append(e.data["locked"]))
+    hass.bus.async_listen("magicband_lockout", callback(lambda e: events.append(e.data["locked"])))
     for state in ("unavailable", "on"):
         hass.states.async_set(lockout, state)
         await hass.async_block_till_done()
