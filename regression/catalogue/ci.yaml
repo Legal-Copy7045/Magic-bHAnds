@@ -64,3 +64,7 @@
   since: 0.10.38
   docs: README.md
   checks: [CI-058, CI-059, CI-060]
+- feature: "Reader carrier PCB, JLCPCB placement file: KiCad's positions with JLCPCB's angle corrections (U1-U3) and J1 (USB-C) moved 1.3 mm into the board for JLCPCB's model"
+  since: 0.10.38
+  docs: hardware/reader-carrier/README.md
+  checks: [CI-061]

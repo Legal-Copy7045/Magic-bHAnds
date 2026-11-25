@@ -145,6 +145,7 @@ def main() -> int:
         site_checks(tmp)
         other_script_checks(env)
     workflow_checks()
+    fab_checks()
 
     RESULTS.sort(key=lambda r: r["id"])
     counts = {s: sum(1 for r in RESULTS if r["status"] == s) for s in ("pass", "fail", "skip", "manual")}
@@ -879,6 +880,44 @@ def other_script_checks(env: dict) -> None:
         proc = run([sys.executable, str(SCRIPTS / "check_bp2_standalone.py")], cwd=REPO / "esphome", env=env, timeout=900)
         assert proc.returncode == 0, out_of(proc)
         return out_of(proc).splitlines()[-1] if out_of(proc) else ""
+
+
+# ---------------------------------------------------------------------------- reader carrier fab files
+
+F_FAB = "Reader carrier PCB: assembly files (hardware/reader-carrier/tools/make_fab.py)"
+
+
+def fab_checks() -> None:
+    import ast  # noqa: PLC0415
+    import csv  # noqa: PLC0415
+
+    hw = REPO / "hardware" / "reader-carrier"
+
+    @check("CI-061", F_FAB, "fab/cpl.csv (JLCPCB) is fab/cpl-kicad.csv with only make_fab.py's JLC_ROTATION and "
+           "JLC_OFFSET applied (J1 moved 1.3 mm into the board for JLCPCB's USB-C model); same parts, same layer")
+    def _():
+        consts = {}
+        for node in ast.parse((hw / "tools" / "make_fab.py").read_text()).body:
+            if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name) and \
+                    node.targets[0].id in ("JLC_ROTATION", "JLC_OFFSET"):
+                consts[node.targets[0].id] = ast.literal_eval(node.value)
+        rot, off = consts["JLC_ROTATION"], consts["JLC_OFFSET"]
+        assert off.get("J1") == (1.3, 0.0), f"J1 offset: {off.get('J1')}"
+
+        def rows(name):
+            with open(hw / "fab" / name, newline="") as f:
+                return {r["Designator"]: r for r in csv.DictReader(f)}
+        jlc, kicad = rows("cpl.csv"), rows("cpl-kicad.csv")
+        assert jlc.keys() == kicad.keys(), f"different parts: {set(jlc) ^ set(kicad)}"
+        mm = lambda v: float(v.removesuffix("mm"))  # noqa: E731
+        for ref, k in kicad.items():
+            j = jlc[ref]
+            dx, dy = off.get(ref, (0.0, 0.0))
+            assert abs(mm(j["Mid X"]) - mm(k["Mid X"]) - dx) < 0.0015, f"{ref} x: {j['Mid X']} vs {k['Mid X']}"
+            assert abs(mm(j["Mid Y"]) - mm(k["Mid Y"]) - dy) < 0.0015, f"{ref} y: {j['Mid Y']} vs {k['Mid Y']}"
+            assert int(j["Rotation"]) == (int(k["Rotation"]) + rot.get(ref, 0)) % 360, f"{ref} rotation"
+            assert j["Layer"] == k["Layer"] == "Top", ref
+        return f"{len(jlc)} parts; offsets {off}; rotations {rot}"
 
 
 # ---------------------------------------------------------------------------- workflows

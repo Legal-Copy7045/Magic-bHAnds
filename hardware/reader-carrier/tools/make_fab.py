@@ -8,7 +8,9 @@ with the copper without any offset.
 Two placement files:
 - cpl.csv, for JLCPCB: KiCad's angle plus JLC_ROTATION, because JLCPCB's own models of
   some parts sit at a different angle from KiCad's footprints. The corrections were read
-  off JLCPCB's placement preview (Nov 2026): pin 1 on the silkscreen triangle.
+  off JLCPCB's placement preview (Nov 2026): pin 1 on the silkscreen triangle. J1 also
+  moves by JLC_OFFSET: JLCPCB's model of the USB-C socket is drawn 1.3 mm further out
+  than the part sits.
 - cpl-kicad.csv, for other assemblers (PCBWay and so on): KiCad's angles as they are.
 
 Two BOMs: bom.csv in JLCPCB's columns, and bom-pcbway.csv in PCBWay's (quantity per board,
@@ -31,6 +33,12 @@ from netlist import PARTS  # noqa: E402
 # leads run the other way and pin 1 sits a quarter-turn round; U2, U3: SOT-23 models are
 # half a turn from KiCad's footprints.
 JLC_ROTATION = {"U1": 270, "U2": 180, "U3": 180}
+# Millimetres added to KiCad's position (board x to the right, y up) for JLCPCB's models.
+# J1: JLCPCB's TYPE-C-31-M-12 model sits about 1.3 mm out past the board edge along the
+# socket's axis (Nov 2026 preview: shell 1.8 mm past the edge instead of 0.5 mm, rear slots
+# and signal pads 1.3 mm behind the shell), so its centroid moves 1.3 mm into the board
+# (+x: J1 overhangs the left edge, rotated -90). The copper is unchanged.
+JLC_OFFSET = {"J1": (1.3, 0.0)}
 
 # Manufacturer of each MPN, from its LCSC listing (Nov 2026), for assemblers that ask for it.
 MAKER = {
@@ -70,12 +78,14 @@ def main(pcb: Path, out: Path) -> None:
         rows.append((ref, x, y, fp.GetOrientationDegrees()))
         p = info[ref]
         groups[(p["value"], p["fp"].split(":")[1], p["mpn"], p["lcsc"])].append(ref)
-    for name, extra in (("cpl.csv", JLC_ROTATION), ("cpl-kicad.csv", {})):
+    for name, extra, shift in (("cpl.csv", JLC_ROTATION, JLC_OFFSET), ("cpl-kicad.csv", {}, {})):
         with open(out / name, "w", newline="") as f:
             w = csv.writer(f)
             w.writerow(["Designator", "Mid X", "Mid Y", "Layer", "Rotation"])
             for ref, x, y, rot in rows:
-                w.writerow([ref, f"{x:.3f}mm", f"{y:.3f}mm", "Top", f"{(rot + extra.get(ref, 0)) % 360:.0f}"])
+                dx, dy = shift.get(ref, (0.0, 0.0))
+                w.writerow([ref, f"{x + dx:.3f}mm", f"{y + dy:.3f}mm", "Top",
+                            f"{(rot + extra.get(ref, 0)) % 360:.0f}"])
     with open(out / "bom.csv", "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(["Comment", "Designator", "Footprint", "MPN", "LCSC Part #"])
