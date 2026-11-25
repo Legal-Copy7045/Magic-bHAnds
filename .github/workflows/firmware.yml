@@ -1,20 +1,22 @@
 name: Build, test & release
 
-# Every push (any branch) builds the firmware, runs the integration tests and
-# (from main) signs the firmware and publishes the web installer. Releases are
-# made ONLY with Actions -> "Build, test & release" -> Run workflow on main with
-# "release" ticked: that signs the build, tags v<VERSION> and creates a GitHub
-# Release with the firmware and integration attached.
-# A pushed v* tag only builds and tests: the sign job runs only for
-# refs/heads/main, so release (which needs sign) is skipped, and a tag can't
-# reach the signing key anyway: the release-signing environment's deployment
-# branches allow main only (no tag rule), so GitHub refuses the key to any
-# other ref, even if a tagged commit edits this file.
+# Pull requests build the firmware (skipped when a PR touches nothing the
+# firmware is built from) and run the integration tests. Every push to main
+# also signs the firmware and publishes the web installer, and releases: a
+# merge to main whose VERSION has no v<VERSION> release yet tags it and creates
+# the GitHub Release with the firmware and integration attached, from the same
+# signed build. Run workflow on main with "release" ticked does the same by
+# hand (for example to retry a release that failed). Releases come only from
+# main: a pushed v* tag only builds and tests, because the sign job runs only
+# for refs/heads/main, so release (which needs sign) is skipped, and a tag
+# can't reach the signing key anyway: the release-signing environment's
+# deployment branches allow main only (no tag rule), so GitHub refuses the key
+# to any other ref, even if a tagged commit edits this file.
 on:
   push:
-    # Every branch builds and tests; only main signs, publishes the site and
-    # releases (see the sign, deploy and release jobs).
-    branches: ["**"]
+    # Other branches are built through their pull request (one run, not two);
+    # only main signs, publishes the site and releases (see sign, deploy, release).
+    branches: [main]
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
@@ -42,21 +44,71 @@ env:
 jobs:
   versions:
     runs-on: ubuntu-latest
+    outputs:
+      # "true" when a pull request changes something the firmware is built from
+      # (always "true" outside pull requests): otherwise the build is skipped.
+      firmware: ${{ steps.changes.outputs.firmware }}
+      # "true" on a push to main whose VERSION has no release tag yet: release.
+      new_version: ${{ steps.release.outputs.new_version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 0
       - name: Check versions match
         env:
           TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
         run: python3 .github/scripts/check_versions.py $TAG
+      - name: Does this pull request change the firmware?
+        id: changes
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          fw=true
+          if [ "$EVENT" = pull_request ]; then
+            changed="$(git diff --name-only "$BASE...$HEAD")"
+            echo "$changed"
+            echo "$changed" | grep -qE '^(esphome/|components/|VERSION$|\.github/(workflows/firmware\.yml$|requirements|scripts/(signed_build|make_site|check_bp2_standalone|sign_firmware)\.py$))' || fw=false
+          fi
+          echo "firmware=$fw" >> "$GITHUB_OUTPUT"
+          echo "Build the firmware: $fw"
+      - name: Is VERSION a new release?
+        id: release
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+        run: |
+          new=false
+          if [ "$EVENT" = push ] && [ "$REF" = refs/heads/main ]; then
+            v="$(tr -d '[:space:]' < VERSION)"
+            git ls-remote --exit-code --tags origin "refs/tags/v$v" >/dev/null || new=true
+          fi
+          echo "new_version=$new" >> "$GITHUB_OUTPUT"
+          echo "New release: $new"
 
   build:
     needs: versions
+    if: needs.versions.outputs.firmware == 'true'
     runs-on: ubuntu-latest
     # Read-only: the published firmware is attested in the sign job, after signing.
     permissions:
       contents: read
+    # The three firmwares build side by side.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: bridge
+            dir: magicband-bridge
+          - target: reader
+            dir: magicband-reader
+          - target: bp2
+            dir: screek-bp2-poe
+    env:
+      TARGET: ${{ matrix.target }}
+      DIR: ${{ matrix.dir }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -72,6 +124,16 @@ jobs:
           path: ~/.cache/esphome
           key: esphome-${{ env.ESPHOME_VERSION }}-${{ runner.os }}
 
+      # The previous build's compiled files, so only what changed is compiled
+      # again. Restored from main's builds only (GitHub never lets main read a
+      # cache saved by a pull request), and saved only by main (below).
+      - name: Restore the previous build
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: esphome/.esphome/build/${{ matrix.dir }}
+          key: fwbuild-${{ matrix.target }}-${{ env.ESPHOME_VERSION }}-${{ github.sha }}
+          restore-keys: fwbuild-${{ matrix.target }}-${{ env.ESPHOME_VERSION }}-
+
       - name: Install ESPHome
         run: pip install "esphome==${ESPHOME_VERSION}"
 
@@ -79,51 +141,71 @@ jobs:
       # and the Wi-Fi ones (bridge, reader) get the setup hotspot, whose upload
       # page that signature check covers (signed_build.py; the sign job signs
       # them). The device files themselves stay unlocked, without a hotspot,
-      # for people who build their own.
-      - name: Compile MagicBand Bridge
-        working-directory: esphome
-        # Build against this checkout's component, not the copy on main.
-        run: |
-          python3 ../.github/scripts/signed_build.py magicband-bridge.yaml bridge-ci.yaml
-          esphome -s component_source ../components compile bridge-ci.yaml
-
-      - name: Compile MagicBand Reader
+      # for people who build their own. Each builds against this checkout's
+      # component, add-on and sound files, not the copies on main.
+      - name: Compile
         working-directory: esphome
         run: |
-          # This checkout's add-on and sound files rather than the copies on main.
-          sed -e 's#magicband: github://.*magicband-addon.yaml@main#magicband: !include magicband-addon.yaml#' \
-              -e 's#https://raw.githubusercontent.com/Legal-Copy7045/Magic-bHAnds/main/esphome/sounds/#sounds/#' \
-              magicband-reader.yaml > reader-ci.yaml
-          python3 ../.github/scripts/signed_build.py reader-ci.yaml reader-ci.yaml
-          esphome -s component_source ../components compile reader-ci.yaml
-
-      - name: Compile SCREEK BP2-POE
-        working-directory: esphome
-        run: |
-          sed 's#magicband: github://.*magicband-addon.yaml@main#magicband: !include magicband-addon.yaml#' \
-            screek-bp2-poe.yaml > bp2-ci.yaml
-          python3 ../.github/scripts/signed_build.py bp2-ci.yaml bp2-ci.yaml
-          esphome -s component_source ../components compile bp2-ci.yaml
+          case "$TARGET" in
+            bridge)
+              python3 ../.github/scripts/signed_build.py magicband-bridge.yaml ci.yaml ;;
+            reader)
+              sed -e 's#magicband: github://.*magicband-addon.yaml@main#magicband: !include magicband-addon.yaml#' \
+                  -e 's#https://raw.githubusercontent.com/Legal-Copy7045/Magic-bHAnds/main/esphome/sounds/#sounds/#' \
+                  magicband-reader.yaml > ci.yaml
+              python3 ../.github/scripts/signed_build.py ci.yaml ci.yaml ;;
+            bp2)
+              sed 's#magicband: github://.*magicband-addon.yaml@main#magicband: !include magicband-addon.yaml#' \
+                screek-bp2-poe.yaml > ci.yaml
+              python3 ../.github/scripts/signed_build.py ci.yaml ci.yaml ;;
+          esac
+          esphome -s component_source ../components compile ci.yaml
 
       - name: Check the standalone BP2-POE file matches the shared add-on
+        if: matrix.target == 'bp2'
         working-directory: esphome
         run: python3 ../.github/scripts/check_bp2_standalone.py
 
-      - name: Check the site assembles (unsigned; the sign job publishes)
+      - name: Save the build for the next one
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: esphome/.esphome/build/${{ matrix.dir }}
+          key: fwbuild-${{ matrix.target }}-${{ env.ESPHOME_VERSION }}-${{ github.sha }}
+
+      - name: Stage the unsigned build
         run: |
-          python3 .github/scripts/make_site.py _site_check \
-            bridge=esphome/.esphome/build/magicband-bridge/build=esphome/magicband-bridge.yaml \
-            reader=esphome/.esphome/build/magicband-reader/build=esphome/magicband-reader.yaml \
-            bp2=esphome/.esphome/build/screek-bp2-poe/build=esphome/screek-bp2-poe.yaml
-      - name: Upload the unsigned builds
+          mkdir -p "stage/$DIR/build"
+          cp "esphome/.esphome/build/$DIR/build/firmware.ota.bin" \
+             "esphome/.esphome/build/$DIR/build/firmware.factory.bin" "stage/$DIR/build/"
+      - name: Upload the unsigned build
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: builds
-          # The builds live under esphome/.esphome, which upload-artifact skips by default.
-          include-hidden-files: true
-          path: |
-            esphome/.esphome/build/*/build/firmware.ota.bin
-            esphome/.esphome/build/*/build/firmware.factory.bin
+          name: builds-${{ matrix.target }}
+          path: stage/
+
+  # The three builds together assemble into the site (unsigned; the sign job publishes).
+  site-check:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          pattern: builds-*
+          merge-multiple: true
+          path: builds
+      - name: Check the site assembles
+        run: |
+          python3 .github/scripts/make_site.py _site_check \
+            bridge=builds/magicband-bridge/build=esphome/magicband-bridge.yaml \
+            reader=builds/magicband-reader/build=esphome/magicband-reader.yaml \
+            bp2=builds/screek-bp2-poe/build=esphome/screek-bp2-poe.yaml
+
   # Signs the firmware with the project's key, then assembles the site and the
   # release files from the signed images. Only main gets here (a push to main
   # or Run workflow on main), and the release-signing environment holding
@@ -166,7 +248,8 @@ jobs:
           pip install --require-hashes --no-deps --no-build-isolation -r .github/requirements-signing.txt
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: builds
+          pattern: builds-*
+          merge-multiple: true
           path: builds
       - name: Sign the firmware
         env:
@@ -235,11 +318,13 @@ jobs:
       - id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
 
-  # Runs from "Run workflow" on main with release ticked. For a pushed v* tag
-  # this job is skipped: it needs sign, which only runs on main.
+  # Runs on main only: for a push whose VERSION has no release yet (a merged
+  # version bump), or from Run workflow with release ticked. It releases the
+  # build that sign has just signed and published. A pushed v* tag never gets
+  # here: sign only runs on main.
   release:
-    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.release && github.ref == 'refs/heads/main')
-    needs: [sign, test-integration]
+    if: github.ref == 'refs/heads/main' && ((github.event_name == 'push' && needs.versions.outputs.new_version == 'true') || (github.event_name == 'workflow_dispatch' && inputs.release))
+    needs: [versions, sign, test-integration]
     runs-on: ubuntu-latest
     permissions:
       contents: write

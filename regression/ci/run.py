@@ -937,8 +937,8 @@ def workflow_checks() -> None:
         env = jobs["sign"].get("environment")
         assert env == "release-signing" or (isinstance(env, dict) and env.get("name") == "release-signing"), env
 
-    @check("CI-035", F_WF, "deploy and release need sign (and the tests); deploy only on main; release only tags or a "
-           "release run on main, and checks the commit is on main")
+    @check("CI-035", F_WF, "deploy and release need sign (and the tests); deploy only on main; release only on main "
+           "(a push with a new VERSION, or a release run), and checks the commit is on main")
     def _():
         for name in ("deploy", "release"):
             needs = jobs[name].get("needs")
@@ -946,7 +946,9 @@ def workflow_checks() -> None:
             assert "sign" in needs and "test-integration" in needs, (name, needs)
         assert jobs["deploy"]["if"].strip() == "github.ref == 'refs/heads/main'", jobs["deploy"]["if"]
         rel = jobs["release"]["if"]
-        assert "startsWith(github.ref, 'refs/tags/v')" in rel and "inputs.release" in rel and "refs/heads/main" in rel, rel
+        assert rel.strip().startswith("github.ref == 'refs/heads/main' && ("), f"release not limited to main: {rel}"
+        assert "inputs.release" in rel and "needs.versions.outputs.new_version == 'true'" in rel, rel
+        assert "refs/tags" not in rel, rel
         on_main = [s for s in _steps(jobs["release"]) if "merge-base --is-ancestor" in (s.get("run") or "")]
         assert on_main, "release doesn't check the commit is on main"
 
@@ -1071,7 +1073,7 @@ def workflow_checks() -> None:
         assert all(w in rel for w in want), "release job comment shows an unpinned verify command"
 
 
-    @check("CI-053", F_WF, "Releases only from Run workflow on main: sign (the release job's dependency) runs only "
+    @check("CI-053", F_WF, "Releases only from main (a merged version bump, or Run workflow): sign (the release job's dependency) runs only "
            "for refs/heads/main, and the workflow header, README and docs/security.md say a pushed tag can't reach "
            "the key (the release-signing environment allows main only) and isn't released")
     def _():
@@ -1080,8 +1082,8 @@ def workflow_checks() -> None:
         rel_needs = jobs["release"].get("needs")
         assert "sign" in ([rel_needs] if isinstance(rel_needs, str) else rel_needs), rel_needs
         header = re.sub(r"\s*\n#\s*", " ", fw_text.split("\non:", 1)[0])
-        for want in ("Run workflow on main", "pushed v* tag only builds and tests", "release-signing",
-                     "allow main only"):
+        for want in ("Releases come only from main", "Run workflow on main", "pushed v* tag only builds and tests",
+                     "release-signing", "allow main only"):
             assert want in header, f"workflow header doesn't say: {want}"
         readme = re.sub(r"\s+", " ", (REPO / "README.md").read_text())
         assert "pushing a `v*` tag yourself doesn't release" in readme.lower(), \
@@ -1091,6 +1093,48 @@ def workflow_checks() -> None:
                       "tags whose commit isn't on `main` are never signed", "signing job checks that a tag's commit"):
             assert stale not in doc, f"docs/security.md still says: {stale}"
         assert "only `main` (no tag rule)" in doc, "docs/security.md doesn't say the environment allows only main"
+
+    @check("CI-058", F_WF, "A merge to main releases a new VERSION from the same signed build: the versions job "
+           "says new_version only for a push to main whose v<VERSION> tag doesn't exist, and release needs versions")
+    def _():
+        steps = _steps(jobs["versions"])
+        rel = next(s for s in steps if s.get("id") == "release")
+        run = rel["run"]
+        assert '[ "$EVENT" = push ] && [ "$REF" = refs/heads/main ]' in run, run
+        assert 'git ls-remote --exit-code --tags origin "refs/tags/v$v"' in run and "|| new=true" in run, run
+        assert jobs["versions"]["outputs"]["new_version"] == "${{ steps.release.outputs.new_version }}"
+        needs = jobs["release"]["needs"]
+        assert "versions" in needs and "sign" in needs, needs
+        assert fw["on"]["push"]["branches"] == ["main"], f"pushes to other branches build too: {fw['on']['push']}"
+
+    @check("CI-059", F_WF, "The firmware builds in parallel (bridge, reader, BP2), keeps no secrets, restores compiled "
+           "files from main's cache and saves them only from a push to main; sign and the site check take all three")
+    def _():
+        build = jobs["build"]
+        targets = {(i["target"], i["dir"]) for i in build["strategy"]["matrix"]["include"]}
+        assert targets == {("bridge", "magicband-bridge"), ("reader", "magicband-reader"), ("bp2", "screek-bp2-poe")}, targets
+        saves = [s for s in _steps(build) if str(s.get("uses", "")).startswith("actions/cache/save@")]
+        assert len(saves) == 1 and saves[0].get("if") == "github.event_name == 'push' && github.ref == 'refs/heads/main'", saves
+        for name in ("sign", "site-check"):
+            dl = [s for s in _steps(jobs[name]) if "download-artifact" in str(s.get("uses"))]
+            assert dl and (dl[0].get("with") or {}).get("pattern") == "builds-*" and dl[0]["with"].get("merge-multiple"), (name, dl)
+        assert jobs["site-check"].get("needs") == "build"
+
+    @check("CI-060", F_WF, "A pull request skips the firmware build only when it changes nothing the firmware is built "
+           "from (esphome/, components/, VERSION, firmware.yml, the signing requirements and build scripts); pushes "
+           "always build")
+    def _():
+        run = next(s for s in _steps(jobs["versions"]) if s.get("id") == "changes")["run"]
+        assert "fw=true" in run and 'if [ "$EVENT" = pull_request ]' in run, run
+        pattern = re.search(r"grep -qE '([^']+)'", run).group(1)
+        rx = re.compile(pattern)
+        for path in ("esphome/magicband-reader.yaml", "components/magicband/reader.cpp", "VERSION",
+                     ".github/workflows/firmware.yml", ".github/requirements-signing.txt",
+                     ".github/scripts/signed_build.py", ".github/scripts/make_site.py"):
+            assert rx.search(path), f"a change to {path} would skip the build"
+        for path in ("docs/security.md", "regression/RUNS.md", "custom_components/magicband/readers.py"):
+            assert not rx.search(path), f"{path} would build the firmware"
+        assert jobs["build"].get("if") == "needs.versions.outputs.firmware == 'true'", jobs["build"].get("if")
 
     @check("CI-055", F_WF, "The account that can push to main is what protects releases: README, docs/security.md "
            "(Signed updates and the accepted risk) and the sign job's comment in firmware.yml say it should use "
