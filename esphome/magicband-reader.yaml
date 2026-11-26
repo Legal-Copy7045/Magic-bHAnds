@@ -23,7 +23,7 @@ substitutions:
   timezone: America/New_York
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.10.37"
+  project_version: "0.10.38"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -223,6 +223,7 @@ api:
         - binary_sensor.template.publish:
             id: paired
             state: !lambda 'return magicband::reader_paired(id(pair_key));'
+        - script.execute: save_now
         - api.respond:
             success: !lambda 'return id(sync_error).empty();'
             error_message: !lambda 'return id(sync_error);'
@@ -309,6 +310,7 @@ api:
             }
             id(sync_error) = err;
         - component.update: known_band_count
+        - script.execute: save_now
         - api.respond:
             success: !lambda 'return id(sync_error).empty();'
             error_message: !lambda 'return id(sync_error);'
@@ -465,6 +467,7 @@ pn532_i2c:
                 id: paired
                 state: true
             - script.stop: pair_wait
+            - script.execute: save_now
             - lambda: 'id(rgb) = {0.0f, 1.0f, 0.3f, 0.0f};'
             - script.execute:
                 id: ring_on
@@ -2098,6 +2101,15 @@ interval:
             - script.execute: end_lockout
 
 script:
+  # Writes the pairing key and the allowed list to flash a few seconds after either changes, instead of
+  # at the next scheduled flash write (up to a minute later): a power cut straight after pairing, or after a
+  # band was removed, doesn't bring back the old key or list. Restart mode: a burst of changes saves once.
+  # The 6 s wait lets the allowed list's 5 s change check pick up the new value first.
+  - id: save_now
+    mode: restart
+    then:
+      - delay: 6s
+      - lambda: 'global_preferences->sync();'
   # Applies the "Time zone" setting to the device's clocks.
   - id: apply_time_zone
     then:
@@ -2672,6 +2684,7 @@ button:
           id(listed_bands).add(key);
           ESP_LOGI("reader", "Allowed the last band");
       - component.update: known_band_count
+      - script.execute: save_now
   - platform: template
     name: "Forget last band"
     icon: mdi:account-minus
@@ -2694,6 +2707,7 @@ button:
           std::copy(list.begin(), list.end(), id(known_list).begin());
           ESP_LOGI("reader", "Forgot the last band");
       - component.update: known_band_count
+      - script.execute: save_now
   - platform: template
     name: "Forget all bands"
     icon: mdi:account-multiple-remove
@@ -2707,6 +2721,7 @@ button:
           std::fill(id(known_list).begin(), id(known_list).end(), 0);
           ESP_LOGI("reader", "Forgot all bands");
       - component.update: known_band_count
+      - script.execute: save_now
   - platform: template
     name: "Test welcome"
     icon: mdi:check-circle

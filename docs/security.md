@@ -98,6 +98,9 @@ it to another Home Assistant; this Home Assistant then leaves it alone until
 over USB (the web installer's **Erase device**) and add it again. The key is in
 Home Assistant's backups, so restoring a backup keeps your readers paired. If
 you lose it (a fresh install without a backup), erase the reader over USB.
+The reader writes its key, and every new allowed list, to flash within a few
+seconds of the change, so a power cut straight afterwards doesn't bring back
+the old key or list.
 **First pairing needs a tap on the reader**: when MagicbHAnds first pairs
 with it, the ring breathes blue and Repairs asks you to tap any band on it
 within 2 minutes; the tap finishes pairing (and does nothing else). The first

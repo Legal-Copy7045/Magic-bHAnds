@@ -32,11 +32,13 @@ permissions:
 # Actions are pinned to commit SHAs (the comment gives the tag), so a moved or
 # hijacked tag can't change what runs here. Update them deliberately.
 
-# A newer push replaces an older build of the same branch, but a release run
-# (started from the Actions page) is never cancelled.
+# A newer push to a pull request replaces its older build. Runs on main are
+# never cancelled: every push to main signs and publishes, and one that raises
+# VERSION releases, so a merge landing mid-release waits for it instead of
+# cutting it off half-done. Release runs from the Actions page aren't either.
 concurrency:
   group: build-${{ github.ref }}-${{ github.event_name }}
-  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   ESPHOME_VERSION: "2026.10.2"

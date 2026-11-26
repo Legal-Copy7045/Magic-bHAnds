@@ -45,6 +45,9 @@
   }
   window.hdHA = {
     live: function () { var h = getHass(); return !!(h && h.states && h.callService); },
+    // Whether the signed-in user is a Home Assistant administrator. Display only: Home Assistant itself refuses
+    // the admin-only actions for everyone else. Unknown (an older Home Assistant) counts as an administrator.
+    admin: function () { var h = getHass(); return !(h && h.user && h.user.is_admin === false); },
     state: function (eid) { var h = getHass(); return (h && h.states && h.states[eid]) || null; },
     find: function (name, doms) {
       var h = getHass(); if (!h || !h.states) return null;

@@ -59,7 +59,14 @@ function result(key, n, ok, detail, evidence, skip) {
 
 // In-page probes (run inside the document being checked).
 const PROBES = () => {
-  const vis = e => { const r = e.getBoundingClientRect(), cs = getComputedStyle(e); return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none'; };
+  // Shown on screen: Chromium lays out the inside of a closed <details> without drawing it, so its size alone
+  // doesn't say an element can be seen or tapped.
+  const vis = e => { const r = e.getBoundingClientRect(), cs = getComputedStyle(e);
+    if (!(r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none')) return false;
+    if (e.checkVisibility && !e.checkVisibility({ checkVisibilityCSS: true, contentVisibilityAuto: true })) return false;
+    for (let d = e.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) {
+      if (!d.open && !(e.closest('summary') && e.closest('summary').parentElement === d)) return false; }
+    return true; };
   const sig = e => (e.id ? '#' + e.id : e.tagName.toLowerCase() + (e.classList.length ? '.' + [...e.classList].slice(0, 2).join('.') : '')) + (e.textContent.trim() ? ' "' + e.textContent.trim().replace(/\s+/g, ' ').slice(0, 30) + '"' : '');
   const scroller = e => { for (let a = e.parentElement; a && a !== document.body; a = a.parentElement) { const ox = getComputedStyle(a).overflowX; if (ox === 'auto' || ox === 'scroll' || ox === 'hidden' || ox === 'clip') return a; } return null; };
   window.__walk = {

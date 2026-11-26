@@ -93,7 +93,7 @@ const scenario = (name, o, fn) => SCEN.push({ name, o, fn });
 const broken = msg => { const t = () => { throw new Error('page did not load: ' + msg); }; const px = new Proxy({}, { get: (_, k) => k === 'then' ? undefined : t }); return { ctx: null, p: px, f: px, errs: ['page did not load: ' + msg], broken: true }; };
 
 const F = {   // feature names (the catalogue maps these to IDs)
-  render: 'Page renders (all sections)', layout: 'Layout and overflow', a11y: 'Accessibility: labels, switches, headings, focus', touch: 'Touch targets on phones',
+  render: 'Page renders (all sections)', member: 'Household members (not administrators)', layout: 'Layout and overflow', a11y: 'Accessibility: labels, switches, headings, focus', touch: 'Touch targets on phones',
   dark: 'Dark mode', nav: 'Jump chips and KPIs', status: 'Status strip and Needs attention', taps: 'Recent taps', people: 'People and access',
   guest: 'Guest passes and band hours', lockdown: 'Lockdown', welcome: 'Welcome colour and welcome sound', bands: 'Bands list',
   btonly: 'Bluetooth-only bands and linking', unknown: 'Unknown band discovery and assignment', readers: 'Reader cards', settings: 'Reader ring and tap settings',
@@ -586,7 +586,10 @@ scenario('phone-touch', { width: 390, touch: true }, async ({ p, f, errs }) => {
   await chk('PAGE-120', F.touch, 'Touch: buttons, small buttons, summaries, sliders, selects, boxes, sparkline buttons and weekday labels are at least 44 px tall', async () => {
     const k = ['btn', 'sm', 'summary', 'range', 'select', 'text', 'nu', 'time', 'dt', 'num', 'spark', 'days'], low = k.filter(x => !(tt[x] >= 44)); return [!low.length, { low, tt }]; });
   await chk('PAGE-121', F.touch, 'Touch: toggles are 52 x 32 with a 44 px touch area; checkboxes 20 px', async () => [tt.tgH === 32 && tt.tgW === 52 && tt.tgHit.split('/')[0] === tt.tgHit.split('/')[1] && tt.cb >= 20 && tt.cbW >= 20, tt]);
-  await chk('PAGE-122', F.touch, 'Touch: jump chips and status chips are at least 44 px tall', async () => [tt.chip >= 44 && tt.pchip >= 44, { chip: tt.chip, pchip: tt.pchip }]);
+  // PAGE-122 (status chips 44 px on a phone) is retired: since 0.10.38 the phone hides them (PAGE-186)
+  await chk('PAGE-186', F.touch, 'Phone: jump chips are at least 44 px tall; the status chips are hidden (Needs attention lists the same problems)', async () => {
+    const r = await f.evaluate(() => ({ chip: Math.min(...[...document.querySelectorAll('#jump a')].map(a => a.getBoundingClientRect().height)), status: getComputedStyle($('status')).display, chips: document.querySelectorAll('#status .pchip').length }));
+    return [r.chip >= 44 && r.status === 'none' && r.chips > 0, r]; });
   await chk('PAGE-123', F.taps, 'Phone: the reader moves under the band, the time stays on one line, the picture is fully shown', async () => {
     const r = await f.evaluate(() => { const td = document.querySelector('#hist td.rd'), sub = document.querySelector('#hist .rdsub'), w = document.querySelector('#hist td.when'), pic = document.querySelector('#hist td.pic .snapbtn');
       return { rd: getComputedStyle(td).display, sub: getComputedStyle(sub).display, subT: sub.textContent, nowrap: getComputedStyle(w).whiteSpace, over: window.__over($('hist')), picR: Math.round(pic.getBoundingClientRect().right), card: Math.round($('hist').getBoundingClientRect().right) }; });
@@ -610,9 +613,10 @@ scenario('phone-touch', { width: 390, touch: true }, async ({ p, f, errs }) => {
     const r = await f.evaluate(() => { const s = document.querySelector('[data-cam]'), row = s.closest('.row'), h = row.nextElementSibling; s.style.flex = 'none'; s.style.maxWidth = 'none'; const nat = s.getBoundingClientRect().width; s.style.flex = ''; s.style.maxWidth = '';
       return { nat: Math.round(nat), oneLine: Math.abs(row.firstElementChild.getBoundingClientRect().top - s.getBoundingClientRect().top) < 12, hint: h && h.classList.contains('rowhint') ? h.textContent : null, inRow: /picture/.test(row.textContent), selW: Math.round(s.getBoundingClientRect().width), desc: s.getAttribute('aria-describedby') === h.id }; });
     return [r.hint && !r.inRow && r.selW >= r.nat - 1 && r.oneLine && r.desc, r]; });
-  await chk('PAGE-129', F.nav, 'Phone: KPIs in 2 columns; jump chips scroll sideways on one line', async () => {
-    const r = await f.evaluate(() => ({ cols: getComputedStyle($('kpis')).gridTemplateColumns.split(' ').length, wrap: getComputedStyle($('jump')).flexWrap, ox: getComputedStyle($('jump')).overflowX }));
-    return [r.cols === 2 && r.wrap === 'nowrap' && r.ox === 'auto', r]; });
+  // PAGE-129 (KPIs in 2 columns on a phone) is retired: since 0.10.38 they're 3 compact columns (PAGE-187)
+  await chk('PAGE-187', F.nav, 'Phone: KPIs in 3 compact columns, jump chips scroll sideways on one line, and Needs attention starts on the first screen', async () => {
+    const r = await f.evaluate(() => { scrollTo(0, 0); return { cols: getComputedStyle($('kpis')).gridTemplateColumns.split(' ').length, wrap: getComputedStyle($('jump')).flexWrap, ox: getComputedStyle($('jump')).overflowX, attnTop: Math.round($('s-attn').getBoundingClientRect().top + scrollY) }; });
+    return [r.cols === 3 && r.wrap === 'nowrap' && r.ox === 'auto' && r.attnTop < 844, r]; });
   await chk('PAGE-130', F.layout, 'Phone 390 px touch: no horizontal page scroll', async () => { const r = await f.evaluate(() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]); return [r[0] <= r[1], r]; });
   await chk('PAGE-131', F.layout, 'Phone 390 px touch: nothing wider than the screen (except the jump-chip scroller), every fold-out open', async () => { const o = await f.evaluate(() => { window.__openAll(); return window.__over(); }); return [!o.length, o]; }, await fullShot(p, f, 'phone-touch-open'));
   await chk('PAGE-132', F.a11y, 'Phone: every control has a label (all fold-outs open)', async () => { const u = await f.evaluate(() => window.__unlabelled()); return [!u.length, u.slice(0, 15)]; });
@@ -772,6 +776,24 @@ scenario('reader-time-zone-pacific', { width: 1400, tz: 'America/Los_Angeles', o
 });
 
 // ── 14. the page's controls reach only MagicbHAnds devices ──
+scenario('household-member', { width: 1400, opts: { admin: false, history: false, historyError: 'Unauthorized', reject: '^magicband\\.(list|list_bluetooth_bands|history|add_person|update_person|remove_person|assign_band|unassign_band|remove_band|set_guest_pass|set_settings|set_band_access|enrol|stop_enrolment|link_bluetooth|set_snapshot_days|set_reader_camera)$', rejectWith: 'Unauthorized' } }, async ({ p, f, errs }) => {
+  const r = await f.evaluate(() => ({
+    note: !$('ro-note').hidden && /household member/.test($('ro-note').textContent),
+    chips: [...document.querySelectorAll('#jump a')].map(a => a.textContent.replace(/\d+$/, '').trim()),
+    hidden: ['s-taps', 'hist', 'rules-card', 'enrol', 'addp', 's-celeb', 'celeb', 'passport'].filter(id => $(id).offsetParent !== null),
+    jobs: ['j-unknown', 'j-link', 'j-types'].filter(id => !$(id).hidden),
+    enabled: [...document.querySelectorAll('#people button,#people input,#people select,#bands select,#bands button:not(.sparkbtn)')].filter(e => !e.disabled && e.offsetParent !== null).map(e => e.id || e.className).slice(0, 8),
+    why: (document.querySelector('#people button[disabled]') || {}).title,
+    readers: [...document.querySelectorAll('#readers .tg,#readers select')].filter(e => !e.disabled).length,
+    adminCalls: window.parent.__calls.filter(c => c[0] === 'ws' && /^(list|history|list_bluetooth_bands)$/.test(c[3] || '')).length }));
+  await chk('PAGE-188', F.member, 'Household member: one note at the top says what they can and can’t do', async () => [r.note, r]);
+  await chk('PAGE-189', F.member, 'Household member: Recent taps, Lockdown, enrolment, Add someone, Celebrations and the passport are hidden, and Recent taps and Celebrations aren’t in the jump menu', async () =>
+    [!r.hidden.length && !r.chips.includes('Recent taps') && !r.chips.includes('Celebrations') && r.chips.includes('People'), r]);
+  await chk('PAGE-190', F.member, 'Household member: People and Bands controls are switched off with “Only a Home Assistant administrator can change this”; reader settings stay usable; New bands and linking jobs are hidden', async () =>
+    [!r.enabled.length && /administrator/.test(r.why || '') && r.readers > 0 && !r.jobs.length, r]);
+  await chk('PAGE-191', F.member, 'Household member: the page doesn’t ask Home Assistant for the administrators-only lists and history (no Unauthorized errors)', async () => [r.adminCalls === 0 && !errs.length, { calls: r.adminCalls, errs }]);
+});
+
 scenario('shim-scope', { width: 1400, opts: { strangers: true } }, async ({ p, f, errs }) => {
   const r = await f.evaluate(async () => { const n0 = __C(), tryIt = (...a) => H().call(...a).then(() => 'ok', e => String(e.message || e));
     const out = { plug: await tryIt('switch', 'turn_on', 'switch.kitchen_kettle'), wipe: await tryIt('button', 'press', 'button.front_door_reader_wipe'),

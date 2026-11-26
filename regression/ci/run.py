@@ -1175,6 +1175,13 @@ def workflow_checks() -> None:
             assert not rx.search(path), f"{path} would build the firmware"
         assert jobs["build"].get("if") == "needs.versions.outputs.firmware == 'true'", jobs["build"].get("if")
 
+    @check("CI-062", F_WF, "Runs on main are never cancelled (a merge landing mid-release waits for it); only a newer "
+           "push to a pull request replaces its older build")
+    def _():
+        conc = fw.get("concurrency") or {}
+        assert str(conc.get("cancel-in-progress", "")).replace(" ", "") == "${{github.event_name=='pull_request'}}", conc
+        assert "github.ref" in conc.get("group", "") and "github.event_name" in conc.get("group", ""), conc
+
     @check("CI-055", F_WF, "The account that can push to main is what protects releases: README, docs/security.md "
            "(Signed updates and the accepted risk) and the sign job's comment in firmware.yml say it should use "
            "two-factor authentication and keep the release-signing environment limited to main, and none of them "
