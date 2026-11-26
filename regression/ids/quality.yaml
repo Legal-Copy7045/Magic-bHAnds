@@ -1,0 +1,13 @@
+# Stable check IDs for the quality stage (regression/ids.py). Append-only: never renumber or reuse an
+# ID. A removed check stays here with its text starting "RETIRED"; a new check takes a new number.
+QUAL-001: "ruff --select F,E9,PLE,B (ignoring B905,B008,B904) finds nothing in custom_components, .github/scripts, regression, tests"
+QUAL-002: "bandit finds no medium or high severity issue in the integration and release scripts beyond the ones accepted in regression/quality/accepted.yaml"
+QUAL-003: "Every entry in regression/quality/accepted.yaml still matches a bandit result (no stale acceptances)"
+QUAL-004: "pip-audit: the signing toolchain (.github/requirements-signing*.txt, the only packages that ever see the signing key) has no known vulnerabilities"
+QUAL-005: "pip-audit: the ESPHome version CI builds the firmware with has no known vulnerabilities"
+QUAL-006: "pip-audit: the integration's test framework pins (pytest-homeassistant-custom-component, fonttools) have no known vulnerabilities"
+QUAL-007: "npm advisories: the vendored ESP Web Tools version (the code that runs on the web installer page) has no known advisory"
+QUAL-008: "The integration declares no unpinned Python requirements (manifest.json)"
+QUAL-009: "node --check passes for the page and panel scripts (frontend/*.js) and the regression page harness"
+QUAL-010: "The page's inline scripts parse (frontend/page.html, after the shared code is spliced in as panel.py does)"
+QUAL-011: "The regression harness's own tests pass (regression/tests: report renderers, stage selection, ID registry)"

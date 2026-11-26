@@ -1,0 +1,21 @@
+# Code quality and supply chain (stage "quality"). Entries may use `match:` regexes over "<stage>:<ID>".
+- feature: "Lint: correctness rules (ruff) over the integration, release scripts, harness and tests"
+  since: 0.10.38
+  docs: regression/quality/run.py
+  match: ["quality:QUAL-001"]
+- feature: "Static security scan (bandit) of the integration and release scripts, with hand-checked acceptances that can't go stale"
+  since: 0.10.38
+  docs: regression/quality/accepted.yaml
+  match: ["quality:QUAL-00[23]"]
+- feature: "Dependency audit: signing toolchain, ESPHome, test framework (PyPI advisories), vendored ESP Web Tools (npm advisories), no unpinned integration requirements"
+  since: 0.10.38
+  docs: regression/quality/run.py
+  match: ["quality:QUAL-00[4-8]"]
+- feature: "Page and panel JavaScript parses (files and the page's inline scripts)"
+  since: 0.10.38
+  docs: custom_components/magicband/frontend
+  match: ["quality:QUAL-0(09|10)"]
+- feature: "Regression harness: its own tests, and every check ID is in the committed registry"
+  since: 0.10.38
+  docs: regression/ids.py
+  match: ["quality:QUAL-011", "ids:IDS-\\d{3}"]

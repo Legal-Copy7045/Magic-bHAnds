@@ -10,7 +10,7 @@
 // Exit code 0 even when checks fail; non-zero only when the harness itself breaks.
 'use strict';
 const { chromium } = require('playwright');
-const fs = require('fs'), path = require('path'), { execFileSync } = require('child_process');
+const fs = require('fs'), path = require('path');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const MB = path.join(ROOT, 'custom_components', 'magicband'), FE = path.join(MB, 'frontend');
@@ -18,34 +18,8 @@ const OUT = path.join(ROOT, 'regression', 'out'), SHOTS = path.join(OUT, 'page')
 const ONLY = process.argv.slice(2).filter(a => !a.startsWith('-'));   // optional: scenario names to run (debugging)
 const started = new Date();
 
-// ───────── the page, as panel.py builds it ─────────
-let BUILD = 'panel.py build_page() via python3';
-function buildPage() {
-  const py = `import ast, pathlib, sys
-src = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
-fn = [n for n in ast.parse(src).body if isinstance(n, ast.FunctionDef) and n.name == "build_page"][0]
-ns = {"FRONTEND": pathlib.Path(sys.argv[1]).parent / "frontend", "Path": pathlib.Path}
-exec(compile(ast.Module([fn], []), "panel.py", "exec"), ns)
-sys.stdout.write(ns["build_page"]())`;
-  try { return execFileSync('python3', ['-I', '-c', py, path.join(MB, 'panel.py')], { encoding: 'utf8', env: Object.assign({}, process.env, { PYTHONIOENCODING: 'utf-8' }), maxBuffer: 64 << 20 }); }
-  catch (e) {
-    BUILD = 'JavaScript copy of build_page() (python3 failed: ' + String(e.message).split('\n')[0] + ')';
-    const rd = f => fs.readFileSync(path.join(FE, f), 'utf8');
-    let html = rd('page.html').split('/*COMMON*/').join(rd('common.js'));
-    html = html.replace('<head>', () => '<head><script>' + rd('shim.js') + '</script>\n');
-    const style = rd('fonts.html') + '<style>' + rd('style.css') + '</style>\n', i = html.indexOf('</head>');
-    return i >= 0 ? html.slice(0, i) + style + html.slice(i) : style + html;
-  }
-}
-const PAGE = buildPage();
-const MOCK = fs.readFileSync(path.join(__dirname, 'mock.js'), 'utf8');
-const parentHtml = opts => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<style>html,body{margin:0}</style><script>window.__MOCK_OPTS=${JSON.stringify(opts || {})};</script><script src="/mock.js"></script>
-<script src="/magicbhands_static/panel.js"></script></head><body><script>
-const el=document.createElement('magicbhands-panel'); document.body.appendChild(el); el.hass=window.__mock.hass; window.__panel=el;
-// Home Assistant hands the panel a new hass (a new states object) on every change
-window.__push=()=>{ const h=window.__mbHass; h.states=Object.assign({},h.states); el.hass=h; };
-</script></body></html>`;
+// ───────── the page, as panel.py builds it (shared with the walkthrough: harness.js) ─────────
+const H = require('./harness');
 
 // ───────── results ─────────
 const results = [], seen = new Set();
@@ -64,7 +38,7 @@ async function chk(id, feature, check, fn, evidence) {
 }
 
 // ───────── browser helpers ─────────
-const IGNORE = /Failed to load resource|net::ERR_|MOCK-REJECT/;
+const IGNORE = H.IGNORE;
 async function open(browser, o) {
   o = o || {};
   const ctx = await browser.newContext(Object.assign({ viewport: { width: o.width || 1400, height: o.height || 900 }, colorScheme: o.dark ? 'dark' : 'light', deviceScaleFactor: 1 },
@@ -73,27 +47,9 @@ async function open(browser, o) {
   const p = await ctx.newPage(), errs = [];
   p.on('pageerror', e => errs.push('pageerror: ' + e.message));
   p.on('console', m => { if (m.type() === 'error' && !IGNORE.test(m.text())) errs.push(m.text()); });
-  await p.route('**/*', r => {
-    const u = new URL(r.request().url());
-    if (u.host !== 'ha.test') return r.abort();
-    if (u.pathname === '/') return r.fulfill({ contentType: 'text/html; charset=utf-8', body: parentHtml(o.opts) });
-    if (u.pathname === '/mock.js') return r.fulfill({ contentType: 'text/javascript; charset=utf-8', body: MOCK });
-    if (u.pathname === '/api/magicband/page') return r.fulfill({ contentType: 'text/html; charset=utf-8', body: PAGE });
-    if (u.pathname.startsWith('/magicbhands_static/')) {
-      const f = path.join(FE, decodeURIComponent(u.pathname.slice('/magicbhands_static/'.length)));
-      if (f.startsWith(FE + path.sep) && fs.existsSync(f) && fs.statSync(f).isFile())
-        return r.fulfill({ body: fs.readFileSync(f), contentType: f.endsWith('.js') ? 'text/javascript' : f.endsWith('.otf') ? 'font/otf' : 'application/octet-stream' });
-    }
-    return r.abort();
-  });
+  await H.route(p, o);
   await p.goto('http://ha.test/');
-  let f = null;
-  for (let i = 0; i < 150 && !f; i++) {
-    const c = p.frames().find(x => x !== p.mainFrame());
-    if (c) { try { if (await c.evaluate(() => !!document.querySelector('#people .pc'))) f = c; } catch (e) { /* loading */ } }
-    if (!f) await p.waitForTimeout(100);
-  }
-  if (!f) throw new Error('the page never drew its people cards (15 s)');
+  const f = await H.pageFrame(p);
   await p.waitForTimeout(900);
   await f.evaluate(() => {
     window.__w = ms => new Promise(r => setTimeout(r, ms));
@@ -848,7 +804,7 @@ scenario('shim-scope', { width: 1400, opts: { strangers: true } }, async ({ p, f
   }
   await browser.close();
   const out = { stage: 'page', started: started.toISOString().replace(/\.\d+Z$/, 'Z'), finished: new Date().toISOString().replace(/\.\d+Z$/, 'Z'),
-    environment: { note: 'Headless Chromium (Playwright ' + require('playwright/package.json').version + '), page built by ' + BUILD + ', loaded by frontend/panel.js with the mock hass in regression/page/mock.js; all network outside the mock blocked (Google Fonts fall back to system fonts).' },
+    environment: { note: 'Headless Chromium (Playwright ' + require('playwright/package.json').version + '), page built by ' + H.build() + ', loaded by frontend/panel.js with the mock hass in regression/page/mock.js; all network outside the mock blocked (Google Fonts fall back to system fonts).' },
     results };
   fs.mkdirSync(OUT, { recursive: true }); fs.writeFileSync(path.join(OUT, 'page.json'), JSON.stringify(out, null, 2) + '\n');
   const n = k => results.filter(r => r.status === k).length;
