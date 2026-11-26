@@ -22,6 +22,7 @@ without them the audit checks are skipped with the reason.
 
 from __future__ import annotations
 
+from html.parser import HTMLParser
 import json
 import os
 from pathlib import Path
@@ -77,6 +78,35 @@ def check(check_id: str, feature: str, text: str):
 def run(cmd, timeout=600, **kw):
     return subprocess.run([str(c) for c in cmd], cwd=REPO, capture_output=True, text=True, timeout=timeout,
                           check=False, **kw)
+
+
+class _Scripts(HTMLParser):
+    """Collects the text of every <script> without a src attribute."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=False)
+        self.scripts: list[str] = []
+        self._inside = False
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "script" and not any(name == "src" for name, _ in attrs):
+            self._inside = True
+            self.scripts.append("")
+
+    def handle_endtag(self, tag):
+        if tag == "script":
+            self._inside = False
+
+    def handle_data(self, data):
+        if self._inside:
+            self.scripts[-1] += data
+
+
+def inline_scripts(page: str) -> list[str]:
+    parser = _Scripts()
+    parser.feed(page)
+    parser.close()
+    return parser.scripts
 
 
 def tool_python() -> Path:
@@ -234,8 +264,9 @@ def main() -> int:
         fe = REPO / "custom_components/magicband/frontend"
         page = (fe / "page.html").read_text().split("/*COMMON*/")
         page = (fe / "common.js").read_text().join(page)
-        # Not a security filter: it pulls the page's own inline scripts out to syntax-check them (any case).
-        scripts = re.findall(r"<script(?![^>]*\bsrc\s*=)[^>]*>(.*?)</script\s*>", page, re.S | re.I)
+        # Not a security filter: it pulls the page's own inline scripts out to syntax-check them, with the
+        # standard library's HTML parser (no regular expression over HTML).
+        scripts = inline_scripts(page)
         assert scripts, "no inline scripts found"
         tmp = OUT / ".page-inline.js"
         bad = []

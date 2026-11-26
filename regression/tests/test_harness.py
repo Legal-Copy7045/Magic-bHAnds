@@ -164,3 +164,14 @@ def test_report_load_reads_stage_files_findings_and_notes(tmp_path, monkeypatch)
     assert list(stages) == ["page"]
     assert [f["id"] for f in findings] == ["BUG-001", "SEC-001"] and notes["_claims"] == [{"c": 1}]
     assert catalogue  # the committed catalogue loads
+
+
+def test_quality_finds_inline_scripts_in_any_case_and_spacing():
+    sys.path.insert(0, str(HERE / "quality"))
+    import importlib.util  # noqa: PLC0415
+
+    spec = importlib.util.spec_from_file_location("quality_run", HERE / "quality" / "run.py")
+    q = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(q)
+    page = '<SCRIPT>a=1</SCRIPT ><script src="x.js"></script><script\n>b=2</script\t\n bar><p>c</p>'
+    assert q.inline_scripts(page) == ["a=1", "b=2"]
