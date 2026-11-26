@@ -424,8 +424,50 @@ def esphome_restart_resets_safe_mode() -> str:
 LOG_ARG_SECRETS = re.compile(r"\b(uid|key|last_band|known_list|band_colours|band_sounds|pair_key|pending_key|colours|sounds)\b")
 
 
+# Where the reader changes its pairing key or allowed list, and the text that marks each place.
+SAVE_SITES = {
+    "unpair action": "- action: unpair",
+    "set_known_bands action": "- action: set_known_bands",
+    "pairing confirmed by a tap": "reader_confirm_pair(",
+    "Allow last band": 'name: "Allow last band"',
+    "Forget last band": 'name: "Forget last band"',
+    "Forget all bands": 'name: "Forget all bands"',
+}
+
+
+def save_now_check(text: str) -> dict:
+    """FW-196: the key and the allowed list reach flash within seconds of a change (SEC-026)."""
+    bad = []
+    m = re.search(r"- id: save_now\n(?P<body>(?:    +\S.*\n)+)", text)
+    if not m:
+        bad.append("no save_now script")
+    else:
+        body = m.group("body")
+        if "mode: restart" not in body:
+            bad.append("save_now isn't mode: restart")
+        if "global_preferences->sync()" not in body:
+            bad.append("save_now doesn't call global_preferences->sync()")
+        d = re.search(r"delay: (\S+)", body)
+        secs = _secs(d.group(1)) if d else 0
+        if secs is None or not 5 < secs <= 15:
+            bad.append(f"save_now waits {d.group(1) if d else 'nothing'} (needs > 5 s for the list's 5 s check, at most 15 s)")
+    for label, anchor in SAVE_SITES.items():
+        i = text.find(anchor)
+        if i < 0:
+            bad.append(f"{label}: not found")
+            continue
+        nxt = min([j for j in (text.find("\n    - action:", i + len(anchor)), text.find("\n  - platform:", i + len(anchor)))
+                   if j > 0] or [len(text)])
+        if "script.execute: save_now" not in text[i:nxt]:
+            bad.append(f"{label}: doesn't run save_now")
+    return r("FW-196", "Reader pairing", "The pairing key and the allowed list are written to flash within seconds of every change "
+             "(save_now after unpair, set_known_bands, a confirming tap and the three local band buttons)", not bad,
+             "; ".join(bad) or f"{len(SAVE_SITES)} places")
+
+
 def reader_checks(c: dict) -> list[dict]:
     out = []
+    out.append(save_now_check((prep.ESPHOME_DIR / "magicband-reader.yaml").read_text()))
     feat = "Band IDs not logged"
     # FW-095 no log line prints a band ID or key
     bad = []

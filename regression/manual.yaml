@@ -169,6 +169,15 @@
     1. Open the BP2-POE device in Home Assistant. 2. There's no 'Factory reset' or 'Safe Mode Boot' button ('Reboot
     Device' is expected; after updating from an older release delete the leftover unavailable 'Safe Mode Boot' entity).
     3. Bands light up from the BP2 over Ethernet with magicband.send.
+- id: FW-321
+  stage: firmware
+  feature: Reader pairing
+  check: A pairing and a new allowed list survive a power cut a few seconds after the change
+  steps: >-
+    1. Pair a reader (or remove a band from someone in MagicbHAnds so the reader gets a new list). 2. About 10
+    seconds later, pull the reader's power and plug it back in. 3. The reader comes back still paired ('Paired with
+    MagicbHAnds' on) and with the new list: the removed band is turned away by the reader itself. 4. Before 0.10.38 a
+    power cut within a minute could bring back the old key or list.
 - id: WALK-901
   stage: walkthrough
   feature: "Walkthrough: Home Assistant screens (adding the integration, Configure, entities, Repairs)"

@@ -124,3 +124,7 @@
   since: 0.10.32
   docs: docs/reader.md#sounds
   checks: [FW-168, FW-314]
+- feature: "Reader: the pairing key and the allowed list are written to flash within seconds of every change, so a power cut straight afterwards keeps them"
+  since: 0.10.38
+  docs: docs/security.md
+  checks: [FW-196, FW-321]

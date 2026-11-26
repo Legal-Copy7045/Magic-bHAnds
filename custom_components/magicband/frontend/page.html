@@ -101,6 +101,8 @@ h2.sec,h3.grp,.job h3{font-synthesis:none}
 h2.sec{font:400 34px/1.1 var(--mbh-display)!important}h3.grp{font:400 26px var(--mbh-display)!important}.job h3{font:400 26px/1.15 var(--mbh-display)!important}
 .brand h1 .ha{color:var(--mbh-ha);margin:0 .02em 0 .05em}
 /* phase 2 layout: sticky jump chips, status strip, attention stack, reader card parts */
+.ronote{margin:0;padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink-2);font-size:13.5px}
+body.ro .adm{display:none!important}
 .jump{position:sticky;top:0;z-index:20;display:flex;flex-wrap:wrap;gap:6px;padding:8px 0;margin:-12px 0 -14px;background:var(--ground)}
 .jump a,.wrap .jump a{font:600 12.5px "Instrument Sans",sans-serif;color:var(--ink-2);text-decoration:none;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 11px;white-space:nowrap}
 .jump a:hover{border-color:var(--page)}.jump a.w{border-color:var(--warn);color:var(--warn)}.jump a b{font:600 11.5px "JetBrains Mono",monospace;margin-left:2px}
@@ -157,7 +159,12 @@ table.t .tag{white-space:nowrap}table.t td.when{white-space:nowrap}table.t td.pi
 .band .set.access{grid-template-columns:max-content minmax(0,1fr)}
 /* the hero repeats reader 1's ring, which the Readers section already shows: on a phone keep only the live line */
 @media (max-width:600px){.hero-twin .twin>svg,.hero-twin .tw-cap,.hero-twin .tw-sub{display:none}.hero-twin .twin{margin:0}
-  .jump{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.jump::-webkit-scrollbar{display:none}}
+  .jump{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}.jump::-webkit-scrollbar{display:none}
+  /* a shorter first screen: the problem chips repeat Needs attention (just below), and the six figures fit two
+     compact rows, so the first section starts on the first screen */
+  .status .pchip{display:none}.status:has(.pchip){display:none}
+  #kpis.kpis{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:8px}#kpis .kpi{padding:7px 9px;border-radius:10px}
+  #kpis .kpi span{font-size:11px;line-height:1.25}#kpis .kpi b{font-size:18px}}
 /* touch screens: 44 px targets */
 @media (pointer:coarse){
   .btn,.btn.sm{min-height:44px;padding:8px 14px;font-size:13px}.btns{gap:8px}.seg{gap:6px}
@@ -170,6 +177,9 @@ table.t .tag{white-space:nowrap}table.t td.when{white-space:nowrap}table.t td.pi
   .sparkbtn{min-width:44px;min-height:44px}.snap{height:44px}.set{row-gap:14px}
   .jump a,.wrap .jump a{display:inline-flex;align-items:center;min-height:44px;box-sizing:border-box;padding:9px 13px}
   .status .pchip,.wrap .status .pchip{min-height:44px;box-sizing:border-box;padding:8px 12px}
+  /* room around switches so each keeps its whole touch area, and the problem links are full-size targets */
+  #people .pmset{row-gap:10px}.nightv .tpair{margin:6px 0 8px}.rowhint{margin:2px 0 10px}
+  .pl li b a{display:inline-flex;align-items:center;min-height:44px}
 }
 </style></head><body>
 <div class="wrap">
@@ -181,6 +191,7 @@ table.t .tag{white-space:nowrap}table.t td.when{white-space:nowrap}table.t td.pi
 <nav class="jump" id="jump" aria-label="Sections"></nav>
 <div class="status" id="status"></div>
 <div class="kpis" id="kpis"></div>
+<p class="ronote" id="ro-note" hidden>You’re signed in as a household member: you can see who’s allowed and use the readers, bridges and band effects. Changing people, bands and access needs a Home Assistant administrator.</p>
 
 <div class="sect" id="attn-wrap" hidden>
 <h2 class="sec" id="s-attn">Needs attention</h2>
@@ -191,14 +202,14 @@ table.t .tag{white-space:nowrap}table.t td.when{white-space:nowrap}table.t td.pi
   <section class="job" id="j-probs" hidden data-mk="probs"><h3>Readers and batteries</h3><div id="probs"></div></section>
 </div></div>
 
-<h2 class="sec" id="s-taps">Recent taps <small>newest first, 10 a page</small></h2>
-<section class="tc"><div id="hist"></div></section>
+<h2 class="sec adm" id="s-taps">Recent taps <small>newest first, 10 a page</small></h2>
+<section class="tc adm"><div id="hist"></div></section>
 
 <h2 class="sec" id="s-people">People and access <small>who the readers let in</small></h2>
-<section class="tc" id="rules-card"><h3>Lockdown <small>only the people you choose get in</small></h3><div id="rules"></div><div class="msg" id="rules-msg"></div></section>
-<div id="enrol"></div>
+<section class="tc adm" id="rules-card"><h3>Lockdown <small>only the people you choose get in</small></h3><div id="rules"></div><div class="msg" id="rules-msg"></div></section>
+<div id="enrol" class="adm"></div>
 <section class="tc"><div id="people"></div>
-  <div class="form" id="addp"></div><div class="msg" id="people-msg"></div></section>
+  <div class="form adm" id="addp"></div><div class="msg" id="people-msg"></div></section>
 
 <h2 class="sec" id="s-bands">Bands <small id="bands-cap"></small></h2>
 <div class="bar" id="bands-bar">
@@ -243,10 +254,10 @@ table.t .tag{white-space:nowrap}table.t td.when{white-space:nowrap}table.t td.pi
   </div>
   <div class="btns"><button class="btn pri" id="sx-go">Send</button><button class="btn" id="sx-stop">Stop</button></div><div class="msg" id="sx-msg"></div></details></section>
 
-<h2 class="sec" id="s-celeb">Celebrations and tap passport <small>holiday and birthday shows after a welcome, and everyone's taps and stamps</small></h2>
-<section class="tc"><div id="celeb"></div><div class="msg" id="celeb-msg"></div></section>
-<h3 class="grp">Tap passport <small>taps, streaks and stamps for everyone who lives here</small></h3>
-<div class="grid" id="passport"></div>
+<h2 class="sec adm" id="s-celeb">Celebrations and tap passport <small>holiday and birthday shows after a welcome, and everyone's taps and stamps</small></h2>
+<section class="tc adm"><div id="celeb"></div><div class="msg" id="celeb-msg"></div></section>
+<h3 class="grp adm">Tap passport <small>taps, streaks and stamps for everyone who lives here</small></h3>
+<div class="grid adm" id="passport"></div>
 <footer>Read live from Home Assistant. Changes to people and bands reach the readers within a few seconds.</footer>
 </div>
 <script>/*COMMON*/</script>
@@ -317,7 +328,12 @@ function act(p,key,msgEl,ok,onFail){ BUSY[key]=1; render(); const k=typeof msgEl
   .catch(e=>{ const t='Didn’t work: '+((e&&e.message)||e); if(k) note(k,'bad',t); else if(msgEl){ msgEl.className='msg bad'; msgEl.textContent=t; }
     if(onFail) try{ onFail(e); }catch(x){ console.error(x); } console.error(e); })
   .finally(()=>{ delete BUSY[key]; setTimeout(()=>{ load(); render(); },600); }); }
-const mb=(svc,data,resp)=>H().service('magicband',svc,data||{},resp);
+// Household members (not Home Assistant administrators) can see the page and use the readers, bridges and band
+// effects, but Home Assistant refuses them the admin-only actions: the page hides or disables those (display only;
+// the server still decides) and says so once, instead of letting each fail with "Unauthorized".
+const ADMIN_ONLY=new Set(['add_person','update_person','remove_person','assign_band','unassign_band','remove_band','play_welcome_sound','unpair_reader','pair_reader','answer','list','list_bluetooth_bands','link_bluetooth','unlink_bluetooth','forget_bluetooth','set_guest_pass','set_settings','set_snapshot_days','set_reader_camera','set_band_access','enrol','stop_enrolment','history','list_heard']);
+const ADMIN=()=>!H()||!H().admin||H().admin();
+const mb=(svc,data,resp)=>!ADMIN()&&ADMIN_ONLY.has(svc)?Promise.reject(new Error('Only a Home Assistant administrator can change this')):H().service('magicband',svc,data||{},resp);
 // a card's message line: success shows for a few seconds, an error stays until the next action there
 const MSGS={};
 function note(k,cls,text,ms){ if(!text) delete MSGS[k]; else MSGS[k]={cls,text,until:ms!=null?Date.now()+ms:cls==='bad'?0:Date.now()+4000};
@@ -383,8 +399,15 @@ function statusStrip(PR){ $('status').innerHTML=PR.length?PR.map(([c,t,go])=>`<a
 function probList(PR){ const L=PR.filter(x=>x[4]); $('j-probs').hidden=!L.length;
   $('probs').innerHTML=L.length?`<ul class="pl">${L.map(([c,t,go,todo])=>`<li class="${c}"><b><a href="#${go}" data-go="${go}">${esc(t)}</a></b><span class="sub2">${todo}</span></li>`).join('')}</ul>`+msgLine('probs'):'';
   return L.length; }
-function jumpNav(n){ const L=[...(n?[['s-attn','Needs attention',n]]:[]),['s-taps','Recent taps'],['s-people','People'],['s-bands','Bands'],['s-readers','Readers'],['s-bridges','Bridges'],['s-celeb','Celebrations']];
+function jumpNav(n){ const L=[...(n?[['s-attn','Needs attention',n]]:[]),...(ADMIN()?[['s-taps','Recent taps']]:[]),['s-people','People'],['s-bands','Bands'],['s-readers','Readers'],['s-bridges','Bridges'],...(ADMIN()?[['s-celeb','Celebrations']]:[])];
   $('jump').innerHTML=L.map(([id,l,k])=>`<a class="${k?'w':''}" href="#${id}" data-go="${id}">${esc(l)}${k?` <b>${k}</b>`:''}</a>`).join(''); }
+// a household member: hide what only administrators can use, and switch off the admin-only controls left in
+// People and Bands (each says why); the readers, bridges and band effects stay usable
+function readOnly(){ const ro=!ADMIN(); document.body.classList.toggle('ro',ro); $('ro-note').hidden=!ro;
+  if(!ro) return;
+  document.querySelectorAll('#people input,#people select,#people textarea,#people button,#bands input,#bands select,#bands textarea,#bands button').forEach(e=>{
+    if(e.matches('.sparkbtn,[data-batt],[data-send],[type=search]')) return;
+    e.disabled=true; e.title='Only a Home Assistant administrator can change this'; }); }
 // jump links: the page sits in a srcdoc frame, so "#id" links would load the parent's address; scroll by hand instead
 function goTo(id,focus){ const el=$(id); if(!el) return; let d=el.closest('details'); while(d){ d.open=true; d=d.parentElement&&d.parentElement.closest('details'); }
   el.scrollIntoView({behavior:'smooth',block:'start'}); el.classList.add('flash'); setTimeout(()=>{ const x=$(id); if(x) x.classList.remove('flash'); },1600);
@@ -1043,6 +1066,7 @@ function wire(){ document.querySelectorAll('[data-tg]').forEach(x=>x.onclick=()=
 
 // the integration's own lists (people ids, Bluetooth halves); refreshed every minute and after any change
 async function load(){ if(!H()||!H().service) return; LAST_LOAD=Date.now();
+  if(!ADMIN()){ HIST_ERR='admin'; loadBattery(); render(); return; }  // the lists and history are administrators' only
   try{ const [l,b,h]=await Promise.all([mb('list',{},true),mb('list_bluetooth_bands',{},true),mb('history',{count:300},true).then(r=>{ HIST_ERR=null; return r; },e=>{ HIST_ERR=String((e&&e.message)||e); return null; })]); LIST=l; BT=b; HIST=h&&h.taps; CAMS=h?(h.cameras||{}):CAMS; SNAP_DAYS=h&&h.snapshot_days!=null?h.snapshot_days:SNAP_DAYS; }catch(e){ console.error('magicband list',e); }
   loadBattery(); render(); }
 // 7 days of each band's battery, for the sparklines (refreshed every 15 minutes)
@@ -1133,8 +1157,9 @@ function render(){ if(!H()||!H().live()) return;
   const D=H().devices(), BR=D.filter(d=>BRIDGE_MODELS.test(d.model||'')).sort((a,b)=>dname(a).localeCompare(dname(b))), RD=D.filter(d=>READER_MODEL.test(d.model||''));
   const B=bands(I).sort(byOwner), P=people(I);
   const us=unknownSensor(I), unk=us?(A(us).bands||[]):[]; UNK=new Set(unk.map(u=>u.band||u.id||u));
-  let PR=[]; const attn=()=>{ const n=probList(PR)+unk.length+ATT_LINK; $('attn-wrap').hidden=['j-unknown','j-link','j-types','j-probs'].every(j=>$(j).hidden); jumpNav($('attn-wrap').hidden?0:n); };
-  [()=>{ PR=problems(I,RD,BR,B); statusStrip(PR); },()=>kpis(I,B,P,BR,RD,unk),()=>unknownJob(I,P,unk),()=>linkJob(I,B,P,BR),attn,()=>bandCards(I,B,P),sendBar,()=>peopleTable(I,P),()=>enrolBar(I),rulesCard,celebCard,passportCards,wireHouse,()=>histList(I),readersBar,()=>readerCards(I,RD,B),()=>heroTwin(I,RD),()=>bridgeCards(I,BR),()=>sxBridges(I,BR),wire].forEach(f=>{ try{ f(); }catch(e){ console.error(e); } }); }
+  let PR=[]; const attn=()=>{ if(!ADMIN()) ['j-unknown','j-link','j-types'].forEach(j=>{ $(j).hidden=true; });
+    const n=probList(PR)+(ADMIN()?unk.length+ATT_LINK:0); $('attn-wrap').hidden=['j-unknown','j-link','j-types','j-probs'].every(j=>$(j).hidden); jumpNav($('attn-wrap').hidden?0:n); };
+  [()=>{ PR=problems(I,RD,BR,B); statusStrip(PR); },()=>kpis(I,B,P,BR,RD,unk),()=>unknownJob(I,P,unk),()=>linkJob(I,B,P,BR),attn,()=>bandCards(I,B,P),sendBar,()=>peopleTable(I,P),()=>enrolBar(I),rulesCard,celebCard,passportCards,wireHouse,()=>histList(I),readersBar,()=>readerCards(I,RD,B),()=>heroTwin(I,RD),()=>bridgeCards(I,BR),()=>sxBridges(I,BR),wire,readOnly].forEach(f=>{ try{ f(); }catch(e){ console.error(e); } }); }
 // each section is redrawn only when its content changed, and an open fold-out (Manage, Ring and tap settings) stays open
 (()=>{ const D=Object.getOwnPropertyDescriptor(Element.prototype,'innerHTML');
   ['jump','status','kpis','unknown','link','types','probs','bands','send','people','readers-bar','readers','bridges','hist','enrol','hero-twin','rules','celeb','passport'].forEach(id=>{ const el=$(id); if(!el) return;

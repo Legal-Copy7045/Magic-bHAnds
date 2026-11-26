@@ -142,3 +142,11 @@
   checks: [PAGE-115, PAGE-120, PAGE-121, PAGE-122]
 - feature: Dark mode
   checks: [PAGE-134, PAGE-135, PAGE-136, PAGE-137, PAGE-138, PAGE-140]
+- feature: "Household members (not administrators): a note at the top; Recent taps, Lockdown, enrolment, Add someone, Celebrations and the passport hidden; People and Bands controls switched off with the reason; no admin-only requests"
+  since: 0.10.38
+  docs: docs/integration.md
+  checks: [PAGE-188, PAGE-189, PAGE-190, PAGE-191]
+- feature: "Phone: shorter first screen (status chips hidden, KPIs in 3 compact columns, Needs attention on the first screen), full-size problem links"
+  since: 0.10.38
+  docs: docs/integration.md
+  checks: [PAGE-186, PAGE-187]

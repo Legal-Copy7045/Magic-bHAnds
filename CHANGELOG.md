@@ -3,6 +3,27 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.38] - 2026-11-26
+
+### Fixed
+- **A reader keeps a new pairing or allowed list through a power cut** that
+  comes straight after the change: it now writes them to flash within a few
+  seconds instead of at the next scheduled write (up to a minute later).
+- **An automatic release can't be cut off by the next merge**: builds on
+  `main` are never cancelled (pull requests still replace their older builds).
+
+### Changed
+- **Household members** (Home Assistant users who aren't administrators) see
+  a note at the top of the MagicbHAnds page saying what they can do. Recent
+  taps, Lockdown, enrolment, Celebrations and the controls that change people
+  and bands are hidden or switched off for them, instead of failing with
+  "Unauthorized". Home Assistant still refuses those actions on its own.
+- **Shorter on a phone**: the problem chips at the top (repeated in Needs
+  attention just below) are hidden and the six figures fit two compact rows,
+  so Needs attention starts on the first screen; the problem links there are
+  full-size touch targets, with more room around switches.
+- The integration docs list every administrator-only action.
+
 ## [0.10.37] - 2026-11-24
 
 ### Fixed

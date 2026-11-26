@@ -68,3 +68,7 @@
   since: 0.10.38
   docs: hardware/reader-carrier/README.md
   checks: [CI-061]
+- feature: "Runs on main are never cancelled (an automatic release can't be cut off by the next merge)"
+  since: 0.10.38
+  docs: .github/workflows/firmware.yml
+  checks: [CI-062]

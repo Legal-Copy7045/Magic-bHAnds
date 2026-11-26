@@ -235,7 +235,12 @@ battery at 20% or less), above the totals (click one to jump to it).
   the next tap-count stamp, and all 16 in a fold-out).
 
 The page is for Home Assistant **administrators** (it manages who the
-readers let in).
+readers let in). A household member who isn't an administrator sees a note
+saying so: they can see who's allowed and use the readers, bridges and band
+effects, while Recent taps, Lockdown, enrolment, Celebrations and the
+controls that change people and bands are hidden or switched off. That's
+for clarity only: Home Assistant itself refuses those actions to anyone who
+isn't an administrator.
 
 **Light shows:** `magicband.play_show` plays one of the readers' 17 light
 shows (`show`, or `Random`) on every reader or the ones you pick
@@ -457,7 +462,8 @@ Actions that change who's allowed in, or list band IDs, need a Home Assistant
 **administrator**: `add_person`, `update_person`, `remove_person`,
 `assign_band`, `unassign_band`, `remove_band`, `set_band_access`, `enrol`,
 `stop_enrolment`, `set_guest_pass`, `set_settings`, `list`, `history`, `play_welcome_sound`, `link_bluetooth`, `unlink_bluetooth`,
-`forget_bluetooth`, `list_bluetooth_bands` and `list_heard`. `send`, `sync`, `play_show` and `list_bridges` work for any user; `send`
+`forget_bluetooth`, `list_bluetooth_bands`, `list_heard`, `answer`, `pair_reader`, `unpair_reader`,
+`set_reader_camera` and `set_snapshot_days`. `send`, `sync`, `play_show` and `list_bridges` work for any user; `send`
 only targets MagicBand bridges, and `play_show` only plays a light show. See [security.md](security.md).
 
 | Action | Fields |

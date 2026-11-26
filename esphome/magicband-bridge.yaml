@@ -12,7 +12,7 @@ substitutions:
   timezone: America/New_York
   name: magicband-bridge
   friendly_name: MagicBand Bridge
-  project_version: "0.10.37"
+  project_version: "0.10.38"
   # (The magicband component's source is the add-on's `component_source`
   # substitution; CI and local builds override it with
   # `-s component_source ../components`.)
