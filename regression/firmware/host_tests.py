@@ -239,7 +239,7 @@ def time_zone_checks() -> list[dict]:
     results.append(res("FW-123", unknown != [] and not badu, f"{len(unknown)} unknown names refused, zone unchanged" if not badu else str(badu)))
     # FW-124 default substitution vs initial option
     mism = []
-    for dev, f in prep.DEVICES.items():
+    for f in prep.DEVICES.values():
         text = (REPO / "esphome" / f).read_text()
         m = re.search(r"^\s+timezone:\s*(\S+)", text, re.M)
         sub = m.group(1).strip('"') if m else None

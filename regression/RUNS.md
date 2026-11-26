@@ -3,6 +3,17 @@
 One entry per full run (newest first): version, totals, failing check IDs, finding IDs, report link.
 No real names, hosts or device IDs: this file is public.
 
+## 2026-11-26 — 0.10.37 at 690a610 (first /full-check; review: full)
+
+- Totals: 704 pass, 1 fail, 19 manual, 3 skip (727 checks; 164 features catalogued). Stages ran side by side in 1 min 45 s;
+  about 15 minutes in all with the five reviewers.
+- Stages: integration 246/0, ci 61/0, firmware 162/0 (+19 manual, every build compiled), page 185/0, live 34/0 (+3 skip),
+  quality 10/1, ID registry 7/0.
+- Failing checks: QUAL-006 (fonttools 4.60.1 in CI's font test has CVE-2025-66034; not exploitable here, 4.60.2 fixes it).
+- Findings (all low or info): BUG-031..037 (5 low, 2 info), SEC-024..029 (3 low, 3 info), ATK-001..004 (2 low, 2 info).
+  BUG-036 = SEC-028 = ATK-001; SEC-025 = ATK-002. docs/security.md: 77 claims checked, 3 don't hold (SEC-024, SEC-026, SEC-027).
+- Report: https://claude.ai/artifact/XZLBtezEhawCL1am8XatZY (private, updated in place)
+
 ## 2026-11-24 — 0.10.37 (clean, after five fix rounds)
 
 - Totals: 684 pass, 0 fail, 19 manual, 3 skip (706 checks; 157 features catalogued).

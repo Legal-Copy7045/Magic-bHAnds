@@ -304,6 +304,9 @@ jobs:
       - name: Run tests
         run: python -m pytest -q
 
+      - name: Run the regression harness's own tests
+        run: python -m pytest -q regression/tests
+
   deploy:
     if: github.ref == 'refs/heads/main'
     needs: [sign, test-integration]

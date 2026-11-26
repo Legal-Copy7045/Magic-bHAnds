@@ -1,0 +1,190 @@
+# Manual checklist: things only a person with the hardware (or a real Home Assistant) can verify.
+# Status "manual" in the reports; nothing here runs automatically, because it would tap, light, sound,
+# update or restart a device, or needs the real Home Assistant frontend. IDs are stable (see ids.py):
+# never reuse one. FW-206/216/226 and FW-318 are retired.
+# Each: id, stage (whose report lists it), feature, check (what must hold), steps (what to do and see).
+
+- id: FW-300
+  stage: firmware
+  feature: Signed official builds
+  check: An official device refuses an unsigned update and installs a signed one
+  steps: >-
+    1. On a bridge, reader or BP2 running an official release, 'Take control' in the ESPHome Device Builder (or
+    build esphome/<device>.yaml yourself) and install the build over the air. 2. Expect the upload to fail and the
+    device log to show the image signature check failing; the device keeps running the old version. 3. Install the
+    next official release from Home Assistant's Firmware update entity: it installs and the device restarts on the
+    new version. 4. Flash your own build over USB with the web installer: it boots (no eFuses burned).
+- id: FW-301
+  stage: firmware
+  feature: Automatic updates
+  check: Automatic updates installs a waiting release between 03:00 and 04:00 local time, by itself
+  steps: >-
+    1. On a device one release behind, set 'Time zone' to your zone and turn 'Automatic updates' on. 2. Leave Home
+    Assistant connected or not. 3. Next morning: the device is on the new release; its log (INFO) shows the update
+    after 03:00 local. 4. With the switch off, nothing installs.
+- id: FW-302
+  stage: firmware
+  feature: Refused-tap lockout
+  check: Refused taps lock the reader out, show it, and end on time
+  steps: >-
+    1. Reader with 'Refused-tap lockout' on, Lockout after 3, Lockout window 60 s, Lockout time 1 min. 2. Tap a
+    band that isn't allowed 3 times within a minute. 3. Expect: the ring pulses slowly in red, 'Tap lockout' turns
+    on, the log warns '3 refused taps', and a tap of an allowed band is ignored (log: 'Tap ignored: refused-tap
+    lockout', no magicband_tap event). 4. After 1 minute (or turning the switch off) taps work again and the idle
+    glow returns. 5. 'Test welcome' presses never count towards the lockout.
+- id: FW-303
+  stage: firmware
+  feature: Reader pairing
+  check: First pairing needs a tap on the reader
+  steps: >-
+    1. Erase a reader over USB (web installer, Erase device), flash, add it. 2. MagicbHAnds asks (Repairs) to tap
+    a band within 2 minutes and the ring breathes blue. 3. Tap any band: 'Paired with MagicbHAnds' turns on, the
+    ring shows a green welcome, no tag event is fired for that tap. 4. Repeat without tapping: after 2 minutes the
+    request expires and the ring stops breathing blue, even if the integration asked again meanwhile.
+- id: FW-304
+  stage: firmware
+  feature: Ring colours when dim (put_dimmed)
+  check: Warm white, orange and pink stay their colour when dim on a real ring
+  steps: >-
+    1. RGB WS2812 ring: Idle colour Warm white, Idle style Circle, Idle glow 30 %, LED brightness 100 %. The circle's
+    tail fades warm (no red or bluish-white LEDs near its end). 2. Repeat with Orange and Pink, and with Idle glow
+    10 %. 3. LED brightness 10 %: warm white is about one output step; it shows as a dim yellowish (red and green
+    on), never plain red (FW-107). 4. RGBW ring with Ring type RGBW warm white: the white LED carries Warm white;
+    other colours leave it off.
+- id: FW-305
+  stage: firmware
+  feature: Idle circle
+  check: Idle circle settings on a real ring
+  steps: >-
+    With Idle style Circle: Idle circle heads 1-4 shows that many evenly spaced heads; Idle circle tail 1 shows
+    single LEDs; tail 0 shows a fifth of the ring; Idle tail fade 0 fades out, 100 is a solid bar; direction Reverse
+    runs the other way; LED count 1-8 still runs without freezing.
+- id: FW-306
+  stage: firmware
+  feature: Light shows
+  check: Every light show plays on the ring as on the page's live twin, and ends dark
+  steps: >-
+    1. For each show in 'Show', press 'Play show' with the MagicbHAnds page's reader card open. 2. The ring and
+    the page's twin match. 3. Each show fades to dark before the idle glow returns (Heartbeat: three beats, then
+    dark).
+- id: FW-307
+  stage: firmware
+  feature: Sound at night
+  check: Sound at night Quieter lowers and restores the volume
+  steps: >-
+    1. 'Sound at night' Quieter, Night volume 20 %, Night from/until around the current time. 2. When night starts
+    the speaker volume drops to 20 %; tap: the tap-in sound is quieter. 3. Change the volume by hand during the
+    night: it stays. 4. In the morning the day volume returns. 5. Restart during the night: the morning still restores
+    the day volume.
+- id: FW-308
+  stage: firmware
+  feature: Band IDs not logged
+  check: The reader's USB log and Home Assistant device log never show a band ID
+  steps: >-
+    1. Connect the reader's UART port, open the log (web installer Logs, or ESPHome logs). 2. Tap allowed and unknown
+    bands, press Allow/Forget last band, sync from MagicbHAnds. 3. No NFC ID (hex like 04A1B2...) appears in the
+    log.
+- id: FW-309
+  stage: firmware
+  feature: Time zone setting
+  check: Changing 'Time zone' applies at once to night mode and the update window
+  steps: >-
+    1. Reader with Night from 22 / until 6. 2. Set 'Time zone' to a zone where it's currently 23:00. 3. Within a
+    minute 'Night' turns on and the idle glow switches to the night setting; set it back and it turns off.
+- id: FW-310
+  stage: firmware
+  feature: Bridge airtime budget
+  check: A bridge flooded with commands waits for airtime and keeps proxying Bluetooth
+  steps: >-
+    1. Send a 60 s always-on command, then 30 more commands quickly (magicband.send from a script). 2. The bridge
+    log warns 'Broadcasting too much: waiting for airtime'. 3. Its Bluetooth proxy keeps reporting advertisements
+    (other BLE sensors keep updating) and the queued commands play out over the next minutes.
+- id: FW-319
+  stage: firmware
+  feature: Setup hotspot
+  check: 'Official bridge/reader: the setup hotspot starts only after 2 minutes without Wi-Fi, changes Wi-Fi, and
+    refuses unsigned firmware'
+  steps: >-
+    1. Official (signed) bridge or reader on Wi-Fi: scan for networks; no '<name> Setup' network while its Wi-Fi
+    works. 2. Turn the Wi-Fi access point off (or change its password) for 3 minutes: about 2 minutes later an open
+    network 'MagicBand Reader Setup' / 'MagicBand Bridge Setup' appears. 3. Join it from a phone: the setup page
+    opens (or http://192.168.4.1); pick the network and enter its password; the device reconnects and the hotspot
+    disappears. 4. Repeat 2-3, but on the setup page upload an unsigned firmware.ota.bin you built yourself: the
+    upload fails (the device log says the OTA validation / signature check failed) and the device keeps running
+    its firmware. 5. A SCREEK BP2-POE never shows a hotspot.
+- id: FW-313
+  stage: firmware
+  feature: Sound at night
+  check: After a power cut at night the start-up sound respects 'Sound at night'
+  steps: >-
+    1. Reader with 'Sound at night' Off and Night from/until around the current time. 2. Unplug it for 10 s and
+    plug it back in (a power cut, not Restart). 3. The start-up show plays; no start-up sound. 4. Same with Sound
+    at night Normal: the start-up sound plays (within 20 s of the show). 5. With Wi-Fi off at start-up and Sound
+    at night Quieter: no sound after 20 s.
+- id: FW-314
+  stage: firmware
+  feature: Welcome sounds
+  check: 'A person''s own welcome sound with Home Assistant down: the reader''s chime plays'
+  steps: >-
+    1. Give a person a welcome sound in MagicbHAnds and sync. 2. Stop Home Assistant (or block it from the reader).
+    3. Tap their band: the reader plays its own tap-in chime. 4. With Home Assistant back, the person's sound plays
+    and the chime doesn't.
+- id: FW-315
+  stage: firmware
+  feature: Refused-tap lockout
+  check: '''Tap lockout'' is off, not unknown, after a restart'
+  steps: >-
+    1. Reader with 'Refused-tap lockout' on. 2. Restart it. 3. In Home Assistant 'Tap lockout' shows Off (OK), not
+    Unknown.
+- id: FW-316
+  stage: firmware
+  feature: Ring effects
+  check: Changing ring settings during a tap doesn't cut off the welcome
+  steps: >-
+    1. Tap an allowed band and, during the welcome, change 'LED brightness', 'LED count', 'LED colour order' or
+    'Idle glow' from Home Assistant. 2. The welcome pulses finish; the idle glow returns afterwards in the new setting.
+- id: FW-317
+  stage: firmware
+  feature: Night mode
+  check: Sunset to sunrise follows a Time zone change straight away
+  steps: >-
+    1. Night mode 'Sunset to sunrise', Time zone your own. 2. Set Time zone to one where it's currently between
+    sunset and sunrise at Home Assistant's location (e.g. 8 hours away). 3. 'Night now' changes within a minute,
+    without waiting for sun.sun to update; set it back and it returns.
+- id: FW-320
+  stage: firmware
+  feature: Unknown-band tag scan limit
+  check: 'Enrolling a family''s bands: every new band tapped in quick succession reaches Home Assistant'
+  steps: >-
+    1. Reader in 'Known bands only' (or 'Ask Home Assistant' on a reader not paired with MagicbHAnds). 2. Tap 10-15
+    different tags that aren't on its list within a minute (cards, fobs, a family's new bands). 3. Home Assistant
+    gets a tag scan for every one (Settings, Tags; or the tag_scanned events); the reader log has no 'Unknown band
+    not sent to Home Assistant' warning; every tap still gets the usual welcome or denied sequence. 4. An allowed
+    band tapped in between is always sent and welcomed.
+- id: FW-312
+  stage: firmware
+  feature: No factory-reset button
+  check: BP2-POE in Home Assistant has no Factory Reset entity
+  steps: >-
+    1. Open the BP2-POE device in Home Assistant. 2. There's no 'Factory reset' or 'Safe Mode Boot' button ('Reboot
+    Device' is expected; after updating from an older release delete the leftover unavailable 'Safe Mode Boot' entity).
+    3. Bands light up from the BP2 over Ethernet with magicband.send.
+- id: WALK-901
+  stage: walkthrough
+  feature: "Walkthrough: Home Assistant screens (adding the integration, Configure, entities, Repairs)"
+  check: In the real Home Assistant, Configure reads well on a computer and on a phone
+  steps: >-
+    1. Settings, Devices & services, MagicbHAnds, Configure, on a computer. Open every menu entry: each screen's title
+    matches the entry you chose, every field has a clear label and help text where it needs one, nothing is cut off,
+    and Back/close return to the menu. 2. Repeat in the Home Assistant app on a phone: the menu and every screen fit
+    without sideways scrolling and every control is easy to tap. 3. Note anything confusing for the walkthrough
+    findings (it changes nothing: close each screen without submitting).
+- id: WALK-902
+  stage: walkthrough
+  feature: "Walkthrough: the MagicbHAnds page on a real phone"
+  check: The MagicbHAnds page works in the Home Assistant app on a phone, for an administrator and a household member
+  steps: >-
+    1. In the Home Assistant app on a phone, open MagicbHAnds from the sidebar as an administrator: the jump chips
+    scroll sideways, each opens its section, toggles and buttons are easy to tap, fold-outs open and close, and no part
+    of the page needs sideways scrolling. 2. Sign in as a household member (not an administrator) and open it again:
+    note what they see and which actions say they need an administrator. Don't save changes for the check.

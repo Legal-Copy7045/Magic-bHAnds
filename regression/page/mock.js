@@ -38,6 +38,7 @@
     welcomeSound: true,      // Morgan has a welcome sound
     history: true,           // the history service answers (else it fails with historyError)
     historyError: 'Unauthorized',
+    admin: true,             // the signed-in user is a Home Assistant administrator (false: a household member)
     cameras: true,
     readerTz: 'Eastern (New York)',   // the readers' Time zone setting
     strangers: false,        // add a smart plug on another integration's device, and two dangerous reader buttons under harmless ids
@@ -225,11 +226,13 @@
     return { taps: Array.from({ length: 27 }, (_, i) => { const w = who[i % who.length]; return { time: min(4 + i * 47), name: w[0], band: w[1], person: w[2], reader: w[3], allowed: w[4], enrolled: i === 9, badges: i === 0 ? ['Super fan'] : [], snapshot_url: O.cameras && w[3] === 'Front Door Reader' && i < 12 ? snap : undefined }; }), cameras: O.cameras ? { dev_r1: 'camera.front_doorbell' } : {}, snapshot_days: 30 }; };
 
   window.__calls = [];
-  window.__mockReject = null;
-  const reject = key => window.__mockReject && window.__mockReject.test(key) ? Promise.reject(new Error('MOCK-REJECT Reader not connected')) : null;
+  // O.reject (a regex source, from the harness's JSON options) starts the page with calls already being refused,
+  // e.g. the admin-only services for a household member; O.rejectWith is the error they get.
+  window.__mockReject = O.reject ? new RegExp(O.reject) : null;
+  const reject = key => window.__mockReject && window.__mockReject.test(key) ? Promise.reject(new Error('MOCK-REJECT ' + (O.rejectWith || 'Reader not connected'))) : null;
   const battHist = eid => { const v = +((hass.states[eid] || {}).state || 50); return Array.from({ length: 14 }, (_, i) => ({ s: String(Math.min(100, v + (13 - i) * 2)), lu: (NOW - (7 - i * 0.5) * 864e5) / 1000 })); };
   const hass = {
-    states, entities, devices, areas, user: { is_admin: true, name: 'Morgan' }, language: 'en',
+    states, entities, devices, areas, user: { is_admin: O.admin !== false, name: O.admin !== false ? 'Morgan' : 'Jordan' }, language: 'en',
     callService(domain, service, data) { window.__calls.push(['svc', domain, service, data]);
       const r = reject(domain + '.' + service); if (r) return r;
       const s = hass.states[data.entity_id]; if (s && /turn_on|turn_off/.test(service)) s.state = service === 'turn_on' ? 'on' : 'off';

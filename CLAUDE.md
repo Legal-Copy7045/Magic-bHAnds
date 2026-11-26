@@ -34,6 +34,8 @@ or only an annoyance.
 
 `regression/` is the full regression suite, run on demand with the `/regression` skill
 (`.claude/skills/regression/SKILL.md`) every few releases or after a big feature set.
+Quality commands: `/regression` (all stages + three-reviewer security audit), `/walkthrough` (every screen on desktop
+and phone + two reviewers), `/full-check` (both, end to end).
 
 - **Every PR that adds or changes a feature also updates the suite:** an entry in
   `regression/catalogue/<area>.yaml` and the checks that cover it (a test in `tests/`, a page check in

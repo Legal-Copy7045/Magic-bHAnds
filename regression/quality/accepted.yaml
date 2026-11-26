@@ -1,0 +1,25 @@
+# Static-scan (bandit) results that were checked by hand and are fine for this project.
+# Each needs the test ID, the file, a snippet of the flagged line, and why it's acceptable.
+# The quality stage fails on any medium/high result not listed here; an entry that no longer
+# matches anything is reported too, so this list can't quietly go stale.
+
+- test: B324
+  file: .github/scripts/make_site.py
+  match: hashlib.md5(
+  why: >-
+    The OTA manifest's md5 is the checksum ESPHome's update component expects; it detects a
+    corrupt download, not tampering. Tampering is stopped by the firmware signature.
+
+- test: B310
+  file: .github/scripts/make_site.py
+  match: urllib.request.urlopen(url
+  why: >-
+    The URL is a fixed https:// address of the npm registry (ESP Web Tools), and the download
+    is checked against the pinned sha512 integrity before use.
+
+- test: B506
+  file: .github/scripts/check_bp2_standalone.py
+  match: yaml.load(text, Loader=Loader)
+  why: >-
+    Loader is a SafeLoader subclass that only keeps ESPHome's !tags as text, run in CI on files
+    from this repository.

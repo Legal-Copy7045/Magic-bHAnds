@@ -8,9 +8,11 @@ import re
 
 from freezegun.api import FrozenDateTimeFactory
 import pytest
+import voluptuous as vol
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from homeassistant.core import HomeAssistant, ServiceCall, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.util import dt as dt_util
@@ -162,7 +164,7 @@ async def test_enrolment_can_be_limited_to_one_reader(hass: HomeAssistant, setup
 
 async def test_enrolment_is_limited_and_can_be_stopped(hass: HomeAssistant, setup_integration) -> None:
     await hass.services.async_call(DOMAIN, "add_person", {"name": "Alice"}, blocking=True)
-    with pytest.raises(Exception):  # noqa: B017 - voluptuous refuses more than 15 minutes
+    with pytest.raises((vol.Invalid, HomeAssistantError)):  # noqa: B017 - voluptuous refuses more than 15 minutes
         await hass.services.async_call(DOMAIN, "enrol", {"person": "Alice", "minutes": 60}, blocking=True)
     await hass.services.async_call(DOMAIN, "enrol", {"person": "Alice"}, blocking=True)
     await hass.services.async_call(DOMAIN, "stop_enrolment", {}, blocking=True)
@@ -178,7 +180,7 @@ async def test_welcome_colours_go_to_readers(hass: HomeAssistant, setup_integrat
     await hass.services.async_call(DOMAIN, "update_person", {"person": "Alice", "welcome_colour": "Purple"}, blocking=True)
     await hass.services.async_call(DOMAIN, "sync", {}, blocking=True)
     assert calls["colours"][-1].data["colours"] == f"{TAG}=Purple"
-    with pytest.raises(Exception):  # noqa: B017 - not a reader colour
+    with pytest.raises((vol.Invalid, HomeAssistantError)):  # noqa: B017 - not a reader colour
         await hass.services.async_call(DOMAIN, "update_person", {"person": "Alice", "welcome_colour": "Plaid"}, blocking=True)
     await hass.services.async_call(DOMAIN, "update_person", {"person": "Alice", "welcome_colour": ""}, blocking=True)
     await hass.services.async_call(DOMAIN, "sync", {}, blocking=True)
@@ -461,7 +463,7 @@ async def test_play_show_goes_to_every_online_reader(
     assert result["skipped"] == ["Hall reader"] and len(result["played"]) == 1
     await hass.services.async_call(DOMAIN, "play_show", {"device_id": [reader_device.id]}, blocking=True)
     assert shows[-1].data["show"] == "Random"
-    with pytest.raises(Exception):
+    with pytest.raises((vol.Invalid, HomeAssistantError)):
         await hass.services.async_call(DOMAIN, "play_show", {"show": "Not a show"}, blocking=True)
 
 

@@ -11,7 +11,8 @@ Inputs:
   out/findings-*.json        review findings: [{id, severity, area, title, file, line,
                              description, scenario, recommendation, verified}]
   out/notes.json             optional {"summary": "...", "observations": ["..."]}
-  catalogue/*.yaml           features and the checks that cover them
+  catalogue/*.yaml           features and the checks that cover them: `checks:` lists IDs, and
+                             `match:` lists regexes over "<stage>:<ID>" (e.g. "quality:QUAL-00[4-7]")
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ import datetime as dt
 import html
 import json
 import os
+import re
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -28,7 +30,7 @@ import yaml
 HERE = Path(__file__).resolve().parent
 OUT = HERE / "out"
 ROOT = HERE.parent
-STAGES = ["integration", "ci", "firmware", "page", "live"]
+STAGES = ["integration", "ci", "firmware", "page", "live", "quality", "ids"]
 SEV = ["critical", "high", "medium", "low", "info"]
 STATUS = ["fail", "pass", "manual", "skip"]
 e = html.escape
@@ -66,14 +68,27 @@ def load():
     return stages, findings, catalogue, notes
 
 
+def matched_ids(item, keys):
+    """The check IDs a catalogue entry covers: its `checks:` list plus every "<stage>:<ID>" in keys that one
+    of its `match:` regexes matches in full."""
+    checks = list(item.get("checks") or [])
+    pats = [re.compile(p) for p in item.get("match") or []]
+    for key in sorted(keys):
+        stage_id = key.split(":", 1)[1]
+        if stage_id not in checks and any(p.fullmatch(key) for p in pats):
+            checks.append(stage_id)
+    return checks
+
+
 def coverage(stages, catalogue):
-    by_id = {}
+    by_id, keys = {}, set()
     for s, d in stages.items():
         for r in d.get("results", []):
             by_id.setdefault(r["id"], []).append(r)
+            keys.add(f"{s}:{r['id']}")
     rows, referenced = [], set()
     for item in catalogue:
-        checks = item.get("checks") or []
+        checks = matched_ids(item, keys)
         referenced |= set(checks)
         got = [r for c in checks for r in by_id.get(c, [])]
         statuses = {r["status"] for r in got}
@@ -135,12 +150,12 @@ def markdown(stages, findings, cov, unlisted, notes, version, when):
     if unlisted:
         out += ["", "Checks with results but no catalogue entry: " + ", ".join(unlisted)]
     out += ["", "## Manual checks", ""]
-    for s, d in stages.items():
+    for d in stages.values():
         for r in d.get("results", []):
             if r.get("status") == "manual":
                 out.append(f"- **{r['id']}** {r.get('feature', '')}: {r.get('check', '')} {r.get('detail', '')}")
     out += ["", "## Skipped", ""]
-    for s, d in stages.items():
+    for d in stages.values():
         for r in d.get("results", []):
             if r.get("status") == "skip":
                 out.append(f"- **{r['id']}** {r.get('check', '')}: {r.get('detail', '')}")
@@ -292,7 +307,7 @@ def page(stages, findings, cov, unlisted, notes, version, when):
         f"<tr><td>{e(r['feature'])}</td><td>{e(r['area'])}</td><td class=\"id\">{e(str(r.get('since', '')))}</td>"
         f"<td>{pill(r['state'])}</td><td class=\"id\">{e(', '.join(r.get('checks') or []))}"
         + (f"<br>no result: {e(', '.join(r['missing']))}" if r["missing"] else "") + "</td></tr>" for r in cov)
-    h.append(f'<section><h2>Feature coverage</h2><p class="meta">'
+    h.append('<section><h2>Feature coverage</h2><p class="meta">'
              + " · ".join(f"{v} {k}" for k, v in covc.items() if v)
              + f'</p><details><summary>All {len(cov)} features</summary><div class="tbl"><table><tr><th>Feature</th><th>Area</th>'
                f'<th>Since</th><th>State</th><th>Checks</th></tr>{covrows}</table></div>'

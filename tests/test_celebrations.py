@@ -6,9 +6,10 @@ from datetime import date, datetime, timedelta
 
 from freezegun.api import FrozenDateTimeFactory
 import pytest
-from pytest_homeassistant_custom_component.common import async_fire_time_changed
+import voluptuous as vol
 
 from homeassistant.core import HomeAssistant, ServiceCall, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.util import dt as dt_util
 
@@ -157,7 +158,7 @@ async def test_lockdown_when_nobody_home_and_when_the_alarm_is_armed(hass: HomeA
     hass.states.async_set("alarm_control_panel.house", "armed_night", {"friendly_name": "House alarm"})
     await hass.async_block_till_done()
     assert registry.lockdown_reasons() == ["House alarm is armed night"]
-    with pytest.raises(Exception):
+    with pytest.raises((vol.Invalid, HomeAssistantError)):
         await hass.services.async_call(DOMAIN, "set_settings", {"lockdown_alarm": "light.porch"}, blocking=True)
 
 
