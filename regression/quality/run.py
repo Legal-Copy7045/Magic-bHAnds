@@ -234,7 +234,8 @@ def main() -> int:
         fe = REPO / "custom_components/magicband/frontend"
         page = (fe / "page.html").read_text().split("/*COMMON*/")
         page = (fe / "common.js").read_text().join(page)
-        scripts = re.findall(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>", page, re.S)
+        # Not a security filter: it pulls the page's own inline scripts out to syntax-check them (any case).
+        scripts = re.findall(r"<script(?![^>]*\bsrc\s*=)[^>]*>(.*?)</script\s*>", page, re.S | re.I)
         assert scripts, "no inline scripts found"
         tmp = OUT / ".page-inline.js"
         bad = []
