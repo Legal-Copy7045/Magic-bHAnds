@@ -5,6 +5,14 @@ Home Assistant integration share one version number.
 
 ## [0.10.40] - 2026-11-27
 
+### Changed
+- **Red and green are brighter on rings with more than 24 LEDs** (and White
+  and Warm white on RGBW rings): the reader's power limit now follows the
+  colour shown instead of always assuming full white. Red alone draws a third
+  of white's current, so on a 35-LED ring red (deny) and green (accept) now
+  run at full brightness instead of 69 % (51 % on an RGBW ring). Full white
+  and light shows keep the same limit.
+
 ### Added
 - **Ring power budget** on the reader (12–35 LEDs' worth of full white,
   default 24, the old fixed limit): a ring with more LEDs is scaled down to

@@ -521,6 +521,9 @@ light:
     num_leds: ${ring_max_leds}
     default_transition_length: 300ms
     restore_mode: ALWAYS_OFF
+    # Every change of colour or effect sizes the power cap for what's shown (ring_cap_update).
+    on_state:
+      - script.execute: ring_cap_update
     effects:
       # Home Assistant not connected: a slow amber breathing (see reader_idle).
       - pulse:
@@ -1025,6 +1028,11 @@ globals:
   - id: power_test_index
     type: int
     initial_value: "0"
+  # LED elements the power cap is sized for now (components/magicband/power.h power_cap_for):
+  # the colour shown, or during a change the bigger of the old and new colour.
+  - id: ring_cap_elements
+    type: float
+    initial_value: "4.0"
   - id: pulse_count       # how many times the "Pulse" effect fades up and down
     type: int
     initial_value: "1"
@@ -2228,14 +2236,43 @@ script:
           for (int i = 0; i < ${ring_max_leds}; i++) (*out)[i] = Color::BLACK;
           out->write_state(id(ring));   // sends now (copied into the RMT buffer)
           out->set_num_leds(n);
-          // "Ring power budget", or the step the full-power test is trying (components/magicband/power.h)
+          // The strip is dark now, so the cap can be sized for the colour shown straight away.
+          id(ring_cap_elements) = magicband::shown_elements(*id(ring), rgbw);
+          ESP_LOGI("reader", "Ring: %d LEDs, %s%s, brightness %d%%, white on full %d%% (power budget %d LEDs)", n,
+                   rgb ? "RGB" : "GRB", rgbw ? "W" : "", static_cast<int>(id(ring_brightness).state),
+                   static_cast<int>(magicband::power_cap(n, rgbw, id(ring_budget).state) * 100),
+                   static_cast<int>(magicband::power_budget(id(ring_budget).state)));
+      - script.execute: ring_cap_apply
+
+  # Sizes the power cap for the colour the ring shows (components/magicband/power.h): a
+  # colour that draws more applies at once, one that draws less after the 300 ms fade, so
+  # the fade between them stays within the budget.
+  - id: ring_cap_update
+    mode: restart
+    then:
+      - lambda: |-
+          const bool rgbw = id(ring_type).current_option() != "RGB";
+          const float now = magicband::shown_elements(*id(ring), rgbw);
+          id(ring_cap_elements) = std::max(id(ring_cap_elements), now);
+      - script.execute: ring_cap_apply
+      - delay: 400ms
+      - lambda: |-
+          const bool rgbw = id(ring_type).current_option() != "RGB";
+          id(ring_cap_elements) = magicband::shown_elements(*id(ring), rgbw);
+      - script.execute: ring_cap_apply
+  # Sets the ring's output scale: LED brightness x the power cap for ring_cap_elements, within
+  # "Ring power budget" (or the step the full-power test is trying, at full brightness).
+  - id: ring_cap_apply
+    then:
+      - lambda: |-
+          if (!id(ring_ready)) return;
+          auto *out = static_cast<esp32_rmt_led_strip::ESP32RMTLEDStripLightOutput *>(id(ring).get_output());
           const bool testing = id(power_test_level) > 0;
-          const float cap = magicband::power_cap(n, rgbw, testing ? id(power_test_level) : id(ring_budget).state);
+          const float cap = magicband::power_cap_for(out->size(), testing ? id(power_test_level) : id(ring_budget).state,
+                                                     id(ring_cap_elements));
           float level = id(ring_brightness).state / 100.0f;
           if (testing || !(level >= 0.05f && level <= 1.0f)) level = 1.0f;
           out->set_correction(cap * level, cap * level, cap * level, cap * level);
-          ESP_LOGI("reader", "Ring: %d LEDs, %s%s, brightness %d%% (power cap %d%%)", n, rgb ? "RGB" : "GRB", rgbw ? "W" : "",
-                   static_cast<int>(level * 100), static_cast<int>(cap * 100));
           out->schedule_show();
 
   # "Full-power test": full white on every LED at each step of the budget

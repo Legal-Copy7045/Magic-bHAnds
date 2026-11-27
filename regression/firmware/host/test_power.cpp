@@ -8,6 +8,23 @@ using hosttest::result;
 
 static bool near(float a, float b) { return std::fabs(a - b) < 1e-5f; }
 
+// A stand-in for ESPHome's LightState/LightColorValues, enough for shown_elements.
+struct FakeValues {
+  bool on = true;
+  float r = 1, g = 1, b = 1, w = 0, state = 1, bright = 1;
+  bool is_on() const { return on; }
+  void set_state(float s) { state = s; }
+  void set_brightness(float v) { bright = v; }
+  void as_rgbw(float *o_r, float *o_g, float *o_b, float *o_w) const {
+    *o_r = state * bright * r, *o_g = state * bright * g, *o_b = state * bright * b, *o_w = state * bright * w;
+  }
+};
+struct FakeLight {
+  FakeValues remote_values;
+  std::string effect = "None";
+  std::string get_effect_name() const { return effect; }
+};
+
 int main() {
   // FW-230: power_cap keeps full white within the budget: the old fixed cap at the default
   {
@@ -68,6 +85,49 @@ int main() {
       if (magicband::power_budget_after_reset(w[0]) != w[1])
         why += fmt("reset at %d -> %d, want %d; ", w[0], magicband::power_budget_after_reset(w[0]), w[1]);
     result("FW-233", why.empty(), why.empty() ? "reset at 24 keeps 20, at 26..35 the step below; odd values stay within 12-35" : why);
+  }
+  // FW-235: the cap follows the colour shown: red and green run at full on a 35-LED ring at the default budget,
+  // white is scaled as before, RGBW warm white (white element alone) runs at full
+  {
+    std::string why;
+    struct C {
+      const char *name;
+      bool rgbw;
+      float r, g, b, w, want;
+    } cs[] = {
+        {"Red (deny)", false, 1, 0, 0, 0, 1.0f},           {"Green (accept)", false, 0, 1, 0.3f, 0, 1.0f},
+        {"White RGB", false, 1, 1, 1, 0, 24.0f / 35},      {"Red RGBW", true, 1, 0, 0, 0, 1.0f},
+        {"Warm white, warm RGBW", true, 0, 0, 0, 1, 1.0f}, {"White, warm RGBW", true, 0, 0.15f, 0.35f, 1, 1.0f},
+        {"All on RGBW", true, 1, 1, 1, 1, 18.0f / 35},
+    };
+    for (auto &c : cs) {
+      FakeLight l;
+      l.remote_values.r = c.r, l.remote_values.g = c.g, l.remote_values.b = c.b, l.remote_values.w = c.w;
+      l.remote_values.bright = 0.3f;  // the light's brightness doesn't change the colour's draw
+      const float cap = magicband::power_cap_for(35, 24, magicband::shown_elements(l, c.rgbw));
+      if (!near(cap, c.want)) why += fmt("%s: cap %.3f want %.3f; ", c.name, cap, c.want);
+      // never over budget: elements x 20 mA x n x cap <= budget x 60 mA
+      const float ma = magicband::shown_elements(l, c.rgbw) * 20.0f * 35 * cap;
+      if (ma > 24 * 60.0f + 0.01f) why += fmt("%s: %.0f mA over the budget; ", c.name, ma);
+    }
+    result("FW-235", why.empty(), why.empty() ? "35 LEDs, budget 24: red, green, RGBW warm white and RGBW white at 100 %; RGB white 69 %, RGBW all on 51 %; all within budget" : why);
+  }
+  // FW-236: a light show counts as the worst case; off is nothing lit; NaN colour counts as the worst case
+  {
+    std::string why;
+    FakeLight l;
+    l.remote_values.r = 1, l.remote_values.g = 0, l.remote_values.b = 0;
+    l.effect = magicband::shows::NAMES[0];
+    if (!near(magicband::shown_elements(l, false), 3) || !near(magicband::shown_elements(l, true), 4)) why += "a show isn't the worst case; ";
+    l.effect = "Chase";
+    if (!near(magicband::shown_elements(l, false), 1)) why += "a one-colour effect isn't sized by its colour; ";
+    l.remote_values.on = false;
+    if (!near(magicband::shown_elements(l, true), 0)) why += "off isn't 0; ";
+    l.remote_values.on = true, l.remote_values.g = NAN;
+    if (!near(magicband::shown_elements(l, true), 4)) why += "NaN isn't the worst case; ";
+    if (!near(magicband::power_cap_for(35, 24, 0), 1) || !near(magicband::power_cap_for(0, 24, 3), 1)) why += "0 elements/LEDs not 1; ";
+    if (!near(magicband::power_cap_for(35, 24, 99), 18.0f / 35)) why += "elements over 4 not clamped; ";
+    result("FW-236", why.empty(), why.empty() ? "shows = worst case (3 RGB, 4 RGBW), one-colour effects by their colour, off = 0, NaN = worst, out-of-range clamped" : why);
   }
   return 0;
 }

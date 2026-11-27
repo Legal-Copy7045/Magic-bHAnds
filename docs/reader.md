@@ -153,10 +153,16 @@ it first connects.
 the reader's device page in Home Assistant, under **Configuration**, set:
 
 - **LED count** (1–100, default 24): the number of LEDs in your ring or
-  strip. Above the **Ring power budget** the reader caps their output so
-  full white stays within it: at the default of 24, 24 ÷ count (35 LEDs:
-  68 %). An RGBW ring draws more per LED (80 mA with everything on, against
-  60 mA), so it gets three quarters of the budget: 18 ÷ count at 24.
+  strip. The reader scales the ring down only as far as the colour it shows
+  needs to stay within the **Ring power budget**. Each LED element (red,
+  green, blue, white) draws up to 20 mA, so red alone or green draws a
+  third of full white and runs at full brightness on a 35-LED ring, while
+  full white on 35 LEDs is scaled to 24 ÷ 35 (68 %) at the default budget
+  (an RGBW ring's white with every element on, 18 ÷ 35). On an RGBW ring,
+  White and Warm white come mostly from the white element, so they run at
+  full too. Light shows, with many colours, always use the full-white
+  limit. While one colour fades into another, the limit covers whichever
+  draws more.
 - **Ring power budget** (12–35 LEDs, default 24): how much the ring may draw,
   in LEDs at full white (60 mA each, the datasheet's worst case; 24 is about
   1.44 A, sized for a 20 W charger with room for the ESP32 and the speaker).
