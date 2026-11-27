@@ -102,7 +102,7 @@ const F = {   // feature names (the catalogue maps these to IDs)
   twin: 'Live ring twin', bridges: 'Bridge cards', send: 'Send to bands', celeb: 'Celebrations', passport: 'Tap passport', msgs: 'Per-card messages and revert on error',
   numbers: 'Number range validation', redraw: 'Redraw guard', arm: 'Second tap for removals and loosening access', fw: 'Older firmware hides settings gracefully',
   rgbw: 'RGBW rings', ago: 'Relative times (ago)', camera: 'Tap pictures and cameras', battery: 'Battery history', enrol: 'Enrolment', offline: 'Offline devices',
-  security: 'Page controls reach only MagicbHAnds devices',
+  security: 'Page controls reach only MagicbHAnds devices', power: 'Ring power budget and Full-power test',
 };
 
 // ── 1. desktop, default mock: structure, wording, navigation (from probe4) ──
@@ -192,7 +192,7 @@ scenario('desk-structure', { width: 1400 }, async ({ p, f, errs }) => {
   await chk('PAGE-028', F.readers, 'Garage reader title tags: Online, Locked out, Not paired', async () => [/Online/.test(rc.tags) && /Locked out/.test(rc.tags) && /Not paired/.test(rc.tags), rc.tags]);
   await chk('PAGE-029', F.health, 'Health summary while closed: “Wi-Fi weak · up 50 min (after a power dip)”', async () => [/Wi-Fi weak · up 50 min \(after a power dip\)/.test(rc.hsum), rc.hsum]);
   await chk('PAGE-030', F.twin, 'One page-level “Ring preview” switch (LEDs / Diffused), none per card', async () => [/Ring preview/.test(rc.prev) && rc.seg === 0, rc.prev]);
-  await chk('PAGE-031', F.settings, 'Settings groups in order: Waiting, Night, Reading, Welcome, Denied, Refused-tap lockout, Shows, Hardware', async () => [JSON.stringify(rc.g) === JSON.stringify(['Waiting for a band', 'Night', 'Reading a band', 'Welcome', 'Denied', 'Refused-tap lockout', 'Shows', 'Hardware']), rc.g]);
+  await chk('PAGE-031', F.settings, 'Settings groups in order: Waiting, Night, Reading, Welcome, Denied, Refused-tap lockout, Shows, Hardware, Power', async () => [JSON.stringify(rc.g) === JSON.stringify(['Waiting for a band', 'Night', 'Reading a band', 'Welcome', 'Denied', 'Refused-tap lockout', 'Shows', 'Hardware', 'Power']), rc.g]);
   await chk('PAGE-032', F.settings, 'Setting labels use the page’s words (Quieter volume, One lap takes, Tail fades to, Max brightness, Band light-up power…) not the entity names', async () => {
     const want = ['Quieter volume', 'Night from', 'Night until', 'One lap takes', 'Tail fades to', 'Pulses', 'Show for “Play show”', 'Night runs', 'LED count', 'Max brightness', 'Light up MagicBand+', 'Band light-up power', 'Heads', 'Direction', 'Style at night', 'Sound at night'];
     const miss = want.filter(l => !rc.labs.includes(l)), old = rc.labs.filter(l => /^(LEDs|Brightness|Repeat|Each circle|Tail ends at|Night is|Volume \(Quieter\))$/.test(l)); return [!miss.length && !old.length, { miss, old }]; });
@@ -214,6 +214,13 @@ scenario('desk-structure', { width: 1400 }, async ({ p, f, errs }) => {
       let l = led(); l.value = '30'; l.dispatchEvent(new Event('change')); await __w(150); a.ledFirst = __since(n1).some(c => c[2] === 'set_value'); l = led(); l.value = '30'; l.dispatchEvent(new Event('change')); await __w(300);
       a.ledSecond = __since(n1).some(c => c[2] === 'set_value' && c[3].value === 30); a.hwBox = !!pick().closest('.sg.hw') && /restarts the reader/.test(pick().closest('.sg').textContent); return a; });
     return [!r.first && r.back === 'RGB' && /restarts/.test(r.msg) && r.second && !r.ledFirst && r.ledSecond && r.hwBox, r]; });
+  await chk('PAGE-192', F.power, 'Power group: Ring power budget box, the last full-power test, and Full-power test needs a second tap before it presses the button', async () => {
+    const r = await f.evaluate(async () => { const g = [...__card(/Front/).querySelectorAll('.sg')].find(x => /^Power/.test(x.querySelector('h4').textContent)); if (!g) return null;
+      const a = { box: !!g.querySelector('[data-num$="ring_power_budget"]'), last: /Last full-power test: Passed at 35 LEDs/.test(g.textContent), hw: g.classList.contains('hw') };
+      const btn = () => __card(/Front/).querySelector('[data-ptest]'); const n0 = __C(); btn().click(); await __w(150);
+      a.first = __since(n0).some(c => c[2] === 'press'); a.armed = /Tap again/.test(btn().textContent); btn().click(); await __w(300);
+      a.second = __since(n0).find(c => c[2] === 'press' && /^button\.front_door_reader_full_power_test$/.test(c[3].entity_id)) ? true : false; return a; });
+    return [r && r.box && r.last && !r.hw && !r.first && r.armed && r.second, r]; });
   await chk('PAGE-037', F.lockout, 'End lockout now (in the lockout group) turns the reader’s Refused-tap lockout switch off', async () => {
     const r = await f.evaluate(async () => { const x = __card(/Garage/).querySelector('.sg [data-endlock]'); if (!x) return null; const n0 = __C(); x.click(); await __w(200); return __since(n0).find(c => c[2] === 'turn_off'); });
     return [r && /garage_reader_refused_tap_lockout/.test(r[3].entity_id), r]; });

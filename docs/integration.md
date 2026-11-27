@@ -211,7 +211,9 @@ battery at 20% or less), above the totals (click one to jump to it).
   a band, Welcome (with a picture of its shape, Light up MagicBand+ and Band
   light-up power), Denied, Refused-tap lockout, Shows, and Hardware (ring
   type, LED count, colour order, max brightness: these restart the reader,
-  so a change there has to be made twice). They're the same settings as on
+  so a change there has to be made twice), and Power (Ring power budget, the
+  last full-power test, and the Full-power test button, which asks for a
+  second tap). They're the same settings as on
   the reader's device page; see [reader.md](reader.md) for what each does.
 - **Camera (optional):** each reader card has a **Camera** choice. Pick a
   camera that sees the reader (a Ring doorbell's live view works) and every

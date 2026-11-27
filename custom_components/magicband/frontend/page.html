@@ -966,6 +966,7 @@ function readerSettings(p,mk,who){
   const style=v('select','Idle style'), styleN=v('select','Idle style at night'), circ=style==null||style==='Circle'||styleN==='Circle';
   const sn=v('select','Sound at night'), quiet=sn==null||sn==='Quieter', nowN=v('binary_sensor','Night now');
   const lockSw=p(['switch','Refused-tap lockout']), locked=v('binary_sensor','Tap lockout')==='on';
+  const pt=p(['button','Full-power test']), ptRes=v('sensor','Full-power test');
   // each group: title, sub-title, rows ([domain, entity name, label], or {full: html} across both columns), hint, and
   // hw (changing it restarts the reader, so it takes a second pick)
   const G=[
@@ -987,6 +988,9 @@ function readerSettings(p,mk,who){
     {t:'Shows',rows:[['select','Startup show','Start-up show'],['select','Show','Show for “Play show”']]},
     {t:'Hardware',hw:true,rows:[['select','Ring type','Ring type'],['number','LED count','LED count'],['select','LED colour order','Colour order'],['number','LED brightness','Max brightness']],
       warn:'⚠ Changing these restarts the reader. Pick (or enter) the new value twice to confirm.',hint:'RGBW rings have a white LED in each pixel.'},
+    {t:'Power',rows:[['number','Ring power budget','Power budget']],
+      extra:(ptRes&&!/^unknown$/.test(ptRes)?`<p class="sub2">Last full-power test: ${esc(ptRes)}</p>`:'')+(pt?`<div class="btns"><button class="btn sm ${ARM['pt'+pt]?'arm':''}" data-ptest="${esc(pt)}" title="Lights every LED at full white for up to 30 seconds; asks for a second tap"${avail(pt)&&!BUSY[pt]?'':' disabled'}>${ARM['pt'+pt]?'Tap again: full white for up to 30 s':'Full-power test'}</button></div>`:''),
+      hint:'How much the ring may draw, in LEDs at full white (60 mA each). Red, green and an RGBW ring’s white use far less and run at full; only full white and light shows are held to it. Full-power test steps up to 35 at full white and keeps the most the supply holds; if the reader restarts, it keeps the step below.'},
   ];
   const html=G.map((g,gi)=>{ let n=0; const r=g.rows.map(x=>{ if(!Array.isArray(x)) return x.full||''; const [dom,l,lab]=x, e=p([dom,l]), c=setCtl(e,dom,lab,who); if(!c) return ''; n++; return `<label class="lab" for="${cid(e)}">${esc(lab)}</label>${c}`; }).join('');
     const gk=(mk||'sg')+'g'+gi;
@@ -1041,6 +1045,7 @@ const ctlLabel=(x,e)=>{ const s=(x.closest('.nu')||x).previousElementSibling, ro
 function wire(){ document.querySelectorAll('[data-tg]').forEach(x=>x.onclick=()=>{ const e=x.dataset.tg, dom=e.split('.')[0], on=S(e).state==='on';
     act(H().call(dom,on?'turn_off':'turn_on',e),e,mkOf(x),`${x.dataset.what||x.getAttribute('aria-label')||'It'}: ${on?'off':'on'}.`); });
   document.querySelectorAll('[data-press]').forEach(x=>x.onclick=()=>act(H().call('button','press',x.dataset.press),x.dataset.press,mkOf(x),x.textContent.trim()+': sent.'));
+  document.querySelectorAll('[data-ptest]').forEach(x=>x.onclick=()=>{ const e=x.dataset.ptest; if(!armed('pt'+e)) return; act(H().call('button','press',e),e,mkOf(x),'Full-power test running: up to 30 s of full white, then the result shows here.'); });
   document.querySelectorAll('[data-restart]').forEach(x=>x.onclick=()=>{ const e=x.dataset.restart; if(!armed('rs'+e)) return; act(H().call('button','press',e),e,mkOf(x),'Restarting: back in about a minute.'); });
   bindPager();
   // a reader's refused-tap lockout ends when its Lockout switch goes off
