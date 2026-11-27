@@ -5,7 +5,7 @@
     python3 regression/firmware/run.py --compile    # also compile bridge, reader and BP2 as CI does
     python3 regression/firmware/run.py --compile --clean-build   # from scratch (~2 min per device, warm toolchain)
 
-Writes regression/out/firmware.json (see regression/README.md). Needs ESPHome
+Writes regression/out/device.json (see regression/README.md). Needs ESPHome
 2026.10.2 (venv at $ESPHOME_VENV, default /tmp/claude-0/esphvenv, or on PATH),
 g++ and, for the page comparison, node. Exits non-zero only if the harness
 itself breaks; product failures are results.
@@ -48,7 +48,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--compile", action="store_true", help="also compile the three signed firmware builds")
     ap.add_argument("--clean-build", action="store_true", help="with --compile: delete the previous build first (full rebuild)")
-    ap.add_argument("--only", default="config,host,manual", help="comma list of parts: config,host,manual")
+    ap.add_argument("--only", default="config,host", help="comma list of parts: config,host,manual (the manual list is the manual stage's since standard 1.1.0)")
     args = ap.parse_args()
     ensure_python()
     sys.path.insert(0, str(HERE))
@@ -102,9 +102,9 @@ def main() -> int:
     if broken:
         env["harness_errors"] = broken
     results.sort(key=lambda r: (r["id"].split("-")[0], r["id"]))
-    out = prep.OUT / "firmware.json"
+    out = prep.OUT / "device.json"
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps({"stage": "firmware", "started": started, "finished": now(), "environment": env, "results": results}, indent=1))
+    out.write_text(json.dumps({"stage": "device", "started": started, "finished": now(), "environment": env, "results": results}, indent=1))
     counts = {}
     for r in results:
         counts[r["status"]] = counts.get(r["status"], 0) + 1

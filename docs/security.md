@@ -228,8 +228,11 @@ is welcomed in, not whether it's let in.
   accepts an attestation from any workflow run on any branch):
 
   ```
-  gh attestation verify <file> --repo Legal-Copy7045/Magic-bHAnds --signer-workflow Legal-Copy7045/Magic-bHAnds/.github/workflows/firmware.yml --source-ref refs/heads/main
+  gh attestation verify <file> --repo Legal-Copy7045/Magic-bHAnds --signer-workflow Legal-Copy7045/Magic-bHAnds/.github/workflows/ci.yml --source-ref refs/heads/main
   ```
+
+  Releases up to 0.10.38 were made by the workflow's earlier name: for those,
+  use `.github/workflows/firmware.yml` as the signer workflow.
 
   Releases come only from `main`: a merge that raises `VERSION` releases it
   from the same signed build (or **Run workflow** on `main`, to retry), and
@@ -347,11 +350,15 @@ doesn't protect against.
 
 ## The privacy guard (this repository)
 
-The repository is public, so every push and pull request runs
-`.github/scripts/privacy_guard.py`. It fails on commit addresses that aren't
-GitHub no-reply addresses, on anything that looks like a credential, on
-tracked secrets files, and on private terms the owner keeps in an Actions
-secret (never in the repository). It checks commit messages and names, file
+The repository is public, so every pull request and every push to `main`
+runs `.github/scripts/privacy_guard.py` (CI loads it from `main`, so a pull
+request can't weaken it). It fails on commit addresses that aren't GitHub
+no-reply addresses, on anything that looks like a credential, on tracked
+secrets files, and on private terms the owner keeps in the `PRIVACY_DENYLIST`
+secret of the `privacy` environment (never in the repository). That
+environment is limited to `main`, so only the run after a merge (and Run
+workflow on `main`) checks the private terms, and that run fails if the secret
+is empty. A release waits for it. It checks commit messages and names, file
 names and paths, every tracked file, and everything **each new commit adds**,
 so a value added and removed again in one push is still caught (it stays in
 the public history). Each commit's files are listed NUL-separated and read one
@@ -502,10 +509,12 @@ wrong or its limits no longer hold.
   you make yourself don't have the hotspot.
 - **Code scanning runs weekly, not on every pull request.** To save GitHub
   Actions minutes, CodeQL runs once a week and on demand
-  (`.github/workflows/codeql.yml`), and Dependabot proposes updates monthly.
+  (`.github/workflows/codeql.yml`), and Dependabot proposes updates weekly
+  (minor and patch updates merge themselves when CI passes, except the signing
+  tools and the actions the signing job runs, which wait for the owner).
   A problem CodeQL would catch can sit on `main` for up to a week, and the
-  privacy guard now runs on pull requests only (and is run locally before every
-  push). *Why acceptable:* everything that reaches a device still has to be
+  private terms are only checked after a merge to `main` (pull requests run the
+  guard without them; it is also run locally, with them, before every push). *Why acceptable:* everything that reaches a device still has to be
   signed from `main`, the release tooling's own checks run on every pull request
   that touches it, and the regression suite's quality stage (static scan and
   dependency audit) runs with every `/regression`. Run CodeQL by hand
@@ -515,8 +524,9 @@ wrong or its limits no longer hold.
   compressed streams inside other binaries (PDF streams, compressed PNG text,
   fonts), files over 20 MB, or archives other than `.zip`, reports a binary
   file whose content it has already checked in the same run only once, and it
-  only knows the private terms the owner listed. Without the secret (a pull request from
-  a fork) private terms aren't checked. *Limits:* strip metadata from images
+  only knows the private terms the owner listed. Pull requests are checked
+  without the private terms (the secret is limited to `main`), so a term in a
+  pull request is first reported by the run after it merges. *Limits:* strip metadata from images
   and documents before adding them, and run the guard locally with your
   terms before pushing.
 

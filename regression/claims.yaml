@@ -1,0 +1,79 @@
+# Every security and privacy claim the project makes (project standard 3.4): the claims reviewer checks each against
+# the code. `where` is the documentation, `code` the files that keep it. Accepted risks (docs/security.md) are design
+# limits, not claims: re-report one only if its description is wrong.
+- id: CLM-001
+  claim: Only a tap from an ESPHome device whose model is a MagicBand reader is accepted; other tag scanners are ignored.
+  where: [docs/security.md#what-a-tap-does-and-doesnt-prove]
+  code: ["custom_components/magicband/__init__.py", "custom_components/magicband/readers.py"]
+- id: CLM-002
+  claim: Every action that changes who gets in (people, bands, access, guest passes, lockdown settings, enrolment, pairing, answers) needs a Home Assistant administrator.
+  where: [docs/security.md#who-can-change-whos-allowed-in, docs/integration.md]
+  code: ["custom_components/magicband/__init__.py", "custom_components/magicband/services.yaml"]
+- id: CLM-003
+  claim: A paired reader takes a new allowed list, colours or an Ask-Home-Assistant answer only with the pairing key, and never takes a different key over the network.
+  where: [docs/security.md#who-can-change-whos-allowed-in]
+  code: ["esphome/magicband-reader.yaml", "components/magicband/reader_key.h", "custom_components/magicband/readers.py"]
+- id: CLM-004
+  claim: A first pairing needs a tap on the reader within 2 minutes, and that tap does nothing else.
+  where: [docs/security.md, docs/reader.md#pairing-with-magicbhands]
+  code: ["esphome/magicband-reader.yaml", "components/magicband/reader_key.h"]
+- id: CLM-005
+  claim: A reader that can't store or parse the allowed list empties it (denies everyone) rather than keep an old one; an offline reader keeps its last list and gets the current one as soon as it reconnects; key and list reach flash within seconds of a change.
+  where: [docs/security.md#readers-allowed-list]
+  code: ["esphome/magicband-reader.yaml", "custom_components/magicband/readers.py", "custom_components/magicband/__init__.py"]
+- id: CLM-006
+  claim: Guest passes and lockdown work through the reader's own allowed list, so the reader denies a band whose pass ended or who isn't let in during lockdown on its own.
+  where: [docs/security.md#readers-allowed-list]
+  code: ["custom_components/magicband/registry.py", "custom_components/magicband/readers.py"]
+- id: CLM-007
+  claim: Official firmware only installs updates signed with the project's key (OTA and the setup hotspot's upload page); building your own firmware leaves it unlocked.
+  where: [docs/security.md#devices-and-updates, README.md]
+  code: [".github/scripts/signed_build.py", ".github/scripts/sign_firmware.py", ".github/workflows/ci.yml"]
+- id: CLM-008
+  claim: The signing key lives in the release-signing environment (main only); only commits on main are signed or released, only by the release path, and a pushed tag starts nothing.
+  where: [docs/security.md#devices-and-updates, README.md]
+  code: [".github/workflows/ci.yml"]
+- id: CLM-009
+  claim: Released files carry build-provenance attestations from this repository's CI workflow on main.
+  where: [docs/security.md]
+  code: [".github/workflows/ci.yml"]
+- id: CLM-010
+  claim: The signing job installs only hash-pinned packages, and every action is pinned to a commit.
+  where: [docs/security.md]
+  code: [".github/workflows/*.yml", ".github/requirements-signing*.txt"]
+- id: CLM-011
+  claim: The web installer serves its own copy of ESP Web Tools, checked against a pinned integrity hash.
+  where: [docs/security.md]
+  code: [".github/scripts/make_site.py", "web/index.html"]
+- id: CLM-012
+  claim: The setup hotspot starts only after 2 minutes without Wi-Fi, only on the official Wi-Fi builds, and its upload page is covered by the signature check.
+  where: [docs/security.md#devices-and-updates]
+  code: [".github/scripts/signed_build.py"]
+- id: CLM-013
+  claim: The BP2-POE firmware has no factory-reset or safe-mode button; unknown bands are reported at most 60 a minute; Test welcome sends no tag scan.
+  where: [docs/security.md#devices-and-updates]
+  code: ["esphome/*.yaml", "esphome/magicband-addon.yaml"]
+- id: CLM-014
+  claim: Nearby radios can only do what docs/security.md "Limits on what nearby radios can do" says (Bluetooth band effects need a bridge and are rate-limited; band IDs never appear in logs).
+  where: [docs/security.md#limits-on-what-nearby-radios-can-do]
+  code: ["components/magicband/*", "custom_components/magicband/bridges.py", "custom_components/magicband/listener.py"]
+- id: CLM-015
+  claim: Band IDs, names and pictures stay in Home Assistant; snapshots and sounds are served only to administrators or through short-lived signed links, and paths can't leave their folders.
+  where: [docs/security.md#privacy]
+  code: ["custom_components/magicband/snapshots.py", "custom_components/magicband/sounds.py", "custom_components/magicband/history.py"]
+- id: CLM-016
+  claim: The management page escapes everything it shows from Home Assistant (no injected script), and its shim only allows the listed services and entity actions (never factory reset or safe mode).
+  where: [docs/security.md#the-management-page]
+  code: ["custom_components/magicband/frontend/*"]
+- id: CLM-017
+  claim: Welcome-sound uploads are read in full, checked to be MP3, WAV, FLAC or Ogg and refused above 2 MB; only administrators upload, replace, remove or download them, and readers fetch them through a link signed for five minutes.
+  where: [docs/integration.md, docs/security.md]
+  code: ["custom_components/magicband/sounds.py"]
+- id: CLM-018
+  claim: The privacy guard rejects non-no-reply commit addresses, credentials and the private terms, and CI loads it from main so a pull request can't weaken it.
+  where: [docs/security.md#the-privacy-guard-this-repository, CLAUDE.md]
+  code: [".github/scripts/privacy_guard.py", ".github/workflows/ci.yml"]
+- id: CLM-019
+  claim: Downloaded diagnostics shorten band IDs and replace people's names.
+  where: [docs/integration.md]
+  code: ["custom_components/magicband/diagnostics.py"]

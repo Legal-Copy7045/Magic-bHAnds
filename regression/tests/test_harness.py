@@ -23,8 +23,20 @@ import run  # noqa: E402
 
 def test_default_is_the_regression_stages_only():
     opts = run.parse_args([])
-    assert opts["stages"] == run.STAGES and run.WALKTHROUGH not in opts["stages"]
-    assert not opts["compile"] and not opts["serial"]
+    assert opts["stages"] == [*run.STAGES, run.MANUAL] and run.WALKTHROUGH not in opts["stages"]
+    assert not opts["compile"] and not opts["serial"] and not opts["quiet"]
+
+
+def test_check_is_the_quick_quiet_stages():
+    opts = run.parse_args(["check"])
+    assert opts["stages"] == ["ci", "unit", "quality"] and opts["quiet"]
+
+
+def test_standard_stage_names_with_the_original_runners():
+    assert run.STAGES == ["ci", "unit", "device", "page", "live", "quality"]
+    assert run.command("unit", False)[-1].endswith("integration/run.py")
+    assert run.command("device", True)[-2:][0].endswith("firmware/run.py") and run.command("device", True)[-1] == "--compile"
+    assert run.PREFIX["unit"] == "INT" and run.PREFIX["device"] == "FW"
 
 
 def test_stage_flag_selects_one_or_more_stages():
@@ -35,10 +47,10 @@ def test_stage_flag_selects_one_or_more_stages():
 
 
 def test_with_walkthrough_adds_it_to_the_regression_stages_once():
-    assert run.parse_args(["--with-walkthrough"])["stages"] == [*run.STAGES, "walkthrough"]
+    assert run.parse_args(["--with-walkthrough"])["stages"] == [*run.STAGES, "manual", "walkthrough"]
     assert run.parse_args(["--stage", "walkthrough", "--with-walkthrough"])["stages"] == ["walkthrough"]
     assert run.parse_args(["--stage", "page", "--with-walkthrough", "--compile"]) == {
-        "stages": ["page", "walkthrough"], "compile": True, "serial": False}
+        "stages": ["page", "walkthrough"], "compile": True, "serial": False, "quiet": False}
 
 
 def test_unknown_stage_is_refused():
@@ -51,7 +63,7 @@ def test_unknown_stage_is_refused():
 def test_walkthrough_writes_outside_the_regression_out_dir():
     assert run.out_dir("walkthrough") != run.OUT and run.out_dir("page") == run.OUT
     assert run.command("quality", False)[-1].endswith("quality/run.py")
-    assert run.command("firmware", True)[-1] == "--compile"
+    assert run.command("device", True)[-1] == "--compile"
 
 
 # ───────── ID registry ─────────
@@ -93,7 +105,8 @@ def test_every_committed_registry_is_append_only_shaped():
         data = ids.load(p.stem)
         assert data, p
         prefixes = {k.split("-")[0] for k in data}
-        assert len(prefixes) == 1, f"{p.name}: mixed prefixes {prefixes}"
+        # the manual stage keeps the FW- and WALK- IDs its checks had before (new ones take MAN-)
+        assert len(prefixes) == 1 or (p.stem == "manual" and prefixes <= {"FW", "WALK", "MAN"}), f"{p.name}: {prefixes}"
 
 
 def test_registry_results_one_check_per_stage(tmp_path, monkeypatch):
@@ -127,10 +140,34 @@ FINDINGS = [{"id": "SEC-001", "severity": "low", "area": "page", "title": "T <x>
             {"id": "BUG-001", "severity": "high", "area": "x", "title": "Worse", "verified": False}]
 
 
-def test_catalogue_regexes_match_stage_qualified_ids_in_full():
-    keys = {"page:PAGE-001", "page:PAGE-002", "page:PAGE-0021", "ci:PAGE-001"}
-    assert report.matched_ids({"match": ["page:PAGE-00[12]"]}, keys) == ["PAGE-001", "PAGE-002"]
-    assert report.matched_ids({"checks": ["X-1"], "match": ["ci:.*"]}, keys) == ["X-1", "PAGE-001"]
+def test_catalogue_regexes_search_stage_and_key():
+    # keys are "<stage>:<ID> <what it checks>", as run.normalise() writes them (the standard's catalogue format)
+    keys = {"page:PAGE-001 menu", "page:PAGE-002 taps", "page:PAGE-0021 other", "ci:PAGE-001 menu"}
+    assert report.matched_ids({"match": ["^[a-z]+:(PAGE-001|PAGE-002) "]}, keys) == ["PAGE-001", "PAGE-002"]
+    assert report.matched_ids({"checks": ["X-1"], "manual": ["FW-300"], "match": ["^ci:"]}, keys) == ["X-1", "FW-300", "PAGE-001"]
+
+
+def test_normalise_adds_the_standard_fields(tmp_path):
+    p = tmp_path / "x.json"
+    p.write_text(json.dumps({"stage": "integration", "results": [{"id": "INT-001", "check": "a test", "status": "pass"}]}))
+    data = run.normalise("unit", p)
+    assert data["stage"] == "unit" and data["prefix"] == "INT"
+    assert data["results"][0]["key"] == "INT-001 a test" and data["results"][0]["evidence"] == ""
+
+
+def test_every_catalogue_regex_compiles_and_names_known_ids():
+    import yaml  # noqa: PLC0415
+    import re  # noqa: PLC0415
+    known = set()
+    for p in (HERE / "ids").glob("*.yaml"):
+        known |= set(ids.load(p.stem))
+    for p in (HERE / "catalogue").glob("*.yaml"):
+        for item in yaml.safe_load(p.read_text()) or []:
+            assert item.get("match") or item.get("manual"), (p.name, item["feature"])
+            for m in item.get("match") or []:
+                re.compile(m)
+                for named in re.findall(r"[A-Z]+-\d{3,}", m):  # literal IDs only (not "QUAL-00[23]")
+                    assert named in known, (p.name, named)
 
 
 def test_coverage_states():

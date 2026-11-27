@@ -1,0 +1,11 @@
+# Which slow CI groups a pull request starts (project standard, STANDARD.md 1.2). Regexes over changed paths.
+# A changed file that matches nothing below starts every group (safe default).
+ignore: ['^docs/', '\.md$', '^\.claude/', '^LICENSE$', '^hardware/', '^web/', '^regression/(RUNS|WALKTHROUGHS)\.md$']
+shared: ['^\.github/workflows/ci\.yml$', '^\.github/changes\.yaml$', '^\.github/scripts/changes\.py$']
+groups:
+  # The three firmware builds (and the site they assemble into)
+  firmware: ['^esphome/', '^components/', '^VERSION$', '^\.github/requirements', '^\.github/scripts/(signed_build|make_site|check_bp2_standalone|sign_firmware)\.py$']
+  # The Home Assistant integration's tests (pytest-homeassistant-custom-component)
+  integration: ['^custom_components/', '^tests/', '^pytest\.ini$', '^VERSION$', '^regression/']
+  # Dependency audit in the quick job
+  lockfiles: ['^\.github/requirements.*\.txt$']

@@ -1,0 +1,9 @@
+# Versions Dependabot doesn't track (STANDARD.md 5): the weekly maintenance session checks each for a newer release.
+# source: pypi:<name> | npm:<name> | github:<owner>/<repo> (release tags) | docker:<image>
+- {name: ESPHome, current: "2026.10.2", source: "pypi:esphome", where: ".github/workflows/ci.yml (ESPHOME_VERSION); regression/README.md"}
+- {name: pytest-homeassistant-custom-component, current: "0.13.316", source: "pypi:pytest-homeassistant-custom-component", where: ".github/workflows/ci.yml (test-integration)"}
+- {name: fonttools, current: "4.60.2", source: "pypi:fonttools", where: ".github/workflows/ci.yml (test-integration)"}
+- {name: ESP Web Tools, current: "10.4.0", source: "npm:esp-web-tools", where: ".github/scripts/make_site.py (ESP_WEB_TOOLS_VERSION + its sha512 integrity)"}
+- {name: ruff, current: "0.17.6", source: "pypi:ruff", where: ".github/workflows/ci.yml (quick); regression/quality/run.py"}
+- {name: pip-audit, current: "2.10.1", source: "pypi:pip-audit", where: ".github/workflows/ci.yml (quick); regression/quality/run.py"}
+- {name: bandit, current: "1.9.4", source: "pypi:bandit", where: "regression/quality/run.py"}

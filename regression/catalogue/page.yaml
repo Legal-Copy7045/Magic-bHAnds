@@ -2,151 +2,197 @@
 # page checks that cover each feature. Stage: regression/page/run.js (node regression/page/run.js).
 # `since` is given where the changelog names the release; features older than the changelog's
 # detail have none.
-
 - feature: Page renders (all sections)
   docs: docs/integration.md#management-page
-  checks: [PAGE-001, PAGE-041, PAGE-043, PAGE-066, PAGE-111, PAGE-114, PAGE-133, PAGE-139, PAGE-141, PAGE-145, PAGE-149, PAGE-151, PAGE-165, PAGE-168, PAGE-172]
+  match:
+  - '^[a-z]+:(PAGE\-001|PAGE\-041|PAGE\-043|PAGE\-066|PAGE\-111|PAGE\-114|PAGE\-133|PAGE\-139|PAGE\-141|PAGE\-145|PAGE\-149|PAGE\-151|PAGE\-165|PAGE\-168|PAGE\-172) '
 - feature: Jump chips and KPIs
   since: 0.10.28
   docs: docs/integration.md#management-page
-  checks: [PAGE-002, PAGE-003, PAGE-004, PAGE-005, PAGE-009, PAGE-010, PAGE-129, PAGE-143]
+  match:
+  - '^[a-z]+:(PAGE\-002|PAGE\-003|PAGE\-004|PAGE\-005|PAGE\-009|PAGE\-010|PAGE\-129|PAGE\-143) '
 - feature: Status strip and Needs attention
   since: 0.10.28
   docs: docs/integration.md#management-page
-  checks: [PAGE-006, PAGE-007, PAGE-008, PAGE-142]
+  match:
+  - '^[a-z]+:(PAGE\-006|PAGE\-007|PAGE\-008|PAGE\-142) '
 - feature: Recent taps
   docs: docs/integration.md#management-page
-  checks: [PAGE-011, PAGE-012, PAGE-013, PAGE-014, PAGE-123, PAGE-169]
+  match:
+  - '^[a-z]+:(PAGE\-011|PAGE\-012|PAGE\-013|PAGE\-014|PAGE\-123|PAGE\-169) '
 - feature: People and access
   docs: docs/integration.md#management-page
-  checks: [PAGE-015, PAGE-016, PAGE-096, PAGE-097, PAGE-098]
+  match:
+  - '^[a-z]+:(PAGE\-015|PAGE\-016|PAGE\-096|PAGE\-097|PAGE\-098) '
 - feature: Guest passes and band hours
   docs: docs/integration.md#guests
-  checks: [PAGE-017, PAGE-018, PAGE-019, PAGE-154, PAGE-170]
+  match:
+  - '^[a-z]+:(PAGE\-017|PAGE\-018|PAGE\-019|PAGE\-154|PAGE\-170) '
 - feature: Second tap for removals and loosening access
   since: 0.10.28
   docs: docs/integration.md#management-page
-  checks: [PAGE-020, PAGE-061, PAGE-062, PAGE-064, PAGE-065]
+  match:
+  - '^[a-z]+:(PAGE\-020|PAGE\-061|PAGE\-062|PAGE\-064|PAGE\-065) '
 - feature: Bands list
   docs: docs/integration.md#management-page
-  checks: [PAGE-021, PAGE-022, PAGE-023, PAGE-024, PAGE-025, PAGE-026, PAGE-094, PAGE-095]
+  match:
+  - '^[a-z]+:(PAGE\-021|PAGE\-022|PAGE\-023|PAGE\-024|PAGE\-025|PAGE\-026|PAGE\-094|PAGE\-095) '
 - feature: Bluetooth-only bands and linking
   since: 0.10.28
   docs: docs/integration.md#management-page
-  checks: [PAGE-040, PAGE-056, PAGE-057, PAGE-093]
+  match:
+  - '^[a-z]+:(PAGE\-040|PAGE\-056|PAGE\-057|PAGE\-093) '
 - feature: Unknown band discovery and assignment
   docs: docs/integration.md#management-page
-  checks: [PAGE-091, PAGE-092, PAGE-112, PAGE-162]
+  match:
+  - '^[a-z]+:(PAGE\-091|PAGE\-092|PAGE\-112|PAGE\-162) '
 - feature: Enrolment
   docs: docs/integration.md#management-page
-  checks: [PAGE-113]
+  match:
+  - '^[a-z]+:(PAGE\-113) '
 - feature: Reader cards
   docs: docs/integration.md#management-page
-  checks: [PAGE-027, PAGE-028, PAGE-060, PAGE-103, PAGE-109]
+  match:
+  - '^[a-z]+:(PAGE\-027|PAGE\-028|PAGE\-060|PAGE\-103|PAGE\-109) '
 - feature: Reader ring and tap settings
   since: 0.10.28
   docs: docs/reader.md
-  checks: [PAGE-031, PAGE-032]
+  match:
+  - '^[a-z]+:(PAGE\-031|PAGE\-032) '
 - feature: Idle circle
   since: 0.10.27
   docs: docs/reader.md
-  checks: [PAGE-033, PAGE-034, PAGE-157, PAGE-163, PAGE-164]
+  match:
+  - '^[a-z]+:(PAGE\-033|PAGE\-034|PAGE\-157|PAGE\-163|PAGE\-164) '
 - feature: Night mode and Sound at night
   since: 0.10.28
   docs: docs/reader.md
-  checks: [PAGE-035, PAGE-152, PAGE-158]
+  match:
+  - '^[a-z]+:(PAGE\-035|PAGE\-152|PAGE\-158) '
 - feature: Night times in the reader's Time zone setting (not the browser's)
   since: 0.10.32
   docs: docs/reader.md
-  checks: [PAGE-175, PAGE-176, PAGE-177, PAGE-178]
+  match:
+  - '^[a-z]+:(PAGE\-175|PAGE\-176|PAGE\-177|PAGE\-178) '
 - feature: Refused-tap lockout
   since: 0.10.28
   docs: docs/reader.md
-  checks: [PAGE-037, PAGE-038, PAGE-144]
+  match:
+  - '^[a-z]+:(PAGE\-037|PAGE\-038|PAGE\-144) '
 - feature: Welcome every band
   docs: docs/reader.md
-  checks: [PAGE-063, PAGE-156]
+  match:
+  - '^[a-z]+:(PAGE\-063|PAGE\-156) '
 - feature: Hardware settings confirm
   since: 0.10.28
   docs: docs/reader.md
-  checks: [PAGE-036]
+  match:
+  - '^[a-z]+:(PAGE\-036) '
 - feature: Paired with MagicbHAnds
   since: 0.10.28
   docs: docs/reader.md#pairing-with-magicbhands
-  checks: [PAGE-059, PAGE-184, PAGE-185]
+  match:
+  - '^[a-z]+:(PAGE\-059|PAGE\-184|PAGE\-185) '
 - feature: Band light-up power
   since: 0.10.28
   docs: docs/reader.md
-  checks: [PAGE-058]
+  match:
+  - '^[a-z]+:(PAGE\-058) '
 - feature: Automatic updates and Time zone
   since: 0.10.31
   docs: docs/reader.md
-  checks: [PAGE-104, PAGE-105, PAGE-106, PAGE-150]
+  match:
+  - '^[a-z]+:(PAGE\-104|PAGE\-105|PAGE\-106|PAGE\-150) '
 - feature: Device health tiles
   docs: docs/integration.md#management-page
-  checks: [PAGE-029, PAGE-108, PAGE-124]
+  match:
+  - '^[a-z]+:(PAGE\-029|PAGE\-108|PAGE\-124) '
 - feature: Live ring twin
   docs: docs/integration.md#management-page
-  checks: [PAGE-030, PAGE-068, PAGE-080, PAGE-081, PAGE-082, PAGE-083, PAGE-127]
+  match:
+  - '^[a-z]+:(PAGE\-030|PAGE\-068|PAGE\-080|PAGE\-081|PAGE\-082|PAGE\-083|PAGE\-127) '
 - feature: RGBW rings
   docs: docs/reader.md
-  checks: [PAGE-155]
+  match:
+  - '^[a-z]+:(PAGE\-155) '
 - feature: Older firmware hides settings gracefully
-  checks: [PAGE-146, PAGE-147, PAGE-148]
+  match:
+  - '^[a-z]+:(PAGE\-146|PAGE\-147|PAGE\-148) '
 - feature: Offline devices
-  checks: [PAGE-166, PAGE-167, PAGE-174]
+  match:
+  - '^[a-z]+:(PAGE\-166|PAGE\-167|PAGE\-174) '
 - feature: Page controls reach only MagicbHAnds devices
   since: 0.10.32
   docs: custom_components/magicband/frontend/shim.js
-  checks: [PAGE-179, PAGE-180, PAGE-181, PAGE-182]
+  match:
+  - '^[a-z]+:(PAGE\-179|PAGE\-180|PAGE\-181|PAGE\-182) '
 - feature: Bridge cards
   docs: docs/bridge.md
-  checks: [PAGE-107, PAGE-159]
+  match:
+  - '^[a-z]+:(PAGE\-107|PAGE\-159) '
 - feature: Send to bands
   docs: docs/commands.md
-  checks: [PAGE-039, PAGE-089, PAGE-090]
+  match:
+  - '^[a-z]+:(PAGE\-039|PAGE\-089|PAGE\-090) '
 - feature: Lockdown
   docs: docs/integration.md#lockdown
-  checks: [PAGE-084, PAGE-085, PAGE-153]
+  match:
+  - '^[a-z]+:(PAGE\-084|PAGE\-085|PAGE\-153) '
 - feature: Celebrations
   docs: docs/integration.md#celebrations-and-the-tap-passport
-  checks: [PAGE-086]
+  match:
+  - '^[a-z]+:(PAGE\-086) '
 - feature: Tap passport
   docs: docs/integration.md#celebrations-and-the-tap-passport
-  checks: [PAGE-087, PAGE-088, PAGE-160]
+  match:
+  - '^[a-z]+:(PAGE\-087|PAGE\-088|PAGE\-160) '
 - feature: Welcome colour and welcome sound
   docs: docs/integration.md#welcome-sounds
-  checks: [PAGE-075, PAGE-099, PAGE-100, PAGE-101, PAGE-161]
+  match:
+  - '^[a-z]+:(PAGE\-075|PAGE\-099|PAGE\-100|PAGE\-101|PAGE\-161) '
 - feature: Tap pictures and cameras
   docs: docs/integration.md#management-page
-  checks: [PAGE-076, PAGE-102, PAGE-128, PAGE-171]
+  match:
+  - '^[a-z]+:(PAGE\-076|PAGE\-102|PAGE\-128|PAGE\-171) '
 - feature: Battery history
   since: 0.10.8
   docs: docs/integration.md#management-page
-  checks: [PAGE-077]
+  match:
+  - '^[a-z]+:(PAGE\-077) '
 - feature: Per-card messages and revert on error
   since: 0.10.28
-  checks: [PAGE-047, PAGE-048, PAGE-049, PAGE-050, PAGE-051, PAGE-052, PAGE-053, PAGE-173, PAGE-183]
+  match:
+  - '^[a-z]+:(PAGE\-047|PAGE\-048|PAGE\-049|PAGE\-050|PAGE\-051|PAGE\-052|PAGE\-053|PAGE\-173|PAGE\-183) '
 - feature: Number range validation
   since: 0.10.28
-  checks: [PAGE-054, PAGE-055]
+  match:
+  - '^[a-z]+:(PAGE\-054|PAGE\-055) '
 - feature: Redraw guard
-  checks: [PAGE-044, PAGE-045, PAGE-046]
+  match:
+  - '^[a-z]+:(PAGE\-044|PAGE\-045|PAGE\-046) '
 - feature: Relative times (ago)
-  checks: [PAGE-042]
+  match:
+  - '^[a-z]+:(PAGE\-042) '
 - feature: Layout and overflow
-  checks: [PAGE-067, PAGE-110, PAGE-116, PAGE-117, PAGE-118, PAGE-119, PAGE-125, PAGE-126, PAGE-130, PAGE-131]
-- feature: "Accessibility: labels, switches, headings, focus"
-  checks: [PAGE-069, PAGE-070, PAGE-071, PAGE-072, PAGE-073, PAGE-074, PAGE-078, PAGE-079, PAGE-132]
+  match:
+  - '^[a-z]+:(PAGE\-067|PAGE\-110|PAGE\-116|PAGE\-117|PAGE\-118|PAGE\-119|PAGE\-125|PAGE\-126|PAGE\-130|PAGE\-131) '
+- feature: 'Accessibility: labels, switches, headings, focus'
+  match:
+  - '^[a-z]+:(PAGE\-069|PAGE\-070|PAGE\-071|PAGE\-072|PAGE\-073|PAGE\-074|PAGE\-078|PAGE\-079|PAGE\-132) '
 - feature: Touch targets on phones
-  checks: [PAGE-115, PAGE-120, PAGE-121, PAGE-122]
+  match:
+  - '^[a-z]+:(PAGE\-115|PAGE\-120|PAGE\-121|PAGE\-122) '
 - feature: Dark mode
-  checks: [PAGE-134, PAGE-135, PAGE-136, PAGE-137, PAGE-138, PAGE-140]
-- feature: "Household members (not administrators): a note at the top; Recent taps, Lockdown, enrolment, Add someone, Celebrations and the passport hidden; People and Bands controls switched off with the reason; no admin-only requests"
+  match:
+  - '^[a-z]+:(PAGE\-134|PAGE\-135|PAGE\-136|PAGE\-137|PAGE\-138|PAGE\-140) '
+- feature: 'Household members (not administrators): a note at the top; Recent taps, Lockdown, enrolment, Add someone, Celebrations and the passport hidden; People and Bands controls switched off with the
+    reason; no admin-only requests'
   since: 0.10.38
   docs: docs/integration.md
-  checks: [PAGE-188, PAGE-189, PAGE-190, PAGE-191]
-- feature: "Phone: shorter first screen (status chips hidden, KPIs in 3 compact columns, Needs attention on the first screen), full-size problem links"
+  match:
+  - '^[a-z]+:(PAGE\-188|PAGE\-189|PAGE\-190|PAGE\-191) '
+- feature: 'Phone: shorter first screen (status chips hidden, KPIs in 3 compact columns, Needs attention on the first screen), full-size problem links'
   since: 0.10.38
   docs: docs/integration.md
-  checks: [PAGE-186, PAGE-187]
+  match:
+  - '^[a-z]+:(PAGE\-186|PAGE\-187) '

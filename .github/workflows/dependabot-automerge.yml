@@ -1,0 +1,25 @@
+# Dependabot's grouped minor and patch updates merge themselves once ci-result passes (STANDARD.md 1.5), except:
+#  - new major versions (the shared workflow leaves them for the weekly maintenance session);
+#  - this repository's exception: the "signing" group of GitHub Actions (the actions the release-signing job uses)
+#    and the hash-pinned signing tools (pip, .github/requirements-signing*.txt). Those touch the job that holds the
+#    firmware signing key, so a person reviews them (.github/standard.yaml, exceptions). Single (ungrouped or
+#    security) updates of those actions are recognised by name in the branch.
+name: Dependabot auto-merge
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+jobs:
+  automerge:
+    if: >-
+      github.event.pull_request.user.login == 'dependabot[bot]'
+      && !startsWith(github.head_ref, 'dependabot/pip/')
+      && !contains(github.head_ref, '/signing-')
+      && !contains(github.head_ref, 'actions/checkout') && !contains(github.head_ref, 'actions/setup-python')
+      && !contains(github.head_ref, 'actions/download-artifact') && !contains(github.head_ref, 'actions/upload-artifact')
+      && !contains(github.head_ref, 'actions/attest-build-provenance') && !contains(github.head_ref, 'actions/upload-pages-artifact')
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: Legal-Copy7045/project-standards/.github/workflows/dependabot-automerge.yml@1f5964bc45844dc0cefda0374af8f8128daa1b40 # v1.1.0

@@ -2,9 +2,11 @@
 # Status "manual" in the reports; nothing here runs automatically, because it would tap, light, sound,
 # update or restart a device, or needs the real Home Assistant frontend. IDs are stable (see ids.py):
 # never reuse one. FW-206/216/226 and FW-318 are retired.
-# Each: id, stage (whose report lists it), feature, check (what must hold), steps (what to do and see).
+# Each: id, key ("<id> <check>": what the standard tooling records results against: python3 regression/run.py manual
+# "<key>" pass|fail --note ...), stage (the area it belongs to), feature, check (what must hold), steps.
 
 - id: FW-300
+  key: "FW-300 An official device refuses an unsigned update and installs a signed one"
   stage: firmware
   feature: Signed official builds
   check: An official device refuses an unsigned update and installs a signed one
@@ -15,6 +17,7 @@
     next official release from Home Assistant's Firmware update entity: it installs and the device restarts on the
     new version. 4. Flash your own build over USB with the web installer: it boots (no eFuses burned).
 - id: FW-301
+  key: "FW-301 Automatic updates installs a waiting release between 03:00 and 04:00 local time, by itself"
   stage: firmware
   feature: Automatic updates
   check: Automatic updates installs a waiting release between 03:00 and 04:00 local time, by itself
@@ -23,6 +26,7 @@
     Assistant connected or not. 3. Next morning: the device is on the new release; its log (INFO) shows the update
     after 03:00 local. 4. With the switch off, nothing installs.
 - id: FW-302
+  key: "FW-302 Refused taps lock the reader out, show it, and end on time"
   stage: firmware
   feature: Refused-tap lockout
   check: Refused taps lock the reader out, show it, and end on time
@@ -33,6 +37,7 @@
     lockout', no magicband_tap event). 4. After 1 minute (or turning the switch off) taps work again and the idle
     glow returns. 5. 'Test welcome' presses never count towards the lockout.
 - id: FW-303
+  key: "FW-303 First pairing needs a tap on the reader"
   stage: firmware
   feature: Reader pairing
   check: First pairing needs a tap on the reader
@@ -42,6 +47,7 @@
     ring shows a green welcome, no tag event is fired for that tap. 4. Repeat without tapping: after 2 minutes the
     request expires and the ring stops breathing blue, even if the integration asked again meanwhile.
 - id: FW-304
+  key: "FW-304 Warm white, orange and pink stay their colour when dim on a real ring"
   stage: firmware
   feature: Ring colours when dim (put_dimmed)
   check: Warm white, orange and pink stay their colour when dim on a real ring
@@ -52,6 +58,7 @@
     on), never plain red (FW-107). 4. RGBW ring with Ring type RGBW warm white: the white LED carries Warm white;
     other colours leave it off.
 - id: FW-305
+  key: "FW-305 Idle circle settings on a real ring"
   stage: firmware
   feature: Idle circle
   check: Idle circle settings on a real ring
@@ -60,6 +67,7 @@
     single LEDs; tail 0 shows a fifth of the ring; Idle tail fade 0 fades out, 100 is a solid bar; direction Reverse
     runs the other way; LED count 1-8 still runs without freezing.
 - id: FW-306
+  key: "FW-306 Every light show plays on the ring as on the page's live twin, and ends dark"
   stage: firmware
   feature: Light shows
   check: Every light show plays on the ring as on the page's live twin, and ends dark
@@ -68,6 +76,7 @@
     the page's twin match. 3. Each show fades to dark before the idle glow returns (Heartbeat: three beats, then
     dark).
 - id: FW-307
+  key: "FW-307 Sound at night Quieter lowers and restores the volume"
   stage: firmware
   feature: Sound at night
   check: Sound at night Quieter lowers and restores the volume
@@ -77,6 +86,7 @@
     night: it stays. 4. In the morning the day volume returns. 5. Restart during the night: the morning still restores
     the day volume.
 - id: FW-308
+  key: "FW-308 The reader's USB log and Home Assistant device log never show a band ID"
   stage: firmware
   feature: Band IDs not logged
   check: The reader's USB log and Home Assistant device log never show a band ID
@@ -85,6 +95,7 @@
     bands, press Allow/Forget last band, sync from MagicbHAnds. 3. No NFC ID (hex like 04A1B2...) appears in the
     log.
 - id: FW-309
+  key: "FW-309 Changing 'Time zone' applies at once to night mode and the update window"
   stage: firmware
   feature: Time zone setting
   check: Changing 'Time zone' applies at once to night mode and the update window
@@ -92,6 +103,7 @@
     1. Reader with Night from 22 / until 6. 2. Set 'Time zone' to a zone where it's currently 23:00. 3. Within a
     minute 'Night' turns on and the idle glow switches to the night setting; set it back and it turns off.
 - id: FW-310
+  key: "FW-310 A bridge flooded with commands waits for airtime and keeps proxying Bluetooth"
   stage: firmware
   feature: Bridge airtime budget
   check: A bridge flooded with commands waits for airtime and keeps proxying Bluetooth
@@ -100,6 +112,7 @@
     log warns 'Broadcasting too much: waiting for airtime'. 3. Its Bluetooth proxy keeps reporting advertisements
     (other BLE sensors keep updating) and the queued commands play out over the next minutes.
 - id: FW-319
+  key: "FW-319 Official bridge/reader: the setup hotspot starts only after 2 minutes without Wi-Fi, changes Wi-Fi, and refuses unsigned firmware"
   stage: firmware
   feature: Setup hotspot
   check: 'Official bridge/reader: the setup hotspot starts only after 2 minutes without Wi-Fi, changes Wi-Fi, and
@@ -113,6 +126,7 @@
     upload fails (the device log says the OTA validation / signature check failed) and the device keeps running
     its firmware. 5. A SCREEK BP2-POE never shows a hotspot.
 - id: FW-313
+  key: "FW-313 After a power cut at night the start-up sound respects 'Sound at night'"
   stage: firmware
   feature: Sound at night
   check: After a power cut at night the start-up sound respects 'Sound at night'
@@ -122,6 +136,7 @@
     at night Normal: the start-up sound plays (within 20 s of the show). 5. With Wi-Fi off at start-up and Sound
     at night Quieter: no sound after 20 s.
 - id: FW-314
+  key: "FW-314 A person's own welcome sound with Home Assistant down: the reader's chime plays"
   stage: firmware
   feature: Welcome sounds
   check: 'A person''s own welcome sound with Home Assistant down: the reader''s chime plays'
@@ -130,6 +145,7 @@
     3. Tap their band: the reader plays its own tap-in chime. 4. With Home Assistant back, the person's sound plays
     and the chime doesn't.
 - id: FW-315
+  key: "FW-315 'Tap lockout' is off, not unknown, after a restart"
   stage: firmware
   feature: Refused-tap lockout
   check: '''Tap lockout'' is off, not unknown, after a restart'
@@ -137,6 +153,7 @@
     1. Reader with 'Refused-tap lockout' on. 2. Restart it. 3. In Home Assistant 'Tap lockout' shows Off (OK), not
     Unknown.
 - id: FW-316
+  key: "FW-316 Changing ring settings during a tap doesn't cut off the welcome"
   stage: firmware
   feature: Ring effects
   check: Changing ring settings during a tap doesn't cut off the welcome
@@ -144,6 +161,7 @@
     1. Tap an allowed band and, during the welcome, change 'LED brightness', 'LED count', 'LED colour order' or
     'Idle glow' from Home Assistant. 2. The welcome pulses finish; the idle glow returns afterwards in the new setting.
 - id: FW-317
+  key: "FW-317 Sunset to sunrise follows a Time zone change straight away"
   stage: firmware
   feature: Night mode
   check: Sunset to sunrise follows a Time zone change straight away
@@ -152,6 +170,7 @@
     sunset and sunrise at Home Assistant's location (e.g. 8 hours away). 3. 'Night now' changes within a minute,
     without waiting for sun.sun to update; set it back and it returns.
 - id: FW-320
+  key: "FW-320 Enrolling a family's bands: every new band tapped in quick succession reaches Home Assistant"
   stage: firmware
   feature: Unknown-band tag scan limit
   check: 'Enrolling a family''s bands: every new band tapped in quick succession reaches Home Assistant'
@@ -162,6 +181,7 @@
     not sent to Home Assistant' warning; every tap still gets the usual welcome or denied sequence. 4. An allowed
     band tapped in between is always sent and welcomed.
 - id: FW-312
+  key: "FW-312 BP2-POE in Home Assistant has no Factory Reset entity"
   stage: firmware
   feature: No factory-reset button
   check: BP2-POE in Home Assistant has no Factory Reset entity
@@ -170,6 +190,7 @@
     Device' is expected; after updating from an older release delete the leftover unavailable 'Safe Mode Boot' entity).
     3. Bands light up from the BP2 over Ethernet with magicband.send.
 - id: FW-321
+  key: "FW-321 A pairing and a new allowed list survive a power cut a few seconds after the change"
   stage: firmware
   feature: Reader pairing
   check: A pairing and a new allowed list survive a power cut a few seconds after the change
@@ -179,6 +200,7 @@
     MagicbHAnds' on) and with the new list: the removed band is turned away by the reader itself. 4. Before 0.10.38 a
     power cut within a minute could bring back the old key or list.
 - id: WALK-901
+  key: "WALK-901 In the real Home Assistant, Configure reads well on a computer and on a phone"
   stage: walkthrough
   feature: "Walkthrough: Home Assistant screens (adding the integration, Configure, entities, Repairs)"
   check: In the real Home Assistant, Configure reads well on a computer and on a phone
@@ -189,6 +211,7 @@
     without sideways scrolling and every control is easy to tap. 3. Note anything confusing for the walkthrough
     findings (it changes nothing: close each screen without submitting).
 - id: WALK-902
+  key: "WALK-902 The MagicbHAnds page works in the Home Assistant app on a phone, for an administrator and a household member"
   stage: walkthrough
   feature: "Walkthrough: the MagicbHAnds page on a real phone"
   check: The MagicbHAnds page works in the Home Assistant app on a phone, for an administrator and a household member

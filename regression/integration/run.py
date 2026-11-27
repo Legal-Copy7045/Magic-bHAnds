@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Regression stage "integration": pytest over tests/ (the Home Assistant integration) -> out/integration.json.
+"""Regression stage "unit": pytest over tests/ (the Home Assistant integration) -> out/unit.json.
 
 Usage (from the test venv, the one with pytest-homeassistant-custom-component):
 
     python regression/integration/run.py [--python /path/to/python] [extra pytest args]
 
 Writes regression/out/integration-junit.xml (JUnit), regression/out/integration-tests.jsonl (raw outcomes)
-and regression/out/integration.json (the stage result, README.md format).
+and regression/out/unit.json (the stage result, README.md format).
 
-IDs: every test (each parametrised case too) has a stable INT- ID in regression/integration/test_ids.yaml.
+IDs: every test (each parametrised case too) has a stable INT- ID in regression/ids/unit.yaml.
 A test not in that file yet gets the next free number, appended to the file (commit it). IDs are never
-renumbered or reused: if a test is renamed, edit its line in test_ids.yaml to keep its ID; a removed test's
+renumbered or reused: if a test is renamed, edit its line in ids/unit.yaml to keep its ID; a removed test's
 line stays and shows as a `skip` ("no longer exists") until the line is deleted, and its number is not
 given out again (the file records the highest number issued).
 
@@ -33,7 +33,7 @@ import sys
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 OUT = REPO / "regression" / "out"
-IDS = HERE / "test_ids.yaml"
+IDS = HERE.parent / "ids" / "unit.yaml"   # the stage's committed ID registry
 CATALOGUE = REPO / "regression" / "catalogue" / "integration.yaml"
 _LINE = re.compile(r'^(INT-\d{3,})\s*:\s*"(.*)"\s*$')
 _HIGHEST = re.compile(r"^# highest issued:\s*INT-(\d+)\s*$")
@@ -136,7 +136,7 @@ def main() -> int:
         result = {"id": check_id, "feature": feature, "check": humanise(nodeid, rec["doc"] if rec else ""),
                   "status": "skip", "detail": "", "evidence": f"out/integration-pytest.log ({nodeid})"}
         if rec is None:
-            result["detail"] = "test no longer exists (renamed or removed? see test_ids.yaml)" if not extra else \
+            result["detail"] = "test no longer exists (renamed or removed? see ids/unit.yaml)" if not extra else \
                 "not run (pytest was given a selection)"
         elif rec["outcome"] == "passed":
             result["status"] = "pass"
@@ -155,7 +155,7 @@ def main() -> int:
 
     counts = {s: sum(1 for r in results if r["status"] == s) for s in ("pass", "fail", "skip", "manual")}
     stage = {
-        "stage": "integration",
+        "stage": "unit",
         "started": started,
         "finished": _now(),
         "environment": {
@@ -168,9 +168,9 @@ def main() -> int:
         },
         "results": results,
     }
-    (OUT / "integration.json").write_text(json.dumps(stage, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    (OUT / "unit.json").write_text(json.dumps(stage, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"integration: {counts['pass']} pass, {counts['fail']} fail, {counts['skip']} skip ({summary})")
-    print(f"-> {OUT / 'integration.json'}")
+    print(f"-> {OUT / 'unit.json'}")
     if proc.returncode not in (0, 1):  # 1 = some tests failed; anything else = pytest itself broke
         print(proc.stdout[-3000:], proc.stderr[-3000:], sep="\n")
         return proc.returncode

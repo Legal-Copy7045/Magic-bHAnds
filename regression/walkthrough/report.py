@@ -34,6 +34,9 @@ sys.path.insert(0, str(HERE.parent))
 from report import CSS, bar, counts, pill, result_table  # noqa: E402 - the regression report's look
 
 GROUPS = ["merge", "rename", "move", "remove", "flow", "mobile", "keep-separate"]
+# The project standard's walkthrough groups -> this report's
+STD_GROUPS = {"duplicate": "merge", "naming": "rename", "placement": "move", "dead-end": "remove",
+              "long-flow": "flow", "keep-separate": "keep-separate", "layout": "mobile", "other": "flow"}
 GROUP_TITLES = {"merge": "Merge", "rename": "Rename", "move": "Move", "remove": "Remove", "flow": "Flow",
                 "mobile": "Mobile", "keep-separate": "Keep separate"}
 e = html.escape
@@ -54,6 +57,25 @@ def load(out: Path = OUT):
     found = read("findings.json", {})
     if isinstance(found, list):
         found = {"findings": found}
+    found = {"findings": list(found.get("findings", [])), "menus": list(found.get("menus", []))}
+    # The global /walkthrough skill's reviewer files (project standard: regression/out/findings/walkthrough-*.json)
+    for who in ("desktop", "phone"):
+        p = HERE.parent / "out" / "findings" / f"walkthrough-{who}.json"
+        try:
+            data = json.loads(p.read_text()) if p.is_file() else {}
+        except json.JSONDecodeError:
+            data = {}
+        for f in data.get("findings", []):
+            found["findings"].append({
+                "id": f.get("id", ""), "group": STD_GROUPS.get(f.get("group", ""), "flow"), "title": f.get("title", ""),
+                "now": f.get("detail", ""), "proposal": f.get("proposal", ""), "who": ", ".join(f.get("roles", [])),
+                "effort": f.get("effort", "?"), "risk": f.get("value", f.get("risk", "?")), "width": who,
+                "evidence": [x if x.startswith("shots/") else f"shots/{Path(x).name}" for x in f.get("screenshots", [])
+                             if isinstance(x, str)]})
+        menus = data.get("proposed_menus") or []
+        if isinstance(menus, dict):
+            menus = [{"role": k, "menu": v if isinstance(v, list) else [str(v)], "why": ""} for k, v in menus.items()]
+        found["menus"] += [{**m, "role": f"{m.get('role', '')} ({who} reviewer)"} for m in menus if isinstance(m, dict)]
     notes = read("notes.json", {})
     findings = sorted(found.get("findings", []), key=lambda f: (GROUPS.index(f["group"]) if f.get("group") in GROUPS else 99,
                                                                   f.get("id", "")))

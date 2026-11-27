@@ -1,114 +1,116 @@
-name: Build, test & release
+name: CI
 
-# GitHub Actions minutes are limited, so this runs only when it's needed:
-# - Pull requests (never drafts: mark a PR ready once local checks pass) build
-#   the firmware and run the integration tests, each only when the PR touches
-#   what it tests.
-# - A merge to main runs only when it raises VERSION: it builds, signs and
-#   publishes the web installer, and releases (tags v<VERSION> and creates the
-#   GitHub Release with the firmware and integration attached, from the same
-#   signed build). Other merges to main run nothing.
-# - Once a week, main gets a full build and test run (no signing or release).
-# - Run workflow on main does a full run, signs and publishes the web
-#   installer; with "release" ticked it also releases (to retry a release).
-# Releases come only from main: the sign job runs only for refs/heads/main, so
-# release (which needs sign) can't run anywhere else, and a pushed v* tag
-# starts nothing at all. A tag can't reach the signing key anyway: the
-# release-signing environment's deployment branches allow main only (no tag
-# rule), so GitHub refuses the key to any other ref, even if a tagged commit
-# edits this file.
+# CI per the owner's project standard 1.1.0 (github.com/Legal-Copy7045/project-standards, STANDARD.md section 1),
+# with this repository's own signed, attested release path (see .github/standard.yaml, beyond:):
+# - Pull requests (never drafts: mark a PR ready once `python3 regression/run.py check` passes): the quick checks,
+#   the privacy guard (loaded from main) and gitleaks on the PR's commits; the firmware build and the integration
+#   tests only when the PR touches what they test (the changes job, .github/changes.yaml).
+# - Push to main: the private-terms check (the privacy environment, main only), and, when VERSION has no v<VERSION>
+#   tag yet, the release path: build, sign, attest, publish the web installer and create the GitHub Release, from
+#   the same signed build. Nothing is re-tested and nothing else publishes, so devices only see released firmware.
+# - Weekly (Sunday 01:47 UTC) and Run workflow: everything, full-history secret scan, audits; publishes nothing
+#   (Run workflow on main with "release" ticked retries a release).
+# Releases come only from main: the release path starts only for refs/heads/main, a pushed v* tag starts nothing,
+# and a tag can't reach the signing key anyway: the release-signing environment's deployment branches allow main
+# only (no tag rule), so GitHub refuses the key to any other ref, even if a tagged commit edits this file.
+# ci-result is the only required check.
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
   push:
-    # Only a merge that raises VERSION (a release) runs on main.
     branches: [main]
-    paths: [VERSION]
   schedule:
-    - cron: "17 7 * * 1"   # weekly full run on main (Mondays, 07:17 UTC)
+    - cron: "47 1 * * 0"        # Sunday 01:47 UTC: this project's slot (STANDARD.md 1.6)
   workflow_dispatch:
     inputs:
-      release:
-        description: "Create a GitHub Release for the version in VERSION"
-        type: boolean
-        default: false
+      release: {type: boolean, default: false, description: "Release VERSION if it has no tag yet (main only)"}
 
 permissions:
   contents: read
 
-# Actions are pinned to commit SHAs (the comment gives the tag), so a moved or
-# hijacked tag can't change what runs here. Update them deliberately.
-
-# A newer push to a pull request replaces its older build. Runs on main are
-# never cancelled: every push to main signs and publishes, and one that raises
-# VERSION releases, so a merge landing mid-release waits for it instead of
-# cutting it off half-done. Release runs from the Actions page aren't either.
+# Actions are pinned to commit SHAs (the comment gives the tag), so a moved or hijacked tag can't change what runs
+# here. A newer push to a pull request replaces its older run; runs on main are never cancelled (a merge landing
+# during a release waits for it).
 concurrency:
-  group: build-${{ github.ref }}-${{ github.event_name }}
+  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   ESPHOME_VERSION: "2026.10.2"
 
 jobs:
-  versions:
-    # Draft pull requests run nothing (every other job needs this one).
+  changes:
+    # Drafts run nothing (every other job needs this one).
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
-      # "true" when a pull request changes something the firmware is built from
-      # (always "true" outside pull requests): otherwise the build is skipped.
-      firmware: ${{ steps.changes.outputs.firmware }}
-      # "true" when a pull request changes the integration, its tests or the regression harness
-      # (always "true" outside pull requests): otherwise the integration tests are skipped.
-      integration: ${{ steps.changes.outputs.integration }}
-      # "true" on a push to main whose VERSION has no release tag yet: release.
-      new_version: ${{ steps.release.outputs.new_version }}
+      release: ${{ steps.c.outputs.release }}
+      full: ${{ steps.c.outputs.full }}
+      firmware: ${{ steps.c.outputs.firmware }}
+      integration: ${{ steps.c.outputs.integration }}
+      lockfiles: ${{ steps.c.outputs.lockfiles }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-      - name: Check versions match
-        env:
-          TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
-        run: python3 .github/scripts/check_versions.py $TAG
-      - name: What does this pull request change?
-        id: changes
+        with: {fetch-depth: 0, persist-credentials: false}
+      - id: c
         env:
           EVENT: ${{ github.event_name }}
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
+          RELEASE_INPUT: ${{ inputs.release }}
+        run: python3 .github/scripts/changes.py
+
+  quick:
+    needs: changes
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: {persist-credentials: false}
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with: {python-version: "3.13"}
+      - name: Check versions match
+        run: python3 .github/scripts/check_versions.py
+      - name: Lint (correctness rules) and the regression harness's own tests
         run: |
-          fw=true
-          it=true
-          if [ "$EVENT" = pull_request ]; then
-            changed="$(git diff --name-only "$BASE...$HEAD")"
-            echo "$changed"
-            echo "$changed" | grep -qE '^(esphome/|components/|VERSION$|\.github/(workflows/firmware\.yml$|requirements|scripts/(signed_build|make_site|check_bp2_standalone|sign_firmware)\.py$))' || fw=false
-            echo "$changed" | grep -qE '^(custom_components/|tests/|regression/|pytest\.ini$|VERSION$|\.github/workflows/firmware\.yml$)' || it=false
-          fi
-          echo "firmware=$fw" >> "$GITHUB_OUTPUT"
-          echo "integration=$it" >> "$GITHUB_OUTPUT"
-          echo "Build the firmware: $fw; run the integration tests: $it"
-      - name: Is VERSION a new release?
-        id: release
-        env:
-          EVENT: ${{ github.event_name }}
-          REF: ${{ github.ref }}
+          pip install -q "ruff==0.17.6" "pytest==9.2.0" "pyyaml==6.0.4" "pillow==13.0.0"
+          ruff check --isolated --select F,E9,PLE,B --ignore B905,B008,B904 --target-version py313 --exclude '**/.esphome/**' custom_components .github/scripts regression tests
+          python -m pytest -q regression/tests
+      - name: Dependency audit (requirements changed, or weekly)
+        if: needs.changes.outputs.lockfiles == 'true' || needs.changes.outputs.full == 'true'
         run: |
-          new=false
-          if [ "$EVENT" = push ] && [ "$REF" = refs/heads/main ]; then
-            v="$(tr -d '[:space:]' < VERSION)"
-            git ls-remote --exit-code --tags origin "refs/tags/v$v" >/dev/null || new=true
-          fi
-          echo "new_version=$new" >> "$GITHUB_OUTPUT"
-          echo "New release: $new"
+          pip install -q "pip-audit==2.10.1"
+          pip-audit -r .github/requirements-signing-build.txt -r .github/requirements-signing.txt --require-hashes --disable-pip
+          printf 'esphome==%s\n' "$ESPHOME_VERSION" > "$RUNNER_TEMP/esphome.txt"
+          pip-audit -r "$RUNNER_TEMP/esphome.txt" --no-deps --disable-pip
+
+  # The privacy guard (no-reply addresses, no credentials, nothing personal), loaded from main so a pull request
+  # can't weaken it; the private terms only on main, in the "privacy" environment (PR code never sees them).
+  privacy:
+    needs: changes
+    if: github.event_name != 'push'
+    uses: Legal-Copy7045/project-standards/.github/workflows/privacy.yml@1f5964bc45844dc0cefda0374af8f8128daa1b40 # v1.1.0
+
+  privacy-denylist:
+    needs: changes
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref_name == 'main')
+    uses: Legal-Copy7045/project-standards/.github/workflows/privacy.yml@1f5964bc45844dc0cefda0374af8f8128daa1b40 # v1.1.0
+    with: {denylist: true}
+    secrets: inherit
+
+  secrets:
+    needs: changes
+    if: github.event_name != 'push'
+    uses: Legal-Copy7045/project-standards/.github/workflows/gitleaks.yml@1f5964bc45844dc0cefda0374af8f8128daa1b40 # v1.1.0
+    with: {full-history: "${{ needs.changes.outputs.full == 'true' }}"}
 
   build:
-    needs: versions
-    if: needs.versions.outputs.firmware == 'true'
+    needs: changes
+    if: needs.changes.outputs.firmware == 'true' || needs.changes.outputs.release == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     # Read-only: the published firmware is attested in the sign job, after signing.
     permissions:
       contents: read
@@ -200,11 +202,13 @@ jobs:
         with:
           name: builds-${{ matrix.target }}
           path: stage/
+          retention-days: 3
 
   # The three builds together assemble into the site (unsigned; the sign job publishes).
   site-check:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
@@ -223,21 +227,18 @@ jobs:
             reader=builds/magicband-reader/build=esphome/magicband-reader.yaml \
             bp2=builds/screek-bp2-poe/build=esphome/screek-bp2-poe.yaml
 
-  # Signs the firmware with the project's key, then assembles the site and the
-  # release files from the signed images. Only main gets here (a push to main
-  # or Run workflow on main), and the release-signing environment holding
-  # OTA_SIGNING_KEY allows only main (deployment branches: main, no tag rule),
-  # so pull requests, other branches and pushed tags never reach the key: that
-  # environment rule, not this file, is the real gate. The commit must also be
-  # on main before anything else runs. Every push to main is signed, so the
-  # account that can push to main is what protects releases: it should use
-  # two-factor authentication, and the environment stays limited to main
-  # (see docs/security.md).
+  # The release path. Signs the firmware with the project's key, then assembles the site and the release files
+  # from the signed images. Runs only for a push to main whose VERSION has no tag yet (or Run workflow on main with
+  # "release" ticked), and the release-signing environment holding OTA_SIGNING_KEY allows only main (deployment
+  # branches: main, no tag rule), so pull requests, other branches and pushed tags never reach the key: that
+  # environment rule, not this file, is the real gate. The commit must also be on main before anything else runs.
+  # The account that can push to main is what protects releases: it should use two-factor authentication, and the
+  # environment stays limited to main (see docs/security.md).
   sign:
-    # A release (a push to main, which only VERSION changes start) or Run workflow; never the weekly run.
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
-    needs: build
+    if: needs.changes.outputs.release == 'true' && github.ref == 'refs/heads/main'
+    needs: [changes, build]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment: release-signing
     permissions:
       contents: read
@@ -299,15 +300,17 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: firmware
+          retention-days: 3
           path: |
             _site/firmware/*.bin
             _site/reader/firmware/*.bin
             _site/bp2/firmware/*.bin
   # Tests for the Home Assistant integration (custom_components/magicband).
   test-integration:
-    needs: versions
-    if: needs.versions.outputs.integration == 'true'
+    needs: changes
+    if: needs.changes.outputs.integration == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -318,18 +321,16 @@ jobs:
           python-version: "3.13"
 
       - name: Install test framework
-        run: pip install "pytest-homeassistant-custom-component==0.13.316" "fonttools==4.60.1"
+        run: pip install "pytest-homeassistant-custom-component==0.13.316" "fonttools==4.60.2"
 
       - name: Run tests
         run: python -m pytest -q
 
-      - name: Run the regression harness's own tests
-        run: python -m pytest -q regression/tests
-
   deploy:
-    if: github.ref == 'refs/heads/main'
-    needs: [sign, test-integration]
+    if: needs.changes.outputs.release == 'true' && github.ref == 'refs/heads/main'
+    needs: [changes, sign]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       pages: write
       id-token: write
@@ -340,20 +341,19 @@ jobs:
       - id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
 
-  # Runs on main only: for a push whose VERSION has no release yet (a merged
-  # version bump), or from Run workflow with release ticked. It releases the
-  # build that sign has just signed and published. A pushed v* tag never gets
-  # here: sign only runs on main.
+  # Creates the tag v<VERSION> and the GitHub Release from the build sign has just signed and published (the
+  # release path only; after the private-terms check).
   release:
-    if: github.ref == 'refs/heads/main' && ((github.event_name == 'push' && needs.versions.outputs.new_version == 'true') || (github.event_name == 'workflow_dispatch' && inputs.release))
-    needs: [versions, sign, test-integration]
+    if: needs.changes.outputs.release == 'true' && github.ref == 'refs/heads/main'
+    needs: [changes, sign, privacy-denylist]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
       # Signed build-provenance attestations for the released files, so anyone
       # can check a download came from this workflow on main (docs/security.md):
       #   gh attestation verify <file> --repo Legal-Copy7045/Magic-bHAnds \
-      #     --signer-workflow Legal-Copy7045/Magic-bHAnds/.github/workflows/firmware.yml \
+      #     --signer-workflow Legal-Copy7045/Magic-bHAnds/.github/workflows/ci.yml \
       #     --source-ref refs/heads/main
       id-token: write
       attestations: write
@@ -396,3 +396,16 @@ jobs:
             magicband-integration-*.zip
             *.bin
             firmware/**/*.bin
+
+  # The one required check: fails when a needed job failed or was cancelled, passes when they passed or were skipped.
+  ci-result:
+    if: always() && (github.event_name != 'pull_request' || !github.event.pull_request.draft)
+    needs: [changes, quick, privacy, privacy-denylist, secrets, build, site-check, test-integration, sign, deploy, release]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: |
+          echo "$RESULTS"
+          if echo "$RESULTS" | grep -qE '"(failure|cancelled)"'; then echo "A needed job failed or was cancelled."; exit 1; fi

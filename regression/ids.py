@@ -4,7 +4,7 @@
 Every ID a stage reports must be registered, and every registered ID must still be reported unless it
 is marked retired. IDs are never renumbered or reused: a removed check is retired, not deleted, and a
 new check takes a new number. (The integration stage keeps its own registry,
-regression/integration/test_ids.yaml, which maps each ID to its pytest node.)
+regression/ids/unit.yaml maps each ID to its pytest node, and regression/integration/run.py assigns them.)
 
   python3 regression/ids.py check [stage ...]   compare out/<stage>.json with the registry
   python3 regression/ids.py sync [stage ...]    register new IDs found in out/<stage>.json (appends)
@@ -31,8 +31,6 @@ HARNESS = re.compile(r"-RUN$")  # the runner's own "stage broke" result
 
 
 def registry_path(stage: str) -> Path:
-    if stage == "integration":
-        return HERE / "integration" / "test_ids.yaml"
     return REG / f"{stage}.yaml"
 
 
@@ -66,8 +64,8 @@ def compare(stage: str, out: Path) -> tuple[list[str], list[str]]:
 
 def sync(stage: str, out: Path) -> list[str]:
     """Append the IDs out/<stage>.json reports that aren't registered yet. Returns them."""
-    if stage == "integration":
-        raise SystemExit("the integration registry maps IDs to tests: regression/integration/run.py assigns them")
+    if stage == "unit":
+        raise SystemExit("the unit registry maps IDs to tests: regression/integration/run.py assigns them")
     reg, got = load(stage), reported(stage, out)
     new = sorted((i for i in got if i not in reg), key=_key)
     if not new:
@@ -90,11 +88,12 @@ def _key(check_id: str):
 def main(argv: list[str]) -> int:
     from run import ALL_STAGES  # noqa: PLC0415 - the runner owns the stage list
 
-    out = HERE / "out"
+    from run import out_dir  # noqa: PLC0415
     cmd, stages = (argv[0] if argv else "check"), (argv[1:] or ALL_STAGES)
     bad = 0
     for stage in stages:
-        if not (out / f"{stage}.json").is_file() and not (stage == "walkthrough"):
+        out = out_dir(stage)
+        if not (out / f"{stage}.json").is_file():
             print(f"{stage}: no out/{stage}.json")
             continue
         if cmd == "sync":
