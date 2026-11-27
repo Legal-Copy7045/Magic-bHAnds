@@ -3,6 +3,14 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.42] - 2026-11-27
+
+### Fixed
+- **Light shows are as bright on RGBW rings as on RGB rings**: shows paint
+  with red, green and blue only, but the power limit counted them as also
+  lighting the white element, so on a 35-LED RGBW ring at budget 35 they ran
+  at 75 % instead of 100 %.
+
 ## [0.10.41] - 2026-11-27
 
 ### Added

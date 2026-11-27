@@ -160,8 +160,9 @@ the reader's device page in Home Assistant, under **Configuration**, set:
   full white on 35 LEDs is scaled to 24 ÷ 35 (68 %) at the default budget
   (an RGBW ring's white with every element on, 18 ÷ 35). On an RGBW ring,
   White and Warm white come mostly from the white element, so they run at
-  full too. Light shows, with many colours, always use the full-white
-  limit. While one colour fades into another, the limit covers whichever
+  full too. Light shows, with many colours, are limited as if red, green
+  and blue were all on (they never use an RGBW ring's white element), the
+  same on both ring types. While one colour fades into another, the limit covers whichever
   draws more.
 - **Ring power budget** (12–35 LEDs, default 24): how much the ring may draw,
   in LEDs at full white (60 mA each, the datasheet's worst case; 24 is about

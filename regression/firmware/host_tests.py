@@ -92,7 +92,7 @@ CHECKS = {
     "FW-232": ("Full-power test", "Test steps 24..35, stopping at the first step that no longer scales the ring down; one step for a ring within the default; a bad index ends the test"),
     "FW-233": ("Full-power test", "A restart during a step keeps the step below it (20 if 24 failed)"),
     "FW-235": ("Ring power budget", "The cap follows the colour shown: 35 LEDs at budget 24 run red, green and RGBW warm white at 100 %, RGB white at 69 %, RGBW all on at 51 %, all within the budget"),
-    "FW-236": ("Ring power budget", "shown_elements: a light show is the worst case, one-colour effects go by their colour, off is 0, NaN is the worst case, out-of-range clamped"),
+    "FW-236": ("Ring power budget", "shown_elements: a light show counts as red, green and blue all on (also on RGBW rings: shows never light the white element), one-colour effects go by their colour, off is 0, NaN is the worst case, out-of-range clamped"),
     # mocks
     "FW-170": ("Host test harness", "The host mocks still match ESPHome's real color.h / esp_color_correction.cpp formulas"),
 }

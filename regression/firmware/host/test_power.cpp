@@ -118,7 +118,7 @@ int main() {
     FakeLight l;
     l.remote_values.r = 1, l.remote_values.g = 0, l.remote_values.b = 0;
     l.effect = magicband::shows::NAMES[0];
-    if (!near(magicband::shown_elements(l, false), 3) || !near(magicband::shown_elements(l, true), 4)) why += "a show isn't the worst case; ";
+    if (!near(magicband::shown_elements(l, false), 3) || !near(magicband::shown_elements(l, true), 3)) why += "a show isn't red+green+blue on; ";
     l.effect = "Chase";
     if (!near(magicband::shown_elements(l, false), 1)) why += "a one-colour effect isn't sized by its colour; ";
     l.remote_values.on = false;
@@ -127,7 +127,7 @@ int main() {
     if (!near(magicband::shown_elements(l, true), 4)) why += "NaN isn't the worst case; ";
     if (!near(magicband::power_cap_for(35, 24, 0), 1) || !near(magicband::power_cap_for(0, 24, 3), 1)) why += "0 elements/LEDs not 1; ";
     if (!near(magicband::power_cap_for(35, 24, 99), 18.0f / 35)) why += "elements over 4 not clamped; ";
-    result("FW-236", why.empty(), why.empty() ? "shows = worst case (3 RGB, 4 RGBW), one-colour effects by their colour, off = 0, NaN = worst, out-of-range clamped" : why);
+    result("FW-236", why.empty(), why.empty() ? "shows = red+green+blue on (3, also on RGBW: they never light white), one-colour effects by their colour, off = 0, NaN = worst, out-of-range clamped" : why);
   }
   return 0;
 }

@@ -498,13 +498,17 @@ def power_test_check(text: str) -> dict:
     light = text.split("id: ring\n", 1)[1][:1500] if "id: ring\n" in text else ""
     if "on_state:" not in light or "script.execute: ring_cap_update" not in light:
         bad.append("the ring light doesn't run ring_cap_update on every state change")
+    shows = text.count("magicband::shows::render_show(")
+    rgb_only = text.count("it[i] = Color(buf[3 * i], buf[3 * i + 1], buf[3 * i + 2]);")
+    if not shows or shows != rgb_only:
+        bad.append(f"{shows} show effects but {rgb_only} write red/green/blue only (power_cap counts a show as 3 elements)")
     lit = text.split("- id: apply_ring_settings", 1)[1][:3000] if "- id: apply_ring_settings" in text else ""
     if "script.execute: ring_cap_apply" not in lit:
         bad.append("apply_ring_settings doesn't apply the cap")
     return r("FW-234", "Full-power test", "Reader: each full-power test step is written to flash before the LEDs go up, the test "
              "clears it at the end, boot keeps the step below an interrupted one before the ring starts; the ring is capped "
              "for the colour shown (power_cap_for within Ring power budget), on every light change, keeping the bigger of the "
-             "old and new colour through the fade", not bad, "; ".join(bad) or "in order")
+             "old and new colour through the fade; every show effect writes red, green and blue only", not bad, "; ".join(bad) or "in order")
 
 
 def reader_checks(c: dict) -> list[dict]:
