@@ -11,8 +11,11 @@ Inputs:
   out/findings-*.json        review findings: [{id, severity, area, title, file, line,
                              description, scenario, recommendation, verified}]
   out/notes.json             optional {"summary": "...", "observations": ["..."]}
-  catalogue/*.yaml           features and the checks that cover them: `checks:` lists IDs, and
-                             `match:` lists regexes over "<stage>:<ID>" (e.g. "quality:QUAL-00[4-7]")
+  out/findings/*.json        the global skills' reviewer files ({reviewer, status, findings, claims: [{id, held, note}]}),
+                             walkthrough-* excluded; claims are named from claims.yaml
+  catalogue/*.yaml           features and the checks that cover them: `match:` regexes searched in
+                             "<stage>:<key>" (a key starts with its ID, e.g. "^[a-z]+:(INT-044|PAGE-012) "),
+                             plus `checks:` (IDs) in older entries
 """
 
 from __future__ import annotations
@@ -30,7 +33,7 @@ import yaml
 HERE = Path(__file__).resolve().parent
 OUT = HERE / "out"
 ROOT = HERE.parent
-STAGES = ["integration", "ci", "firmware", "page", "live", "quality", "ids"]
+STAGES = ["ci", "unit", "device", "page", "live", "quality", "manual", "ids"]
 SEV = ["critical", "high", "medium", "low", "info"]
 STATUS = ["fail", "pass", "manual", "skip"]
 e = html.escape
@@ -49,14 +52,22 @@ def load():
         if isinstance(data, dict) and isinstance(data.get("results"), list):  # stage files only
             stages[s] = data
     findings, claims = [], []
-    for p in sorted(OUT.glob("findings*.json")):
+    named = {c["id"]: c for c in (yaml.safe_load((HERE / "claims.yaml").read_text()) or [])} \
+        if (HERE / "claims.yaml").is_file() else {}
+    files = sorted(OUT.glob("findings*.json")) + sorted(p for p in (OUT / "findings").glob("*.json")
+                                                         if not p.name.startswith("walkthrough"))
+    for p in files:
         try:
             data = json.loads(p.read_text())
         except json.JSONDecodeError:
             continue
         findings += data if isinstance(data, list) else data.get("findings", [])
         if isinstance(data, dict):
-            claims += data.get("claims", [])
+            for c in data.get("claims", []):
+                if "held" in c and "holds" not in c:  # the standard's format: {id, held, note}
+                    c = {"claim": f"{c.get('id', '')}: {named.get(c.get('id'), {}).get('claim', '')}".strip(": "),
+                         "holds": c["held"], "note": c.get("note", "")}
+                claims.append(c)
     findings.sort(key=lambda f: (SEV.index(f.get("severity", "info")) if f.get("severity") in SEV else 9, f.get("id", "")))
     catalogue = []
     for p in sorted((HERE / "catalogue").glob("*.yaml")):
@@ -69,13 +80,14 @@ def load():
 
 
 def matched_ids(item, keys):
-    """The check IDs a catalogue entry covers: its `checks:` list plus every "<stage>:<ID>" in keys that one
-    of its `match:` regexes matches in full."""
-    checks = list(item.get("checks") or [])
+    """The check IDs a catalogue entry covers: its `checks:` and `manual:` lists, plus the ID of every
+    "<stage>:<key>" in keys that one of its `match:` regexes finds (the standard's catalogue format; keys are
+    "<ID> <what it checks>")."""
+    checks = list(item.get("checks") or []) + list(item.get("manual") or [])
     pats = [re.compile(p) for p in item.get("match") or []]
     for key in sorted(keys):
-        stage_id = key.split(":", 1)[1]
-        if stage_id not in checks and any(p.fullmatch(key) for p in pats):
+        stage_id = key.split(":", 1)[1].split(" ", 1)[0]
+        if stage_id not in checks and any(p.search(key) for p in pats):
             checks.append(stage_id)
     return checks
 
@@ -85,7 +97,7 @@ def coverage(stages, catalogue):
     for s, d in stages.items():
         for r in d.get("results", []):
             by_id.setdefault(r["id"], []).append(r)
-            keys.add(f"{s}:{r['id']}")
+            keys.add(f"{s}:{r.get('key') or r['id']}")
     rows, referenced = [], set()
     for item in catalogue:
         checks = matched_ids(item, keys)

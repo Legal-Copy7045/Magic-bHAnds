@@ -1,0 +1,41 @@
+# This project's regression profile (project standard 1.1.0, section 3.1). The global /regression, /walkthrough and
+# /full-check skills read this file; this project's specifics are here and in regression/README.md.
+name: MagicbHAnds
+type: firmware              # also a Home Assistant integration (HACS) with a sidebar page
+ui: true
+report_tz: America/New_York
+version_file: VERSION
+changelog: CHANGELOG.md
+security_tools: "regression/quality/run.py (ruff correctness rules, bandit with regression/quality/accepted.yaml, pip-audit of every pinned package, npm advisories for ESP Web Tools)"
+roles: [admin, member]      # a Home Assistant administrator, and a household member who isn't one
+
+# Stages: this project's own runners (run.py runs them; they're not command stages). Standard names where they match,
+# original ID prefixes kept (never renumbered); quality is an extra stage between unit and live.
+stages:
+  ci: {prefix: CI, runner: regression/ci/run.py, what: "release tooling: signing, signed builds, versions, privacy guard, site, workflow invariants"}
+  unit: {prefix: INT, runner: regression/integration/run.py, what: "the integration's pytest suite (tests/), one ID per test"}
+  device: {prefix: FW, runner: regression/firmware/run.py, what: "firmware config invariants, C++ host tests of components/magicband, compiles with --compile"}
+  page: {prefix: PAGE, runner: regression/page/run.js, what: "the MagicbHAnds page in Chromium with mock Home Assistant data, desktop/phone/dark, admin and household member"}
+  live: {prefix: LIVE, runner: regression/live/run.py, env: [HA_URL], what: "read-only checks of the owner's Home Assistant and the published release"}
+  quality: {prefix: QUAL, runner: regression/quality/run.py, what: "lint, static security scan, dependency audit, JavaScript syntax, the harness's own tests"}
+  manual: {prefix: MAN}
+  walkthrough: {prefix: WALK, runner: regression/walkthrough/run.py, what: "every screen at desktop and phone, admin and member, installer, Home Assistant screens"}
+
+walkthrough:
+  ui_paths: ['^custom_components/magicband/frontend/', '^custom_components/magicband/(config_flow\.py|strings\.json|translations/)', '^web/']
+
+reviewers:
+  bugs: >-
+    Risky paths: firmware state machines, timers and millis() wraparound, night/lockout/pairing/offline interplay, the
+    reader's flash saves (save_now); the integration's registry edge cases, schedules across midnight and DST, sync
+    failure paths and retries, listeners and reloads, blocking I/O; the page's entity matching, redraw guard, arming
+    timers, household-member view.
+  claims: >-
+    Claims are in docs/security.md (including "Accepted risks": don't re-report those unless their description is
+    wrong), README.md and docs/*.md; see claims.yaml. Calibrate to a home hobby project (CLAUDE.md "What this is").
+  exposure: >-
+    Someone at the door with NFC tags, in Bluetooth range, on the Wi-Fi or the setup hotspot; a malicious pull request
+    or fork; a tampered update site or download; the build cache and Dependabot auto-merge; the release-signing
+    environment and the signed OTA path; HTTP views, uploads and signed URLs; page XSS through names or band data.
+  desktop: "The page's sections, the Configure options flow, the installer; what a household member sees."
+  phone: "The jump chips, long sections (Bands, People, Celebrations), fold-outs, touch areas, the household-member view."

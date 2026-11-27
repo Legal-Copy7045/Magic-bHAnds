@@ -447,7 +447,7 @@ def signed_build_checks(tmp: Path) -> None:
 F_VER = "Release: every part carries the same version (check_versions.py, release_notes.py)"
 VERSION_FILES = ["VERSION", "CHANGELOG.md", "custom_components/magicband/manifest.json", "esphome/magicband-bridge.yaml",
                  "esphome/magicband-reader.yaml", "esphome/screek-bp2-poe.yaml", "esphome/screek-bp2-poe-standalone.yaml",
-                 ".github/scripts/check_versions.py"]
+                 ".github/scripts/check_versions.py", ".github/versions.yaml"]
 
 
 def _version_copy(tmp: Path, name: str) -> Path:
@@ -467,8 +467,6 @@ def version_checks(tmp: Path) -> None:
         assert proc.returncode == 0, out_of(proc)
         proc = script("check_versions.py", f"v{version}")
         assert proc.returncode == 0, out_of(proc)
-        proc = script("check_versions.py", f"refs/tags/v{version}")
-        assert proc.returncode == 0, out_of(proc)
         return f"VERSION {version}"
 
     @check("CI-017", F_VER, "Fails when one part has another version (temp copy: manifest.json and a device file)")
@@ -478,23 +476,23 @@ def version_checks(tmp: Path) -> None:
         data = json.loads(manifest.read_text())
         data["version"] = "0.0.1"
         manifest.write_text(json.dumps(data))
-        proc = script("check_versions.py", path=root / ".github/scripts/check_versions.py")
-        assert proc.returncode != 0 and "BAD custom_components/magicband/manifest.json: 0.0.1" in out_of(proc), out_of(proc)
+        proc = script("check_versions.py", path=root / ".github/scripts/check_versions.py", cwd=root)
+        assert proc.returncode != 0 and "custom_components/magicband/manifest.json: 0.0.1 (VERSION is" in out_of(proc), out_of(proc)
         root = _version_copy(tmp, "versions-yaml")
         reader = root / "esphome/magicband-reader.yaml"
         reader.write_text(re.sub(r'(project_version:\s*")[^"]+', r"\g<1>9.9.9", reader.read_text(), count=1))
-        proc = script("check_versions.py", path=root / ".github/scripts/check_versions.py")
-        assert proc.returncode != 0 and "BAD esphome/magicband-reader.yaml: 9.9.9" in out_of(proc), out_of(proc)
+        proc = script("check_versions.py", path=root / ".github/scripts/check_versions.py", cwd=root)
+        assert proc.returncode != 0 and "esphome/magicband-reader.yaml: 9.9.9 (VERSION is" in out_of(proc), out_of(proc)
 
     @check("CI-018", F_VER, "Fails on a wrong tag and on a CHANGELOG without the version's section")
     def _():
         proc = script("check_versions.py", "v0.0.1")
-        assert proc.returncode != 0 and "BAD git tag" in out_of(proc), out_of(proc)
+        assert proc.returncode != 0 and "tag v0.0.1 doesn't match VERSION" in out_of(proc), out_of(proc)
         root = _version_copy(tmp, "versions-changelog")
         log = root / "CHANGELOG.md"
         log.write_text(log.read_text().replace(f"## [{version}]", "## [unreleased]"))
-        proc = script("check_versions.py", path=root / ".github/scripts/check_versions.py")
-        assert proc.returncode != 0 and "BAD CHANGELOG.md" in out_of(proc), out_of(proc)
+        proc = script("check_versions.py", path=root / ".github/scripts/check_versions.py", cwd=root)
+        assert proc.returncode != 0 and "CHANGELOG.md has no" in out_of(proc), out_of(proc)
 
     @check("CI-019", F_VER, "release_notes.py prints the CHANGELOG section for VERSION and refuses an unknown version")
     def _():
@@ -512,7 +510,7 @@ NOREPLY = "123+morgan@users.noreply.github.com"
 
 
 def _guard_env(denylist: str = "") -> dict:
-    env = {k: v for k, v in os.environ.items() if k not in ("PRIVACY_DENYLIST", "BASE", "HEAD") and not k.startswith("GIT_")}
+    env = {k: v for k, v in os.environ.items() if k not in ("PRIVACY_DENYLIST", "PRIVACY_DENYLIST_REQUIRED", "BASE", "HEAD") and not k.startswith("GIT_")}
     env["PRIVACY_DENYLIST"] = denylist  # never the real one
     return env
 
@@ -552,6 +550,18 @@ def privacy_checks(tmp: Path) -> None:
     @check("CI-021", F_PG, "A clean repository with a no-reply author passes")
     def _():
         proc = _guard(_repo(tmp, "clean", {"a.txt": "nothing to see\n"}))
+        assert proc.returncode == 0, out_of(proc)
+
+    @check("CI-066", F_PG, "The private-terms run (PRIVACY_DENYLIST_REQUIRED=1, as the standard's privacy workflow sets "
+           "on main) fails when the secret is empty, instead of passing without checking the terms")
+    def _():
+        root = _repo(tmp, "required", {"a.txt": "nothing to see\n"})
+        env = _guard_env("")
+        env["PRIVACY_DENYLIST_REQUIRED"] = "1"
+        proc = run([sys.executable, str(SCRIPTS / "privacy_guard.py")], cwd=root, env=env)
+        assert proc.returncode != 0 and "PRIVACY_DENYLIST is empty" in proc.stdout, out_of(proc)
+        env["PRIVACY_DENYLIST"] = "zz-not-in-this-repo"
+        proc = run([sys.executable, str(SCRIPTS / "privacy_guard.py")], cwd=root, env=env)
         assert proc.returncode == 0, out_of(proc)
 
     @check("CI-022", F_PG, "Flags a tracked *.pem (a key file) by name")
@@ -669,18 +679,23 @@ def privacy_checks(tmp: Path) -> None:
         assert "Tracked file" not in proc.stdout and "::Binary content" not in proc.stdout.replace(
             "an added binary file: binary content", ""), out_of(proc)
 
-    @check("CI-045", F_PG, "privacy.yml runs on pull requests and Run workflow and gives the guard the pull request's "
-           "range: full history checkout, BASE = the PR base (none on Run workflow: the whole history), HEAD = the PR head")
+    @check("CI-045", F_PG, "ci.yml runs the privacy guard as the standard's reusable privacy.yml, pinned to v1.1.0 by "
+           "commit: on pull requests (loaded from main, no private terms) and, with the private terms, only for pushes to "
+           "main and Run workflow on main; the release waits for the private-terms check")
     def _():
-        pv, _ = _workflow("privacy.yml")
-        assert set(pv["on"]) == {"pull_request", "workflow_dispatch"}, pv["on"]
-        steps = _steps(pv["jobs"]["privacy"])
-        co = next(s for s in steps if str(s.get("uses", "")).startswith("actions/checkout@"))
-        assert (co.get("with") or {}).get("fetch-depth") == 0, "the guard needs the full history (merge base, BASE)"
-        env = next(s for s in steps if "privacy_guard.py" in (s.get("run") or "")).get("env") or {}
-        assert env.get("BASE") == "${{ github.event.pull_request.base.sha }}", env.get("BASE")
-        assert env.get("HEAD") == "${{ github.event.pull_request.head.sha || github.sha }}", env.get("HEAD")
-        assert env.get("PRIVACY_DENYLIST") == "${{ secrets.PRIVACY_DENYLIST }}", "denylist not from the secret"
+        ci, _ = _workflow("ci.yml")
+        jobs = ci["jobs"]
+        want = f"{STD_WF}privacy.yml@{STD_PIN}"
+        assert jobs["privacy"]["uses"] == want and jobs["privacy-denylist"]["uses"] == want, \
+            (jobs["privacy"]["uses"], jobs["privacy-denylist"]["uses"])
+        assert "secrets" not in jobs["privacy"] and not (jobs["privacy"].get("with") or {}).get("denylist")
+        assert jobs["privacy"].get("if") == "github.event_name != 'push'", jobs["privacy"].get("if")
+        assert jobs["privacy-denylist"]["with"] == {"denylist": True}, jobs["privacy-denylist"].get("with")
+        assert jobs["privacy-denylist"].get("if") == ("github.event_name == 'push' || (github.event_name == "
+                                                      "'workflow_dispatch' && github.ref_name == 'main')"), \
+            jobs["privacy-denylist"].get("if")
+        assert ci["on"]["push"] == {"branches": ["main"]}, ci["on"]["push"]
+        assert "privacy-denylist" in jobs["release"]["needs"], jobs["release"]["needs"]
 
     @check("CI-049", F_PG, "A control byte (\\x01) and non-UTF-8 bytes in an added line don't hide the rest of the "
            "commit: a term later in the same file, in another file and in a binary of that commit are all caught, "
@@ -920,7 +935,9 @@ def fab_checks() -> None:
 
 # ---------------------------------------------------------------------------- workflows
 
-F_WF = "Release pipeline security (.github/workflows/firmware.yml, privacy.yml)"
+F_WF = "Release pipeline security (.github/workflows/ci.yml)"
+STD_WF = "Legal-Copy7045/project-standards/.github/workflows/"
+STD_PIN = "1f5964bc45844dc0cefda0374af8f8128daa1b40"
 SHA_PIN = re.compile(r"^[\w.-]+/[\w./-]+@[0-9a-f]{40}$")
 
 
@@ -930,6 +947,16 @@ def _workflow(name: str) -> tuple[dict, str]:
     if True in doc and "on" not in doc:  # YAML 1.1 reads the key `on` as True
         doc["on"] = doc.pop(True)
     return doc, text
+
+
+def _changed_groups(path: str) -> set[str]:
+    """The CI groups (.github/changes.yaml) a pull request changing only `path` starts, as changes.py decides."""
+    cfg = _yaml_load((REPO / ".github" / "changes.yaml").read_text())
+    hit = lambda pats: any(re.search(p, path) for p in pats or [])  # noqa: E731
+    if hit(cfg.get("ignore")):
+        return set()
+    groups = {g for g, pats in cfg["groups"].items() if hit(pats)}
+    return set(cfg["groups"]) if hit(cfg.get("shared")) or not groups else groups
 
 
 def _steps(job: dict) -> list[dict]:
@@ -946,19 +973,22 @@ def _secrets_in(obj) -> set[str]:
 
 
 def workflow_checks() -> None:
-    fw, fw_text = _workflow("firmware.yml")
-    pv, _pv_text = _workflow("privacy.yml")
+    fw, fw_text = _workflow("ci.yml")
     jobs = fw["jobs"]
+    others = {name: _workflow(name) for name in ("codeql.yml", "dependabot-automerge.yml")}
 
-    @check("CI-032", F_WF, "Every action in firmware.yml and privacy.yml is pinned to a commit SHA (firmware.yml: with its tag as a comment)")
+    @check("CI-032", F_WF, "Every action and reusable workflow in ci.yml, codeql.yml and dependabot-automerge.yml is "
+           "pinned to a commit SHA with its tag as a comment; the standard's workflows are pinned to v1.1.0")
     def _():
-        cq, _cq_text = _workflow("codeql.yml")
-        bad = [u for doc in (fw, pv, cq) for u in _uses(doc) if not SHA_PIN.match(u)]
+        docs = [(fw, fw_text), *others.values()]
+        bad = [u for doc, _t in docs for u in _uses(doc) if not SHA_PIN.match(u)]
         assert not bad, f"not pinned: {bad}"
-        uncommented = [line.strip() for line in fw_text.splitlines()
-                       if "uses:" in line and re.search(r"@[0-9a-f]{40}\s*$", line)]
+        uncommented = [line.strip() for _d, text in docs for line in text.splitlines()
+                       if "uses:" in line and not re.search(r"@[0-9a-f]{40} # v\d", line)]
         assert not uncommented, f"no tag comment: {uncommented}"
-        return f"{len(_uses(fw)) + len(_uses(pv))} uses, all pinned"
+        std = [u for doc, _t in docs for u in _uses(doc) if u.startswith(STD_WF)]
+        assert std and all(u.endswith(f"@{STD_PIN}") for u in std), std
+        return f"{sum(len(_uses(d)) for d, _t in docs)} uses, all pinned"
 
     @check("CI-033", F_WF, "The sign job only runs for main (never a tag or a pull_request), after build")
     def _():
@@ -966,27 +996,25 @@ def workflow_checks() -> None:
         cond = sign.get("if", "")
         assert "schedule" not in cond and "pull_request" not in cond, cond
         assert "github.ref == 'refs/heads/main'" in cond and "refs/tags" not in cond, cond
-        assert cond.strip() == ("(github.event_name == 'push' || github.event_name == 'workflow_dispatch') && "
-                                "github.ref == 'refs/heads/main'"), f"unexpected condition: {cond}"
-        assert sign.get("needs") in ("build", ["build"]), sign.get("needs")
+        assert cond.strip() == "needs.changes.outputs.release == 'true' && github.ref == 'refs/heads/main'", \
+            f"unexpected condition: {cond}"
+        assert sign.get("needs") == ["changes", "build"], sign.get("needs")
 
     @check("CI-034", F_WF, "The sign job uses the release-signing environment (which holds OTA_SIGNING_KEY)")
     def _():
         env = jobs["sign"].get("environment")
         assert env == "release-signing" or (isinstance(env, dict) and env.get("name") == "release-signing"), env
 
-    @check("CI-035", F_WF, "deploy and release need sign (and the tests); deploy only on main; release only on main "
-           "(a push with a new VERSION, or a release run), and checks the commit is on main")
+    @check("CI-035", F_WF, "deploy and release need sign; both run only for a release (an untagged VERSION on main, "
+           "pushed or from a release run) on main; release also waits for the private-terms check and checks the "
+           "commit is on main")
     def _():
         for name in ("deploy", "release"):
             needs = jobs[name].get("needs")
-            needs = [needs] if isinstance(needs, str) else needs
-            assert "sign" in needs and "test-integration" in needs, (name, needs)
-        assert jobs["deploy"]["if"].strip() == "github.ref == 'refs/heads/main'", jobs["deploy"]["if"]
-        rel = jobs["release"]["if"]
-        assert rel.strip().startswith("github.ref == 'refs/heads/main' && ("), f"release not limited to main: {rel}"
-        assert "inputs.release" in rel and "needs.versions.outputs.new_version == 'true'" in rel, rel
-        assert "refs/tags" not in rel, rel
+            assert "sign" in needs and "changes" in needs, (name, needs)
+            assert jobs[name]["if"].strip() == "needs.changes.outputs.release == 'true' && github.ref == 'refs/heads/main'", \
+                (name, jobs[name]["if"])
+        assert "privacy-denylist" in jobs["release"]["needs"], jobs["release"]["needs"]
         on_main = [s for s in _steps(jobs["release"]) if "merge-base --is-ancestor" in (s.get("run") or "")]
         assert on_main, "release doesn't check the commit is on main"
 
@@ -997,9 +1025,11 @@ def workflow_checks() -> None:
         assert used.get("build") == set(), f"build uses secrets: {used.get('build')}"
         holders = {name for name, s in used.items() if "OTA_SIGNING_KEY" in s}
         assert holders == {"sign"}, holders
-        others = {name: s for name, s in used.items() if s and name != "sign"}
-        assert not others, f"other jobs use secrets: {others}"
-        assert "pull_request_target" not in fw["on"] and "pull_request_target" not in pv["on"]
+        extra = {name: s for name, s in used.items() if s and name != "sign"}
+        assert not extra, f"other jobs use secrets: {extra}"
+        inherit = {name for name, job in jobs.items() if "secrets" in job}
+        assert inherit == {"privacy-denylist"}, f"secrets passed to: {inherit}"
+        assert all("pull_request_target" not in d["on"] for d in (fw, *(o[0] for o in others.values())))
         sign_step = next(s for s in _steps(jobs["sign"]) if "OTA_SIGNING_KEY" in json.dumps(s))
         assert "${{" not in sign_step["run"], "the secret is expanded into the script text instead of an env variable"
 
@@ -1008,8 +1038,9 @@ def workflow_checks() -> None:
         problems = []
         if fw.get("permissions") != {"contents": "read"}:
             problems.append(f"workflow default {fw.get('permissions')}")
-        if pv.get("permissions") != {"contents": "read"}:
-            problems.append(f"privacy.yml default {pv.get('permissions')}")
+        for name, (doc, _t) in others.items():
+            if doc.get("permissions") not in ({"contents": "read"}, {}):
+                problems.append(f"{name} default {doc.get('permissions')}")
         attest = "actions/attest-build-provenance"
         for name, job in jobs.items():
             perms = job.get("permissions") or {}
@@ -1036,7 +1067,7 @@ def workflow_checks() -> None:
 
     @check("CI-039", F_WF, "Every checkout drops its credentials (persist-credentials: false)")
     def _():
-        bad = [f"{wf}:{name}" for wf, doc in (("firmware", fw), ("privacy", pv)) for name, job in doc["jobs"].items()
+        bad = [f"{wf}:{name}" for wf, doc in (("ci", fw),) for name, job in doc["jobs"].items()
                for s in _steps(job) if str(s.get("uses", "")).startswith("actions/checkout@")
                and (s.get("with") or {}).get("persist-credentials") is not False]
         assert not bad, bad
@@ -1099,7 +1130,7 @@ def workflow_checks() -> None:
            "and the main branch, not only the repository")
     def _():
         repo = "Legal-Copy7045/Magic-bHAnds"
-        want = (f"--signer-workflow {repo}/.github/workflows/firmware.yml", "--source-ref refs/heads/main")
+        want = (f"--signer-workflow {repo}/.github/workflows/ci.yml", "--source-ref refs/heads/main")
         doc = re.sub(r"\s+", " ", (REPO / "docs" / "security.md").read_text())
         cmds = re.findall(r"gh attestation verify [^`]*", doc)
         assert cmds, "docs/security.md has no gh attestation verify command"
@@ -1132,17 +1163,21 @@ def workflow_checks() -> None:
             assert stale not in doc, f"docs/security.md still says: {stale}"
         assert "only `main` (no tag rule)" in doc, "docs/security.md doesn't say the environment allows only main"
 
-    @check("CI-058", F_WF, "A merge to main releases a new VERSION from the same signed build: the versions job "
-           "says new_version only for a push to main whose v<VERSION> tag doesn't exist, and release needs versions")
+    @check("CI-058", F_WF, "A merge to main releases a new VERSION from the same signed build: the changes job says "
+           "release only for a push to main whose v<VERSION> tag doesn't exist (or a release run on main), and sign, "
+           "deploy and release all wait for it")
     def _():
-        steps = _steps(jobs["versions"])
-        rel = next(s for s in steps if s.get("id") == "release")
-        run = rel["run"]
-        assert '[ "$EVENT" = push ] && [ "$REF" = refs/heads/main ]' in run, run
-        assert 'git ls-remote --exit-code --tags origin "refs/tags/v$v"' in run and "|| new=true" in run, run
-        assert jobs["versions"]["outputs"]["new_version"] == "${{ steps.release.outputs.new_version }}"
-        needs = jobs["release"]["needs"]
-        assert "versions" in needs and "sign" in needs, needs
+        step = next(s for s in _steps(jobs["changes"]) if s.get("id") == "c")
+        assert step["run"].strip() == "python3 .github/scripts/changes.py", step["run"]
+        assert step["env"]["RELEASE_INPUT"] == "${{ inputs.release }}", step["env"]
+        assert jobs["changes"]["outputs"]["release"] == "${{ steps.c.outputs.release }}"
+        code = (REPO / ".github" / "scripts" / "changes.py").read_text()
+        assert '"ls-remote", "--exit-code", "--tags", "origin", f"refs/tags/v{v}"' in code, "tag check changed"
+        assert 'elif event == "push":\n    release = untagged()' in code
+        assert ('os.environ.get("RELEASE_INPUT") == "true" and os.environ.get("GITHUB_REF") == "refs/heads/main" '
+                'and untagged()') in code
+        for name in ("sign", "deploy", "release"):
+            assert "changes" in jobs[name]["needs"], (name, jobs[name]["needs"])
         assert fw["on"]["push"]["branches"] == ["main"], f"pushes to other branches build too: {fw['on']['push']}"
 
     @check("CI-059", F_WF, "The firmware builds in parallel (bridge, reader, BP2), keeps no secrets, restores compiled "
@@ -1157,23 +1192,21 @@ def workflow_checks() -> None:
         for name in ("sign", "site-check"):
             dl = [s for s in _steps(jobs[name]) if "download-artifact" in str(s.get("uses"))]
             assert dl and (dl[0].get("with") or {}).get("pattern") == "builds-*" and dl[0]["with"].get("merge-multiple"), (name, dl)
-        assert jobs["site-check"].get("needs") == "build"
+        assert jobs["site-check"].get("needs") == "build", jobs["site-check"].get("needs")
 
     @check("CI-060", F_WF, "A pull request skips the firmware build only when it changes nothing the firmware is built "
-           "from (esphome/, components/, VERSION, firmware.yml, the signing requirements and build scripts); pushes "
-           "always build")
+           "from (esphome/, components/, VERSION, ci.yml, the signing requirements and build scripts); a release always "
+           "builds")
     def _():
-        run = next(s for s in _steps(jobs["versions"]) if s.get("id") == "changes")["run"]
-        assert "fw=true" in run and 'if [ "$EVENT" = pull_request ]' in run, run
-        pattern = re.search(r"grep -qE '([^']+)'", run).group(1)
-        rx = re.compile(pattern)
+        groups = _changed_groups
         for path in ("esphome/magicband-reader.yaml", "components/magicband/reader.cpp", "VERSION",
-                     ".github/workflows/firmware.yml", ".github/requirements-signing.txt",
-                     ".github/scripts/signed_build.py", ".github/scripts/make_site.py"):
-            assert rx.search(path), f"a change to {path} would skip the build"
-        for path in ("docs/security.md", "regression/RUNS.md", "custom_components/magicband/readers.py"):
-            assert not rx.search(path), f"{path} would build the firmware"
-        assert jobs["build"].get("if") == "needs.versions.outputs.firmware == 'true'", jobs["build"].get("if")
+                     ".github/workflows/ci.yml", ".github/requirements-signing.txt",
+                     ".github/scripts/signed_build.py", ".github/scripts/make_site.py", "new/unknown.txt"):
+            assert "firmware" in groups(path), f"a change to {path} would skip the build"
+        for path in ("docs/security.md", "regression/RUNS.md", "custom_components/magicband/readers.py", "README.md"):
+            assert "firmware" not in groups(path), f"{path} would build the firmware"
+        assert jobs["build"].get("if") == ("needs.changes.outputs.firmware == 'true' || "
+                                           "needs.changes.outputs.release == 'true'"), jobs["build"].get("if")
 
     @check("CI-062", F_WF, "Runs on main are never cancelled (a merge landing mid-release waits for it); only a newer "
            "push to a pull request replaces its older build")
@@ -1183,58 +1216,78 @@ def workflow_checks() -> None:
         assert "github.ref" in conc.get("group", "") and "github.event_name" in conc.get("group", ""), conc
 
     @check("CI-063", F_WF, "Economical triggers: pull requests (opened, synchronize, reopened, ready_for_review) with "
-           "drafts skipped, main only for a VERSION change, a weekly run, Run workflow; integration tests only for "
-           "PRs that touch the integration, its tests or the harness")
+           "drafts skipped, main only to release (and the private-terms check), a weekly run, Run workflow; integration "
+           "tests only for PRs that touch the integration, its tests or the harness; ci-result is the one gate over every job")
     def _():
         on = fw["on"]
         assert set(on) == {"pull_request", "push", "schedule", "workflow_dispatch"}, list(on)
         assert on["pull_request"]["types"] == ["opened", "synchronize", "reopened", "ready_for_review"], on["pull_request"]
-        assert on["push"] == {"branches": ["main"], "paths": ["VERSION"]}, on["push"]
+        assert on["push"] == {"branches": ["main"]}, on["push"]
         assert len(on["schedule"]) == 1, on["schedule"]
-        assert jobs["versions"].get("if") == "github.event_name != 'pull_request' || !github.event.pull_request.draft"
-        assert pv["jobs"]["privacy"].get("if") == "github.event_name != 'pull_request' || !github.event.pull_request.draft"
-        assert jobs["test-integration"].get("if") == "needs.versions.outputs.integration == 'true'"
-        run = next(s for s in _steps(jobs["versions"]) if s.get("id") == "changes")["run"]
-        rx = re.compile(re.findall(r"grep -qE '([^']+)'", run)[1])
+        assert jobs["changes"].get("if") == "github.event_name != 'pull_request' || !github.event.pull_request.draft"
+        no_changes = [n for n, j in jobs.items() if n not in ("changes", "ci-result") and "changes" not in
+                      ([j["needs"]] if isinstance(j.get("needs"), str) else j.get("needs") or [])
+                      and n != "site-check"]
+        assert not no_changes, f"jobs that would run on drafts: {no_changes}"
+        for name in ("quick", "privacy", "secrets"):
+            assert jobs[name].get("if") == "github.event_name != 'push'", (name, jobs[name].get("if"))
+        assert jobs["test-integration"].get("if") == "needs.changes.outputs.integration == 'true'"
         for path in ("custom_components/magicband/readers.py", "tests/test_features.py", "regression/run.py", "VERSION"):
-            assert rx.search(path), f"{path} would skip the integration tests"
-        assert not rx.search("docs/security.md") and not rx.search("esphome/magicband-reader.yaml")
+            assert "integration" in _changed_groups(path), f"{path} would skip the integration tests"
+        assert "integration" not in _changed_groups("docs/security.md")
+        assert "integration" not in _changed_groups("esphome/magicband-reader.yaml")
+        gate = jobs["ci-result"]
+        assert set(gate["needs"]) == set(jobs) - {"ci-result"}, set(jobs) - {"ci-result"} - set(gate["needs"])
+        assert gate["if"].startswith("always()") and "failure|cancelled" in json.dumps(gate), gate
+        assert all(j.get("timeout-minutes") for n, j in jobs.items() if "uses" not in j), "a job has no timeout"
 
     @check("CI-064", F_WF, "CodeQL runs weekly and on demand (codeql.yml), for actions, python, javascript-typescript and "
            "c-cpp, with pinned actions and security-events write only in its job")
     def _():
-        cq, cq_text = _workflow("codeql.yml")
+        cq, _cq_text = others["codeql.yml"]
         assert set(cq["on"]) == {"schedule", "workflow_dispatch"}, cq["on"]
-        assert set(cq["jobs"]["analyze"]["strategy"]["matrix"]["language"]) == {"actions", "python", "javascript-typescript", "c-cpp"}
-        assert cq.get("permissions") == {"contents": "read"}, cq.get("permissions")
-        bad = [u for u in _uses(cq) if not SHA_PIN.match(u)]
-        assert not bad, f"not pinned: {bad}"
-        assert all(re.search(r"@[0-9a-f]{40} # v\d", line) for line in cq_text.splitlines() if "uses:" in line)
+        job = next(iter(cq["jobs"].values()))
+        assert job["uses"] == f"{STD_WF}codeql.yml@{STD_PIN}", job["uses"]
+        langs = json.loads(job["with"]["languages"]) if isinstance(job["with"]["languages"], str) else job["with"]["languages"]
+        assert set(langs) == {"actions", "python", "javascript-typescript", "c-cpp"}, langs
+        assert cq.get("permissions") in ({"contents": "read"}, {}), cq.get("permissions")
 
-    @check("CI-065", F_WF, "Dependabot: monthly, one grouped pull request per ecosystem (GitHub Actions, the pinned "
-           "signing tools)")
+    @check("CI-065", F_WF, "Dependabot: weekly on Sunday, grouped minor and patch updates (GitHub Actions, the pinned "
+           "signing tools); the ones that merge themselves never include the signing tools or the actions the signing "
+           "job runs")
     def _():
         db = _yaml_load((REPO / ".github" / "dependabot.yml").read_text())
         ups = {u["package-ecosystem"]: u for u in db["updates"]}
         assert set(ups) == {"github-actions", "pip"}, set(ups)
         for name, u in ups.items():
-            assert u["schedule"]["interval"] == "monthly", (name, u["schedule"])
-            assert len(u.get("groups") or {}) == 1 and list(u["groups"].values())[0]["patterns"] == ["*"], (name, u.get("groups"))
+            assert u["schedule"]["interval"] == "weekly" and u["schedule"].get("day") == "sunday", (name, u["schedule"])
+            for g in (u.get("groups") or {}).values():
+                assert set(g.get("update-types") or []) <= {"minor", "patch"}, (name, g)
+        signing = ups["github-actions"]["groups"]["signing"]["patterns"]
+        used = {re.sub(r"@.*", "", u) for u in _uses(fw) if "/" in u and not u.startswith(STD_WF)}
+        sign_uses = {re.sub(r"@.*", "", s["uses"]) for s in _steps(jobs["sign"]) if "uses" in s}
+        assert sign_uses <= set(signing), sign_uses - set(signing)
+        am, am_text = others["dependabot-automerge.yml"]
+        cond = re.sub(r"\s+", " ", json.dumps(am))
+        for action in sign_uses:
+            assert action.split("/", 1)[1] in cond, f"auto-merge doesn't exclude {action}"
+        assert "pip" in cond and "/signing-" in cond, "auto-merge doesn't exclude the signing tools"
+        return f"{len(used)} actions, {len(sign_uses)} held back from auto-merge"
 
     @check("CI-055", F_WF, "The account that can push to main is what protects releases: README, docs/security.md "
-           "(Signed updates and the accepted risk) and the sign job's comment in firmware.yml say it should use "
+           "(Signed updates and the accepted risk) and the sign job's comment in ci.yml say it should use "
            "two-factor authentication and keep the release-signing environment limited to main, and none of them "
            "recommends a required reviewer")
     def _():
         readme = re.sub(r"\s+", " ", (REPO / "README.md").read_text())
         doc = re.sub(r"\s+", " ", (REPO / "docs" / "security.md").read_text())
         wf = re.sub(r"\s*\n\s*#\s*", " ", fw_text)
-        for label, text in (("README.md", readme), ("docs/security.md", doc), ("firmware.yml", wf)):
+        for label, text in (("README.md", readme), ("docs/security.md", doc), ("ci.yml", wf)):
             assert "reviewer" not in text.lower(), f"{label} still mentions a required reviewer"
             assert "two-factor authentication" in text, f"{label} doesn't ask for two-factor authentication"
             assert "push to `main`" in text or "push to main" in text, f"{label} doesn't name the account that can push to main"
         assert "limited to `main`" in readme, "README doesn't say to keep release-signing limited to main"
-        assert "limited to main" in wf, "firmware.yml doesn't say the environment stays limited to main"
+        assert "limited to main" in wf, "ci.yml doesn't say the environment stays limited to main"
         risk = doc.split("**Anyone who can push to `main` can ship signed firmware.**", 1)
         assert len(risk) == 2, "the accepted risk 'Anyone who can push to main' is missing"
         risk = risk[1].split("- **", 1)[0]

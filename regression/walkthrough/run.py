@@ -33,7 +33,6 @@ import sys
 import time
 import urllib.request
 
-import yaml
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
@@ -188,12 +187,6 @@ def ha_checks(flows: dict | None, live: list[dict] | None) -> list[dict]:
     return res
 
 
-def manual() -> list[dict]:
-    items = yaml.safe_load((REPO / "regression" / "manual.yaml").read_text()) or []
-    return [{"id": i["id"], "feature": i["feature"], "check": i["check"], "status": "manual", "detail": i["steps"]}
-            for i in items if i.get("stage") == "walkthrough"]
-
-
 def main() -> int:
     started = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     OUT.mkdir(parents=True, exist_ok=True)
@@ -206,7 +199,7 @@ def main() -> int:
     except Exception as err:  # noqa: BLE001 - reported as the HA checks' failure
         flows, flows_err = None, str(err)
     live = live_entities()
-    results = crawl["results"] + ha_checks(flows, live) + manual()
+    results = crawl["results"] + ha_checks(flows, live)  # its manual checks are the manual stage's
     if flows_err:
         results.append({"id": "WALK-RUN", "feature": "Regression harness", "check": "The Home Assistant screens crawl runs",
                         "status": "fail", "detail": flows_err[-1500:]})

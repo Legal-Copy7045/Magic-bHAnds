@@ -1,19 +1,27 @@
-# Monthly, one grouped pull request per ecosystem (saves Actions minutes and review time).
-# A bump of the hash-pinned signing tools (.github/requirements-signing*.txt) fails CI-047 until the
-# pinned esptool version there is updated on purpose.
+# Weekly on Sunday (STANDARD.md 1.5): one grouped PR per ecosystem for minor and patch updates, each major update on
+# its own PR; security updates arrive as soon as an advisory is published. Grouped PRs merge themselves when
+# ci-result passes (dependabot-automerge.yml), except the "signing" actions group and the pip signing tools, which a
+# person reviews (they reach the job that holds the firmware signing key). A bump of the hash-pinned signing tools
+# also fails CI-047 until the pinned esptool version there is updated on purpose.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
-    schedule:
-      interval: monthly
+    schedule: {interval: weekly, day: sunday, time: "00:30"}
+    open-pull-requests-limit: 3
     groups:
-      github-actions:
+      signing:                  # actions the release-signing job uses: reviewed by a person
+        patterns: ["actions/checkout", "actions/setup-python", "actions/download-artifact", "actions/upload-artifact",
+                   "actions/attest-build-provenance", "actions/upload-pages-artifact"]
+        update-types: [minor, patch]
+      actions:
         patterns: ["*"]
+        update-types: [minor, patch]
   - package-ecosystem: pip
     directory: /.github
-    schedule:
-      interval: monthly
+    schedule: {interval: weekly, day: sunday, time: "00:30"}
+    open-pull-requests-limit: 3
     groups:
-      python:
+      signing-tools:
         patterns: ["*"]
+        update-types: [minor, patch]

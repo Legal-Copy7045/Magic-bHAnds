@@ -8,8 +8,9 @@ real coordinates (use made-up ones far from home), real NFC or Bluetooth band ID
 hostnames from the real Home Assistant, email addresses, Wi-Fi names, or credentials of any kind.
 
 - Commit as `Legal-Copy7045 <323378128+Legal-Copy7045@users.noreply.github.com>`.
-- The **Privacy guard** workflow (`.github/scripts/privacy_guard.py`) checks every push and pull request: no-reply commit
-  addresses, no credentials, and nothing matching the private terms in the `PRIVACY_DENYLIST` Actions secret. If it fails,
+- The **privacy guard** (`.github/scripts/privacy_guard.py`, loaded from `main`) checks every pull request and push to
+  `main`: no-reply commit addresses, no credentials, and (on `main` only) nothing matching the private terms in the
+  `PRIVACY_DENYLIST` secret of the `privacy` environment. Run it locally with the terms before pushing. If it fails,
   replace the value with a made-up one. Never put the real value back to make a test pass, and never print or copy the secret.
 
 ## What this is, and how much security it needs
@@ -32,22 +33,21 @@ or only an annoyance.
 
 ## CI and releases (this project's differences from the owner's defaults)
 
-- CI runs on pull requests (drafts skipped), weekly on `main`, and from Run workflow. `main` also runs for a
-  merge that raises `VERSION`, because that run signs the firmware and makes the release (the signing key is
-  only reachable from `main`). Other merges to `main` run nothing.
+- Standard 1.1.0 (`.github/standard.yaml`: what's `beyond:` and the `exceptions:`). One workflow, `ci.yml`;
+  `ci-result` is the required check. A push to `main` runs the private-terms check and, when `VERSION` has no tag
+  yet, the release: build, sign (the key is only reachable from `main`), attest, installer site, GitHub Release.
 - `VERSION` changes only for a release (every bump ships firmware to the devices), so merges that change only
   CI, docs or the regression suite don't bump it.
 
 ## Regression suite
 
-`regression/` is the full regression suite, run on demand with the `/regression` skill
-(`.claude/skills/regression/SKILL.md`) every few releases or after a big feature set.
-Quality commands: `/regression` (all stages + three-reviewer security audit), `/walkthrough` (every screen on desktop
-and phone + two reviewers), `/full-check` (both, end to end).
+`regression/` is the full suite (`regression/README.md`, `profile.yaml`), run on demand with the global
+`/regression`, `/walkthrough` and `/full-check` skills every few releases or after a big feature set.
+`python3 regression/run.py check` (ci, unit, quality) must pass before a PR is marked ready.
 
 - **Every PR that adds or changes a feature also updates the suite:** an entry in
   `regression/catalogue/<area>.yaml` and the checks that cover it (a test in `tests/`, a page check in
-  `regression/page/`, a firmware host test or config invariant in `regression/firmware/`, a CI check in
+  `regression/page/`, a firmware host test or config invariant in `regression/firmware/` (device stage), a CI check in
   `regression/ci/`, a read-only check in `regression/live/`, or a manual check with steps where it needs hardware).
 - Checks never touch real hardware or change Home Assistant; anything that would is a manual check.
 - `regression/out/` is git-ignored (results can name real devices). `regression/RUNS.md` keeps one public-safe

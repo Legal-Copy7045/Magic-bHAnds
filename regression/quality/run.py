@@ -123,7 +123,7 @@ def tool_python() -> Path:
 
 def workflow_pins() -> dict[str, str]:
     """Package pins the CI workflow installs (ESPHome, the integration's test framework)."""
-    wf = (REPO / ".github" / "workflows" / "firmware.yml").read_text()
+    wf = (REPO / ".github" / "workflows" / "ci.yml").read_text()
     pins = {"esphome": re.search(r'ESPHOME_VERSION:\s*"([^"]+)"', wf).group(1)}
     for name, ver in re.findall(r'"([A-Za-z0-9_.-]+)==([0-9][^"]*)"', wf):
         pins[name] = ver
@@ -219,7 +219,7 @@ def main() -> int:
     def _():
         pins = workflow_pins()
         names = [n for n in pins if n != "esphome"]
-        assert names, "no test framework pins found in firmware.yml"
+        assert names, "no test framework pins found in ci.yml"
         return audit([f"{n}=={pins[n]}" for n in names], "testfw")
 
     @check("QUAL-007", F_DEPS, "npm advisories: the vendored ESP Web Tools version (the code that runs on the "

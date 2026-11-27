@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Privacy guard: keeps personal details out of this public repository.
 
-Runs on every push and pull request (.github/workflows/privacy.yml) and fails if:
+Runs on pull requests and pushes to main (ci.yml, through the standard's reusable privacy workflow, which loads this file from main) and fails if:
 
 1. a new commit's author or committer isn't a no-reply address
    (<id>+<user>@users.noreply.github.com, noreply@github.com, noreply@anthropic.com);
@@ -108,6 +108,11 @@ def error(msg: str, path: str | None = None, line: int | None = None) -> None:
 def denylist() -> list[re.Pattern]:
     raw = os.environ.get("PRIVACY_DENYLIST", "")
     rules = []
+    if os.environ.get("PRIVACY_DENYLIST_REQUIRED") == "1" and not raw.strip():
+        # the private-terms run on main (the "privacy" environment): an empty secret must not pass silently
+        print("::error::PRIVACY_DENYLIST is empty: add it to the repository's \"privacy\" environment")
+        global problems
+        problems += 1
     for n, line in enumerate(raw.splitlines(), 1):
         line = line.strip()
         if not line or line.startswith("#"):

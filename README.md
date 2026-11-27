@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="https://github.com/Legal-Copy7045/Magic-bHAnds/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Legal-Copy7045/Magic-bHAnds?label=release"></a>
-  <a href="https://github.com/Legal-Copy7045/Magic-bHAnds/actions/workflows/firmware.yml"><img alt="Build" src="https://github.com/Legal-Copy7045/Magic-bHAnds/actions/workflows/firmware.yml/badge.svg"></a>
+  <a href="https://github.com/Legal-Copy7045/Magic-bHAnds/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Legal-Copy7045/Magic-bHAnds/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://hacs.xyz"><img alt="HACS" src="https://img.shields.io/badge/HACS-custom-blue"></a>
 </p>
 
@@ -133,14 +133,16 @@ integration attached.
 To make a release: bump `VERSION` and the versions it lists (CI checks they
 match), add a `CHANGELOG.md` section, and merge to `main`. The run for that
 merge signs the firmware, tags `v<VERSION>` and publishes the GitHub Release
-and the update site by itself. To retry a release that failed, go to **Actions → Build, test &
-release → Run workflow**, tick **release**, and run it on `main`. Releases come
+and the update site by itself. To retry a release that failed, go to **Actions → CI → Run
+workflow**, tick **release**, and run it on `main`. Releases come
 only from `main`: pushing a `v*` tag yourself doesn't release (it starts no
 run, and the `release-signing` environment gives its key to `main` only).
-To save GitHub Actions minutes, CI runs on pull requests (not drafts: mark a
-pull request ready once the local checks pass), on a merge that raises
-`VERSION`, once a week on `main`, and from Run workflow; other merges run
-nothing. Any push to `main` that changes `VERSION` signs the firmware and releases it,
+To save GitHub Actions minutes, CI (`.github/workflows/ci.yml`, the owner's
+project standard 1.1.0) runs on pull requests (not drafts: mark a pull request
+ready once `python3 regression/run.py check` passes), once a week, and from Run
+workflow; a pull request builds the firmware or runs the integration tests only
+when it touches them. A merge to `main` only checks the private terms, and
+releases when `VERSION` has no tag yet. Any push to `main` that raises `VERSION` signs the firmware and releases it,
 so the GitHub account that can push to `main` is what protects releases: give
 it two-factor authentication, and keep the `release-signing` environment
 limited to `main` (see [docs/security.md](docs/security.md#accepted-risks)).

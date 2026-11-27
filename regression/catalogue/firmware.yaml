@@ -4,127 +4,198 @@
 # Retired IDs (features removed or changed in 0.10.33; never reuse them): FW-137, FW-185, FW-190 (pairing key
 # fingerprint), FW-184, FW-191, FW-206, FW-216, FW-226 (on-device image version check), FW-026, FW-046, FW-066,
 # FW-086, FW-311 (no setup hotspot in any build), FW-318 (6-a-minute unknown-band limit, manual).
-- feature: "Device files resolve (bridge, reader, BP2, BP2 standalone; plain and signed)"
+- feature: Device files resolve (bridge, reader, BP2, BP2 standalone; plain and signed)
   since: 0.6.0
   docs: README.md
-  checks: [FW-001, FW-002, FW-003, FW-004, FW-005, FW-006, FW-007, FW-008]
-- feature: "Firmware builds: bridge, reader and BP2 compile as in CI, 64 KB-padded and fit their partitions"
+  match:
+  - '^[a-z]+:(FW\-001|FW\-002|FW\-003|FW\-004|FW\-005|FW\-006|FW\-007|FW\-008) '
+- feature: 'Firmware builds: bridge, reader and BP2 compile as in CI, 64 KB-padded and fit their partitions'
   since: 0.10.30
   docs: docs/security.md#devices-and-updates
-  checks: [FW-200, FW-201, FW-202, FW-203, FW-204, FW-210, FW-211, FW-212, FW-213, FW-214, FW-220, FW-221, FW-222, FW-223, FW-224]
-- feature: "Signed updates in the official builds (signed_build.py, sdkconfig, http_request OTA only)"
+  match:
+  - '^[a-z]+:(FW\-200|FW\-201|FW\-202|FW\-203|FW\-204|FW\-210|FW\-211|FW\-212|FW\-213|FW\-214|FW\-220|FW\-221|FW\-222|FW\-223|FW\-224) '
+- feature: Signed updates in the official builds (signed_build.py, sdkconfig, http_request OTA only)
   since: 0.10.30
   docs: docs/security.md#devices-and-updates
-  checks: [FW-009, FW-025, FW-045, FW-065, FW-085, FW-027, FW-047, FW-067, FW-087, FW-205, FW-215, FW-225, FW-300]
-- feature: "Firmware update entity and project version (Home Assistant updates from the Pages manifest)"
+  match:
+  - '^[a-z]+:(FW\-009|FW\-025|FW\-045|FW\-065|FW\-085|FW\-027|FW\-047|FW\-067|FW\-087|FW\-205|FW\-215|FW\-225) '
+  manual:
+  - FW-300
+- feature: Firmware update entity and project version (Home Assistant updates from the Pages manifest)
   since: 0.10.4
   docs: docs/security.md#devices-and-updates
-  checks: [FW-020, FW-040, FW-060, FW-080, FW-032, FW-052, FW-072, FW-092]
-- feature: "Automatic updates (02:55 check, 03:00-03:50 install by the internet clock, off by default, newer releases only)"
+  match:
+  - '^[a-z]+:(FW\-020|FW\-040|FW\-060|FW\-080|FW\-032|FW\-052|FW\-072|FW\-092) '
+- feature: Automatic updates (02:55 check, 03:00-03:50 install by the internet clock, off by default, newer releases only)
   since: 0.10.31
   docs: docs/security.md#devices-and-updates
-  checks: [FW-021, FW-041, FW-061, FW-081, FW-023, FW-043, FW-063, FW-083, FW-166, FW-033, FW-053, FW-073, FW-093, FW-180, FW-301]
-- feature: "Time zone setting and internet time (select applied to both clocks)"
+  match:
+  - '^[a-z]+:(FW\-021|FW\-041|FW\-061|FW\-081|FW\-023|FW\-043|FW\-063|FW\-083|FW\-166|FW\-033|FW\-053|FW\-073|FW\-093|FW\-180) '
+  manual:
+  - FW-301
+- feature: Time zone setting and internet time (select applied to both clocks)
   since: 0.10.31
   docs: CHANGELOG.md
-  checks: [FW-022, FW-042, FW-062, FW-082, FW-024, FW-044, FW-064, FW-084, FW-120, FW-121, FW-122, FW-123, FW-124, FW-309]
-- feature: "BP2-POE standalone file matches the shared add-on"
+  match:
+  - '^[a-z]+:(FW\-022|FW\-042|FW\-062|FW\-082|FW\-024|FW\-044|FW\-064|FW\-084|FW\-120|FW\-121|FW\-122|FW\-123|FW\-124) '
+  manual:
+  - FW-309
+- feature: BP2-POE standalone file matches the shared add-on
   since: 0.7.1
   docs: docs/screek-bp2-poe.md
-  checks: [FW-010]
-- feature: "Wi-Fi set over USB (Improv); no Wi-Fi credentials in the device files"
+  match:
+  - '^[a-z]+:(FW\-010) '
+- feature: Wi-Fi set over USB (Improv); no Wi-Fi credentials in the device files
   since: 0.10.4
   docs: docs/security.md#devices-and-updates
-  checks: [FW-031, FW-051, FW-071, FW-091]
-- feature: "Setup hotspot in the official signed bridge and reader builds only: open, after 2 minutes without Wi-Fi, captive portal behind the signature check; none in the device files or the BP2"
+  match:
+  - '^[a-z]+:(FW\-031|FW\-051|FW\-071|FW\-091) '
+- feature: 'Setup hotspot in the official signed bridge and reader builds only: open, after 2 minutes without Wi-Fi, captive portal behind the signature check; none in the device files or the BP2'
   since: 0.10.33
   docs: docs/security.md#devices-and-updates
-  checks: [FW-192, FW-193, FW-194, FW-195, FW-207, FW-217, FW-227, FW-319]
-- feature: "Encrypted API with a per-device key"
+  match:
+  - '^[a-z]+:(FW\-192|FW\-193|FW\-194|FW\-195|FW\-207|FW\-217|FW\-227) '
+  manual:
+  - FW-319
+- feature: Encrypted API with a per-device key
   since: 0.7.1
   docs: docs/security.md#what-a-tap-does-and-doesnt-prove
-  checks: [FW-028, FW-048, FW-068, FW-088]
-- feature: "Reader logs at INFO and never logs band IDs"
+  match:
+  - '^[a-z]+:(FW\-028|FW\-048|FW\-068|FW\-088) '
+- feature: Reader logs at INFO and never logs band IDs
   since: 0.10.4
   docs: docs/security.md#using-it-with-locks-alarms-and-presence
-  checks: [FW-029, FW-049, FW-069, FW-089, FW-095, FW-308]
-- feature: "No factory-reset or safe-mode button any Home Assistant user can press"
+  match:
+  - '^[a-z]+:(FW\-029|FW\-049|FW\-069|FW\-089|FW\-095) '
+  manual:
+  - FW-308
+- feature: No factory-reset or safe-mode button any Home Assistant user can press
   since: 0.7.1
   docs: docs/security.md#devices-and-updates
-  checks: [FW-030, FW-050, FW-070, FW-090, FW-034, FW-054, FW-074, FW-094, FW-312]
-- feature: "Safe mode only after a real boot loop (20 starts each failing within 30 s); restarts from Home Assistant don't count (SEC-018)"
+  match:
+  - '^[a-z]+:(FW\-030|FW\-050|FW\-070|FW\-090|FW\-034|FW\-054|FW\-074|FW\-094) '
+  manual:
+  - FW-312
+- feature: Safe mode only after a real boot loop (20 starts each failing within 30 s); restarts from Home Assistant don't count (SEC-018)
   since: 0.10.33
   docs: docs/screek-bp2-poe.md
-  checks: [FW-186, FW-187, FW-188, FW-189]
-- feature: "Reader pairing with MagicbHAnds (key, first pairing by tap and first request wins, unpair, protected actions, Allow/Forget buttons off when paired)"
+  match:
+  - '^[a-z]+:(FW\-186|FW\-187|FW\-188|FW\-189) '
+- feature: Reader pairing with MagicbHAnds (key, first pairing by tap and first request wins, unpair, protected actions, Allow/Forget buttons off when paired)
   since: 0.10.22
   docs: docs/security.md#who-can-change-whos-allowed-in
-  checks: [FW-096, FW-130, FW-131, FW-132, FW-133, FW-134, FW-135, FW-136, FW-159, FW-161, FW-174, FW-177, FW-303]
-- feature: "Test welcome (no tag scan, no refusal counted)"
+  match:
+  - '^[a-z]+:(FW\-096|FW\-130|FW\-131|FW\-132|FW\-133|FW\-134|FW\-135|FW\-136|FW\-159|FW\-161|FW\-174|FW\-177) '
+  manual:
+  - FW-303
+- feature: Test welcome (no tag scan, no refusal counted)
   since: 0.10.4
   docs: docs/security.md#devices-and-updates
-  checks: [FW-097]
-- feature: "Known bands only: the reader decides on its own list"
+  match:
+  - '^[a-z]+:(FW\-097) '
+- feature: 'Known bands only: the reader decides on its own list'
   since: 0.6.0
   docs: docs/reader.md#known-bands-only-mode-default-green-for-your-bands-red-for-others-decided-instantly
-  checks: [FW-158, FW-163]
-- feature: "Refused-tap lockout"
+  match:
+  - '^[a-z]+:(FW\-158|FW\-163) '
+- feature: Refused-tap lockout
   since: 0.10.26
   docs: CHANGELOG.md
-  checks: [FW-098, FW-153, FW-154, FW-162, FW-163, FW-167, FW-302, FW-315]
-- feature: "Ring colours keep their hue when dim (put_dimmed)"
+  match:
+  - '^[a-z]+:(FW\-098|FW\-153|FW\-154|FW\-162|FW\-163|FW\-167) '
+  manual:
+  - FW-302
+  - FW-315
+- feature: Ring colours keep their hue when dim (put_dimmed)
   since: 0.10.27
   docs: CHANGELOG.md
-  checks: [FW-100, FW-101, FW-102, FW-103, FW-104, FW-105, FW-106, FW-107, FW-170, FW-304]
-- feature: "Warm glow idle effect"
+  match:
+  - '^[a-z]+:(FW\-100|FW\-101|FW\-102|FW\-103|FW\-104|FW\-105|FW\-106|FW\-107|FW\-170) '
+  manual:
+  - FW-304
+- feature: Warm glow idle effect
   since: 0.10.11
   docs: CHANGELOG.md
-  checks: [FW-152, FW-304]
-- feature: "Idle circle (time, tail, fade, heads, direction)"
+  match:
+  - '^[a-z]+:(FW\-152) '
+  manual:
+  - FW-304
+- feature: Idle circle (time, tail, fade, heads, direction)
   since: 0.10.27
   docs: CHANGELOG.md
-  checks: [FW-150, FW-305]
-- feature: "Ring effects: Chase, Pulse (denied), Welcome, Spin, Breathe"
+  match:
+  - '^[a-z]+:(FW\-150) '
+  manual:
+  - FW-305
+- feature: 'Ring effects: Chase, Pulse (denied), Welcome, Spin, Breathe'
   since: 0.6.0
   docs: docs/reader.md
-  checks: [FW-151, FW-169, FW-316]
-- feature: "Light shows (shows.h, 28 shows, Startup show / Play show / play_show, 12 a minute from Home Assistant)"
+  match:
+  - '^[a-z]+:(FW\-151|FW\-169) '
+  manual:
+  - FW-316
+- feature: Light shows (shows.h, 28 shows, Startup show / Play show / play_show, 12 a minute from Home Assistant)
   since: 0.10.17
   docs: CHANGELOG.md
-  checks: [FW-110, FW-111, FW-112, FW-113, FW-114, FW-160, FW-176, FW-182, FW-306]
-- feature: "A show sent during a tap (celebration, Stamp) is queued behind the welcome, not dropped; play_show answers success: false when it refuses (BUG-013)"
+  match:
+  - '^[a-z]+:(FW\-110|FW\-111|FW\-112|FW\-113|FW\-114|FW\-160|FW\-176|FW\-182) '
+  manual:
+  - FW-306
+- feature: 'A show sent during a tap (celebration, Stamp) is queued behind the welcome, not dropped; play_show answers success: false when it refuses (BUG-013)'
   since: 0.10.33
   docs: docs/reader.md#using-it-with-home-assistant
-  checks: [FW-178, FW-176]
-- feature: "Light shows on the page's live ring match the firmware (page.html SHOWS copy)"
+  match:
+  - '^[a-z]+:(FW\-178|FW\-176) '
+- feature: Light shows on the page's live ring match the firmware (page.html SHOWS copy)
   since: 0.10.17
   docs: custom_components/magicband/frontend/page.html
-  checks: [FW-140, FW-141, FW-142, FW-143]
-- feature: "Night mode (fixed hours or sunset to sunrise)"
+  match:
+  - '^[a-z]+:(FW\-140|FW\-141|FW\-142|FW\-143) '
+- feature: Night mode (fixed hours or sunset to sunrise)
   since: 0.10.14
   docs: CHANGELOG.md
-  checks: [FW-156, FW-157, FW-171, FW-317]
-- feature: "Sound at night (Quieter)"
+  match:
+  - '^[a-z]+:(FW\-156|FW\-157|FW\-171) '
+  manual:
+  - FW-317
+- feature: Sound at night (Quieter)
   since: 0.10.26
   docs: CHANGELOG.md
-  checks: [FW-155, FW-164, FW-172, FW-173, FW-307, FW-313]
-- feature: "Bridge airtime budget and 60 s command limit"
+  match:
+  - '^[a-z]+:(FW\-155|FW\-164|FW\-172|FW\-173) '
+  manual:
+  - FW-307
+  - FW-313
+- feature: Bridge airtime budget and 60 s command limit
   since: 0.10.20
   docs: docs/security.md#who-can-change-whos-allowed-in
-  checks: [FW-165, FW-310]
-- feature: "Unknown-band flood guard (60 new a minute, 600 an hour, the same in every mode; a family enrolling, listed bands and retaps always sent)"
+  match:
+  - '^[a-z]+:(FW\-165) '
+  manual:
+  - FW-310
+- feature: Unknown-band flood guard (60 new a minute, 600 an hour, the same in every mode; a family enrolling, listed bands and retaps always sent)
   since: 0.10.33
   docs: docs/reader.md#notes
-  checks: [FW-175, FW-181, FW-320]
-- feature: "Bands that were ever on the reader's list (last 128) are never limited (BUG-020)"
+  match:
+  - '^[a-z]+:(FW\-175|FW\-181) '
+  manual:
+  - FW-320
+- feature: Bands that were ever on the reader's list (last 128) are never limited (BUG-020)
   since: 0.10.33
   docs: docs/reader.md#notes
-  checks: [FW-179, FW-183]
-- feature: "Welcome sounds: the reader's chime plays for a person with their own sound while Home Assistant is down"
+  match:
+  - '^[a-z]+:(FW\-179|FW\-183) '
+- feature: 'Welcome sounds: the reader''s chime plays for a person with their own sound while Home Assistant is down'
   since: 0.10.32
   docs: docs/reader.md#sounds
-  checks: [FW-168, FW-314]
-- feature: "Reader: the pairing key and the allowed list are written to flash within seconds of every change, so a power cut straight afterwards keeps them"
+  match:
+  - '^[a-z]+:(FW\-168) '
+  manual:
+  - FW-314
+- feature: 'Reader: the pairing key and the allowed list are written to flash within seconds of every change, so a power cut straight afterwards keeps them'
   since: 0.10.38
   docs: docs/security.md
-  checks: [FW-196, FW-321]
+  match:
+  - '^[a-z]+:(FW\-196) '
+  manual:
+  - FW-321

@@ -1,0 +1,24 @@
+# The project standard this repository follows (github.com/Legal-Copy7045/project-standards).
+standard: 1.1.0
+profile: public            # public | private (only CodeQL upload and nothing else differs)
+weekly_slot: "Sun 01:47"   # STANDARD.md 1.6 (CI 01:47, CodeQL 03:47 UTC)
+beyond:                    # more advanced than the baseline, kept on purpose
+  - concept: "2 Releases and deployment"
+    what: "Signed, attested release path in ci.yml: firmware signed in the release-signing environment (main only), build-provenance attestations, the web installer and the GitHub Release made from the same signed build, the commit checked to be on main before the key is touched"
+  - concept: "1.2 Change detection"
+    what: "Separate firmware, integration and lockfile groups in .github/changes.yaml, plus a toolchain and compile cache saved only from main"
+  - concept: "3 Regression"
+    what: "Own stage runners (ci, unit, device, page, live), page checks in Chromium, firmware host tests and compiles, a crawl-based walkthrough with UX checks, HTML reports, the ID registry check (IDS-0xx)"
+  - concept: "Privacy guard"
+    what: "The repository's own privacy_guard.py: every commit in the range, binary text runs and .zip members, NUL-safe parsing, terms never echoed; checked by the ci stage (CI-020..066)"
+exceptions:
+  - rule: "2.1 VERSION and CHANGELOG with every merge to main"
+    reason: "Every VERSION bump ships firmware to the family's devices, so merges that change only CI, docs or the regression suite don't bump it (this adoption included)"
+  - rule: "2 Releases through the standard's reusable release.yml"
+    reason: "The release needs the signing key in the release-signing environment and attestations of the signed files, so sign, deploy and release stay this repository's own jobs"
+  - rule: "1.5 Dependabot minor/patch merge themselves"
+    reason: "Updates to the hash-pinned signing tools (pip) and to the actions the signing job runs (checkout, setup-python, download/upload-artifact, attest-build-provenance, upload-pages-artifact) wait for the owner"
+  - rule: "3.2 Check IDs"
+    reason: "Existing IDs keep their prefixes and 3-digit numbers (INT for unit, FW for device); the manual stage keeps its FW-3xx and WALK-90x IDs; IDs are never renumbered"
+  - rule: "3.1 Stages"
+    reason: "quality (QUAL) is an extra stage: lint, static security scan, dependency audit, JavaScript syntax, the harness's own tests"

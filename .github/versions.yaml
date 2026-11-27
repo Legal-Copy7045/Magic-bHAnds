@@ -1,0 +1,6 @@
+# Every other place the version lives; check_versions.py checks each equals VERSION (STANDARD.md 2.1).
+- {file: custom_components/magicband/manifest.json, json: version}
+- {file: esphome/magicband-bridge.yaml, regex: '(?m)^\s*project_version:\s*"?([^"\s]+)"?'}
+- {file: esphome/magicband-reader.yaml, regex: '(?m)^\s*project_version:\s*"?([^"\s]+)"?'}
+- {file: esphome/screek-bp2-poe.yaml, regex: '(?m)^\s*project_version:\s*"?([^"\s]+)"?'}
+- {file: esphome/screek-bp2-poe-standalone.yaml, regex: '(?m)^\s*project_version:\s*"?([^"\s]+)"?'}
