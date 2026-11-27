@@ -30,7 +30,7 @@ PAGE-027: "Reader card order: title, twin, status line, controls, buttons, Healt
 PAGE-028: "Garage reader title tags: Online, Locked out, Not paired"
 PAGE-029: "Health summary while closed: \u201cWi-Fi weak \u00b7 up 50 min (after a power dip)\u201d"
 PAGE-030: "One page-level \u201cRing preview\u201d switch (LEDs / Diffused), none per card"
-PAGE-031: "Settings groups in order: Waiting, Night, Reading, Welcome, Denied, Refused-tap lockout, Shows, Hardware"
+PAGE-031: "Settings groups in order: Waiting, Night, Reading, Welcome, Denied, Refused-tap lockout, Shows, Hardware, Power"
 PAGE-032: "Setting labels use the page\u2019s words (Quieter volume, One lap takes, Tail fades to, Max brightness, Band light-up power\u2026) not the entity names"
 PAGE-033: "Circle rows (Heads, lap, tail, fade, direction) hidden while Style and Style at night are Static (Garage)"
 PAGE-034: "Circle rows appear once Style is set to Circle"
@@ -191,3 +191,4 @@ PAGE-188: "Household member: one note at the top says what they can and can\u201
 PAGE-189: "Household member: Recent taps, Lockdown, enrolment, Add someone, Celebrations and the passport are hidden, and Recent taps and Celebrations aren\u2019t in the jump menu"
 PAGE-190: "Household member: People and Bands controls are switched off with \u201cOnly a Home Assistant administrator can change this\u201d; reader settings stay usable; New bands and linking jobs are hidden"
 PAGE-191: "Household member: the page doesn\u2019t ask Home Assistant for the administrators-only lists and history (no Unauthorized errors)"
+PAGE-192: "Power group: Ring power budget box, the last full-power test, and Full-power test needs a second tap before it presses the button"

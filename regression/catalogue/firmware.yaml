@@ -204,4 +204,5 @@
   docs: docs/reader.md
   match:
   - '^[a-z]+:(FW\-230|FW\-231|FW\-232|FW\-233|FW\-234|FW\-235|FW\-236) '
+  - '^[a-z]+:(PAGE\-192) '
   manual: [MAN-001]

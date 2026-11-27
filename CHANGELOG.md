@@ -3,6 +3,17 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.41] - 2026-11-27
+
+### Added
+- **Power** on the MagicbHAnds page (a reader's Ring and tap settings):
+  Ring power budget, the last full-power test, and the Full-power test
+  button (a second tap starts it: up to 30 seconds of full white).
+
+### Fixed
+- The reader's **Full-power test** sensor (Diagnostic) says "Not run" from
+  start-up instead of "Unknown" until the first test.
+
 ## [0.10.40] - 2026-11-27
 
 ### Changed

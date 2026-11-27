@@ -55,7 +55,7 @@
   }
   const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
   // the firmware's newer entities: absent with oldFirmware
-  const NEWER = new Set(['Idle circle time', 'Idle circle tail', 'Idle tail fade', 'Idle circle heads', 'Idle circle direction', 'Idle style', 'Idle style at night',
+  const NEWER = new Set(['Ring power budget', 'Full-power test', 'Idle circle time', 'Idle circle tail', 'Idle tail fade', 'Idle circle heads', 'Idle circle direction', 'Idle style', 'Idle style at night',
     'Sound at night', 'Night volume', 'Refused-tap lockout', 'Lockout after', 'Lockout window', 'Lockout time', 'Tap lockout', 'Band light-up power',
     'Paired with MagicbHAnds', 'Automatic updates', 'Time zone', 'Night now', 'Loop time', 'Largest free block']);
   const AUTO = new Set(['Automatic updates', 'Time zone']);
@@ -87,7 +87,7 @@
     sel('Band light-up power', '-12 dBm', ['-24 dBm', '-21 dBm', '-18 dBm', '-15 dBm', '-12 dBm', '-9 dBm', '-6 dBm', '-3 dBm', '0 dBm']);
     sel('Time zone', O.readerTz, TZ);
     const num = (l, s, u, mn, mx, st) => E('number', l, s, { unit_of_measurement: u, min: mn, max: mx, step: st, mode: 'box' }, 'config');
-    num('LED count', opt.leds || 24, undefined, 1, 60, 1); num('LED brightness', 100, '%', 5, 100, 5); num('Idle glow', 30, '%', 0, 100, 5);
+    num('LED count', opt.leds || 24, undefined, 1, 60, 1); num('Ring power budget', 24, 'LEDs', 12, 35, 1); num('LED brightness', 100, '%', 5, 100, 5); num('Idle glow', 30, '%', 0, 100, 5);
     num('Idle circle time', opt.time || 3, 's', 0.5, 10, 0.5); num('Idle circle tail', opt.tail || 0, 'LEDs', 0, 60, 1); num('Idle tail fade', opt.fade != null ? opt.fade : 10, '%', 0, 100, 5); num('Idle circle heads', opt.heads || 1, undefined, 1, 4, 1);
     num('Idle glow at night', 10, '%', 0, 100, 5); num('Night volume', 30, '%', 5, 100, 5); num('Night from', 22, 'h', 0, 23, 1); num('Night until', 6, 'h', 0, 23, 1);
     num('Night starts after sunset', 0, 'min', -240, 240, 5); num('Night ends after sunrise', 30, 'min', -240, 240, 5);
@@ -101,6 +101,7 @@
     E('binary_sensor', 'Paired with MagicbHAnds', opt.paired ? 'on' : 'off', {}, 'diagnostic');
     ['Test welcome', 'Play show', 'Restart', 'Allow last band', 'Forget last band', 'Forget all bands'].forEach(b => E('button', b, 'unknown', {}, b === 'Restart' ? 'diagnostic' : null));
     E('sensor', 'Known bands', opt.known, {}, 'diagnostic');
+    E('button', 'Full-power test', 'unknown', {}, 'config'); E('sensor', 'Full-power test', 'Passed at 35 LEDs', {}, 'diagnostic');
     E('sensor', 'Wi-Fi signal', opt.wifi, { unit_of_measurement: 'dBm' }, 'diagnostic');
     E('sensor', 'CPU temperature', opt.cpu, { unit_of_measurement: '°C' }, 'diagnostic');
     E('sensor', 'Last restart', min(opt.upMin), { device_class: 'timestamp' }, 'diagnostic');

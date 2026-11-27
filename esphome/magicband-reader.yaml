@@ -23,7 +23,7 @@ substitutions:
   timezone: America/New_York
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.10.40"
+  project_version: "0.10.41"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -73,6 +73,8 @@ esphome:
                 id(ring_budget).make_call().set_value(keep).perform();
             - component.update: power_test_state
             - script.execute: save_now
+      # Publish the last full-power test's outcome ("Not run" until the first), not "Unknown".
+      - component.update: power_test_state
       # Everything is set up now, so the ring's settings can be applied.
       - globals.set: {id: ring_ready, value: "true"}
       - binary_sensor.template.publish:
