@@ -83,6 +83,9 @@ CHECKS = {
     "FW-181": ("Unknown-band tag scan limit", "UnknownTagLimit (flood guard): 60 new IDs a minute, 600 an hour, a family of 20 enrolling all pass, a reported ID tapped again passes, refused IDs aren't recorded, wrap-safe"),
     "FW-182": ("Light shows", "RateLimit: at most N events in any window, sliding"),
     "FW-183": ("Unknown-band tag scan limit", "ListedBands remembers the last 128 listed IDs (re-adding writes nothing, restorable bytes)"),
+    # ring_colour
+    "FW-228": ("Ring type (RGBW)", "RGBW ring: the light call from ring_on, through ESPHome's own LightColorValues, gives the LEDs exactly set_ring_colour's mix; Warm white on a warm-white ring lights only the white LED (the old call also lit full RGB white)"),
+    "FW-229": ("Ring type (RGBW)", "RGB ring: ring_on's colours are unchanged by ring_colour; NaN, out-of-range and black input handled"),
     # mocks
     "FW-170": ("Host test harness", "The host mocks still match ESPHome's real color.h / esp_color_correction.cpp formulas"),
 }
@@ -93,6 +96,7 @@ TESTS = {
     "test_lambdas": ["FW-150", "FW-151", "FW-152", "FW-153", "FW-154", "FW-155", "FW-156", "FW-157", "FW-158", "FW-159", "FW-161",
                      "FW-172", "FW-174", "FW-175", "FW-176", "FW-179"],
     "test_guards": ["FW-180", "FW-181", "FW-182", "FW-183"],
+    "test_ring_colour": ["FW-228", "FW-229"],
 }
 ZONE_IANA = {"Eastern (New York)": "America/New_York", "Central (Chicago)": "America/Chicago", "Mountain (Denver)": "America/Denver",
              "Arizona (Phoenix)": "America/Phoenix", "Pacific (Los Angeles)": "America/Los_Angeles", "Alaska (Anchorage)": "America/Anchorage",
@@ -371,6 +375,7 @@ def run() -> list[dict]:
     results += run_cpp("test_shows")
     results += run_cpp("test_reader_key")
     results += run_cpp("test_guards")
+    results += run_cpp("test_ring_colour")
     results += time_zone_checks()
     results += js_checks()
     # lambdas: from the resolved reader config written by config_checks (or resolve it now)
