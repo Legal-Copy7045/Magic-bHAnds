@@ -1,4 +1,4 @@
-# This project's regression profile (project standard 1.1.0, section 3.1). The global /regression, /walkthrough and
+# This project's regression profile (project standard 1.2.0, section 3.1). The global /regression, /walkthrough and
 # /full-check skills read this file; this project's specifics are here and in regression/README.md.
 name: MagicbHAnds
 type: firmware              # also a Home Assistant integration (HACS) with a sidebar page
