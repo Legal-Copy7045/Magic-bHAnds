@@ -33,7 +33,7 @@ or only an annoyance.
 
 ## CI and releases (this project's differences from the owner's defaults)
 
-- Standard 1.1.0 (`.github/standard.yaml`: what's `beyond:` and the `exceptions:`). One workflow, `ci.yml`;
+- Standard 1.2.0 (`.github/standard.yaml`: what's `beyond:` and the `exceptions:`). One workflow, `ci.yml`;
   `ci-result` is the required check. A push to `main` runs the private-terms check and, when `VERSION` has no tag
   yet, the release: build, sign (the key is only reachable from `main`), attest, installer site, GitHub Release.
 - `VERSION` changes only for a release (every bump ships firmware to the devices), so merges that change only

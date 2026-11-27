@@ -1,6 +1,6 @@
 # Full regression suite and walkthrough
 
-This project follows the owner's standard (project standard 1.1.0, section 3). The global skills run it and read
+This project follows the owner's standard (project standard 1.2.0, section 3). The global skills run it and read
 `profile.yaml` and this file:
 
 | Command | What it does |
@@ -9,7 +9,7 @@ This project follows the owner's standard (project standard 1.1.0, section 3). T
 | `/walkthrough` | Every screen on desktop and phone (the page as an administrator and a household member, the web installer, the integration's Home Assistant screens), automated UX checks, a desktop and a phone reviewer, a report, a `WALKTHROUGHS.md` line |
 | `/full-check` | Both, end to end (firmware compiles, full review, five reviewers at once), one summary |
 
-None of them fixes product code: findings go in the reports and the owner decides. An on-demand check, every few
+A run fixes no product code: it is an independent, read-only check, and findings go in the reports. Afterwards every finding with a clear fix goes into the next release without asking; the owner decides only when the fix is uncertain, weakens a security setting (judged by CLAUDE.md's home-scale posture), changes a legal or governance rule, or merges or removes pages (keep-separate items stay). Run summaries say which findings will be fixed and which need the owner (project standard 3.6). An on-demand check, every few
 releases or after a big feature set (CI already covers ordinary changes). **Every new feature adds to this suite**
 (CLAUDE.md): a catalogue entry in `catalogue/<area>.yaml` and, where it can be automated, a check in its stage.
 
