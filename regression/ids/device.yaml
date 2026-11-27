@@ -181,6 +181,6 @@ FW-230: "power_cap: the default budget 24 gives the old fixed cap (24/n, RGBW 18
 FW-231: "Budget setting NaN, infinite or out of range: the default or the nearest of 12-35, never over 35 LEDs' worth"
 FW-232: "Test steps 24..35, stopping at the first step that no longer scales the ring down; one step for a ring within the default; a bad index ends the test"
 FW-233: "A restart during a step keeps the step below it (20 if 24 failed)"
-FW-234: "Reader: each full-power test step is written to flash before the LEDs go up, the test clears it at the end, boot keeps the step below an interrupted one before the ring starts, and the ring is capped by power_cap with Ring power budget"
+FW-234: "Reader: each full-power test step is written to flash before the LEDs go up, the test clears it at the end, boot keeps the step below an interrupted one before the ring starts; the ring is capped for the colour shown (power_cap_for within Ring power budget), on every light change, keeping the bigger of the old and new colour through the fade; every show effect writes red, green and blue only"
 FW-235: "The cap follows the colour shown: 35 LEDs at budget 24 run red, green and RGBW warm white at 100 %, RGB white at 69 %, RGBW all on at 51 %, all within the budget"
-FW-236: "shown_elements: a light show is the worst case, one-colour effects go by their colour, off is 0, NaN is the worst case, out-of-range clamped"
+FW-236: "shown_elements: a light show counts as red, green and blue all on (also on RGBW rings: shows never light the white element), one-colour effects go by their colour, off is 0, NaN is the worst case, out-of-range clamped"

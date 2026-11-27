@@ -41,14 +41,15 @@ inline float power_cap_for(int n, float leds, float elements) {
 inline float power_cap(int n, bool rgbw, float leds) { return power_cap_for(n, leds, rgbw ? 4.0f : 3.0f); }
 
 // How many elements the ring's current colour lights at full (see power_cap_for). A light show
-// paints its own colours, so it counts as the worst case; so does anything that isn't finite.
+// paints its own colours with red, green and blue only (never an RGBW ring's white element), so
+// it counts as all three on; anything that isn't finite counts as the worst case.
 // Light is ESPHome's LightState (a template so the host tests can pass a stand-in).
 template<typename Light> float shown_elements(Light &ring, bool rgbw) {
   const float worst = rgbw ? 4.0f : 3.0f;
   auto v = ring.remote_values;
   if (!v.is_on()) return 0.0f;  // off: nothing lit (a fade out keeps the cap it had)
   const auto effect = ring.get_effect_name();
-  if (!effect.empty() && shows::index_of(effect.c_str()) >= 0) return worst;
+  if (!effect.empty() && shows::index_of(effect.c_str()) >= 0) return 3.0f;
   v.set_state(1.0f);
   v.set_brightness(1.0f);
   float r = 0, g = 0, b = 0, w = 0;
