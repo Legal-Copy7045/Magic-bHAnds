@@ -1,6 +1,6 @@
 # Hash-pinned install for the sign job in .github/workflows/ci.yml, which holds OTA_SIGNING_KEY.
 # Every package, including transitive dependencies, is pinned by version and hash (pip --require-hashes).
-# Regenerate (Python 3.13, Linux x86_64) with pip-tools from a one-line requirements-signing.in (esptool==5.4.0):
+# Regenerate (Python 3.13, Linux x86_64) with pip-tools from a one-line requirements-signing.in (esptool==5.7.0):
 #   pip-compile --generate-hashes --allow-unsafe --strip-extras --no-emit-index-url requirements-signing.in
 bitstring==5.0.0 \
     --hash=sha256:01d876b6e7bbd912bfa3ae1d028ed419ed2193245fe2337f21d30afaa391c053 \
