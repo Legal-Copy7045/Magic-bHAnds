@@ -72,3 +72,7 @@
   since: 0.10.38
   docs: .github/workflows/firmware.yml
   checks: [CI-062]
+- feature: "Economical CI: pull requests only (drafts skipped), main only when VERSION changes (a release), a weekly run, Run workflow; integration tests and firmware builds only for PRs that touch them; CodeQL weekly; Dependabot monthly, grouped"
+  since: 0.10.38
+  docs: README.md
+  checks: [CI-063, CI-064, CI-065]

@@ -62,3 +62,6 @@ CI-059: "The firmware builds in parallel (bridge, reader, BP2), keeps no secrets
 CI-060: "A pull request skips the firmware build only when it changes nothing the firmware is built from (esphome/, components/, VERSION, firmware.yml, the signing requirements and build scripts); pushes always build"
 CI-061: "fab/cpl.csv (JLCPCB) is fab/cpl-kicad.csv with only make_fab.py's JLC_ROTATION and JLC_OFFSET applied (J1 moved 1.3 mm into the board for JLCPCB's USB-C model); same parts, same layer"
 CI-062: "Runs on main are never cancelled (a merge landing mid-release waits for it); only a newer push to a pull request replaces its older build"
+CI-063: "Economical triggers: pull requests (opened, synchronize, reopened, ready_for_review) with drafts skipped, main only for a VERSION change, a weekly run, Run workflow; integration tests only for PRs that touch the integration, its tests or the harness"
+CI-064: "CodeQL runs weekly and on demand (codeql.yml), for actions, python, javascript-typescript and c-cpp, with pinned actions and security-events write only in its job"
+CI-065: "Dependabot: monthly, one grouped pull request per ecosystem (GitHub Actions, the pinned signing tools)"

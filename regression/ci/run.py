@@ -669,19 +669,17 @@ def privacy_checks(tmp: Path) -> None:
         assert "Tracked file" not in proc.stdout and "::Binary content" not in proc.stdout.replace(
             "an added binary file: binary content", ""), out_of(proc)
 
-    @check("CI-045", F_PG, "privacy.yml gives the guard the pushed range: full history checkout, BASE = the push's "
-           "before (or the PR base), HEAD = the pushed commit (or the PR head)")
+    @check("CI-045", F_PG, "privacy.yml runs on pull requests and Run workflow and gives the guard the pull request's "
+           "range: full history checkout, BASE = the PR base (none on Run workflow: the whole history), HEAD = the PR head")
     def _():
         pv, _ = _workflow("privacy.yml")
-        assert set(pv["on"]) >= {"push", "pull_request"}, pv["on"]
+        assert set(pv["on"]) == {"pull_request", "workflow_dispatch"}, pv["on"]
         steps = _steps(pv["jobs"]["privacy"])
         co = next(s for s in steps if str(s.get("uses", "")).startswith("actions/checkout@"))
         assert (co.get("with") or {}).get("fetch-depth") == 0, "the guard needs the full history (merge base, BASE)"
         env = next(s for s in steps if "privacy_guard.py" in (s.get("run") or "")).get("env") or {}
-        assert env.get("BASE") == ("${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha "
-                                   "|| github.event.before }}"), env.get("BASE")
-        assert env.get("HEAD") == ("${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha "
-                                   "|| github.sha }}"), env.get("HEAD")
+        assert env.get("BASE") == "${{ github.event.pull_request.base.sha }}", env.get("BASE")
+        assert env.get("HEAD") == "${{ github.event.pull_request.head.sha || github.sha }}", env.get("HEAD")
         assert env.get("PRIVACY_DENYLIST") == "${{ secrets.PRIVACY_DENYLIST }}", "denylist not from the secret"
 
     @check("CI-049", F_PG, "A control byte (\\x01) and non-UTF-8 bytes in an added line don't hide the rest of the "
@@ -954,7 +952,8 @@ def workflow_checks() -> None:
 
     @check("CI-032", F_WF, "Every action in firmware.yml and privacy.yml is pinned to a commit SHA (firmware.yml: with its tag as a comment)")
     def _():
-        bad = [u for doc in (fw, pv) for u in _uses(doc) if not SHA_PIN.match(u)]
+        cq, _cq_text = _workflow("codeql.yml")
+        bad = [u for doc in (fw, pv, cq) for u in _uses(doc) if not SHA_PIN.match(u)]
         assert not bad, f"not pinned: {bad}"
         uncommented = [line.strip() for line in fw_text.splitlines()
                        if "uses:" in line and re.search(r"@[0-9a-f]{40}\s*$", line)]
@@ -965,10 +964,10 @@ def workflow_checks() -> None:
     def _():
         sign = jobs["sign"]
         cond = sign.get("if", "")
-        assert "github.event_name != 'pull_request'" in cond, cond
+        assert "schedule" not in cond and "pull_request" not in cond, cond
         assert "github.ref == 'refs/heads/main'" in cond and "refs/tags" not in cond, cond
-        assert re.fullmatch(r"github\.event_name != 'pull_request' && github\.ref == 'refs/heads/main'",
-                            cond.strip()), f"unexpected condition: {cond}"
+        assert cond.strip() == ("(github.event_name == 'push' || github.event_name == 'workflow_dispatch') && "
+                                "github.ref == 'refs/heads/main'"), f"unexpected condition: {cond}"
         assert sign.get("needs") in ("build", ["build"]), sign.get("needs")
 
     @check("CI-034", F_WF, "The sign job uses the release-signing environment (which holds OTA_SIGNING_KEY)")
@@ -1121,7 +1120,7 @@ def workflow_checks() -> None:
         rel_needs = jobs["release"].get("needs")
         assert "sign" in ([rel_needs] if isinstance(rel_needs, str) else rel_needs), rel_needs
         header = re.sub(r"\s*\n#\s*", " ", fw_text.split("\non:", 1)[0])
-        for want in ("Releases come only from main", "Run workflow on main", "pushed v* tag only builds and tests",
+        for want in ("Releases come only from main", "Run workflow on main", "pushed v* tag starts nothing",
                      "release-signing", "allow main only"):
             assert want in header, f"workflow header doesn't say: {want}"
         readme = re.sub(r"\s+", " ", (REPO / "README.md").read_text())
@@ -1153,7 +1152,8 @@ def workflow_checks() -> None:
         targets = {(i["target"], i["dir"]) for i in build["strategy"]["matrix"]["include"]}
         assert targets == {("bridge", "magicband-bridge"), ("reader", "magicband-reader"), ("bp2", "screek-bp2-poe")}, targets
         saves = [s for s in _steps(build) if str(s.get("uses", "")).startswith("actions/cache/save@")]
-        assert len(saves) == 1 and saves[0].get("if") == "github.event_name == 'push' && github.ref == 'refs/heads/main'", saves
+        assert len(saves) == 1 and saves[0].get("if") == ("(github.event_name == 'push' || github.event_name == 'schedule') "
+                                                          "&& github.ref == 'refs/heads/main'"), saves
         for name in ("sign", "site-check"):
             dl = [s for s in _steps(jobs[name]) if "download-artifact" in str(s.get("uses"))]
             assert dl and (dl[0].get("with") or {}).get("pattern") == "builds-*" and dl[0]["with"].get("merge-multiple"), (name, dl)
@@ -1181,6 +1181,45 @@ def workflow_checks() -> None:
         conc = fw.get("concurrency") or {}
         assert str(conc.get("cancel-in-progress", "")).replace(" ", "") == "${{github.event_name=='pull_request'}}", conc
         assert "github.ref" in conc.get("group", "") and "github.event_name" in conc.get("group", ""), conc
+
+    @check("CI-063", F_WF, "Economical triggers: pull requests (opened, synchronize, reopened, ready_for_review) with "
+           "drafts skipped, main only for a VERSION change, a weekly run, Run workflow; integration tests only for "
+           "PRs that touch the integration, its tests or the harness")
+    def _():
+        on = fw["on"]
+        assert set(on) == {"pull_request", "push", "schedule", "workflow_dispatch"}, list(on)
+        assert on["pull_request"]["types"] == ["opened", "synchronize", "reopened", "ready_for_review"], on["pull_request"]
+        assert on["push"] == {"branches": ["main"], "paths": ["VERSION"]}, on["push"]
+        assert len(on["schedule"]) == 1, on["schedule"]
+        assert jobs["versions"].get("if") == "github.event_name != 'pull_request' || !github.event.pull_request.draft"
+        assert pv["jobs"]["privacy"].get("if") == "github.event_name != 'pull_request' || !github.event.pull_request.draft"
+        assert jobs["test-integration"].get("if") == "needs.versions.outputs.integration == 'true'"
+        run = next(s for s in _steps(jobs["versions"]) if s.get("id") == "changes")["run"]
+        rx = re.compile(re.findall(r"grep -qE '([^']+)'", run)[1])
+        for path in ("custom_components/magicband/readers.py", "tests/test_features.py", "regression/run.py", "VERSION"):
+            assert rx.search(path), f"{path} would skip the integration tests"
+        assert not rx.search("docs/security.md") and not rx.search("esphome/magicband-reader.yaml")
+
+    @check("CI-064", F_WF, "CodeQL runs weekly and on demand (codeql.yml), for actions, python, javascript-typescript and "
+           "c-cpp, with pinned actions and security-events write only in its job")
+    def _():
+        cq, cq_text = _workflow("codeql.yml")
+        assert set(cq["on"]) == {"schedule", "workflow_dispatch"}, cq["on"]
+        assert set(cq["jobs"]["analyze"]["strategy"]["matrix"]["language"]) == {"actions", "python", "javascript-typescript", "c-cpp"}
+        assert cq.get("permissions") == {"contents": "read"}, cq.get("permissions")
+        bad = [u for u in _uses(cq) if not SHA_PIN.match(u)]
+        assert not bad, f"not pinned: {bad}"
+        assert all(re.search(r"@[0-9a-f]{40} # v\d", line) for line in cq_text.splitlines() if "uses:" in line)
+
+    @check("CI-065", F_WF, "Dependabot: monthly, one grouped pull request per ecosystem (GitHub Actions, the pinned "
+           "signing tools)")
+    def _():
+        db = _yaml_load((REPO / ".github" / "dependabot.yml").read_text())
+        ups = {u["package-ecosystem"]: u for u in db["updates"]}
+        assert set(ups) == {"github-actions", "pip"}, set(ups)
+        for name, u in ups.items():
+            assert u["schedule"]["interval"] == "monthly", (name, u["schedule"])
+            assert len(u.get("groups") or {}) == 1 and list(u["groups"].values())[0]["patterns"] == ["*"], (name, u.get("groups"))
 
     @check("CI-055", F_WF, "The account that can push to main is what protects releases: README, docs/security.md "
            "(Signed updates and the accepted risk) and the sign job's comment in firmware.yml say it should use "
