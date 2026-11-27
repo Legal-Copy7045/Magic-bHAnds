@@ -23,7 +23,7 @@ substitutions:
   timezone: America/New_York
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.10.39"
+  project_version: "0.10.40"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -57,6 +57,22 @@ esphome:
   on_boot:
     priority: -100
     then:
+      # A "Full-power test" step was running when the reader restarted: its supply couldn't
+      # hold that step, so keep the budget one step lower (before ring_ready, so setting it
+      # doesn't redraw the ring yet).
+      - if:
+          condition:
+            lambda: 'return id(power_test_level) != 0;'
+          then:
+            - lambda: |-
+                const int level = id(power_test_level);
+                const int keep = magicband::power_budget_after_reset(level);
+                ESP_LOGW("reader", "Restarted during the full-power test at %d LEDs: ring power budget set to %d", level, keep);
+                id(power_test_result) = -level;
+                id(power_test_level) = 0;
+                id(ring_budget).make_call().set_value(keep).perform();
+            - component.update: power_test_state
+            - script.execute: save_now
       # Everything is set up now, so the ring's settings can be applied.
       - globals.set: {id: ring_ready, value: "true"}
       - binary_sensor.template.publish:
@@ -994,6 +1010,21 @@ globals:
   - id: ring_ready
     type: bool
     initial_value: "false"
+  # The "Full-power test" (components/magicband/power.h): the step being tried (LEDs of budget,
+  # 0 = no test), kept in flash so a reset during a step is noticed at the next boot, and the
+  # outcome shown by the "Full-power test" sensor (0 = not run, +n = passed with budget n,
+  # -n = the reader restarted at step n, -1000 - n = not needed for a ring of n LEDs).
+  - id: power_test_level
+    type: int
+    restore_value: true
+    initial_value: "0"
+  - id: power_test_result
+    type: int
+    restore_value: true
+    initial_value: "0"
+  - id: power_test_index
+    type: int
+    initial_value: "0"
   - id: pulse_count       # how many times the "Pulse" effect fades up and down
     type: int
     initial_value: "1"
@@ -1723,6 +1754,34 @@ number:
                     script.is_running: band_tapped
                 then:
                   - script.execute: reader_idle
+  # How much power the ring may draw, in LEDs at full RGB white (60 mA each): a
+  # ring with more LEDs is scaled down to it. "Full-power test" finds how far
+  # the supply goes; 24 (about 1.44 A) suits a 20 W charger.
+  - platform: template
+    id: ring_budget
+    name: "Ring power budget"
+    icon: mdi:flash-triangle-outline
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: 24
+    min_value: 12
+    max_value: 35
+    step: 1
+    unit_of_measurement: "LEDs"
+    mode: box
+    on_value:
+      - if:
+          condition:
+            lambda: 'return id(ring_ready) && id(power_test_level) == 0;'
+          then:
+            - script.execute: apply_ring_settings
+            - if:
+                condition:
+                  not:
+                    script.is_running: band_tapped
+                then:
+                  - script.execute: reader_idle
   # Scales everything the ring shows (spin, welcome, deny, idle glow, and the
   # Ring light in Home Assistant). On top of the automatic power cap.
   - platform: template
@@ -2038,6 +2097,20 @@ sensor:
       return n;
 
 text_sensor:
+  # The last "Full-power test" (see the power_test script).
+  - platform: template
+    id: power_test_state
+    name: "Full-power test"
+    icon: mdi:flash-alert-outline
+    entity_category: diagnostic
+    update_interval: never
+    lambda: |-
+      const int r = id(power_test_result), now = id(power_test_level);
+      if (now > 0) return {"Testing " + to_string(now) + " LEDs"};
+      if (r == 0) return {"Not run"};
+      if (r <= -1000) return {"Not needed for " + to_string(-1000 - r) + " LEDs"};
+      if (r < 0) return {"Restarted at " + to_string(-r) + " LEDs: budget " + to_string(magicband::power_budget_after_reset(-r))};
+      return {"Passed at " + to_string(r) + " LEDs"};
   # Sunset and sunrise from Home Assistant's sun, for "Night mode". Reading a
   # state needs no permission to perform actions.
   - platform: homeassistant
@@ -2136,8 +2209,9 @@ script:
                 rising: true
       - script.execute: update_night
   # Applies "LED count", "LED colour order" and "Ring type", and caps the
-  # output so the ring never draws more than about 1.44 A: 24 LEDs' worth of
-  # full RGB white (60 mA each), or 18 of an RGBW ring with everything on (80 mA).
+  # output so full white stays within "Ring power budget": by default 24 LEDs'
+  # worth of full RGB white (60 mA each, about 1.44 A), or 18 of an RGBW ring
+  # with everything on (80 mA).
   - id: apply_ring_settings
     then:
       - lambda: |-
@@ -2154,14 +2228,64 @@ script:
           for (int i = 0; i < ${ring_max_leds}; i++) (*out)[i] = Color::BLACK;
           out->write_state(id(ring));   // sends now (copied into the RMT buffer)
           out->set_num_leds(n);
-          const int budget = rgbw ? 18 : 24;
-          const float cap = n > budget ? static_cast<float>(budget) / n : 1.0f;
+          // "Ring power budget", or the step the full-power test is trying (components/magicband/power.h)
+          const bool testing = id(power_test_level) > 0;
+          const float cap = magicband::power_cap(n, rgbw, testing ? id(power_test_level) : id(ring_budget).state);
           float level = id(ring_brightness).state / 100.0f;
-          if (!(level >= 0.05f && level <= 1.0f)) level = 1.0f;
+          if (testing || !(level >= 0.05f && level <= 1.0f)) level = 1.0f;
           out->set_correction(cap * level, cap * level, cap * level, cap * level);
           ESP_LOGI("reader", "Ring: %d LEDs, %s%s, brightness %d%% (power cap %d%%)", n, rgb ? "RGB" : "GRB", rgbw ? "W" : "",
                    static_cast<int>(level * 100), static_cast<int>(cap * 100));
           out->schedule_show();
+
+  # "Full-power test": full white on every LED at each step of the budget
+  # (24 up to 35 LEDs' worth, components/magicband/power.h), 5 s each. Each
+  # step is written to flash first, so if the supply can't hold it and the
+  # reader restarts, the next boot keeps the step below (see on_boot). If
+  # every step holds, the budget is the last step.
+  - id: power_test
+    mode: single
+    then:
+      - globals.set: {id: power_test_index, value: "0"}
+      - while:
+          condition:
+            lambda: |-
+              const bool rgbw = id(ring_type).current_option() != "RGB";
+              return magicband::power_test_step(static_cast<int>(id(ring_count).state), rgbw, id(power_test_index)) != 0;
+          then:
+            - lambda: |-
+                const bool rgbw = id(ring_type).current_option() != "RGB";
+                id(power_test_level) = magicband::power_test_step(static_cast<int>(id(ring_count).state), rgbw, id(power_test_index));
+                ESP_LOGI("reader", "Full-power test: %d LEDs' worth", id(power_test_level));
+            - component.update: power_test_state
+            # Into flash before the LEDs go up (globals are saved on the next loop).
+            - delay: 200ms
+            - lambda: 'global_preferences->sync();'
+            - script.execute: apply_ring_settings
+            - lambda: 'id(rgb) = {1.0f, 1.0f, 1.0f, 1.0f};'
+            - script.execute:
+                id: ring_on
+                effect: "None"
+                level: 1.0
+            - delay: 5s
+            - lambda: 'id(power_test_index) += 1;'
+      - lambda: |-
+          const int last = id(power_test_level);
+          const int n = static_cast<int>(id(ring_count).state);
+          id(power_test_level) = 0;
+          const bool rgbw = id(ring_type).current_option() != "RGB";
+          if (magicband::power_cap(n, rgbw, magicband::POWER_BUDGET_DEFAULT) >= 1.0f) {
+            id(power_test_result) = -1000 - n;  // within the default budget already: nothing to raise
+          } else {
+            id(power_test_result) = last;
+            id(ring_budget).make_call().set_value(last).perform();
+            ESP_LOGI("reader", "Full-power test passed: ring power budget %d", last);
+          }
+      - component.update: power_test_state
+      - delay: 200ms
+      - lambda: 'global_preferences->sync();'
+      - script.execute: apply_ring_settings
+      - script.execute: reader_idle
 
   # Turns the ring on in id(rgb) (and its white LED on RGBW rings) with an effect.
   - id: ring_on
@@ -2661,6 +2785,14 @@ script:
           return static_cast<uint32_t>(id(pulse_count) * pt * 1000.0f * 4.0f / 3.0f) + 100;
 
 button:
+  # Steps the ring up to full white to find how much the supply can give it
+  # (see the power_test script and "Ring power budget").
+  - platform: template
+    name: "Full-power test"
+    icon: mdi:flash
+    entity_category: config
+    on_press:
+      - script.execute: power_test
   # Manage the reader's own list from its device page: tap a band, then press.
   # With the MagicBand integration, manage bands there instead: on a paired
   # reader these buttons do nothing (any Home Assistant user can press them).

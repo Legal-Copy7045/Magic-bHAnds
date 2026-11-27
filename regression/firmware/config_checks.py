@@ -465,9 +465,41 @@ def save_now_check(text: str) -> dict:
              "; ".join(bad) or f"{len(SAVE_SITES)} places")
 
 
+def power_test_check(text: str) -> dict:
+    """FW-234: each full-power test step reaches flash before the LEDs go up; a restart mid-step is handled at boot."""
+    bad = []
+    m = re.search(r"\n  - id: power_test\n(?P<body>(?:    +\S.*\n|\n)+?)(?=\n  # |\n  - id: )", text)
+    if not m:
+        bad.append("no power_test script")
+    else:
+        body = m.group("body")
+        step = body.find("id(power_test_level) = magicband::power_test_step")
+        sync = body.find("global_preferences->sync()", step)
+        apply = body.find("script.execute: apply_ring_settings", step)
+        ring = body.find("id: ring_on", step)
+        if not (0 <= step < sync < apply < ring):
+            bad.append("a step isn't written to flash (sync) before apply_ring_settings and ring_on")
+        if "mode: single" not in body:
+            bad.append("power_test isn't mode: single")
+        if "id(power_test_level) = 0;" not in body:
+            bad.append("the test doesn't clear its step at the end")
+    boot = text.split("on_boot:", 1)[1].split("\nesp32:", 1)[0] if "on_boot:" in text else ""
+    handled, ready = boot.find("magicband::power_budget_after_reset"), boot.find("id: ring_ready, value: \"true\"")
+    if not (0 <= handled < ready):
+        bad.append("on_boot doesn't handle an interrupted test before ring_ready")
+    apply_body = text.split("- id: apply_ring_settings", 1)[1][:2500] if "- id: apply_ring_settings" in text else ""
+    if "magicband::power_cap(" not in apply_body or "id(ring_budget).state" not in apply_body:
+        bad.append("apply_ring_settings doesn't cap by power_cap and Ring power budget")
+    return r("FW-234", "Full-power test", "Reader: each full-power test step is written to flash before the LEDs go up, the test "
+             "clears it at the end, boot keeps the step below an interrupted one before the ring starts, and the ring is "
+             "capped by power_cap with Ring power budget", not bad, "; ".join(bad) or "in order")
+
+
 def reader_checks(c: dict) -> list[dict]:
     out = []
-    out.append(save_now_check((prep.ESPHOME_DIR / "magicband-reader.yaml").read_text()))
+    text = (prep.ESPHOME_DIR / "magicband-reader.yaml").read_text()
+    out.append(save_now_check(text))
+    out.append(power_test_check(text))
     feat = "Band IDs not logged"
     # FW-095 no log line prints a band ID or key
     bad = []

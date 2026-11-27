@@ -115,6 +115,7 @@
   docs: docs/reader.md
   match:
   - '^[a-z]+:(PAGE\-155|FW\-228|FW\-229) '
+  manual: [MAN-002]
 - feature: Older firmware hides settings gracefully
   match:
   - '^[a-z]+:(PAGE\-146|PAGE\-147|PAGE\-148) '

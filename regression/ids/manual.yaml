@@ -25,3 +25,5 @@ FW-321: "FW-321 A pairing and a new allowed list survive a power cut a few secon
 WALK-901: "WALK-901 In the real Home Assistant, Configure reads well on a computer and on a phone"
 WALK-902: "WALK-902 The MagicbHAnds page works in the Home Assistant app on a phone, for an administrator and a household member"
 FW-311: "RETIRED (0.10.33): no setup hotspot in any build"
+MAN-001: "MAN-001 Full-power test on the real reader raises the ring power budget, or lowers it after a restart"
+MAN-002: "MAN-002 RGBW warm-white ring: Warm white lights only the white LEDs"

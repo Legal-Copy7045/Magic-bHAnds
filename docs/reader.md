@@ -153,9 +153,26 @@ it first connects.
 the reader's device page in Home Assistant, under **Configuration**, set:
 
 - **LED count** (1–100, default 24): the number of LEDs in your ring or
-  strip. Above 24 the reader caps their output at 24 ÷ count (35 LEDs: 68 %)
-  so full white stays within the 20 W supply. An RGBW ring draws more per
-  LED, so its cap is 18 ÷ count (35 LEDs: 51 %).
+  strip. Above the **Ring power budget** the reader caps their output so
+  full white stays within it: at the default of 24, 24 ÷ count (35 LEDs:
+  68 %). An RGBW ring draws more per LED (80 mA with everything on, against
+  60 mA), so it gets three quarters of the budget: 18 ÷ count at 24.
+- **Ring power budget** (12–35 LEDs, default 24): how much the ring may draw,
+  in LEDs at full white (60 mA each, the datasheet's worst case; 24 is about
+  1.44 A, sized for a 20 W charger with room for the ESP32 and the speaker).
+  Raise it with **Full-power test** rather than by hand.
+- **Full-power test** (button): lights every LED at full white at budgets of
+  24, 26, 28, 30, 32 and 35 LEDs, 5 seconds each, and stops once a step no
+  longer limits your ring. If the supply can't hold a step, the reader
+  restarts, and when it comes back it sets the budget to the step below
+  (20 if even 24 failed). If every step holds, the budget is the last step.
+  The **Full-power test** sensor (under Diagnostic) says what happened. It
+  catches a supply that sags or cuts out, not wires or a supply that get hot
+  while still holding 5 V, which is why the budget stops at 35 (about 2.1 A
+  for the ring, inside a 5 V 3 A supply). If you have a USB-C power meter,
+  watch it during the test: the reader's total should stay under 3 A. A
+  restart during the test for any other reason (unplugging it) also lowers
+  the budget; run the test again.
 - **LED colour order:** GRB for most NeoPixels and generic WS2812B rings; RGB
   for Adafruit's silicone neon-like strip (4310). If green shows as red,
   switch it.

@@ -199,3 +199,9 @@
   - '^[a-z]+:(FW\-196) '
   manual:
   - FW-321
+- feature: 'Reader: Ring power budget (12-35 LEDs, default 24) and the Full-power test that raises it, or keeps the step below one the supply couldn''t hold'
+  since: 0.10.40
+  docs: docs/reader.md
+  match:
+  - '^[a-z]+:(FW\-230|FW\-231|FW\-232|FW\-233|FW\-234) '
+  manual: [MAN-001]

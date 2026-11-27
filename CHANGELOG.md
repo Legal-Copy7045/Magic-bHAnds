@@ -3,6 +3,18 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.40] - 2026-11-27
+
+### Added
+- **Ring power budget** on the reader (12–35 LEDs' worth of full white,
+  default 24, the old fixed limit): a ring with more LEDs is scaled down to
+  it. A bigger ring (the guides' 35 LEDs) can now be brighter when the supply
+  allows it.
+- **Full-power test** button: lights the ring at full white at budgets from
+  24 up to 35 LEDs, 5 seconds each. If the supply can't hold a step, the
+  reader restarts and keeps the step below; if every step holds, the budget
+  becomes the last step. The **Full-power test** sensor shows the outcome.
+
 ## [0.10.39] - 2026-11-27
 
 ### Fixed
