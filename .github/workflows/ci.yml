@@ -71,11 +71,12 @@ jobs:
         with: {persist-credentials: false}
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with: {python-version: "3.13"}
+      - name: Install the pinned tools
+        run: pip install -q "ruff==0.17.6" "pytest==9.2.0" "pyyaml==6.0.4" "pillow==13.0.0"
       - name: Check versions match
         run: python3 .github/scripts/check_versions.py
       - name: Lint (correctness rules) and the regression harness's own tests
         run: |
-          pip install -q "ruff==0.17.6" "pytest==9.2.0" "pyyaml==6.0.4" "pillow==13.0.0"
           ruff check --isolated --select F,E9,PLE,B --ignore B905,B008,B904 --target-version py313 --exclude '**/.esphome/**' custom_components .github/scripts regression tests
           python -m pytest -q regression/tests
       - name: Dependency audit (requirements changed, or weekly)
