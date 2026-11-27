@@ -133,12 +133,14 @@ integration attached.
 To make a release: bump `VERSION` and the versions it lists (CI checks they
 match), add a `CHANGELOG.md` section, and merge to `main`. The run for that
 merge signs the firmware, tags `v<VERSION>` and publishes the GitHub Release
-by itself (a merge whose `VERSION` already has a release only publishes the
-update site). To retry a release that failed, go to **Actions → Build, test &
+and the update site by itself. To retry a release that failed, go to **Actions → Build, test &
 release → Run workflow**, tick **release**, and run it on `main`. Releases come
-only from `main`: pushing a `v*` tag yourself doesn't release (that run
-only builds and tests, and the `release-signing` environment gives its key to
-`main` only). Every push to `main` signs the firmware and publishes it to the update site,
+only from `main`: pushing a `v*` tag yourself doesn't release (it starts no
+run, and the `release-signing` environment gives its key to `main` only).
+To save GitHub Actions minutes, CI runs on pull requests (not drafts: mark a
+pull request ready once the local checks pass), on a merge that raises
+`VERSION`, once a week on `main`, and from Run workflow; other merges run
+nothing. Any push to `main` that changes `VERSION` signs the firmware and releases it,
 so the GitHub account that can push to `main` is what protects releases: give
 it two-factor authentication, and keep the `release-signing` environment
 limited to `main` (see [docs/security.md](docs/security.md#accepted-risks)).

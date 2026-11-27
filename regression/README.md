@@ -10,6 +10,11 @@ Three commands (project skills in `.claude/skills/`):
 
 None of them fixes product code: findings go in the reports and the owner decides.
 
+The owner's default stage names map onto this project's: **ci** (lint, security scan, audit) is `quality` here,
+plus `ci` for the release tooling; **unit** is `integration`; **page or device checks** are `page` and `firmware`
+(config, host tests, compiles); **live** is `live`; **manual** is `manual.yaml` (reported by `firmware` and
+`walkthrough`).
+
 Runner: `python3 regression/run.py` runs the regression stages; `--stage <name>`
 runs one (repeatable); `--with-walkthrough` adds the walkthrough; `--compile`
 compiles every firmware; `--serial` runs one stage at a time. Harness tests:

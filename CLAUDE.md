@@ -30,6 +30,14 @@ or only an annoyance.
   the update path, ask whether it stops a realistic attack on a home device. If not, don't add it, or ask the owner.
   Record accepted trade-offs in `docs/security.md` "Accepted risks".
 
+## CI and releases (this project's differences from the owner's defaults)
+
+- CI runs on pull requests (drafts skipped), weekly on `main`, and from Run workflow. `main` also runs for a
+  merge that raises `VERSION`, because that run signs the firmware and makes the release (the signing key is
+  only reachable from `main`). Other merges to `main` run nothing.
+- `VERSION` changes only for a release (every bump ships firmware to the devices), so merges that change only
+  CI, docs or the regression suite don't bump it.
+
 ## Regression suite
 
 `regression/` is the full regression suite, run on demand with the `/regression` skill

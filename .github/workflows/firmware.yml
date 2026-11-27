@@ -1,24 +1,31 @@
 name: Build, test & release
 
-# Pull requests build the firmware (skipped when a PR touches nothing the
-# firmware is built from) and run the integration tests. Every push to main
-# also signs the firmware and publishes the web installer, and releases: a
-# merge to main whose VERSION has no v<VERSION> release yet tags it and creates
-# the GitHub Release with the firmware and integration attached, from the same
-# signed build. Run workflow on main with "release" ticked does the same by
-# hand (for example to retry a release that failed). Releases come only from
-# main: a pushed v* tag only builds and tests, because the sign job runs only
-# for refs/heads/main, so release (which needs sign) is skipped, and a tag
-# can't reach the signing key anyway: the release-signing environment's
-# deployment branches allow main only (no tag rule), so GitHub refuses the key
-# to any other ref, even if a tagged commit edits this file.
+# GitHub Actions minutes are limited, so this runs only when it's needed:
+# - Pull requests (never drafts: mark a PR ready once local checks pass) build
+#   the firmware and run the integration tests, each only when the PR touches
+#   what it tests.
+# - A merge to main runs only when it raises VERSION: it builds, signs and
+#   publishes the web installer, and releases (tags v<VERSION> and creates the
+#   GitHub Release with the firmware and integration attached, from the same
+#   signed build). Other merges to main run nothing.
+# - Once a week, main gets a full build and test run (no signing or release).
+# - Run workflow on main does a full run, signs and publishes the web
+#   installer; with "release" ticked it also releases (to retry a release).
+# Releases come only from main: the sign job runs only for refs/heads/main, so
+# release (which needs sign) can't run anywhere else, and a pushed v* tag
+# starts nothing at all. A tag can't reach the signing key anyway: the
+# release-signing environment's deployment branches allow main only (no tag
+# rule), so GitHub refuses the key to any other ref, even if a tagged commit
+# edits this file.
 on:
-  push:
-    # Other branches are built through their pull request (one run, not two);
-    # only main signs, publishes the site and releases (see sign, deploy, release).
-    branches: [main]
-    tags: ["v*"]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    # Only a merge that raises VERSION (a release) runs on main.
+    branches: [main]
+    paths: [VERSION]
+  schedule:
+    - cron: "17 7 * * 1"   # weekly full run on main (Mondays, 07:17 UTC)
   workflow_dispatch:
     inputs:
       release:
@@ -45,11 +52,16 @@ env:
 
 jobs:
   versions:
+    # Draft pull requests run nothing (every other job needs this one).
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     runs-on: ubuntu-latest
     outputs:
       # "true" when a pull request changes something the firmware is built from
       # (always "true" outside pull requests): otherwise the build is skipped.
       firmware: ${{ steps.changes.outputs.firmware }}
+      # "true" when a pull request changes the integration, its tests or the regression harness
+      # (always "true" outside pull requests): otherwise the integration tests are skipped.
+      integration: ${{ steps.changes.outputs.integration }}
       # "true" on a push to main whose VERSION has no release tag yet: release.
       new_version: ${{ steps.release.outputs.new_version }}
     steps:
@@ -61,7 +73,7 @@ jobs:
         env:
           TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
         run: python3 .github/scripts/check_versions.py $TAG
-      - name: Does this pull request change the firmware?
+      - name: What does this pull request change?
         id: changes
         env:
           EVENT: ${{ github.event_name }}
@@ -69,13 +81,16 @@ jobs:
           HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
           fw=true
+          it=true
           if [ "$EVENT" = pull_request ]; then
             changed="$(git diff --name-only "$BASE...$HEAD")"
             echo "$changed"
             echo "$changed" | grep -qE '^(esphome/|components/|VERSION$|\.github/(workflows/firmware\.yml$|requirements|scripts/(signed_build|make_site|check_bp2_standalone|sign_firmware)\.py$))' || fw=false
+            echo "$changed" | grep -qE '^(custom_components/|tests/|regression/|pytest\.ini$|VERSION$|\.github/workflows/firmware\.yml$)' || it=false
           fi
           echo "firmware=$fw" >> "$GITHUB_OUTPUT"
-          echo "Build the firmware: $fw"
+          echo "integration=$it" >> "$GITHUB_OUTPUT"
+          echo "Build the firmware: $fw; run the integration tests: $it"
       - name: Is VERSION a new release?
         id: release
         env:
@@ -169,7 +184,7 @@ jobs:
         run: python3 ../.github/scripts/check_bp2_standalone.py
 
       - name: Save the build for the next one
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: (github.event_name == 'push' || github.event_name == 'schedule') && github.ref == 'refs/heads/main'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: esphome/.esphome/build/${{ matrix.dir }}
@@ -219,7 +234,8 @@ jobs:
   # two-factor authentication, and the environment stays limited to main
   # (see docs/security.md).
   sign:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    # A release (a push to main, which only VERSION changes start) or Run workflow; never the weekly run.
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     environment: release-signing
@@ -290,6 +306,7 @@ jobs:
   # Tests for the Home Assistant integration (custom_components/magicband).
   test-integration:
     needs: versions
+    if: needs.versions.outputs.integration == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

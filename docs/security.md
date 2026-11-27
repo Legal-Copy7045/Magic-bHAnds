@@ -238,7 +238,7 @@ is welcomed in, not whether it's let in.
   guards the key is the `release-signing` environment that holds it: its
   deployment branches allow only `main` (no tag rule), so GitHub refuses the
   key to a pushed tag or any other branch, even one whose commit edits the
-  workflow. A pushed `v*` tag only builds and tests; it isn't signed or
+  workflow. A pushed `v*` tag starts no run at all, so it isn't signed or
   released.
 - **Signed updates.** The official firmware (bridge, reader and BP2) only
   installs an update signed with the project's key, whether it comes from
@@ -500,6 +500,16 @@ wrong or its limits no longer hold.
   only starts after 2 minutes without Wi-Fi and stops once the device is
   back; set the right network again through the hotspot or over USB. Builds
   you make yourself don't have the hotspot.
+- **Code scanning runs weekly, not on every pull request.** To save GitHub
+  Actions minutes, CodeQL runs once a week and on demand
+  (`.github/workflows/codeql.yml`), and Dependabot proposes updates monthly.
+  A problem CodeQL would catch can sit on `main` for up to a week, and the
+  privacy guard now runs on pull requests only (and is run locally before every
+  push). *Why acceptable:* everything that reaches a device still has to be
+  signed from `main`, the release tooling's own checks run on every pull request
+  that touches it, and the regression suite's quality stage (static scan and
+  dependency audit) runs with every `/regression`. Run CodeQL by hand
+  (Actions, CodeQL, Run workflow) before a release you're unsure of.
 - **The privacy guard reports, it doesn't prevent.** It runs after a push, so
   a match is already public until the history is rewritten. It doesn't open
   compressed streams inside other binaries (PDF streams, compressed PNG text,
