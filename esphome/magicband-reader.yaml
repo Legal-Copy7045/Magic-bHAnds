@@ -23,7 +23,7 @@ substitutions:
   timezone: America/New_York
   name: magicband-reader
   friendly_name: MagicBand Reader
-  project_version: "0.10.38"
+  project_version: "0.10.39"
   firmware_manifest: https://legal-copy7045.github.io/Magic-bHAnds/reader/manifest.json
   # LED ring or strip. These are only the first-boot defaults: "LED count" and
   # "LED colour order" are settings on the reader's device page, so the web
@@ -2174,9 +2174,14 @@ script:
           auto call = id(ring).turn_on();
           call.set_effect(effect);
           call.set_brightness(level);
-          call.set_rgb(id(rgb)[0], id(rgb)[1], id(rgb)[2]);
+          // The colour's strength goes in "colour brightness" (see ring_colour): a white-LED-only
+          // colour, such as Warm white on a warm-white RGBW ring, lights only the white LED.
+          const auto &c = id(rgb);
+          const auto rc = magicband::ring_colour(c[0], c[1], c[2]);  // components/magicband/shows.h
+          call.set_rgb(rc.r, rc.g, rc.b);
+          call.set_color_brightness(rc.strength);
           if (id(ring).get_traits().supports_color_capability(light::ColorCapability::WHITE))
-            call.set_white(id(rgb)[3]);
+            call.set_white(c[3]);
           call.perform();
 
   # Looks up a colour name from the colour settings into id(rgb).

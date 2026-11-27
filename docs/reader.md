@@ -166,10 +166,13 @@ the reader's device page in Home Assistant, under **Configuration**, set:
   band; 0 turns the ring off between taps.
 - **Ring type** (default RGB): RGB for a normal WS2812B ring, or **RGBW
   warm white / neutral white / cool white** for an SK6812 RGBW ring (pick the
-  one matching its white LEDs). White and Warm white then use the white LED.
+  one matching its white LEDs). White and Warm white then use the white LED:
+  on a warm-white ring, Warm white is the white LED alone (no colour LEDs), and
+  White adds a little green and blue to cool it; on neutral and cool rings,
+  White is the white LED alone and Warm white adds red and orange.
   The reader restarts when you change it. Set **LED count** too (35, 32, ...).
-  The RGBW white mixes (how much colour is added to the white LED for White
-  and Warm white) are first guesses until they've been tried on real rings.
+  The white mixes for neutral and cool rings are first guesses until they've
+  been tried on real rings.
 - **Idle glow at night** (0–100 %, default 10 %) with **Night from** (default
   22) and **Night until** (default 6), whole hours in the reader's local time
   (from Home Assistant): the idle glow used at night. Set both hours the same

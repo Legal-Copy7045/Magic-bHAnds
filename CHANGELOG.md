@@ -3,6 +3,24 @@
 All notable changes to MagicbHAnds. The bridge firmware, reader firmware and
 Home Assistant integration share one version number.
 
+## [0.10.39] - 2026-11-27
+
+### Fixed
+- **RGBW rings light White and Warm white the way the Ring type says**:
+  Warm white on a warm-white ring now comes from the white LED alone. Before,
+  ESPHome turned the reader's "no colour" into full RGB white, so the colour
+  LEDs lit beside the white LED, and the small tints added to the white LED
+  (White on a warm-white ring, Warm white on neutral and cool rings) were
+  raised to full strength.
+
+### Changed
+- CI follows the owner's project standard 1.1.0: one workflow (`ci.yml`,
+  with `ci-result` the one required check), the privacy guard and secret
+  scan on every pull request, the private-terms check after every merge to
+  `main`, weekly CodeQL and Dependabot. Releases are made and signed as
+  before. Check attestations of this and later releases with
+  `--signer-workflow .../.github/workflows/ci.yml` (docs/security.md).
+
 ## [0.10.38] - 2026-11-26
 
 ### Fixed

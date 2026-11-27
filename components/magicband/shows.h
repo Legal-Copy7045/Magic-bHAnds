@@ -36,6 +36,23 @@ namespace magicband {
 // hands effects a white value, so test the LED itself, not c.w: going by c.w
 // sent RGB rings down the plain path, and a warm tail faded to one step of
 // each colour, a bluish white.)
+// The colour the ring light call gets for chosen colour (r, g, b) in 0-1: ESPHome scales a
+// colour so its largest channel is 100 % (and turns an all-zero colour into full white),
+// then multiplies it by "colour brightness". So the reader hands it the colour at full
+// strength plus the strength on its own: a colour made only by an RGBW ring's white LED
+// (Warm white on a warm-white ring) gets strength 0, not full RGB white beside the white
+// LED, and a small tint beside the white LED stays small instead of being raised to 100 %.
+struct RingColour {
+  float r, g, b, strength;
+};
+inline RingColour ring_colour(float r, float g, float b) {
+  auto ok = [](float v) { return std::isfinite(v) ? std::min(std::max(v, 0.0f), 1.0f) : 0.0f; };
+  r = ok(r), g = ok(g), b = ok(b);
+  const float top = std::max(r, std::max(g, b));
+  if (top <= 0.0f) return {1.0f, 1.0f, 1.0f, 0.0f};
+  return {r / top, g / top, b / top, top};
+}
+
 inline void put_dimmed(light::ESPColorView led, Color c, uint8_t level) {
   led = Color(0, 0, 0, 255);
   if (c.w != 0 && led.get_white_raw() != 0) {
