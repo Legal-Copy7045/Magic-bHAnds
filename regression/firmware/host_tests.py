@@ -86,6 +86,13 @@ CHECKS = {
     # ring_colour
     "FW-228": ("Ring type (RGBW)", "RGBW ring: the light call from ring_on, through ESPHome's own LightColorValues, gives the LEDs exactly set_ring_colour's mix; Warm white on a warm-white ring lights only the white LED (the old call also lit full RGB white)"),
     "FW-229": ("Ring type (RGBW)", "RGB ring: ring_on's colours are unchanged by ring_colour; NaN, out-of-range and black input handled"),
+    # power.h
+    "FW-230": ("Ring power budget", "power_cap: the default budget 24 gives the old fixed cap (24/n, RGBW 18/n) for 1-100 LEDs; every budget 12-35 keeps full white within it"),
+    "FW-231": ("Ring power budget", "Budget setting NaN, infinite or out of range: the default or the nearest of 12-35, never over 35 LEDs' worth"),
+    "FW-232": ("Full-power test", "Test steps 24..35, stopping at the first step that no longer scales the ring down; one step for a ring within the default; a bad index ends the test"),
+    "FW-233": ("Full-power test", "A restart during a step keeps the step below it (20 if 24 failed)"),
+    "FW-235": ("Ring power budget", "The cap follows the colour shown: 35 LEDs at budget 24 run red, green and RGBW warm white at 100 %, RGB white at 69 %, RGBW all on at 51 %, all within the budget"),
+    "FW-236": ("Ring power budget", "shown_elements: a light show is the worst case, one-colour effects go by their colour, off is 0, NaN is the worst case, out-of-range clamped"),
     # mocks
     "FW-170": ("Host test harness", "The host mocks still match ESPHome's real color.h / esp_color_correction.cpp formulas"),
 }
@@ -97,6 +104,7 @@ TESTS = {
                      "FW-172", "FW-174", "FW-175", "FW-176", "FW-179"],
     "test_guards": ["FW-180", "FW-181", "FW-182", "FW-183"],
     "test_ring_colour": ["FW-228", "FW-229"],
+    "test_power": ["FW-230", "FW-231", "FW-232", "FW-233", "FW-235", "FW-236"],
 }
 ZONE_IANA = {"Eastern (New York)": "America/New_York", "Central (Chicago)": "America/Chicago", "Mountain (Denver)": "America/Denver",
              "Arizona (Phoenix)": "America/Phoenix", "Pacific (Los Angeles)": "America/Los_Angeles", "Alaska (Anchorage)": "America/Anchorage",
@@ -376,6 +384,7 @@ def run() -> list[dict]:
     results += run_cpp("test_reader_key")
     results += run_cpp("test_guards")
     results += run_cpp("test_ring_colour")
+    results += run_cpp("test_power")
     results += time_zone_checks()
     results += js_checks()
     # lambdas: from the resolved reader config written by config_checks (or resolve it now)

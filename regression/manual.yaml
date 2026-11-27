@@ -220,3 +220,24 @@
     scroll sideways, each opens its section, toggles and buttons are easy to tap, fold-outs open and close, and no part
     of the page needs sideways scrolling. 2. Sign in as a household member (not an administrator) and open it again:
     note what they see and which actions say they need an administrator. Don't save changes for the check.
+- id: MAN-001
+  key: "MAN-001 Full-power test on the real reader raises the ring power budget, or lowers it after a restart"
+  stage: firmware
+  feature: Full-power test
+  check: Full-power test on the real reader raises the ring power budget, or lowers it after a restart
+  steps: >-
+    1. On the reader's device page note LED count and Ring power budget (24), and plug a USB-C power meter between the
+    charger and the reader if you have one. 2. Press Full-power test: the ring goes full white and brighter in steps
+    for up to 30 seconds, then back to the idle glow. The meter stays under 3 A. 3. The Full-power test sensor says
+    "Passed at 35 LEDs" (or the last step for your ring) and Ring power budget shows it; the ring is visibly brighter
+    at full white than before. 4. Press it again and unplug the reader during the test; plug it back in: the sensor
+    says "Restarted at N LEDs: budget M" and Ring power budget is M. Run the test once more to restore it.
+- id: MAN-002
+  key: "MAN-002 RGBW warm-white ring: Warm white lights only the white LEDs"
+  stage: firmware
+  feature: RGBW rings
+  check: "RGBW warm-white ring: Warm white lights only the white LEDs"
+  steps: >-
+    1. Ring type "RGBW warm white", Idle colour Warm white, Idle glow 30 %. 2. Look at the LEDs closely (or through a
+    phone camera): only the white element of each LED is lit, none of the red, green or blue ones. 3. Set Idle colour
+    White: the white element plus a faint blue-green tint. 4. Test welcome in Warm white: the same, at full strength.

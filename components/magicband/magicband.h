@@ -7,6 +7,7 @@
 #include "reader_key.h"
 #include "guards.h"
 #include "time_zone.h"
+#include "power.h"
 
 #ifdef USE_ESP32
 

@@ -465,9 +465,53 @@ def save_now_check(text: str) -> dict:
              "; ".join(bad) or f"{len(SAVE_SITES)} places")
 
 
+def power_test_check(text: str) -> dict:
+    """FW-234: each full-power test step reaches flash before the LEDs go up; a restart mid-step is handled at boot."""
+    bad = []
+    m = re.search(r"\n  - id: power_test\n(?P<body>(?:    +\S.*\n|\n)+?)(?=\n  # |\n  - id: )", text)
+    if not m:
+        bad.append("no power_test script")
+    else:
+        body = m.group("body")
+        step = body.find("id(power_test_level) = magicband::power_test_step")
+        sync = body.find("global_preferences->sync()", step)
+        apply = body.find("script.execute: apply_ring_settings", step)
+        ring = body.find("id: ring_on", step)
+        if not (0 <= step < sync < apply < ring):
+            bad.append("a step isn't written to flash (sync) before apply_ring_settings and ring_on")
+        if "mode: single" not in body:
+            bad.append("power_test isn't mode: single")
+        if "id(power_test_level) = 0;" not in body:
+            bad.append("the test doesn't clear its step at the end")
+    boot = text.split("on_boot:", 1)[1].split("\nesp32:", 1)[0] if "on_boot:" in text else ""
+    handled, ready = boot.find("magicband::power_budget_after_reset"), boot.find("id: ring_ready, value: \"true\"")
+    if not (0 <= handled < ready):
+        bad.append("on_boot doesn't handle an interrupted test before ring_ready")
+    apply_body = text.split("- id: ring_cap_apply", 1)[1][:1500] if "- id: ring_cap_apply" in text else ""
+    if "magicband::power_cap_for(" not in apply_body or "id(ring_budget).state" not in apply_body:
+        bad.append("ring_cap_apply doesn't cap by power_cap_for and Ring power budget")
+    upd = text.split("- id: ring_cap_update", 1)[1][:1200] if "- id: ring_cap_update" in text else ""
+    raise_now = upd.find("std::max(id(ring_cap_elements), now)")
+    wait, settle = upd.find("delay: 400ms"), upd.rfind("id(ring_cap_elements) = magicband::shown_elements")
+    if "mode: restart" not in upd or not (0 <= raise_now < wait < settle):
+        bad.append("ring_cap_update doesn't keep the bigger of the old and new colour through the fade (mode restart, max, 400 ms, then the new)")
+    light = text.split("id: ring\n", 1)[1][:1500] if "id: ring\n" in text else ""
+    if "on_state:" not in light or "script.execute: ring_cap_update" not in light:
+        bad.append("the ring light doesn't run ring_cap_update on every state change")
+    lit = text.split("- id: apply_ring_settings", 1)[1][:3000] if "- id: apply_ring_settings" in text else ""
+    if "script.execute: ring_cap_apply" not in lit:
+        bad.append("apply_ring_settings doesn't apply the cap")
+    return r("FW-234", "Full-power test", "Reader: each full-power test step is written to flash before the LEDs go up, the test "
+             "clears it at the end, boot keeps the step below an interrupted one before the ring starts; the ring is capped "
+             "for the colour shown (power_cap_for within Ring power budget), on every light change, keeping the bigger of the "
+             "old and new colour through the fade", not bad, "; ".join(bad) or "in order")
+
+
 def reader_checks(c: dict) -> list[dict]:
     out = []
-    out.append(save_now_check((prep.ESPHOME_DIR / "magicband-reader.yaml").read_text()))
+    text = (prep.ESPHOME_DIR / "magicband-reader.yaml").read_text()
+    out.append(save_now_check(text))
+    out.append(power_test_check(text))
     feat = "Band IDs not logged"
     # FW-095 no log line prints a band ID or key
     bad = []
